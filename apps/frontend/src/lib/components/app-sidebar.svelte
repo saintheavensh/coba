@@ -35,6 +35,11 @@
       icon: ChartBar, // Use Chart for Sales? Or reversed? Reference image has Graph for Sales.
     },
     {
+      title: "Service",
+      href: "/service",
+      icon: Settings, // TODO: use Wrench icon when available
+    },
+    {
       title: "Reports",
       href: "/reports",
       icon: Boxes, // Placeholder
