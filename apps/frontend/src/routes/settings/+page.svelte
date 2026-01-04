@@ -18,7 +18,31 @@
     } from "$lib/components/ui/tabs";
     import { Separator } from "$lib/components/ui/separator";
     import { toast } from "$lib/components/ui/sonner";
-    import { Store, User, Shield } from "lucide-svelte";
+    import { Store, User, Shield, Users, Plus, Trash2 } from "lucide-svelte";
+    import {
+        Table,
+        TableBody,
+        TableCell,
+        TableHead,
+        TableHeader,
+        TableRow,
+    } from "$lib/components/ui/table";
+    import {
+        Dialog,
+        DialogContent,
+        DialogDescription,
+        DialogFooter,
+        DialogHeader,
+        DialogTitle,
+        DialogTrigger,
+    } from "$lib/components/ui/dialog";
+    import {
+        Select,
+        SelectContent,
+        SelectItem,
+        SelectTrigger,
+    } from "$lib/components/ui/select";
+    import { Badge } from "$lib/components/ui/badge";
 
     // Mock Data
     let storeName = "Jaya Abadi Cell";
@@ -34,6 +58,55 @@
 
     function handleSaveAccount() {
         toast.success("Profil akun berhasil diperbarui.");
+    }
+
+    // Employee Management Logic
+    let employees = [
+        {
+            id: 1,
+            name: "Budi Santoso",
+            username: "budi",
+            role: "Kasir",
+            status: "Aktif",
+        },
+        {
+            id: 2,
+            name: "Siti Aminah",
+            username: "siti",
+            role: "Staf Gudang",
+            status: "Aktif",
+        },
+        {
+            id: 3,
+            name: "Admin Toko",
+            username: "admin",
+            role: "Administrator",
+            status: "Aktif",
+        },
+    ];
+
+    let showAddEmployee = false;
+    let newEmployee = { name: "", username: "", password: "", role: "Kasir" };
+
+    function handleAddEmployee() {
+        employees = [
+            ...employees,
+            {
+                id: Date.now(),
+                name: newEmployee.name,
+                username: newEmployee.username,
+                role: newEmployee.role,
+                status: "Aktif",
+            },
+        ];
+        showAddEmployee = false;
+        newEmployee = { name: "", username: "", password: "", role: "Kasir" };
+        toast.success("Karyawan baru berhasil ditambahkan.");
+    }
+
+    function handleDeleteEmployee(id: number) {
+        employees = employees.filter((e) => e.id !== id);
+        toast.success("Karyawan dihapus.");
     }
 </script>
 
@@ -53,6 +126,9 @@
             >
             <TabsTrigger value="account" class="flex gap-2"
                 ><User class="h-4 w-4" /> Akun</TabsTrigger
+            >
+            <TabsTrigger value="employees" class="flex gap-2"
+                ><Users class="h-4 w-4" /> Karyawan</TabsTrigger
             >
         </TabsList>
 
@@ -131,6 +207,132 @@
                 <CardFooter>
                     <Button onclick={handleSaveAccount}>Update Profil</Button>
                 </CardFooter>
+            </Card>
+        </TabsContent>
+
+        <!-- Tab: Karyawan -->
+        <TabsContent value="employees">
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>Daftar Karyawan</CardTitle>
+                        <CardDescription>
+                            Kelola akses pengguna aplikasi (Administrator,
+                            Kasir, Staf).
+                        </CardDescription>
+                    </div>
+                    <Dialog bind:open={showAddEmployee}>
+                        <DialogTrigger>
+                            <Button size="sm"
+                                ><Plus class="mr-2 h-4 w-4" /> Tambah Karyawan</Button
+                            >
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Tambah Karyawan Baru</DialogTitle>
+                                <DialogDescription
+                                    >Buat akun login baru untuk staf Anda.</DialogDescription
+                                >
+                            </DialogHeader>
+                            <div class="grid gap-4 py-4">
+                                <div class="space-y-1">
+                                    <Label>Nama Lengkap</Label>
+                                    <Input
+                                        bind:value={newEmployee.name}
+                                        placeholder="Contoh: Budi Santoso"
+                                    />
+                                </div>
+                                <div class="space-y-1">
+                                    <Label>Username</Label>
+                                    <Input
+                                        bind:value={newEmployee.username}
+                                        placeholder="Username untuk login"
+                                    />
+                                </div>
+                                <div class="space-y-1">
+                                    <Label>Password</Label>
+                                    <Input
+                                        type="password"
+                                        bind:value={newEmployee.password}
+                                    />
+                                </div>
+                                <div class="space-y-1">
+                                    <Label>Role / Jabatan</Label>
+                                    <Select
+                                        type="single"
+                                        name="role"
+                                        bind:value={newEmployee.role}
+                                    >
+                                        <SelectTrigger>
+                                            {newEmployee.role || "Pilih Role"}
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Administrator"
+                                                >Administrator (Full Akses)</SelectItem
+                                            >
+                                            <SelectItem value="Kasir"
+                                                >Kasir (Penjualan saja)</SelectItem
+                                            >
+                                            <SelectItem value="Staf Gudang"
+                                                >Staf Gudang (Stok saja)</SelectItem
+                                            >
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button onclick={handleAddEmployee}
+                                    >Simpan Akun</Button
+                                >
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Nama</TableHead>
+                                <TableHead>Username</TableHead>
+                                <TableHead>Role</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead class="text-right">Aksi</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {#each employees as emp}
+                                <TableRow>
+                                    <TableCell class="font-medium"
+                                        >{emp.name}</TableCell
+                                    >
+                                    <TableCell>{emp.username}</TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline"
+                                            >{emp.role}</Badge
+                                        >
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge
+                                            class="bg-green-100 text-green-700 hover:bg-green-100 border-none"
+                                            >{emp.status}</Badge
+                                        >
+                                    </TableCell>
+                                    <TableCell class="text-right">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            class="h-8 w-8 text-red-500"
+                                            onclick={() =>
+                                                handleDeleteEmployee(emp.id)}
+                                        >
+                                            <Trash2 class="h-4 w-4" />
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            {/each}
+                        </TableBody>
+                    </Table>
+                </CardContent>
             </Card>
         </TabsContent>
     </Tabs>
