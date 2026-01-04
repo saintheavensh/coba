@@ -39,16 +39,16 @@
     let complaint = "";
     let technician = "";
     let estimatedCost = "";
+    let pinPattern = "";
 
-    // Validation
+    // Validation - phone optional for walk-in, IMEI always optional
     $: step1Valid =
         customerName.trim() !== "" &&
-        customerPhone.trim() !== "" &&
+        (isWalkin || customerPhone.trim() !== "") &&
         phoneBrand.trim() !== "" &&
-        phoneModel.trim() !== "" &&
-        imei.trim() !== "";
+        phoneModel.trim() !== "";
 
-    $: step2Valid = complaint.trim().length > 0;
+    $: step2Valid = complaint && complaint.trim().length > 0;
 
     function nextStep() {
         if (currentStep === 1 && !step1Valid) {
@@ -81,6 +81,7 @@
         imei = "";
         complaint = "";
         technician = "";
+        pinPattern = "";
         estimatedCost = "";
 
         // Navigate to list
@@ -174,9 +175,9 @@
                         </div>
                         <div class="space-y-2">
                             <Label for="phone"
-                                >No. Telepon / WA <span class="text-red-500"
-                                    >*</span
-                                ></Label
+                                >No. Telepon / WA {#if !isWalkin}<span
+                                        class="text-red-500">*</span
+                                    >{/if}</Label
                             >
                             <Input
                                 id="phone"
@@ -184,6 +185,11 @@
                                 bind:value={customerPhone}
                                 placeholder="0812-3456-7890"
                             />
+                            {#if isWalkin}
+                                <p class="text-xs text-muted-foreground">
+                                    Opsional untuk walk-in customer
+                                </p>
+                            {/if}
                         </div>
                         <div class="space-y-2">
                             <Label for="address">Alamat</Label>
@@ -230,17 +236,27 @@
                             />
                         </div>
                         <div class="space-y-2">
-                            <Label for="imei"
-                                >IMEI (15 digit) <span class="text-red-500"
-                                    >*</span
-                                ></Label
-                            >
+                            <Label for="imei">IMEI (15 digit)</Label>
                             <Input
                                 id="imei"
                                 bind:value={imei}
-                                placeholder="354217123456789"
+                                placeholder="354217123456789 (kosongkan jika HP mati total)"
                                 maxlength={15}
                             />
+                            <p class="text-xs text-muted-foreground">
+                                Opsional - Kosongkan jika HP mati total
+                            </p>
+                        </div>
+                        <div class="space-y-2">
+                            <Label for="pinPattern">PIN / Pola Unlock</Label>
+                            <Input
+                                id="pinPattern"
+                                bind:value={pinPattern}
+                                placeholder="Contoh: 1234 atau Pola L"
+                            />
+                            <p class="text-xs text-muted-foreground">
+                                Opsional - Untuk unlock HP saat service
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -273,7 +289,7 @@
                         maxlength={500}
                     />
                     <p class="text-xs text-muted-foreground text-right">
-                        {complaint.length} / 500
+                        {complaint?.length || 0} / 500
                     </p>
                 </div>
 
