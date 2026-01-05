@@ -10,6 +10,10 @@ const inventory = new Hono();
 // GET / - List all products
 inventory.get("/", async (c) => {
     const allProducts = await db.query.products.findMany({
+        with: {
+            category: true,
+            batches: true
+        },
         orderBy: [eq(products.name, products.name)] // dummy order or just default
         // Better: orderBy: (products, { asc }) => [asc(products.name)] if importing asc
         // For now just return all
@@ -24,12 +28,9 @@ inventory.post("/", zValidator("json", productSchema), async (c) => {
 
     await db.insert(products).values({
         id,
+        code: data.code,
         name: data.name,
-        // barcode: data.barcode, // Removed from schema in Step 2220 shared refactor? 
-        // Wait, shared `productSchema` (Step 2219) only has `name` and `minStock`.
-        // Old local schema had `barcode`, `category`.
-        // If I want barcode/category I need to update shared schema!
-        // For now I will stick to what is in shared schema to avoid errors.
+        categoryId: data.categoryId,
         minStock: data.minStock,
         stock: 0 // Initial stock 0
     });
@@ -42,6 +43,10 @@ inventory.get("/:id", async (c) => {
     const id = c.req.param("id");
     const product = await db.query.products.findFirst({
         where: eq(products.id, id),
+        with: {
+            category: true,
+            batches: true
+        }
     });
 
     if (!product) return c.json({ message: "Not found" }, 404);
@@ -63,6 +68,8 @@ inventory.put("/:id", zValidator("json", productSchema), async (c) => {
     await db.update(products)
         .set({
             name: data.name,
+            code: data.code,
+            categoryId: data.categoryId,
             minStock: data.minStock
         })
         .where(eq(products.id, id));
@@ -103,6 +110,7 @@ inventory.post("/batch", zValidator("json", batchSchema), async (c) => {
         await tx.insert(productBatches).values({
             id: batchId,
             productId: data.productId,
+            brand: data.brand,
             supplier: data.supplier,
             buyPrice: data.buyPrice,
             sellPrice: data.sellPrice,

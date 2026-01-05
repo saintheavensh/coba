@@ -16,14 +16,24 @@ export type LoginResponse = {
 };
 
 // --- Inventory Schemas ---
+// --- Inventory Schemas ---
+export const categorySchema = z.object({
+    name: z.string().min(1),
+    description: z.string().optional()
+});
+export type CreateCategoryRequest = z.infer<typeof categorySchema>;
+
 export const productSchema = z.object({
     name: z.string().min(1),
+    code: z.string().optional(), // Universal Code
+    categoryId: z.string().optional(), // Link to category
     minStock: z.number().default(5)
 });
 export type CreateProductRequest = z.infer<typeof productSchema>;
 
 export const batchSchema = z.object({
     productId: z.string(),
+    brand: z.string().optional(), // Brand/Merk for this batch
     supplier: z.string().optional(),
     buyPrice: z.number(),
     sellPrice: z.number(),
@@ -33,13 +43,15 @@ export type AddBatchRequest = z.infer<typeof batchSchema>;
 
 export type Product = {
     id: string;
+    code?: string | null;
     name: string;
+    categoryId: string | null;
     stock: number;
     minStock: number | null;
     createdAt: Date | null;
     // Computed/Frontend props
     status?: "Normal" | "Critical" | "Empty";
-    category?: string;
+    categoryName?: string; // Joined name
     min?: number; // legacy alias
 };
 
@@ -98,6 +110,12 @@ export const updateStatusSchema = z.object({
 export type UpdateStatusRequest = z.infer<typeof updateStatusSchema>;
 
 // Shared Types
+export type Category = {
+    id: string;
+    name: string;
+    description: string | null;
+};
+
 export type User = {
     id: string;
     username: string;

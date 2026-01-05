@@ -11,10 +11,20 @@ export const users = sqliteTable("users", {
     createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
 });
 
+// Categories
+export const categories = sqliteTable("categories", {
+    id: text("id").primaryKey(), // UUID
+    name: text("name").notNull(),
+    description: text("description"),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+});
+
 // Products (Inventory)
 export const products = sqliteTable("products", {
     id: text("id").primaryKey(), // PRD-XXX
+    code: text("code").unique(), // Universal Code (SKU)
     name: text("name").notNull(),
+    categoryId: text("category_id").references(() => categories.id),
     stock: integer("stock").notNull().default(0),
     minStock: integer("min_stock").default(5),
     createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
@@ -24,6 +34,7 @@ export const products = sqliteTable("products", {
 export const productBatches = sqliteTable("product_batches", {
     id: text("id").primaryKey(), // B-XXX
     productId: text("product_id").notNull().references(() => products.id),
+    brand: text("brand"), // Brand/Merk for this batch
     supplier: text("supplier"),
     buyPrice: integer("buy_price").notNull(),
     sellPrice: integer("sell_price").notNull(),
@@ -72,7 +83,15 @@ export const settings = sqliteTable("settings", {
 });
 
 // Relations
-export const productsRelations = relations(products, ({ many }) => ({
+export const categoriesRelations = relations(categories, ({ many }) => ({
+    products: many(products),
+}));
+
+export const productsRelations = relations(products, ({ one, many }) => ({
+    category: one(categories, {
+        fields: [products.categoryId],
+        references: [categories.id],
+    }),
     batches: many(productBatches),
 }));
 

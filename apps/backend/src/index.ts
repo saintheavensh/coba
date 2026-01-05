@@ -9,6 +9,8 @@ import auth from "./routes/auth";
 import inventory from "./routes/inventory";
 import service from "./routes/service";
 
+import categories from "./routes/categories";
+
 const app = new Hono();
 
 app.use("*", cors());
@@ -16,6 +18,7 @@ app.use("*", logger());
 
 app.route("/auth", auth);
 app.route("/inventory", inventory);
+app.route("/categories", categories);
 app.route("/service", service);
 
 app.get("/", (c) => {
