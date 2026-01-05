@@ -26,8 +26,10 @@
     import { Search, Eye, Plus } from "lucide-svelte";
     import { goto } from "$app/navigation";
 
+    import ReassignTechnicianModal from "./reassign-technician-modal.svelte";
+
     // Mock data service orders
-    const serviceOrders = [
+    let serviceOrders = [
         {
             id: 1,
             no: "SRV-2026-001",
@@ -69,6 +71,24 @@
     let searchQuery = "";
     let filterStatus = "all";
     let filterTechnician = "all";
+
+    // Modal State
+    let showReassignModal = false;
+    let selectedServiceForReassign: any = null;
+
+    function openReassignModal(order: any) {
+        selectedServiceForReassign = order;
+        showReassignModal = true;
+    }
+
+    function handleReassignConfirm(updatedData: any) {
+        // Update local mock data
+        serviceOrders = serviceOrders.map((order) =>
+            order.id === updatedData.id
+                ? { ...order, technician: updatedData.technician }
+                : order,
+        );
+    }
 
     function getStatusBadge(status: string) {
         switch (status) {
@@ -193,15 +213,24 @@
                                 </div>
                             </TableCell>
                             <TableCell>
-                                {#if order.technician}
-                                    <Badge variant="outline"
-                                        >{order.technician}</Badge
+                                <div class="flex items-center gap-2">
+                                    {#if order.technician}
+                                        <Badge variant="outline"
+                                            >{order.technician}</Badge
+                                        >
+                                    {:else}
+                                        <span
+                                            class="text-sm text-muted-foreground"
+                                            >Belum assign</span
+                                        >
+                                    {/if}
+                                    <button
+                                        class="text-xs text-blue-600 hover:underline"
+                                        onclick={() => openReassignModal(order)}
                                     >
-                                {:else}
-                                    <span class="text-sm text-muted-foreground"
-                                        >Belum assign</span
-                                    >
-                                {/if}
+                                        (Edit)
+                                    </button>
+                                </div>
                             </TableCell>
                             <TableCell>
                                 {@const statusInfo = getStatusBadge(
@@ -235,3 +264,13 @@
         </div>
     </CardContent>
 </Card>
+
+{#if selectedServiceForReassign}
+    <ReassignTechnicianModal
+        bind:open={showReassignModal}
+        serviceId={selectedServiceForReassign.id}
+        serviceNo={selectedServiceForReassign.no}
+        currentTechnician={selectedServiceForReassign.technician}
+        onConfirm={handleReassignConfirm}
+    />
+{/if}

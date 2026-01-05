@@ -40,6 +40,7 @@
             warrantyDuration: 7, // days
             status: "selesai",
             totalCost: 1500000,
+            technician: "Agus",
         },
         {
             id: 102,
@@ -52,6 +53,7 @@
             warrantyDuration: 30, // days
             status: "selesai",
             totalCost: 500000,
+            technician: "Rudi",
         },
     ];
 
@@ -95,12 +97,13 @@
             return;
         }
 
+        const originalTech = searchResult.technician;
+
         // Simulate submission
         toast.success(
             `Klaim garansi untuk nota ${searchResult.no} berhasil dibuat!`,
             {
-                description:
-                    "Tiket service baru telah dibuat dengan status 'Claim'.",
+                description: `Tiket baru "Warranty Claim" dibuat & otomatis di-assign ke teknisi: ${originalTech}. Status: Menunggu.`,
             },
         );
 
