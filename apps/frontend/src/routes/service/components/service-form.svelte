@@ -717,58 +717,6 @@
                             />
                         </div>
                     </div>
-
-                    <!-- Regular Cost with Range Option -->
-                    <div class="space-y-2">
-                        <div class="flex justify-between items-center">
-                            <Label for="cost">Estimasi Biaya</Label>
-                            <label
-                                class="flex items-center gap-2 cursor-pointer text-xs"
-                            >
-                                <input
-                                    type="checkbox"
-                                    bind:checked={isPriceRange}
-                                    class="cursor-pointer"
-                                />
-                                <span>Gunakan Range Harga (Min - Max)</span>
-                            </label>
-                        </div>
-
-                        {#if isPriceRange}
-                            <div class="flex items-center gap-2">
-                                <div class="flex-1 space-y-1">
-                                    <Input
-                                        type="number"
-                                        bind:value={minPrice}
-                                        placeholder="Min (Ex: 100k)"
-                                    />
-                                    <span
-                                        class="text-[10px] text-muted-foreground"
-                                        >Min</span
-                                    >
-                                </div>
-                                <span class="text-muted-foreground">-</span>
-                                <div class="flex-1 space-y-1">
-                                    <Input
-                                        type="number"
-                                        bind:value={maxPrice}
-                                        placeholder="Max (Ex: 300k)"
-                                    />
-                                    <span
-                                        class="text-[10px] text-muted-foreground"
-                                        >Max</span
-                                    >
-                                </div>
-                            </div>
-                        {:else}
-                            <Input
-                                id="cost"
-                                type="number"
-                                bind:value={estimatedCost}
-                                placeholder="Rp 0"
-                            />
-                        {/if}
-                    </div>
                 {/if}
 
                 <!-- Walk-in Sparepart & Cost (Existing) -->
