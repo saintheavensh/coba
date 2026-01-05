@@ -16,12 +16,12 @@
         "better-sqlite3": "^12.5.0",
         "drizzle-orm": "^0.45.1",
         "hono": "^4.11.3",
-        "zod": "^4.3.5"
+        "zod": "^3.25.0",
+        "@repo/shared": "*"
     },
     "devDependencies": {
         "@types/better-sqlite3": "^7.6.13",
         "@types/bun": "^1.3.5",
-        "bun-types": "^1.3.5",
         "drizzle-kit": "^0.31.8",
         "typescript": "^5.0.0"
     }

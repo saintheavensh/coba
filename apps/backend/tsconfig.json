@@ -16,6 +16,16 @@
         "jsx": "react-jsx",
         "allowSyntheticDefaultImports": true,
         "forceConsistentCasingInFileNames": true,
-        "allowJs": true
-    }
+        "allowJs": true,
+        "baseUrl": ".",
+        "paths": {
+            "@repo/shared": [
+                "../../packages/shared/index.ts"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*",
+        "../../packages/shared/index.ts"
+    ]
 }

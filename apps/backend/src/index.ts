@@ -24,7 +24,6 @@ app.get("/", (c) => {
 
 app.get("/health", async (c) => {
     try {
-        // Simple query to check DB connection
         const result = await db.select({ count: sql<number>`count(*)` }).from(users);
         return c.json({ status: "ok", db_users: result[0].count });
     } catch (e) {

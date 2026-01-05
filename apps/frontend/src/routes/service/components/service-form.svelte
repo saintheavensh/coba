@@ -246,6 +246,8 @@
     import { onMount } from "svelte";
     import { api } from "$lib/api";
 
+    import type { CreateServiceRequest } from "@repo/shared";
+
     // ... imports
 
     // Data from API
@@ -253,23 +255,7 @@
     let inventoryItems: any[] = [];
     let isSubmitting = false;
 
-    onMount(async () => {
-        try {
-            // Fetch technicians (users) - simplified, assuming all users can be tech
-            // In real app, filter by role
-            const users = await api("/users"); // You might need to create this endpoint or use specific one
-            // If /users not exist, we skip or use dummy. Wait, I didn't create /users list endpoint.
-            // I'll skip technician fetching for now and just hardcode ID 1 (Admin) if needed, or allow manual input?
-            // Actually, let's just fetch inventory for now.
-
-            const inv = await api("/inventory");
-            inventoryItems = inv;
-        } catch (e) {
-            console.error("Failed to load initial data", e);
-        }
-    });
-
-    // ... existing state
+    // ...
 
     async function handleComplete() {
         if (isWalkin && totalPaid < grandTotalEstimate) {
@@ -279,44 +265,52 @@
 
         isSubmitting = true;
         try {
-            const payload = {
+            // Use Shared Type for payload structure guarantee
+            const payload: CreateServiceRequest = {
                 type: isWalkin ? "walk_in" : "regular",
                 customer: {
                     name: customerName,
                     phone: customerPhone,
-                    address: customerAddress || "-", // Default if empty
+                    address: customerAddress || undefined,
                 },
                 unit: {
                     brand: phoneBrand,
                     model: phoneModel,
                     status: phoneStatus,
-                    imei: imei,
-                    pin: pinPattern,
-                    condition: physicalConditions,
-                    completeness: completeness,
-                    physicalNotes: physicalNotes,
+                    imei: imei || undefined,
+                    pin: pinPattern || undefined,
+                    condition: physicalConditions.length
+                        ? physicalConditions
+                        : undefined,
+                    completeness: completeness.length
+                        ? completeness
+                        : undefined,
+                    physicalNotes: physicalNotes || undefined,
                 },
                 complaint: complaint,
-                technicianId: technician ? parseInt(technician) : null, // Ensure ID is number
-                status: isWalkin ? "done" : "pending", // Walk-in direct done? Or process?
-                // For walk-in, we might want 'process' or 'done'. Let's say 'pending' for standard.
+                technicianId: technician || null, // Fix: Send string ID or null
+                status: isWalkin ? "selesai" : "antrian", // Fix status enum match ("selesai" instead of "done")
+                // Status enum in shared: ["antrian", "dicek", ... "selesai"]
 
                 // Regular specific
                 diagnosis: {
-                    initial: initialDiagnosis,
-                    possibleCauses: possibleCauses,
+                    initial: initialDiagnosis || undefined,
+                    possibleCauses: possibleCauses || undefined,
                     estimatedCost: isPriceRange
                         ? `${minPrice}-${maxPrice}`
                         : estimatedCost,
-                    downPayment: downPayment,
+                    downPayment: downPayment || undefined,
                 },
 
-                // Walk-in specific/Common parts
-                parts: selectedParts.map((p) => ({
-                    productId: p.id,
-                    qty: 1, // Assumption
-                    price: p.price,
-                })),
+                // Walk-in parts
+                parts:
+                    isWalkin && selectedParts.length > 0
+                        ? selectedParts.map((p) => ({
+                              productId: p.id,
+                              qty: 1,
+                              price: p.price,
+                          }))
+                        : undefined,
             };
 
             const res = await api("/service", {

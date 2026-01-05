@@ -49,7 +49,7 @@
     // Form State
     let newName = "";
     let newMinStock = 10;
-    // Category not supported in backend yet, ignore for now
+    let editingId: string | null = null; // Track if we are editing
 
     async function loadProducts() {
         try {
@@ -57,14 +57,13 @@
             products = res.map((p: any) => ({
                 ...p,
                 min: p.minStock,
-                // Compute status
                 status:
                     p.stock === 0
                         ? "Empty"
                         : p.stock <= p.minStock
                           ? "Critical"
                           : "Normal",
-                category: "Umum", // Default for now
+                category: "Umum",
             }));
         } catch (e) {
             console.error(e);
@@ -75,6 +74,31 @@
         loadProducts();
     });
 
+    function resetForm() {
+        newName = "";
+        newMinStock = 10;
+        editingId = null;
+    }
+
+    function handleEdit(product: any) {
+        editingId = product.id;
+        newName = product.name;
+        newMinStock = product.minStock || 5;
+        open = true;
+    }
+
+    async function handleDelete(id: string) {
+        if (!confirm("Yakin ingin menghapus produk ini?")) return;
+
+        try {
+            await api(`/inventory/${id}`, { method: "DELETE" });
+            toast.success("Produk dihapus");
+            loadProducts();
+        } catch (e) {
+            // handled by api helper
+        }
+    }
+
     async function handleSubmit() {
         if (!newName) {
             toast.error("Nama produk wajib diisi");
@@ -83,18 +107,31 @@
 
         loading = true;
         try {
-            await api("/inventory", {
-                method: "POST",
-                body: {
-                    name: newName,
-                    minStock: parseInt(newMinStock.toString()) || 5,
-                },
-            });
+            if (editingId) {
+                // Update
+                await api(`/inventory/${editingId}`, {
+                    method: "PUT",
+                    body: {
+                        name: newName,
+                        minStock: parseInt(newMinStock.toString()) || 5,
+                    },
+                });
+                toast.success("Produk berhasil diupdate!");
+            } else {
+                // Create
+                await api("/inventory", {
+                    method: "POST",
+                    body: {
+                        name: newName,
+                        minStock: parseInt(newMinStock.toString()) || 5,
+                    },
+                });
+                toast.success("Produk berhasil dibuat!");
+            }
 
-            toast.success("Produk berhasil dibuat!");
             open = false;
-            newName = "";
-            loadProducts(); // Reload list
+            resetForm();
+            loadProducts();
         } catch (e) {
             // handled in api helper
         } finally {
@@ -131,15 +168,21 @@
         </div>
 
         <!-- Dialog Produk Baru -->
-        <Dialog bind:open>
+        <Dialog bind:open onOpenChange={(isOpen) => !isOpen && resetForm()}>
             <DialogTrigger class={buttonVariants({ variant: "default" })}>
                 <Plus class="mr-2 h-4 w-4" /> Produk Baru
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Buat Produk Baru</DialogTitle>
+                    <DialogTitle
+                        >{editingId
+                            ? "Edit Produk"
+                            : "Buat Produk Baru"}</DialogTitle
+                    >
                     <DialogDescription>
-                        Masukkan informasi dasar produk. Stok awal akan 0.
+                        {editingId
+                            ? "Edit informasi produk."
+                            : "Masukkan informasi dasar produk. Stok awal akan 0."}
                     </DialogDescription>
                 </DialogHeader>
                 <div class="grid gap-4 py-4">
@@ -243,11 +286,16 @@
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                                    <DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onclick={() => handleEdit(product)}
+                                    >
                                         <Pencil class="mr-2 h-4 w-4" /> Edit
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem class="text-red-600">
+                                    <DropdownMenuItem
+                                        class="text-red-600"
+                                        onclick={() => handleDelete(product.id)}
+                                    >
                                         <Trash2 class="mr-2 h-4 w-4" /> Hapus
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>

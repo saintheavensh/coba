@@ -1,20 +1,15 @@
 import { Hono } from "hono";
-import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
+import { loginSchema } from "@repo/shared";
+import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { users } from "../db/schema";
-import { eq } from "drizzle-orm";
 import { sign } from "hono/jwt";
 
 const auth = new Hono();
-const SECRET_KEY = "SUPER_SECRET_KEY"; // In production use Bun.env
+const SECRET_KEY = "SUPER_SECRET_KEY"; // Move to env later
 
-// Login Schema
-const loginSchema = z.object({
-    username: z.string(),
-    password: z.string()
-});
-
+// POST /login
 auth.post("/login", zValidator("json", loginSchema), async (c) => {
     const { username, password } = c.req.valid("json");
 

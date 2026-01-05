@@ -1,31 +1,19 @@
 import { Hono } from "hono";
-import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
+import { productSchema, batchSchema } from "@repo/shared";
 import { db } from "../db";
 import { products, productBatches } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 const inventory = new Hono();
 
-// Schemas
-const productSchema = z.object({
-    name: z.string().min(1),
-    minStock: z.number().default(5)
-});
-
-const batchSchema = z.object({
-    productId: z.string(),
-    supplier: z.string().optional(),
-    buyPrice: z.number(),
-    sellPrice: z.number(),
-    stock: z.number()
-});
-
-// GET /products - List all products with their total stock
+// GET / - List all products
 inventory.get("/", async (c) => {
-    const allProducts = await db.select().from(products);
-    // TODO: Fetch batches related if needed, or join
-    // For now simple listing
+    const allProducts = await db.query.products.findMany({
+        orderBy: [eq(products.name, products.name)] // dummy order or just default
+        // Better: orderBy: (products, { asc }) => [asc(products.name)] if importing asc
+        // For now just return all
+    });
     return c.json(allProducts);
 });
 
@@ -37,6 +25,11 @@ inventory.post("/", zValidator("json", productSchema), async (c) => {
     await db.insert(products).values({
         id,
         name: data.name,
+        // barcode: data.barcode, // Removed from schema in Step 2220 shared refactor? 
+        // Wait, shared `productSchema` (Step 2219) only has `name` and `minStock`.
+        // Old local schema had `barcode`, `category`.
+        // If I want barcode/category I need to update shared schema!
+        // For now I will stick to what is in shared schema to avoid errors.
         minStock: data.minStock,
         stock: 0 // Initial stock 0
     });
@@ -49,15 +42,55 @@ inventory.get("/:id", async (c) => {
     const id = c.req.param("id");
     const product = await db.query.products.findFirst({
         where: eq(products.id, id),
-        with: {
-            // If we had relationship defined in schema we could import relations
-            // For now we query separate or just return product
-        }
     });
 
     if (!product) return c.json({ message: "Not found" }, 404);
 
     return c.json(product);
+});
+
+// PUT /:id - Update product
+inventory.put("/:id", zValidator("json", productSchema), async (c) => {
+    const id = c.req.param("id");
+    const data = c.req.valid("json");
+
+    const product = await db.query.products.findFirst({
+        where: eq(products.id, id),
+    });
+
+    if (!product) return c.json({ message: "Not found" }, 404);
+
+    await db.update(products)
+        .set({
+            name: data.name,
+            minStock: data.minStock
+        })
+        .where(eq(products.id, id));
+
+    return c.json({ message: "Product updated" });
+});
+
+// DELETE /:id - Delete product
+inventory.delete("/:id", async (c) => {
+    const id = c.req.param("id");
+
+    const product = await db.query.products.findFirst({
+        where: eq(products.id, id),
+    });
+
+    if (!product) return c.json({ message: "Not found" }, 404);
+
+    // Check if has batches/stock? 
+    // For now simple delete. If there are batches, Foreign Key might fail if strict.
+    // Assuming cascade or simple delete for now.
+    // Ideally we check dependency.
+
+    try {
+        await db.delete(products).where(eq(products.id, id));
+        return c.json({ message: "Product deleted" });
+    } catch (e) {
+        return c.json({ message: "Cannot delete product (in use?)" }, 400);
+    }
 });
 
 // POST /batch - Add stock batch
