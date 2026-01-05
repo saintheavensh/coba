@@ -134,28 +134,52 @@
 
     <!-- Points -->
     {#each points as point}
+        <!-- Line/Fill indicator -->
+        <circle
+            cx={point.x}
+            cy={point.y}
+            r="24"
+            class={cn(
+                "fill-transparent transition-all duration-200",
+                currentPath.includes(point.id)
+                    ? "fill-primary/20"
+                    : "hover:fill-muted/50",
+            )}
+        />
+
+        <!-- Visible Dot -->
         <circle
             cx={point.x}
             cy={point.y}
             r="8"
             class={cn(
                 "fill-muted-foreground transition-all duration-200",
-                currentPath.includes(point.id)
-                    ? "fill-primary r-12"
-                    : "hover:fill-primary/50",
+                currentPath.includes(point.id) ? "fill-primary" : "",
             )}
         />
-        <!-- Invisible hit area -->
+
+        <!-- Number Label -->
+        <text
+            x={point.x}
+            y={point.y + 40}
+            text-anchor="middle"
+            class="text-[10px] fill-muted-foreground select-none pointer-events-none font-medium"
+        >
+            {point.id + 1}
+        </text>
+
+        <!-- Invisible Hit Area (Larger) -->
         <circle
             cx={point.x}
             cy={point.y}
-            r="20"
+            r="30"
             fill="transparent"
             on:mousedown={(e) => handleStart(e, point.id)}
-            on:touchstart={(e) => handleStart(e, point.id)}
+            on:touchstart|nonpassive={(e) => handleStart(e, point.id)}
             role="button"
             aria-label="Connect point {point.id + 1}"
             tabindex="-1"
+            class="outline-none"
         />
     {/each}
 </svg>

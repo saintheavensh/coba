@@ -197,6 +197,37 @@
         selectedParts = selectedParts.filter((_, i) => i !== index);
     }
 
+    function resetForm() {
+        currentStep = 1;
+        isWalkin = false;
+        customerName = "";
+        customerPhone = "";
+        customerAddress = "";
+        phoneBrand = "";
+        phoneModel = "";
+        phoneStatus = "nyala";
+        imei = "";
+        physicalConditions = [];
+        completeness = [];
+        physicalNotes = "";
+        pinPattern = "";
+        patternPoints = [];
+        complaint = "";
+        technician = "";
+        estimatedCost = "";
+        downPayment = "";
+        warranty = "none";
+        technicianNotes = "";
+        sparepartSource = "none";
+        selectedParts = [];
+        extPartName = "";
+        extPartBuyPrice = "";
+        extPartSellPrice = "";
+        paymentMethod = "cash";
+        payAmountCash = "";
+        payAmountTransfer = "";
+    }
+
     function handleComplete() {
         if (isWalkin && totalPaid < grandTotalEstimate) {
             toast.error("Pembayaran kurang dari total tagihan!");
@@ -212,6 +243,7 @@
 
         setTimeout(() => {
             goto("/service");
+            resetForm();
         }, 1500);
     }
 </script>
