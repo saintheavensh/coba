@@ -100,6 +100,8 @@
     on:mouseleave={handleEnd}
     on:touchmove={handleMove}
     on:touchend={handleEnd}
+    role="application"
+    aria-label="Pattern Lock Input"
 >
     <!-- Lines -->
     {#if currentPath.length > 0}
@@ -150,6 +152,9 @@
             fill="transparent"
             on:mousedown={(e) => handleStart(e, point.id)}
             on:touchstart={(e) => handleStart(e, point.id)}
+            role="button"
+            aria-label="Connect point {point.id + 1}"
+            tabindex="-1"
         />
     {/each}
 </svg>

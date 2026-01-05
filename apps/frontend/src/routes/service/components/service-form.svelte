@@ -51,10 +51,10 @@
     let phoneModel = "";
 
     // HP Condition
-    let phoneStatus = "nyala"; // nyala, mati_total, restart
+    let phoneStatus = "nyala"; // nyala, mati_total, restart, blank_hitam
     let imei = "";
-    let physicalConditions: string[] = []; // normal, lecet, retak, bekas_air
-    let completeness: string[] = []; // sim_tray, sim_card, softcase, memory_card, box, charger
+    let physicalConditions: string[] = [];
+    let completeness: string[] = [];
     let physicalNotes = "";
     let pinPattern = "";
 
@@ -66,13 +66,18 @@
             ? patternPoints.map((p) => p + 1).join("-")
             : "";
 
-    // Step 2: Complaint & Technician
-    let complaint = "";
+    // Step 2: Complaint, Technician, Walk-in Specifics
+    let complaint = ""; // Labels: "Keluhan Customer" or "Kerusakan"
     let technician = "";
     let estimatedCost = "";
     let downPayment = "";
+    let sparepartReplacement = ""; // Walk-in only
+    let warranty = "none"; // Walk-in only, default no warranty or select
 
     // Validation
+    const isStatusImeiOptional = (status: string) =>
+        ["mati_total", "restart", "blank_hitam"].includes(status);
+
     $: step1Valid =
         customerName.trim() !== "" &&
         (isWalkin || customerPhone.trim() !== "") &&
@@ -80,7 +85,10 @@
         phoneModel.trim() !== "" &&
         phoneStatus.trim() !== "";
 
-    $: step2Valid = complaint && complaint.trim().length > 0;
+    $: step2Valid =
+        complaint &&
+        complaint.trim().length > 0 &&
+        (!isWalkin || technician !== ""); // Technician required for Walk-in
 
     function nextStep() {
         if (currentStep === 1 && !step1Valid) {
@@ -88,7 +96,13 @@
             return;
         }
         if (currentStep === 2 && !step2Valid) {
-            toast.error("Harap isi keluhan customer");
+            if (isWalkin && technician === "") {
+                toast.error("Teknisi wajib diisi untuk Walk-in Customer");
+            } else {
+                toast.error(
+                    `Harap isi ${isWalkin ? "kerusakan" : "keluhan customer"}`,
+                );
+            }
             return;
         }
         currentStep++;
@@ -101,8 +115,6 @@
     function handlePatternChange(e: CustomEvent<number[]>) {
         patternPoints = e.detail;
         pinPattern = "Pola: " + patternString;
-        // Don't close immediately, let user confirm visual or manual close?
-        // For smoother UX, maybe wait a bit or let them close modal.
     }
 
     function handleSavePattern() {
@@ -115,7 +127,6 @@
             description: `No. SRV-2026-NEW - ${customerName}`,
         });
 
-        // Reset and navigate
         setTimeout(() => {
             goto("/service");
         }, 1500);
@@ -128,7 +139,6 @@
         <CardDescription>
             Wizard 3-step untuk create service order baru.
         </CardDescription>
-        <!-- Progress indicator -->
         <div class="flex items-center gap-2 mt-4">
             <div class="flex items-center gap-2 flex-1">
                 <div
@@ -144,7 +154,9 @@
                         ? 'bg-primary'
                         : 'bg-muted'}"
                 ></div>
-                <span class="text-xs text-muted-foreground">2. Keluhan</span>
+                <span class="text-xs text-muted-foreground"
+                    >2. {isWalkin ? "Kerusakan & Biaya" : "Keluhan"}</span
+                >
             </div>
             <div class="flex items-center gap-2 flex-1">
                 <div
@@ -183,7 +195,7 @@
                             />
                             <span>Walk-in (Tunggu di tempat)</span>
                             <Badge variant="secondary" class="ml-2"
-                                >Quick Service</Badge
+                                >Quick Service (Langsung Selesai)</Badge
                             >
                         </label>
                     </div>
@@ -273,7 +285,7 @@
                             </div>
                         </div>
 
-                        <!-- Status Awal (Moved above IMEI) -->
+                        <!-- Status Awal -->
                         <div class="space-y-2">
                             <Label
                                 >Status Awal Handphone <span
@@ -281,7 +293,7 @@
                                 ></Label
                             >
                             <div
-                                class="flex flex-wrap gap-4 p-3 border rounded-md bg-muted/20"
+                                class="grid grid-cols-2 lg:grid-cols-4 gap-4 p-3 border rounded-md bg-muted/20"
                             >
                                 <label
                                     class="flex items-center gap-2 cursor-pointer"
@@ -328,6 +340,21 @@
                                         /> Restart</span
                                     >
                                 </label>
+                                <label
+                                    class="flex items-center gap-2 cursor-pointer"
+                                >
+                                    <input
+                                        type="radio"
+                                        bind:group={phoneStatus}
+                                        value="blank_hitam"
+                                        class="cursor-pointer"
+                                    />
+                                    <span class="flex items-center gap-1"
+                                        ><Smartphone
+                                            class="w-4 h-4 text-gray-800"
+                                        /> Blank Hitam</span
+                                    >
+                                </label>
                             </div>
                         </div>
 
@@ -337,17 +364,16 @@
                             <Input
                                 id="imei"
                                 bind:value={imei}
-                                placeholder={phoneStatus === "nyala"
-                                    ? "354217123456789"
-                                    : "Kosongkan jika HP mati total/restart"}
+                                placeholder={isStatusImeiOptional(phoneStatus)
+                                    ? "Kosongkan jika tidak ada"
+                                    : "354217123456789"}
                                 maxlength={15}
-                                disabled={phoneStatus === "mati_total" ||
-                                    phoneStatus === "restart"}
+                                disabled={isStatusImeiOptional(phoneStatus)}
                             />
                             <p class="text-xs text-muted-foreground">
-                                {phoneStatus === "nyala"
-                                    ? "Opsional - Masukkan IMEI jika tersedia"
-                                    : "IMEI tidak perlu diisi untuk kondisi ini"}
+                                {isStatusImeiOptional(phoneStatus)
+                                    ? "IMEI tidak perlu diisi untuk status ini"
+                                    : "Opsional - Masukkan IMEI jika tersedia"}
                             </p>
                         </div>
 
@@ -443,7 +469,7 @@
                                 </div>
                             </div>
 
-                            <!-- Kelengkapan (New Field) -->
+                            <!-- Kelengkapan -->
                             <div class="space-y-2">
                                 <Label>Kelengkapan</Label>
                                 <div
@@ -478,8 +504,9 @@
                 </div>
             </div>
         {:else if currentStep === 2}
-            <!-- Step 2: Complaint & Technician -->
+            <!-- Step 2: Complaint/Damage & Technician -->
             <div class="space-y-6">
+                <!-- Unit Recap with more details -->
                 <div class="p-4 bg-muted rounded-lg space-y-2">
                     <div class="flex justify-between">
                         <span class="font-medium text-sm">Unit:</span>
@@ -488,20 +515,44 @@
                     <div class="flex justify-between">
                         <span class="font-medium text-sm">Status:</span>
                         <Badge variant="outline" class="uppercase text-[10px]"
-                            >{phoneStatus.replace("_", " ")}</Badge
+                            >{phoneStatus.replace(/_/g, " ")}</Badge
                         >
                     </div>
+                    {#if completeness.length > 0}
+                        <div class="flex justify-between items-start">
+                            <span class="font-medium text-sm">Kelengkapan:</span
+                            >
+                            <span class="text-sm text-right px-2"
+                                >{completeness
+                                    .join(", ")
+                                    .replace(/_/g, " ")}</span
+                            >
+                        </div>
+                    {/if}
+                    {#if physicalConditions.length > 0}
+                        <div class="flex justify-between items-start">
+                            <span class="font-medium text-sm">Fisik:</span>
+                            <span class="text-sm text-right px-2"
+                                >{physicalConditions
+                                    .join(", ")
+                                    .replace(/_/g, " ")}</span
+                            >
+                        </div>
+                    {/if}
                 </div>
 
+                <!-- Complaint or Damage -->
                 <div class="space-y-2">
-                    <Label for="complaint"
-                        >Keluhan Customer <span class="text-red-500">*</span
-                        ></Label
-                    >
+                    <Label for="complaint">
+                        {isWalkin ? "Kerusakan" : "Keluhan Customer"}
+                        <span class="text-red-500">*</span>
+                    </Label>
                     <Textarea
                         id="complaint"
                         bind:value={complaint}
-                        placeholder="Jelaskan keluhan detail..."
+                        placeholder={isWalkin
+                            ? "Contoh: LCD Pecah, ganti LCD Fullset"
+                            : "Jelaskan keluhan detail..."}
                         rows={5}
                         maxlength={500}
                     />
@@ -510,9 +561,26 @@
                     </p>
                 </div>
 
+                {#if isWalkin}
+                    <!-- Walk-in Extra Field: Sparepart -->
+                    <div class="space-y-2">
+                        <Label for="sparepart">Penggantian Sparepart</Label>
+                        <Textarea
+                            id="sparepart"
+                            bind:value={sparepartReplacement}
+                            placeholder="Data spare part yang diganti (jika ada)"
+                            rows={3}
+                        />
+                    </div>
+                {/if}
+
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-2">
-                        <Label for="technician">Teknisi</Label>
+                        <Label for="technician"
+                            >Teknisi {#if isWalkin}<span class="text-red-500"
+                                    >*</span
+                                >{/if}</Label
+                        >
                         <Select
                             type="single"
                             name="technician"
@@ -534,6 +602,12 @@
                                 >
                             </SelectContent>
                         </Select>
+                        {#if isWalkin}
+                            <p class="text-xs text-orange-600">
+                                Teknisi wajib diisi untuk Walk-in (langsung
+                                dikerjakan)
+                            </p>
+                        {/if}
                     </div>
 
                     <div class="space-y-2">
@@ -547,7 +621,38 @@
                     </div>
                 </div>
 
-                <!-- Down Payment (New Field) -->
+                <!-- Walk-in Warranty -->
+                {#if isWalkin}
+                    <div class="space-y-2">
+                        <Label for="warranty">Garansi</Label>
+                        <Select
+                            type="single"
+                            name="warranty"
+                            bind:value={warranty}
+                        >
+                            <SelectTrigger
+                                >{warranty === "none"
+                                    ? "Tidak ada garansi"
+                                    : warranty.replace("_", " ")}</SelectTrigger
+                            >
+                            <SelectContent>
+                                <SelectItem value="none"
+                                    >Tidak ada garansi</SelectItem
+                                >
+                                <SelectItem value="3_hari">3 Hari</SelectItem>
+                                <SelectItem value="1_minggu"
+                                    >1 Minggu</SelectItem
+                                >
+                                <SelectItem value="2_minggu"
+                                    >2 Minggu</SelectItem
+                                >
+                                <SelectItem value="1_bulan">1 Bulan</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                {/if}
+
+                <!-- Down Payment -->
                 <div class="space-y-2">
                     <Label for="dp">DP / Uang Muka</Label>
                     <Input
@@ -595,7 +700,7 @@
                             <div class="space-y-1">
                                 <p class="text-muted-foreground">Status Awal</p>
                                 <Badge variant="outline" class="uppercase"
-                                    >{phoneStatus.replace("_", " ")}</Badge
+                                    >{phoneStatus.replace(/_/g, " ")}</Badge
                                 >
                             </div>
                             <div class="space-y-1">
@@ -619,9 +724,39 @@
                         >
                         <CardContent class="grid md:grid-cols-2 gap-4 text-sm">
                             <div class="space-y-1 col-span-2">
-                                <p class="text-muted-foreground">Keluhan</p>
+                                <p class="text-muted-foreground">
+                                    {isWalkin ? "Kerusakan" : "Keluhan"}
+                                </p>
                                 <p class="font-medium">{complaint}</p>
                             </div>
+
+                            {#if isWalkin && sparepartReplacement}
+                                <div class="space-y-1 col-span-2">
+                                    <p class="text-muted-foreground">
+                                        Sparepart Diganti
+                                    </p>
+                                    <p class="font-medium">
+                                        {sparepartReplacement}
+                                    </p>
+                                </div>
+                            {/if}
+
+                            <div class="space-y-1">
+                                <p class="text-muted-foreground">Teknisi</p>
+                                <p class="font-medium capitalize">
+                                    {technician || "-"}
+                                </p>
+                            </div>
+
+                            {#if isWalkin}
+                                <div class="space-y-1">
+                                    <p class="text-muted-foreground">Garansi</p>
+                                    <p class="font-medium capitalize">
+                                        {warranty.replace("_", " ")}
+                                    </p>
+                                </div>
+                            {/if}
+
                             <div class="space-y-1">
                                 <p class="text-muted-foreground">Estimasi</p>
                                 <p class="font-medium">
