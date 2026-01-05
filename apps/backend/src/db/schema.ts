@@ -102,9 +102,22 @@ export const productBatchesRelations = relations(productBatches, ({ one }) => ({
     }),
 }));
 
+// Suppliers
+export const suppliers = sqliteTable("suppliers", {
+    id: text("id").primaryKey(), // SUP-XXX
+    name: text("name").notNull(),
+    contact: text("contact"),
+    phone: text("phone"),
+    address: text("address"),
+    brands: text("brands", { mode: "json" }).$type<{ name: string; category: string }[]>(), // Array of brand objects
+    image: text("image"), // Optional URL/Path to supplier image
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const servicesRelations = relations(services, ({ one }) => ({
     technician: one(users, {
         fields: [services.technicianId],
         references: [users.id],
     }),
 }));
+

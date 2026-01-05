@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { db } from "../db";
 import { services, activityLogs } from "../db/schema";
-import { eq, desc, like } from "drizzle-orm";
+import { eq, desc, like, sql } from "drizzle-orm";
 import { createServiceSchema, updateStatusSchema } from "@repo/shared";
 
 const service = new Hono();
@@ -30,7 +30,23 @@ async function generateServiceNo() {
 
 // GET / - List services
 service.get("/", async (c) => {
+    const status = c.req.query("status");
+    const technicianId = c.req.query("technicianId");
+
+    const filters: any[] = [];
+    if (status && status !== "all") {
+        filters.push(eq(services.status, status as any));
+    }
+    if (technicianId && technicianId !== "all") {
+        if (technicianId === "unassigned") {
+            filters.push(sql`${services.technicianId} IS NULL`);
+        } else {
+            filters.push(eq(services.technicianId, technicianId));
+        }
+    }
+
     const allServices = await db.query.services.findMany({
+        where: filters.length > 0 ? sql`${sql.join(filters, sql` AND `)}` : undefined,
         with: {
             technician: true
         },

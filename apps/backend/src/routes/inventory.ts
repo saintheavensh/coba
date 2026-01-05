@@ -11,10 +11,9 @@ const inventory = new Hono();
 inventory.get("/", async (c) => {
     const allProducts = await db.query.products.findMany({
         with: {
-            category: true,
-            batches: true
+            category: true
         },
-        orderBy: [eq(products.name, products.name)] // dummy order or just default
+        orderBy: [eq(products.name, products.name)] // default order
         // Better: orderBy: (products, { asc }) => [asc(products.name)] if importing asc
         // For now just return all
     });
@@ -28,8 +27,8 @@ inventory.post("/", zValidator("json", productSchema), async (c) => {
 
     await db.insert(products).values({
         id,
-        code: data.code,
         name: data.name,
+        code: data.code,
         categoryId: data.categoryId,
         minStock: data.minStock,
         stock: 0 // Initial stock 0

@@ -3,6 +3,7 @@
     import { api } from "$lib/api";
     import { Button } from "$lib/components/ui/button";
     import { Input } from "$lib/components/ui/input";
+    import { Label } from "$lib/components/ui/label";
     import {
         Table,
         TableBody,
@@ -16,36 +17,22 @@
         DialogContent,
         DialogHeader,
         DialogTitle,
-        DialogTrigger,
         DialogFooter,
+        DialogDescription,
     } from "$lib/components/ui/dialog";
-    import { Label } from "$lib/components/ui/label";
-    import { toast } from "svelte-sonner";
     import { Pencil, Trash2, Plus } from "lucide-svelte";
-    import {
-        AlertDialog,
-        AlertDialogAction,
-        AlertDialogCancel,
-        AlertDialogContent,
-        AlertDialogDescription,
-        AlertDialogFooter,
-        AlertDialogHeader,
-        AlertDialogTitle,
-    } from "$lib/components/ui/alert-dialog";
+    import { toast } from "svelte-sonner";
 
     let categories: any[] = [];
-    let open = false;
     let loading = false;
+    let open = false;
     let editingId: string | null = null;
 
-    // Delete state
-    let deleteOpen = false;
-    let deletingId: string | null = null;
+    // Form
+    let name = "";
+    let description = "";
 
-    let newName = "";
-    let newDescription = "";
-
-    async function loadCategories() {
+    async function load() {
         try {
             categories = await api("/categories");
         } catch (e) {
@@ -54,65 +41,56 @@
     }
 
     onMount(() => {
-        loadCategories();
+        load();
     });
 
-    function resetForm() {
-        newName = "";
-        newDescription = "";
+    function reset() {
+        name = "";
+        description = "";
         editingId = null;
     }
 
     function handleEdit(cat: any) {
         editingId = cat.id;
-        newName = cat.name;
-        newDescription = cat.description || "";
+        name = cat.name;
+        description = cat.description || "";
         open = true;
     }
 
-    function confirmDelete(id: string) {
-        deletingId = id;
-        deleteOpen = true;
-    }
-
-    async function handleDelete() {
-        if (!deletingId) return;
-
+    async function handleDelete(id: string) {
+        if (!confirm("Hapus kategori ini?")) return;
         try {
-            await api(`/categories/${deletingId}`, { method: "DELETE" });
+            await api(`/categories/${id}`, { method: "DELETE" });
             toast.success("Kategori dihapus");
-            loadCategories();
-        } catch (e: any) {
-            toast.error(e.message || "Gagal menghapus");
-        } finally {
-            deleteOpen = false;
-            deletingId = null;
+            load();
+        } catch (e) {
+            // handled by api
         }
     }
 
     async function handleSubmit() {
-        if (!newName) return toast.error("Nama wajib diisi");
+        if (!name) return toast.error("Nama wajib diisi");
 
         loading = true;
         try {
             if (editingId) {
                 await api(`/categories/${editingId}`, {
                     method: "PUT",
-                    body: { name: newName, description: newDescription },
+                    body: { name, description },
                 });
-                toast.success("Update berhasil");
+                toast.success("Kategori diupdate");
             } else {
                 await api("/categories", {
                     method: "POST",
-                    body: { name: newName, description: newDescription },
+                    body: { name, description },
                 });
                 toast.success("Kategori dibuat");
             }
             open = false;
-            resetForm();
-            loadCategories();
+            reset();
+            load();
         } catch (e) {
-            console.error(e);
+            // handled
         } finally {
             loading = false;
         }
@@ -120,92 +98,95 @@
 </script>
 
 <div class="space-y-4">
-    <div class="flex items-center justify-between">
-        <h2 class="text-2xl font-bold tracking-tight">Kategori Produk</h2>
-        <Dialog bind:open onOpenChange={(o) => !o && resetForm()}>
-            <DialogTrigger>
-                <Button><Plus class="mr-2 h-4 w-4" /> Kategori Baru</Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle
-                        >{editingId
-                            ? "Edit Kategori"
-                            : "Buat Kategori"}</DialogTitle
-                    >
-                </DialogHeader>
-                <div class="grid gap-4 py-4">
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right">Nama</Label>
-                        <Input bind:value={newName} class="col-span-3" />
-                    </div>
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right">Deskripsi</Label>
-                        <Input bind:value={newDescription} class="col-span-3" />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button onclick={handleSubmit} disabled={loading}>
-                        {loading ? "Menyimpan..." : "Simpan"}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+    <div class="flex justify-between items-center">
+        <h3 class="text-lg font-medium">Daftar Kategori</h3>
+        <Button onclick={() => (open = true)} size="sm">
+            <Plus class="h-4 w-4 mr-2" /> Tambah Kategori
+        </Button>
     </div>
 
-    <div class="rounded-md border bg-card">
+    <div class="rounded-md border">
         <Table>
             <TableHeader>
                 <TableRow>
-                    <TableHead>Nama</TableHead>
+                    <TableHead>Nama Kategori</TableHead>
                     <TableHead>Deskripsi</TableHead>
                     <TableHead class="text-right">Aksi</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {#each categories as cat}
+                {#if categories.length === 0}
                     <TableRow>
-                        <TableCell class="font-medium">{cat.name}</TableCell>
-                        <TableCell>{cat.description || "-"}</TableCell>
-                        <TableCell class="text-right">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onclick={() => handleEdit(cat)}
-                            >
-                                <Pencil class="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="text-red-500"
-                                onclick={() => confirmDelete(cat.id)}
-                            >
-                                <Trash2 class="h-4 w-4" />
-                            </Button>
+                        <TableCell
+                            colspan={3}
+                            class="text-center h-24 text-muted-foreground"
+                        >
+                            Belum ada kategori.
                         </TableCell>
                     </TableRow>
-                {/each}
+                {:else}
+                    {#each categories as cat}
+                        <TableRow>
+                            <TableCell class="font-medium">{cat.name}</TableCell
+                            >
+                            <TableCell>{cat.description || "-"}</TableCell>
+                            <TableCell class="text-right">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onclick={() => handleEdit(cat)}
+                                >
+                                    <Pencil class="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="text-red-600"
+                                    onclick={() => handleDelete(cat.id)}
+                                >
+                                    <Trash2 class="h-4 w-4" />
+                                </Button>
+                            </TableCell>
+                        </TableRow>
+                    {/each}
+                {/if}
             </TableBody>
         </Table>
     </div>
-    <AlertDialog bind:open={deleteOpen}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Hapus Kategori?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Tindakan ini permanen. Kategori yang dihapus tidak dapat
-                    dikembalikan. Pastikan tidak ada produk yang menggunakan
-                    kategori ini.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel>Batal</AlertDialogCancel>
-                <AlertDialogAction
-                    class="bg-red-600 hover:bg-red-700"
-                    onclick={handleDelete}>Hapus</AlertDialogAction
+
+    <Dialog bind:open onOpenChange={(isOpen) => !isOpen && reset()}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle
+                    >{editingId ? "Edit" : "Tambah"} Kategori</DialogTitle
                 >
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
+                <DialogDescription
+                    >Kelola master data kategori produk.</DialogDescription
+                >
+            </DialogHeader>
+            <div class="grid gap-4 py-4">
+                <div class="grid grid-cols-4 items-center gap-4">
+                    <Label class="text-right">Nama</Label>
+                    <Input
+                        bind:value={name}
+                        class="col-span-3"
+                        placeholder="Contoh: Handphone"
+                    />
+                </div>
+                <div class="grid grid-cols-4 items-center gap-4">
+                    <Label class="text-right">Deskripsi</Label>
+                    <Input
+                        bind:value={description}
+                        class="col-span-3"
+                        placeholder="Opsional"
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button onclick={handleSubmit} disabled={loading}>
+                    {loading ? "Menyimpan..." : "Simpan"}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 </div>

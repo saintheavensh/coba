@@ -2,63 +2,53 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { categorySchema } from "@repo/shared";
 import { db } from "../db";
-import { categories, products } from "../db/schema";
+import { categories } from "../db/schema";
 import { eq, desc } from "drizzle-orm";
 
-const app = new Hono();
+const category = new Hono();
 
-// GET / - List all categories
-app.get("/", async (c) => {
-    const allCategories = await db.query.categories.findMany({
-        orderBy: [desc(categories.createdAt)],
+// GET / - List categories
+category.get("/", async (c) => {
+    const all = await db.query.categories.findMany({
+        orderBy: [desc(categories.createdAt)]
     });
-    return c.json(allCategories);
+    return c.json(all);
 });
 
 // POST / - Create category
-app.post("/", zValidator("json", categorySchema), async (c) => {
+category.post("/", zValidator("json", categorySchema), async (c) => {
     const data = c.req.valid("json");
-    const id = crypto.randomUUID();
+    const id = "CAT-" + Date.now().toString().slice(-6);
 
     await db.insert(categories).values({
         id,
         name: data.name,
-        description: data.description,
+        description: data.description
     });
 
     return c.json({ message: "Category created", id });
 });
 
 // PUT /:id - Update category
-app.put("/:id", zValidator("json", categorySchema), async (c) => {
+category.put("/:id", zValidator("json", categorySchema), async (c) => {
     const id = c.req.param("id");
     const data = c.req.valid("json");
 
     await db.update(categories)
         .set({
             name: data.name,
-            description: data.description,
+            description: data.description
         })
         .where(eq(categories.id, id));
 
     return c.json({ message: "Category updated" });
 });
 
-// DELETE /:id - Delete category
-app.delete("/:id", async (c) => {
+// DELETE /:id
+category.delete("/:id", async (c) => {
     const id = c.req.param("id");
-
-    // Check if used
-    const inUse = await db.query.products.findFirst({
-        where: eq(products.categoryId, id)
-    });
-
-    if (inUse) {
-        return c.json({ message: "Category is in use by products" }, 400);
-    }
-
     await db.delete(categories).where(eq(categories.id, id));
     return c.json({ message: "Category deleted" });
 });
 
-export default app;
+export default category;

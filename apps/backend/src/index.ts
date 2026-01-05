@@ -9,7 +9,8 @@ import auth from "./routes/auth";
 import inventory from "./routes/inventory";
 import service from "./routes/service";
 
-import categories from "./routes/categories";
+import category from "./routes/categories";
+import supplier from "./routes/suppliers";
 
 const app = new Hono();
 
@@ -18,8 +19,9 @@ app.use("*", logger());
 
 app.route("/auth", auth);
 app.route("/inventory", inventory);
-app.route("/categories", categories);
+app.route("/categories", category);
 app.route("/service", service);
+app.route("/suppliers", supplier);
 
 app.get("/", (c) => {
     return c.json({ message: "Saint Heavens Backend API is Running!" });

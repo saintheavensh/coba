@@ -88,15 +88,18 @@
             ]);
 
             categories = catRes;
+
             products = prodRes.map((p: any) => ({
                 ...p,
+                categoryName: p.category?.name || "-",
+                min: p.minStock,
                 status:
                     p.stock === 0
                         ? "Empty"
                         : p.stock <= p.minStock
                           ? "Critical"
                           : "Normal",
-                categoryName: p.category?.name || "Uncategorized",
+                category: p.category?.name || "Umum", // Use relation name
             }));
         } catch (e) {
             console.error(e);
@@ -167,28 +170,24 @@
             return;
         }
 
-        // Validate Category
-        if (categories.length > 0 && !selectedCategory) {
-            toast.error("Silahkan pilih kategori produk");
-            return;
-        }
-
         loading = true;
         try {
             const payload = {
                 name: newName,
-                code: newCode,
+                code: newCode || undefined,
                 categoryId: selectedCategory || undefined,
                 minStock: parseInt(newMinStock.toString()) || 5,
             };
 
             if (editingId) {
+                // Update
                 await api(`/inventory/${editingId}`, {
                     method: "PUT",
                     body: payload,
                 });
                 toast.success("Produk berhasil diupdate!");
             } else {
+                // Create
                 await api("/inventory", {
                     method: "POST",
                     body: payload,
@@ -291,38 +290,27 @@
                     <div class="grid grid-cols-4 items-center gap-4">
                         <Label class="text-right">Kategori</Label>
                         <div class="col-span-3">
+                            <!-- Wrapper for Select -->
                             {#if categories.length === 0}
                                 <div
                                     class="text-sm text-muted-foreground p-2 border rounded bg-muted"
                                 >
-                                    Belum ada kategori. Silahkan buat di tab <strong
-                                        >Kategori</strong
-                                    >.
+                                    Belum ada kategori.
                                 </div>
                             {:else}
-                                <Select.Root
-                                    type="single"
+                                <select
+                                    class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                     bind:value={selectedCategory}
-                                    onValueChange={() => {
-                                        if (newCode === "") {
-                                            // Auto-generate if empty on category change?
-                                            // User requested manual + button. Let's keep button.
-                                        }
-                                    }}
                                 >
-                                    <Select.Trigger>
-                                        {categories.find(
-                                            (c) => c.id === selectedCategory,
-                                        )?.name || "Pilih Kategori"}
-                                    </Select.Trigger>
-                                    <Select.Content>
-                                        {#each categories as cat}
-                                            <Select.Item value={cat.id}
-                                                >{cat.name}</Select.Item
-                                            >
-                                        {/each}
-                                    </Select.Content>
-                                </Select.Root>
+                                    <option value=""
+                                        >-- Pilih Kategori --</option
+                                    >
+                                    {#each categories as cat}
+                                        <option value={cat.id}
+                                            >{cat.name}</option
+                                        >
+                                    {/each}
+                                </select>
                             {/if}
                         </div>
                     </div>
@@ -331,7 +319,7 @@
                         <Label class="text-right">Kode Universal</Label>
                         <div class="col-span-3 flex gap-2">
                             <Input
-                                placeholder="Contoh: BAT001"
+                                placeholder="Scan Barcode / SKU"
                                 bind:value={newCode}
                             />
                             <Button
