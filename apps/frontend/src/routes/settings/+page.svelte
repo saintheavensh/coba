@@ -17,8 +17,19 @@
         TabsTrigger,
     } from "$lib/components/ui/tabs";
     import { Separator } from "$lib/components/ui/separator";
-    import { toast } from "$lib/components/ui/sonner";
-    import { Store, User, Shield, Users, Plus, Trash2 } from "lucide-svelte";
+    import { toast } from "svelte-sonner"; // Update import according to svelte-sonner usage
+    import {
+        Store,
+        User,
+        Shield,
+        Users,
+        Plus,
+        Trash2,
+        Settings,
+        Receipt,
+        ScrollText,
+        MinusCircle,
+    } from "lucide-svelte";
     import {
         Table,
         TableBody,
@@ -43,20 +54,59 @@
         SelectTrigger,
     } from "$lib/components/ui/select";
     import { Badge } from "$lib/components/ui/badge";
+    import { Textarea } from "$lib/components/ui/textarea";
 
-    // Mock Data
-    let storeName = "Jaya Abadi Cell";
-    let storeAddress = "Jl. Merdeka No. 45, Jakarta Pusat";
-    let storePhone = "0812-3456-7890";
+    // Store
+    import { settings, activityLogs } from "$lib/stores/settings";
+
+    // State for new preset
+    let newPresetLabel = "";
+    let newPresetDays = "";
+
+    function addPreset() {
+        if (!newPresetLabel || !newPresetDays) return;
+
+        settings.updateSetting("warrantyPresets", [
+            ...$settings.warrantyPresets,
+            { label: newPresetLabel, days: parseInt(newPresetDays) },
+        ]);
+
+        newPresetLabel = "";
+        newPresetDays = "";
+    }
+
+    function removePreset(index: number) {
+        const newPresets = $settings.warrantyPresets.filter(
+            (_, i) => i !== index,
+        );
+        settings.updateSetting("warrantyPresets", newPresets);
+    }
+
+    // Local state to bind with store
+    // Ideally we subscribe, but for simplicity in this form we can auto-subscribe via $settings
 
     let userName = "Admin Toko";
     let userEmail = "admin@jayaabadi.com";
 
-    function handleSaveStore() {
-        toast.success("Informasi Toko berhasil disimpan.");
+    function handleSaveSettings() {
+        // In a real app, we would persist to backend here
+        // Store is already updated via two-way binding with $settings
+        activityLogs.addLog(
+            "Admin",
+            "Update Settings",
+            "Mengubah pengaturan sistem/toko.",
+            "info",
+        );
+        toast.success("Pengaturan berhasil disimpan.");
     }
 
     function handleSaveAccount() {
+        activityLogs.addLog(
+            "Admin",
+            "Update Profile",
+            "Memperbarui profil akun.",
+            "success",
+        );
         toast.success("Profil akun berhasil diperbarui.");
     }
 
@@ -101,11 +151,24 @@
         ];
         showAddEmployee = false;
         newEmployee = { name: "", username: "", password: "", role: "Kasir" };
+        activityLogs.addLog(
+            "Admin",
+            "Add Employee",
+            `Menambahkan karyawan baru: ${employees[employees.length - 1].name}`,
+            "success",
+        );
         toast.success("Karyawan baru berhasil ditambahkan.");
     }
 
     function handleDeleteEmployee(id: number) {
+        const emp = employees.find((e) => e.id === id);
         employees = employees.filter((e) => e.id !== id);
+        activityLogs.addLog(
+            "Admin",
+            "Delete Employee",
+            `Menghapus karyawan: ${emp?.name}`,
+            "warning",
+        );
         toast.success("Karyawan dihapus.");
     }
 </script>
@@ -114,49 +177,181 @@
     <div>
         <h3 class="text-lg font-medium">Pengaturan</h3>
         <p class="text-sm text-muted-foreground">
-            Kelola preferensi aplikasi dan informasi tokomu.
+            Kelola preferensi aplikasi, informasi toko, dan karyawan.
         </p>
     </div>
     <Separator />
 
-    <Tabs value="store" class="space-y-4">
+    <Tabs value="general" class="space-y-4">
         <TabsList>
+            <TabsTrigger value="general" class="flex gap-2"
+                ><Settings class="h-4 w-4" /> Umum & Garansi</TabsTrigger
+            >
             <TabsTrigger value="store" class="flex gap-2"
                 ><Store class="h-4 w-4" /> Informasi Toko</TabsTrigger
-            >
-            <TabsTrigger value="account" class="flex gap-2"
-                ><User class="h-4 w-4" /> Akun</TabsTrigger
             >
             <TabsTrigger value="employees" class="flex gap-2"
                 ><Users class="h-4 w-4" /> Karyawan</TabsTrigger
             >
+            <TabsTrigger value="account" class="flex gap-2"
+                ><User class="h-4 w-4" /> Akun Saya</TabsTrigger
+            >
         </TabsList>
+
+        <!-- Tab: Umum & Garansi -->
+        <TabsContent value="general">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Konfigurasi Garansi</CardTitle>
+                    <CardDescription>
+                        Atur kebijakan standar untuk layanan service.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Default Warranty Removed in favor of Presets -->
+                        <div class="space-y-4 col-span-2">
+                            <Label>Opsi Pilihan Garansi</Label>
+                            <div class="border rounded-md p-4 space-y-4">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="space-y-1">
+                                        <Label class="text-xs"
+                                            >Label (Tampilan)</Label
+                                        >
+                                        <Input
+                                            placeholder="Contoh: Garansi 1 Minggu"
+                                            bind:value={newPresetLabel}
+                                        />
+                                    </div>
+                                    <div class="space-y-1">
+                                        <Label class="text-xs"
+                                            >Durasi (Hari)</Label
+                                        >
+                                        <div class="flex gap-2">
+                                            <Input
+                                                type="number"
+                                                placeholder="7"
+                                                bind:value={newPresetDays}
+                                            />
+                                            <Button
+                                                variant="secondary"
+                                                onclick={addPreset}
+                                                >Tambah</Button
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-2">
+                                    {#each $settings.warrantyPresets as preset, i}
+                                        <div
+                                            class="flex items-center justify-between p-2 bg-muted/50 rounded text-sm"
+                                        >
+                                            <span
+                                                >{preset.label} ({preset.days} Hari)</span
+                                            >
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                class="h-6 w-6 text-red-500"
+                                                onclick={() => removePreset(i)}
+                                            >
+                                                <MinusCircle class="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    {/each}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1">
+                            <Label>Masa Tenggang Garansi (Hari)</Label>
+                            <Input
+                                type="number"
+                                bind:value={$settings.gracePeriodDays}
+                            />
+                            <p class="text-xs text-muted-foreground">
+                                Batas waktu klaim kebijakan toko setelah
+                                expired.
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button onclick={handleSaveSettings}
+                        >Simpan Pengaturan</Button
+                    >
+                </CardFooter>
+            </Card>
+        </TabsContent>
 
         <!-- Tab: Informasi Toko -->
         <TabsContent value="store">
             <Card>
                 <CardHeader>
-                    <CardTitle>Profil Toko</CardTitle>
+                    <CardTitle>Profil Toko & Nota</CardTitle>
                     <CardDescription>
-                        Informasi ini akan ditampilkan pada Nota Penjualan.
+                        Informasi ini akan ditampilkan pada Nota Penjualan dan
+                        Service.
                     </CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-4">
                     <div class="space-y-1">
-                        <Label for="name">Nama Toko</Label>
-                        <Input id="name" bind:value={storeName} />
+                        <div class="flex items-center gap-2 mb-2">
+                            <Store class="h-4 w-4 text-muted-foreground" />
+                            <Label class="font-semibold">Identitas Toko</Label>
+                        </div>
+                        <div class="grid gap-4">
+                            <div>
+                                <Label for="name">Nama Toko</Label>
+                                <Input id="name" bind:value={$settings.name} />
+                            </div>
+                            <div>
+                                <Label for="address">Alamat Lengkap</Label>
+                                <Textarea
+                                    id="address"
+                                    bind:value={$settings.address}
+                                    rows={2}
+                                />
+                            </div>
+                            <div>
+                                <Label for="phone">Nomor Telepon / WA</Label>
+                                <Input
+                                    id="phone"
+                                    bind:value={$settings.phone}
+                                    type="tel"
+                                />
+                            </div>
+                        </div>
                     </div>
+
+                    <Separator />
+
                     <div class="space-y-1">
-                        <Label for="address">Alamat Lengkap</Label>
-                        <Input id="address" bind:value={storeAddress} />
-                    </div>
-                    <div class="space-y-1">
-                        <Label for="phone">Nomor Telepon / WA</Label>
-                        <Input id="phone" bind:value={storePhone} type="tel" />
+                        <div class="flex items-center gap-2 mb-2">
+                            <ScrollText class="h-4 w-4 text-muted-foreground" />
+                            <Label class="font-semibold"
+                                >Pengaturan Nota (Receipt)</Label
+                            >
+                        </div>
+                        <div>
+                            <Label for="footer">Catatan Footer Nota</Label>
+                            <Textarea
+                                id="footer"
+                                bind:value={$settings.receiptFooter}
+                                placeholder="Contoh: Barang yang sudah dibeli tidak dapat dikembalikan."
+                                rows={2}
+                            />
+                            <p class="text-xs text-muted-foreground">
+                                Pesan ini akan muncul di bagian bawah struk.
+                            </p>
+                        </div>
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button onclick={handleSaveStore}>Simpan Perubahan</Button>
+                    <Button onclick={handleSaveSettings}
+                        >Simpan Perubahan</Button
+                    >
                 </CardFooter>
             </Card>
         </TabsContent>

@@ -241,6 +241,8 @@
         maxPrice = "";
     }
 
+    import { activityLogs, settings } from "$lib/stores/settings"; // Import Store
+
     function handleComplete() {
         if (isWalkin && totalPaid < grandTotalEstimate) {
             toast.error("Pembayaran kurang dari total tagihan!");
@@ -250,6 +252,19 @@
         const msg = isWalkin
             ? "Service Selesai & Lunas!"
             : "Service order berhasil dibuat!";
+
+        const action = isWalkin ? "Service (Walk-in)" : "Service Baru";
+        const details = isWalkin
+            ? `Menyelesaikan service walk-in untuk ${customerName} (Total: Rp ${grandTotalEstimate.toLocaleString()})`
+            : `Membuka service baru untuk ${customerName} (${phoneBrand} ${phoneModel})`;
+
+        activityLogs.addLog(
+            isWalkin ? "Kasir 1" : "CS / Admin",
+            action,
+            details,
+            "success",
+        );
+
         toast.success(msg, {
             description: `No. SRV-2026-NEW - ${customerName}`,
         });
@@ -915,15 +930,12 @@
                                     >{warranty.replace("_", " ")}</SelectTrigger
                                 >
                                 <SelectContent>
-                                    <SelectItem value="none"
-                                        >Tidak ada</SelectItem
-                                    >
-                                    <SelectItem value="1_minggu"
-                                        >1 Minggu</SelectItem
-                                    >
-                                    <SelectItem value="1_bulan"
-                                        >1 Bulan</SelectItem
-                                    >
+                                    {#each $settings.warrantyPresets as preset}
+                                        <SelectItem
+                                            value={preset.days.toString()}
+                                            >{preset.label}</SelectItem
+                                        >
+                                    {/each}
                                 </SelectContent>
                             </Select>
                         </div>

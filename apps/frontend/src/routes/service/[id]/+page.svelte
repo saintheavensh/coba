@@ -27,7 +27,10 @@
         XCircle,
         Plus,
         Repeat,
+        Printer,
+        MessageCircle,
     } from "lucide-svelte";
+    import PatternLock from "$lib/components/ui/pattern-lock.svelte";
 
     const serviceId = $page.params.id;
 
@@ -125,6 +128,26 @@
     function handleReassignTechnician() {
         toast.info("Modal Reassign Technician - Coming soon");
     }
+
+    function handleChatCustomer() {
+        const phone = serviceOrder.customer.phone.replace(/[^0-9]/g, "");
+        // Format +62
+        const formattedPhone = phone.startsWith("0")
+            ? "62" + phone.slice(1)
+            : phone;
+        const message = `Halo Kak ${serviceOrder.customer.name}, mengenai service HP ${serviceOrder.phone.brand} ${serviceOrder.phone.model} (No: ${serviceOrder.no})...`;
+        const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+        window.open(url, "_blank");
+    }
+
+    let showPrintLabel = false;
+    function handlePrintLabel() {
+        showPrintLabel = true;
+        setTimeout(() => {
+            window.print();
+            showPrintLabel = false;
+        }, 500);
+    }
 </script>
 
 <div class="space-y-6">
@@ -139,8 +162,16 @@
                 <ArrowLeft class="h-5 w-5" />
             </Button>
             <div>
-                <h3 class="text-lg font-medium">
+                <h3 class="text-lg font-medium flex items-center gap-2">
                     Detail Service: {serviceOrder.no}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onclick={handlePrintLabel}
+                        title="Cetak Label"
+                    >
+                        <Printer class="h-4 w-4" />
+                    </Button>
                 </h3>
                 <p class="text-sm text-muted-foreground">
                     {serviceOrder.customer.name} - {serviceOrder.phone.brand}
@@ -164,8 +195,20 @@
             <CardContent class="space-y-2 text-sm">
                 <div class="flex justify-between">
                     <span class="text-muted-foreground">Nama</span>
-                    <span class="font-medium">{serviceOrder.customer.name}</span
-                    >
+                    <div class="flex items-center gap-2">
+                        <span class="font-medium"
+                            >{serviceOrder.customer.name}</span
+                        >
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            class="h-4 w-4 text-green-600"
+                            onclick={handleChatCustomer}
+                            title="Chat WhatsApp"
+                        >
+                            <MessageCircle class="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-muted-foreground">Telepon</span>
@@ -373,3 +416,96 @@
         </Button>
     </div>
 </div>
+
+<!-- Printable Label (Sticker Layout: 6.5cm x 3.2cm) -->
+{#if showPrintLabel}
+    <div
+        class="fixed inset-0 bg-white z-[9999] print-area flex items-center justify-center"
+    >
+        <!-- Container simulating the label size for screen preview -->
+        <div
+            class="w-[65mm] h-[32mm] border border-gray-200 p-[2mm] flex gap-[2mm] overflow-hidden bg-white text-black relative"
+        >
+            <!-- Left Info -->
+            <div class="flex-1 flex flex-col justify-between overflow-hidden">
+                <div>
+                    <h2 class="font-bold text-[10pt] leading-none mb-[1mm]">
+                        {serviceOrder.no}
+                    </h2>
+                    <p class="text-[6pt] mb-[1mm]">
+                        {serviceOrder.dateIn.split(" ")[0]}
+                    </p>
+                    <p class="text-[7pt] font-semibold truncate leading-tight">
+                        {serviceOrder.phone.brand}
+                        {serviceOrder.phone.model}
+                    </p>
+                </div>
+                <div class="mt-auto">
+                    <p class="text-[5pt] leading-tight text-gray-600">
+                        Keluhan:
+                    </p>
+                    <p class="text-[6pt] leading-tight line-clamp-2">
+                        {serviceOrder.complaint}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Right: Pattern -->
+            <div
+                class="w-[20mm] flex flex-col items-center justify-center border-l border-black pl-[1mm]"
+            >
+                <p class="text-[5pt] mb-[1mm] text-center">Pola / PIN</p>
+                <div
+                    class="w-[15mm] h-[15mm] border border-black border-dashed flex items-center justify-center relative"
+                >
+                    <!-- 3x3 Grid Dots Visual -->
+                    <div class="grid grid-cols-3 gap-[3mm]">
+                        {#each Array(9) as _, i}
+                            <div
+                                class="w-[1mm] h-[1mm] bg-black rounded-full"
+                            ></div>
+                        {/each}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{/if}
+
+<style>
+    @media print {
+        @page {
+            size: 65mm 32mm;
+            margin: 0;
+        }
+        :global(body > *:not(.print-area)) {
+            display: none !important;
+        }
+        :global(body) {
+            margin: 0;
+            padding: 0;
+            visibility: hidden;
+        }
+        .print-area {
+            visibility: visible;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 65mm !important;
+            height: 32mm !important;
+            display: block !important;
+            background: white;
+            padding: 0; /* Remove screen preview padding */
+            display: flex !important;
+            align-items: flex-start !important; /* Align top-left for printer */
+            justify-content: flex-start !important;
+        }
+        /* Remove preview border logic */
+        .print-area > div {
+            border: none;
+            margin: 0;
+            width: 100%;
+            height: 100%;
+        }
+    }
+</style>

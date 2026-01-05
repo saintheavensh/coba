@@ -44,6 +44,7 @@
     } from "lucide-svelte";
     import { toast } from "$lib/components/ui/sonner";
     import { Badge } from "$lib/components/ui/badge";
+    import { activityLogs } from "$lib/stores/settings"; // Import Store
 
     // Mock Data untuk Produk & Batch
     const products = [
@@ -167,6 +168,12 @@
 
         openAddItem = false;
         resetModal();
+        activityLogs.addLog(
+            "Kasir 1",
+            "Add to Cart",
+            `Menambahkan item: ${selectedProduct.name} (Qty: ${inputQty})`,
+            "info",
+        );
         toast.success("Item ditambahkan ke keranjang");
     }
 
@@ -175,6 +182,13 @@
     }
 
     function handleSaveTransaction() {
+        activityLogs.addLog(
+            "Kasir 1",
+            "Penjualan Baru",
+            `Menyimpan transaksi ${notaNo} sebesar Rp ${totalTransaction.toLocaleString()}`,
+            "success",
+        );
+
         toast.success("Transaksi Berhasil Disimpan", {
             description: `Total: Rp ${totalTransaction.toLocaleString()}`,
             action: {
@@ -186,7 +200,20 @@
         items = [];
         notaNo = "NOTA-2026-002";
     }
+    function handleKeydown(e: KeyboardEvent) {
+        if (e.key === "F2") {
+            e.preventDefault();
+            openAddItem = true;
+        } else if (e.key === "F4") {
+            e.preventDefault();
+            if (items.length > 0) handleSaveTransaction();
+        } else if (e.key === "Escape") {
+            if (openAddItem) openAddItem = false;
+        }
+    }
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <div class="flex flex-col gap-6">
     <div class="flex items-center justify-between">

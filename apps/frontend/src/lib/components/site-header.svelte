@@ -26,6 +26,16 @@
         SheetTrigger,
     } from "$lib/components/ui/sheet";
     import { cn } from "$lib/utils";
+    import {
+        DropdownMenu,
+        DropdownMenuContent,
+        DropdownMenuItem,
+        DropdownMenuLabel,
+        DropdownMenuSeparator,
+        DropdownMenuTrigger,
+        DropdownMenuGroup,
+    } from "$lib/components/ui/dropdown-menu";
+    import { activityLogs } from "$lib/stores/settings";
 
     function getPageTitle(pathname: string) {
         if (pathname === "/") return "Dashboard";
@@ -44,6 +54,18 @@
         { title: "Reports", href: "/reports", icon: Boxes },
         { title: "Settings", href: "/settings", icon: Settings },
     ];
+
+    function getTimeDifference(date: Date) {
+        const now = new Date();
+        const diff = Math.floor(
+            (now.getTime() - new Date(date).getTime()) / 1000,
+        );
+
+        if (diff < 60) return "Baru saja";
+        if (diff < 3600) return `${Math.floor(diff / 60)} menit lalu`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`;
+        return new Date(date).toLocaleDateString();
+    }
 </script>
 
 <header
@@ -113,6 +135,11 @@
         <h1 class="text-lg font-semibold md:text-xl">
             {getPageTitle($page.url.pathname)}
         </h1>
+        {#if $page.url.pathname === "/" && $activityLogs.length > 0}
+            <p class="text-xs text-muted-foreground hidden md:block">
+                Terakhir: {$activityLogs[0].action} oleh {$activityLogs[0].user}
+            </p>
+        {/if}
     </div>
 
     <div class="flex items-center gap-4">
@@ -126,12 +153,80 @@
                 class="w-[200px] pl-8 bg-muted/50 border-none focus-visible:ring-1 lg:w-[300px]"
             />
         </div>
-        <Button variant="ghost" size="icon" class="relative">
-            <Bell class="h-5 w-5" />
-            <span
-                class="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-600 border border-background"
-            ></span>
-        </Button>
+
+        <!-- Notification Dropdown -->
+        <DropdownMenu>
+            <DropdownMenuTrigger
+                class={buttonVariants({
+                    variant: "ghost",
+                    size: "icon",
+                    className: "relative",
+                })}
+            >
+                <Bell class="h-5 w-5" />
+                {#if $activityLogs.filter((l) => !l.isRead).length > 0}
+                    <span
+                        class="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-600 border border-background"
+                    ></span>
+                {/if}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent class="w-80" align="end">
+                <DropdownMenuLabel class="flex justify-between items-center">
+                    Notifikasi
+                    {#if $activityLogs.length > 0}
+                        <button
+                            class="text-xs font-normal text-muted-foreground hover:text-blue-600 bg-transparent border-none p-0 cursor-pointer"
+                            onclick={() => activityLogs.markAllAsRead()}
+                            >Mark all read</button
+                        >
+                    {/if}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <div class="max-h-[300px] overflow-y-auto">
+                    {#if $activityLogs.length === 0}
+                        <div
+                            class="p-4 text-center text-sm text-muted-foreground"
+                        >
+                            Tidak ada notifikasi baru.
+                        </div>
+                    {:else}
+                        {#each $activityLogs as log}
+                            <DropdownMenuItem
+                                class="flex flex-col items-start gap-1 p-3 cursor-pointer"
+                            >
+                                <div class="flex justify-between w-full">
+                                    <span
+                                        class="font-medium text-xs text-blue-600"
+                                        >{log.user}</span
+                                    >
+                                    <span
+                                        class="text-[10px] text-muted-foreground"
+                                        >{getTimeDifference(
+                                            log.timestamp,
+                                        )}</span
+                                    >
+                                </div>
+                                <p class="text-sm font-medium leading-none">
+                                    {log.action}
+                                </p>
+                                <p
+                                    class="text-xs text-muted-foreground line-clamp-2"
+                                >
+                                    {log.details}
+                                </p>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                        {/each}
+                    {/if}
+                </div>
+                <DropdownMenuItem
+                    class="justify-center text-center text-xs font-medium text-blue-600 cursor-pointer"
+                >
+                    Lihat Semua Aktivitas
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+
         <Avatar class="h-9 w-9 cursor-pointer">
             <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
             <AvatarFallback>AD</AvatarFallback>

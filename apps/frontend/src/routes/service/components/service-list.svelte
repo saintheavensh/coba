@@ -76,6 +76,10 @@
     let showReassignModal = false;
     let selectedServiceForReassign: any = null;
 
+    import { activityLogs } from "$lib/stores/settings"; // Import store
+
+    // ... (Mock data)
+
     function openReassignModal(order: any) {
         selectedServiceForReassign = order;
         showReassignModal = true;
@@ -87,6 +91,12 @@
             order.id === updatedData.id
                 ? { ...order, technician: updatedData.technician }
                 : order,
+        );
+        activityLogs.addLog(
+            "Admin",
+            "Reassign Technician",
+            `Mengubah teknisi untuk service ${updatedData.no} menjadi ${updatedData.technician}`,
+            "info",
         );
     }
 
