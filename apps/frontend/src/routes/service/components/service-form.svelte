@@ -35,6 +35,10 @@
         CheckCircle,
         Grid3X3,
         Smartphone,
+        Package,
+        ShoppingCart,
+        XCircle,
+        Search,
     } from "lucide-svelte";
     import { goto } from "$app/navigation";
     import PatternLock from "$lib/components/ui/pattern-lock.svelte";
@@ -51,7 +55,7 @@
     let phoneModel = "";
 
     // HP Condition
-    let phoneStatus = "nyala"; // nyala, mati_total, restart, blank_hitam
+    let phoneStatus = "nyala";
     let imei = "";
     let physicalConditions: string[] = [];
     let completeness: string[] = [];
@@ -66,13 +70,36 @@
             ? patternPoints.map((p) => p + 1).join("-")
             : "";
 
-    // Step 2: Complaint, Technician, Walk-in Specifics
-    let complaint = ""; // Labels: "Keluhan Customer" or "Kerusakan"
+    // Step 2: Service Details
+    let complaint = "";
     let technician = "";
     let estimatedCost = "";
     let downPayment = "";
-    let sparepartReplacement = ""; // Walk-in only
-    let warranty = "none"; // Walk-in only, default no warranty or select
+    let warranty = "none";
+
+    // Walk-in Sparepart Logic
+    let sparepartSource = "none"; // none, inventory, external
+    let selectedParts: any[] = [];
+    // Mock Inventory Data
+    const mockInventory = [
+        { id: 1, name: "LCD Samsung A50 Original", stock: 5, price: 450000 },
+        { id: 2, name: "Baterai Xiaomi BN45", stock: 10, price: 120000 },
+        { id: 3, name: "Connector Cas Type-C", stock: 50, price: 15000 },
+        { id: 4, name: "Tempered Glass Universal", stock: 100, price: 10000 },
+    ];
+    let showInventoryModal = false;
+    let searchTerm = "";
+
+    // External Part Data
+    let extPartName = "";
+    let extPartBuyPrice = "";
+    let extPartSellPrice = "";
+
+    // Computed Totals
+    $: totalPartPrice =
+        selectedParts.reduce((sum, p) => sum + (parseInt(p.price) || 0), 0) +
+        (sparepartSource === "external" ? parseInt(extPartSellPrice) || 0 : 0);
+    $: grandTotalEstimate = (parseInt(estimatedCost) || 0) + totalPartPrice;
 
     // Validation
     const isStatusImeiOptional = (status: string) =>
@@ -120,6 +147,16 @@
     function handleSavePattern() {
         isPatternOpen = false;
         toast.success(`Pola tersimpan: ${patternString}`);
+    }
+
+    function addInventoryPart(part: any) {
+        selectedParts = [...selectedParts, { ...part, type: "inventory" }];
+        showInventoryModal = false;
+        toast.success(`${part.name} ditambahkan`);
+    }
+
+    function removePart(index: number) {
+        selectedParts = selectedParts.filter((_, i) => i !== index);
     }
 
     function handleSubmit() {
@@ -171,7 +208,7 @@
 
     <CardContent>
         {#if currentStep === 1}
-            <!-- Step 1: Customer & HP Data -->
+            <!-- Step 1: Customer & HP Data (UNCHANGED) -->
             <div class="space-y-6">
                 <!-- Customer Section -->
                 <div>
@@ -504,44 +541,42 @@
                 </div>
             </div>
         {:else if currentStep === 2}
-            <!-- Step 2: Complaint/Damage & Technician -->
+            <!-- Step 2: Service Details -->
             <div class="space-y-6">
-                <!-- Unit Recap with more details -->
-                <div class="p-4 bg-muted rounded-lg space-y-2">
-                    <div class="flex justify-between">
-                        <span class="font-medium text-sm">Unit:</span>
-                        <span class="text-sm">{phoneBrand} {phoneModel}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="font-medium text-sm">Status:</span>
-                        <Badge variant="outline" class="uppercase text-[10px]"
-                            >{phoneStatus.replace(/_/g, " ")}</Badge
-                        >
-                    </div>
-                    {#if completeness.length > 0}
-                        <div class="flex justify-between items-start">
-                            <span class="font-medium text-sm">Kelengkapan:</span
-                            >
-                            <span class="text-sm text-right px-2"
-                                >{completeness
-                                    .join(", ")
-                                    .replace(/_/g, " ")}</span
+                <!-- Unit Recap -->
+                <div class="p-4 bg-muted rounded-lg space-y-2 text-sm">
+                    <div class="grid grid-cols-2 gap-x-4">
+                        <div class="space-y-1">
+                            <span class="font-medium">Unit:</span>
+                            {phoneBrand}
+                            {phoneModel}
+                        </div>
+                        <div class="space-y-1">
+                            <span class="font-medium">Status:</span>
+                            <Badge
+                                variant="outline"
+                                class="uppercase text-[10px] scale-90 origin-left"
+                                >{phoneStatus.replace(/_/g, " ")}</Badge
                             >
                         </div>
-                    {/if}
-                    {#if physicalConditions.length > 0}
-                        <div class="flex justify-between items-start">
-                            <span class="font-medium text-sm">Fisik:</span>
-                            <span class="text-sm text-right px-2"
-                                >{physicalConditions
-                                    .join(", ")
-                                    .replace(/_/g, " ")}</span
-                            >
+                        <div class="space-y-1 col-span-2">
+                            <span class="font-medium">Fisik:</span>
+                            {physicalConditions.length > 0
+                                ? physicalConditions
+                                      .join(", ")
+                                      .replace(/_/g, " ")
+                                : "-"}
                         </div>
-                    {/if}
+                        <div class="space-y-1 col-span-2">
+                            <span class="font-medium">Kelengkapan:</span>
+                            {completeness.length > 0
+                                ? completeness.join(", ").replace(/_/g, " ")
+                                : "-"}
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Complaint or Damage -->
+                <!-- Complaint -->
                 <div class="space-y-2">
                     <Label for="complaint">
                         {isWalkin ? "Kerusakan" : "Keluhan Customer"}
@@ -553,27 +588,141 @@
                         placeholder={isWalkin
                             ? "Contoh: LCD Pecah, ganti LCD Fullset"
                             : "Jelaskan keluhan detail..."}
-                        rows={5}
+                        rows={isWalkin ? 2 : 5}
                         maxlength={500}
                     />
-                    <p class="text-xs text-muted-foreground text-right">
-                        {complaint?.length || 0} / 500
-                    </p>
                 </div>
 
+                <!-- Walk-in Sparepart Selection (NEW) -->
                 {#if isWalkin}
-                    <!-- Walk-in Extra Field: Sparepart -->
-                    <div class="space-y-2">
-                        <Label for="sparepart">Penggantian Sparepart</Label>
-                        <Textarea
-                            id="sparepart"
-                            bind:value={sparepartReplacement}
-                            placeholder="Data spare part yang diganti (jika ada)"
-                            rows={3}
-                        />
+                    <div class="space-y-4 border p-4 rounded-md">
+                        <Label>Penggunaan Sparepart</Label>
+                        <div class="flex gap-4">
+                            <label
+                                class="flex items-center gap-2 cursor-pointer text-sm"
+                            >
+                                <input
+                                    type="radio"
+                                    bind:group={sparepartSource}
+                                    value="inventory"
+                                    class="cursor-pointer"
+                                />
+                                <Package class="w-4 h-4" /> Inventory Toko
+                            </label>
+                            <label
+                                class="flex items-center gap-2 cursor-pointer text-sm"
+                            >
+                                <input
+                                    type="radio"
+                                    bind:group={sparepartSource}
+                                    value="external"
+                                    class="cursor-pointer"
+                                />
+                                <ShoppingCart class="w-4 h-4" /> Beli Luar (External)
+                            </label>
+                            <label
+                                class="flex items-center gap-2 cursor-pointer text-sm"
+                            >
+                                <input
+                                    type="radio"
+                                    bind:group={sparepartSource}
+                                    value="none"
+                                    class="cursor-pointer"
+                                />
+                                <XCircle class="w-4 h-4" /> Tanpa Sparepart
+                            </label>
+                        </div>
+
+                        <!-- Option: Inventory -->
+                        {#if sparepartSource === "inventory"}
+                            <div class="space-y-2">
+                                <Button
+                                    variant="outline"
+                                    class="w-full justify-start"
+                                    onclick={() => (showInventoryModal = true)}
+                                >
+                                    <Search class="mr-2 h-4 w-4" /> Cari Sparepart
+                                    di Inventory...
+                                </Button>
+
+                                <!-- Selected Inventory Parts List -->
+                                {#if selectedParts.length > 0}
+                                    <div class="space-y-2 mt-2">
+                                        {#each selectedParts as part, i}
+                                            <div
+                                                class="flex justify-between items-center bg-secondary p-2 rounded text-sm"
+                                            >
+                                                <span>{part.name}</span>
+                                                <div
+                                                    class="flex items-center gap-2"
+                                                >
+                                                    <span class="font-medium"
+                                                        >Rp {part.price.toLocaleString()}</span
+                                                    >
+                                                    <button
+                                                        onclick={() =>
+                                                            removePart(i)}
+                                                        class="text-red-500 hover:text-red-700"
+                                                        >×</button
+                                                    >
+                                                </div>
+                                            </div>
+                                        {/each}
+                                    </div>
+                                {/if}
+                            </div>
+                        {/if}
+
+                        <!-- Option: External -->
+                        {#if sparepartSource === "external"}
+                            <div class="grid gap-3 bg-muted/20 p-3 rounded">
+                                <div class="space-y-1">
+                                    <Label class="text-xs"
+                                        >Nama Barang / Sparepart</Label
+                                    >
+                                    <Input
+                                        bind:value={extPartName}
+                                        placeholder="Contoh: LCD KW Super beli di ITC"
+                                        class="h-8"
+                                    />
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="space-y-1">
+                                        <Label class="text-xs"
+                                            >Harga Beli (Modal)</Label
+                                        >
+                                        <Input
+                                            type="number"
+                                            bind:value={extPartBuyPrice}
+                                            placeholder="0"
+                                            class="h-8"
+                                        />
+                                    </div>
+                                    <div class="space-y-1">
+                                        <Label class="text-xs"
+                                            >Harga Jual ke User</Label
+                                        >
+                                        <Input
+                                            type="number"
+                                            bind:value={extPartSellPrice}
+                                            placeholder="0"
+                                            class="h-8"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        {/if}
+
+                        <!-- Option: None -->
+                        {#if sparepartSource === "none"}
+                            <p class="text-xs text-muted-foreground italic">
+                                Hanya dikenakan biaya jasa service.
+                            </p>
+                        {/if}
                     </div>
                 {/if}
 
+                <!-- Technician & Cost -->
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-2">
                         <Label for="technician"
@@ -603,15 +752,15 @@
                             </SelectContent>
                         </Select>
                         {#if isWalkin}
-                            <p class="text-xs text-orange-600">
-                                Teknisi wajib diisi untuk Walk-in (langsung
-                                dikerjakan)
+                            <p class="text-[10px] text-muted-foreground">
+                                Teknisi yang mengerjakan service ini (akan
+                                tercatat di laporan).
                             </p>
                         {/if}
                     </div>
 
                     <div class="space-y-2">
-                        <Label for="cost">Estimasi Biaya</Label>
+                        <Label for="cost">Biaya Jasa Service</Label>
                         <Input
                             id="cost"
                             type="number"
@@ -620,6 +769,19 @@
                         />
                     </div>
                 </div>
+
+                {#if isWalkin}
+                    <div
+                        class="flex justify-between items-center p-3 bg-primary/10 rounded-lg border border-primary/20"
+                    >
+                        <span class="font-bold text-sm"
+                            >Total Estimasi Harga:</span
+                        >
+                        <span class="font-bold text-lg text-primary"
+                            >Rp {grandTotalEstimate.toLocaleString()}</span
+                        >
+                    </div>
+                {/if}
 
                 <!-- Walk-in Warranty -->
                 {#if isWalkin}
@@ -661,9 +823,6 @@
                         bind:value={downPayment}
                         placeholder="Rp 0"
                     />
-                    <p class="text-xs text-muted-foreground">
-                        Isi jika customer membayar uang muka
-                    </p>
                 </div>
             </div>
         {:else if currentStep === 3}
@@ -697,22 +856,6 @@
                                     {phoneModel}
                                 </p>
                             </div>
-                            <div class="space-y-1">
-                                <p class="text-muted-foreground">Status Awal</p>
-                                <Badge variant="outline" class="uppercase"
-                                    >{phoneStatus.replace(/_/g, " ")}</Badge
-                                >
-                            </div>
-                            <div class="space-y-1">
-                                <p class="text-muted-foreground">Kelengkapan</p>
-                                <p class="font-medium">
-                                    {completeness.length > 0
-                                        ? completeness
-                                              .join(", ")
-                                              .replace(/_/g, " ")
-                                        : "-"}
-                                </p>
-                            </div>
                         </CardContent>
                     </Card>
 
@@ -730,13 +873,45 @@
                                 <p class="font-medium">{complaint}</p>
                             </div>
 
-                            {#if isWalkin && sparepartReplacement}
+                            {#if isWalkin && sparepartSource !== "none"}
                                 <div class="space-y-1 col-span-2">
                                     <p class="text-muted-foreground">
-                                        Sparepart Diganti
+                                        Sparepart ({sparepartSource})
                                     </p>
-                                    <p class="font-medium">
-                                        {sparepartReplacement}
+                                    {#if sparepartSource === "inventory"}
+                                        <ul class="list-disc pl-4 text-xs">
+                                            {#each selectedParts as part}
+                                                <li>
+                                                    {part.name} - Rp {part.price.toLocaleString()}
+                                                </li>
+                                            {/each}
+                                        </ul>
+                                    {:else if sparepartSource === "external"}
+                                        <p class="font-medium text-xs">
+                                            {extPartName} (Jual: Rp {parseInt(
+                                                extPartSellPrice || "0",
+                                            ).toLocaleString()})
+                                        </p>
+                                    {/if}
+                                </div>
+                            {/if}
+
+                            <div class="space-y-1">
+                                <p class="text-muted-foreground">Biaya Jasa</p>
+                                <p class="font-medium">
+                                    {estimatedCost
+                                        ? `Rp ${parseInt(estimatedCost).toLocaleString()}`
+                                        : "Rp 0"}
+                                </p>
+                            </div>
+
+                            {#if isWalkin}
+                                <div class="space-y-1">
+                                    <p class="text-muted-foreground">
+                                        Total Biaya
+                                    </p>
+                                    <p class="font-bold text-primary">
+                                        Rp {grandTotalEstimate.toLocaleString()}
                                     </p>
                                 </div>
                             {/if}
@@ -745,34 +920,6 @@
                                 <p class="text-muted-foreground">Teknisi</p>
                                 <p class="font-medium capitalize">
                                     {technician || "-"}
-                                </p>
-                            </div>
-
-                            {#if isWalkin}
-                                <div class="space-y-1">
-                                    <p class="text-muted-foreground">Garansi</p>
-                                    <p class="font-medium capitalize">
-                                        {warranty.replace("_", " ")}
-                                    </p>
-                                </div>
-                            {/if}
-
-                            <div class="space-y-1">
-                                <p class="text-muted-foreground">Estimasi</p>
-                                <p class="font-medium">
-                                    {estimatedCost
-                                        ? `Rp ${parseInt(estimatedCost).toLocaleString()}`
-                                        : "-"}
-                                </p>
-                            </div>
-                            <div class="space-y-1">
-                                <p class="text-muted-foreground">
-                                    DP / Uang Muka
-                                </p>
-                                <p class="font-medium text-green-600">
-                                    {downPayment
-                                        ? `Rp ${parseInt(downPayment).toLocaleString()}`
-                                        : "-"}
                                 </p>
                             </div>
                         </CardContent>
@@ -805,3 +952,38 @@
         {/if}
     </CardFooter>
 </Card>
+
+<!-- Inventory Search Modal (Mock) -->
+<Dialog bind:open={showInventoryModal}>
+    <DialogContent class="sm:max-w-[425px]">
+        <DialogHeader>
+            <DialogTitle>Pilih Sparepart</DialogTitle>
+            <DialogDescription>
+                Pilih sparepart dari inventory toko.
+            </DialogDescription>
+        </DialogHeader>
+        <div class="py-4 space-y-4">
+            <Input placeholder="Cari nama barang..." bind:value={searchTerm} />
+            <div class="border rounded-md max-h-[200px] overflow-y-auto">
+                {#each mockInventory.filter((i) => i.name
+                        .toLowerCase()
+                        .includes(searchTerm.toLowerCase())) as item}
+                    <button
+                        class="w-full text-left p-3 hover:bg-muted text-sm flex justify-between border-b last:border-0"
+                        onclick={() => addInventoryPart(item)}
+                    >
+                        <div>
+                            <div class="font-medium">{item.name}</div>
+                            <div class="text-xs text-muted-foreground">
+                                Stok: {item.stock}
+                            </div>
+                        </div>
+                        <div class="font-semibold text-primary">
+                            Rp {item.price.toLocaleString()}
+                        </div>
+                    </button>
+                {/each}
+            </div>
+        </div>
+    </DialogContent>
+</Dialog>
