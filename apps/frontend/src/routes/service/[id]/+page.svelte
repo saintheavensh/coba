@@ -474,38 +474,34 @@
 
 <style>
     @media print {
-        @page {
-            size: 65mm 32mm;
-            margin: 0;
-        }
-        :global(body > *:not(.print-area)) {
-            display: none !important;
-        }
-        :global(body) {
-            margin: 0;
-            padding: 0;
+        /* Hide everything by default */
+        body * {
             visibility: hidden;
         }
-        .print-area {
+
+        /* Show only the print area and its children */
+        .print-area,
+        .print-area * {
             visibility: visible;
-            position: absolute;
+        }
+
+        /* Position the print area to fill the page */
+        .print-area {
+            position: fixed;
             left: 0;
             top: 0;
             width: 65mm !important;
             height: 32mm !important;
-            display: block !important;
-            background: white;
-            padding: 0; /* Remove screen preview padding */
-            display: flex !important;
-            align-items: flex-start !important; /* Align top-left for printer */
-            justify-content: flex-start !important;
-        }
-        /* Remove preview border logic */
-        .print-area > div {
-            border: none;
             margin: 0;
-            width: 100%;
-            height: 100%;
+            padding: 0;
+            background: white;
+            z-index: 9999;
+            /* Flex layout from inline style will persist */
+        }
+
+        @page {
+            size: 65mm 32mm;
+            margin: 0;
         }
     }
 </style>
