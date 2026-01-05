@@ -80,6 +80,13 @@
     let warranty = "none";
     let technicianNotes = ""; // New Field
 
+    // Regular Service Specifics (NEW)
+    let initialDiagnosis = ""; // Diagnosa Awal (Cek Arus dll)
+    let possibleCauses = ""; // Kemungkinan Kerusakan
+    let isPriceRange = false; // Toggle Range Price
+    let minPrice = "";
+    let maxPrice = "";
+
     // Walk-in Sparepart Logic
     let sparepartSource = "none";
     let selectedParts: any[] = [];
@@ -226,6 +233,12 @@
         paymentMethod = "cash";
         payAmountCash = "";
         payAmountTransfer = "";
+
+        initialDiagnosis = "";
+        possibleCauses = "";
+        isPriceRange = false;
+        minPrice = "";
+        maxPrice = "";
     }
 
     function handleComplete() {
@@ -668,7 +681,89 @@
                     />
                 </div>
 
-                <!-- Service Details (Walk-in vs Reguler) -->
+                <!-- NEW: Diagnostic & Price Range (Regular Only) -->
+                {#if !isWalkin}
+                    <div class="space-y-4 border p-4 rounded-md">
+                        <h5 class="font-medium text-sm">
+                            Diagnosa Awal & Prediksi
+                        </h5>
+
+                        <div class="space-y-2">
+                            <Label>Diagnosa Awal (Teknis)</Label>
+                            <Textarea
+                                placeholder="Cth: Konsumsi arus 0.2A, tidak short, flexible aman..."
+                                bind:value={initialDiagnosis}
+                                rows={3}
+                            />
+                            <p class="text-[10px] text-muted-foreground">
+                                Pengecekan umum sebelum bongkar/deep check.
+                            </p>
+                        </div>
+
+                        <div class="space-y-2">
+                            <Label>Kemungkinan Kerusakan (Hipotesa)</Label>
+                            <Textarea
+                                placeholder="Cth: Kemungkinan IC Power atau Baterai drop..."
+                                bind:value={possibleCauses}
+                                rows={2}
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Regular Cost with Range Option -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <Label for="cost">Estimasi Biaya</Label>
+                            <label
+                                class="flex items-center gap-2 cursor-pointer text-xs"
+                            >
+                                <input
+                                    type="checkbox"
+                                    bind:checked={isPriceRange}
+                                    class="cursor-pointer"
+                                />
+                                <span>Gunakan Range Harga (Min - Max)</span>
+                            </label>
+                        </div>
+
+                        {#if isPriceRange}
+                            <div class="flex items-center gap-2">
+                                <div class="flex-1 space-y-1">
+                                    <Input
+                                        type="number"
+                                        bind:value={minPrice}
+                                        placeholder="Min (Ex: 100k)"
+                                    />
+                                    <span
+                                        class="text-[10px] text-muted-foreground"
+                                        >Min</span
+                                    >
+                                </div>
+                                <span class="text-muted-foreground">-</span>
+                                <div class="flex-1 space-y-1">
+                                    <Input
+                                        type="number"
+                                        bind:value={maxPrice}
+                                        placeholder="Max (Ex: 300k)"
+                                    />
+                                    <span
+                                        class="text-[10px] text-muted-foreground"
+                                        >Max</span
+                                    >
+                                </div>
+                            </div>
+                        {:else}
+                            <Input
+                                id="cost"
+                                type="number"
+                                bind:value={estimatedCost}
+                                placeholder="Rp 0"
+                            />
+                        {/if}
+                    </div>
+                {/if}
+
+                <!-- Walk-in Sparepart & Cost (Existing) -->
                 {#if isWalkin}
                     <!-- Walk-in Sparepart & Cost -->
                     <div class="space-y-4 border p-4 rounded-md bg-background">
@@ -1014,7 +1109,7 @@
                     </div>
                 </div>
             {:else}
-                <!-- Step 3 Reguler: Confirmation (UNCHANGED) -->
+                <!-- Step 3 Reguler: Confirmation -->
                 <div class="space-y-6">
                     <div class="text-center mb-6">
                         <CheckCircle
@@ -1024,12 +1119,99 @@
                             Konfirmasi Service Order
                         </h4>
                     </div>
-                    <!-- Summary Cards ... (Simplified for brevity, assuming standard confirmation) -->
                     <Card>
-                        <CardContent class="pt-6">
-                            <p class="text-center text-muted-foreground">
-                                Konfirmasi data service order reguler...
-                            </p>
+                        <CardHeader
+                            ><CardTitle class="text-base"
+                                >Service Summary</CardTitle
+                            ></CardHeader
+                        >
+                        <CardContent class="grid md:grid-cols-2 gap-4 text-sm">
+                            <div class="space-y-1">
+                                <p class="text-muted-foreground">Unit</p>
+                                <p class="font-medium">
+                                    {phoneBrand}
+                                    {phoneModel}
+                                </p>
+                            </div>
+                            <div class="space-y-1">
+                                <p class="text-muted-foreground">
+                                    Status & Fisik
+                                </p>
+                                <p class="font-medium">
+                                    {phoneStatus} - {physicalConditions.join(
+                                        ", ",
+                                    ) || "Normal"}
+                                </p>
+                            </div>
+                            <div class="space-y-1 col-span-2">
+                                <p class="text-muted-foreground">
+                                    Keluhan Customer
+                                </p>
+                                <p class="font-medium">{complaint}</p>
+                            </div>
+
+                            <Separator class="col-span-2 my-2" />
+
+                            <!-- NEW: Diagnosis Display -->
+                            <div class="space-y-1 col-span-2">
+                                <p class="text-muted-foreground">
+                                    Diagnosa Awal
+                                </p>
+                                <p class="font-medium">
+                                    {initialDiagnosis || "-"}
+                                </p>
+                            </div>
+                            <div class="space-y-1 col-span-2">
+                                <p class="text-muted-foreground">
+                                    Kemungkinan Kerusakan
+                                </p>
+                                <p class="font-medium">
+                                    {possibleCauses || "-"}
+                                </p>
+                            </div>
+
+                            <Separator class="col-span-2 my-2" />
+
+                            <div class="space-y-1">
+                                <p class="text-muted-foreground">
+                                    Estimasi Biaya
+                                </p>
+                                {#if isPriceRange}
+                                    <p class="font-medium">
+                                        Rp {parseInt(
+                                            minPrice || "0",
+                                        ).toLocaleString()} - Rp {parseInt(
+                                            maxPrice || "0",
+                                        ).toLocaleString()}
+                                    </p>
+                                {:else}
+                                    <p class="font-medium">
+                                        {estimatedCost
+                                            ? `Rp ${parseInt(estimatedCost).toLocaleString()}`
+                                            : "Belum estimasi"}
+                                    </p>
+                                {/if}
+                            </div>
+
+                            <div class="space-y-1">
+                                <p class="text-muted-foreground">
+                                    DP / Uang Muka
+                                </p>
+                                <p class="font-medium">
+                                    {downPayment
+                                        ? `Rp ${parseInt(downPayment).toLocaleString()}`
+                                        : "-"}
+                                </p>
+                            </div>
+
+                            <div class="space-y-1 col-span-2">
+                                <p class="text-muted-foreground">
+                                    Catatan Teknisi
+                                </p>
+                                <p class="font-medium">
+                                    {technicianNotes || "-"}
+                                </p>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
