@@ -14,28 +14,39 @@
     import { goto } from "$app/navigation";
     import { Package } from "lucide-svelte";
 
-    let username = "";
-    let password = "";
-    let isLoading = false;
+    import { api } from "$lib/api";
 
-    function handleLogin() {
+    let username = $state("");
+    let password = $state("");
+    let isLoading = $state(false);
+
+    async function handleLogin() {
+        if (!username || !password) {
+            toast.error("Validasi Gagal", { description: "Username dan Password harus diisi" });
+            return;
+        }
+
         isLoading = true;
+        try {
+            const res = await api("/auth/login", {
+                method: "POST",
+                body: { username, password },
+            });
 
-        // Simulate network delay
-        setTimeout(() => {
+            // Save token
+            localStorage.setItem("token", res.token);
+            localStorage.setItem("user", JSON.stringify(res.user));
+
+            toast.success("Login Berhasil", {
+                description: `Selamat datang, ${res.user.name}`,
+            });
+            
+            goto("/");
+        } catch (err) {
+            // Error handled in api.ts mostly, but we can stop loading here
+        } finally {
             isLoading = false;
-            if (username === "admin" && password === "admin") {
-                toast.success("Login Berhasil", {
-                    description: "Selamat datang kembali, Admin!",
-                });
-                goto("/");
-            } else {
-                toast.error("Login Gagal", {
-                    description:
-                        "Username atau password salah. Coba 'admin/admin'.",
-                });
-            }
-        }, 1000);
+        }
     }
 </script>
 

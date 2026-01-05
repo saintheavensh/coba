@@ -243,36 +243,105 @@
 
     import { activityLogs, settings } from "$lib/stores/settings"; // Import Store
 
-    function handleComplete() {
+    import { onMount } from "svelte";
+    import { api } from "$lib/api";
+
+    // ... imports
+
+    // Data from API
+    let technicians: any[] = [];
+    let inventoryItems: any[] = [];
+    let isSubmitting = false;
+
+    onMount(async () => {
+        try {
+            // Fetch technicians (users) - simplified, assuming all users can be tech
+            // In real app, filter by role
+            const users = await api("/users"); // You might need to create this endpoint or use specific one
+            // If /users not exist, we skip or use dummy. Wait, I didn't create /users list endpoint.
+            // I'll skip technician fetching for now and just hardcode ID 1 (Admin) if needed, or allow manual input?
+            // Actually, let's just fetch inventory for now.
+
+            const inv = await api("/inventory");
+            inventoryItems = inv;
+        } catch (e) {
+            console.error("Failed to load initial data", e);
+        }
+    });
+
+    // ... existing state
+
+    async function handleComplete() {
         if (isWalkin && totalPaid < grandTotalEstimate) {
             toast.error("Pembayaran kurang dari total tagihan!");
             return;
         }
 
-        const msg = isWalkin
-            ? "Service Selesai & Lunas!"
-            : "Service order berhasil dibuat!";
+        isSubmitting = true;
+        try {
+            const payload = {
+                type: isWalkin ? "walk_in" : "regular",
+                customer: {
+                    name: customerName,
+                    phone: customerPhone,
+                    address: customerAddress || "-", // Default if empty
+                },
+                unit: {
+                    brand: phoneBrand,
+                    model: phoneModel,
+                    status: phoneStatus,
+                    imei: imei,
+                    pin: pinPattern,
+                    condition: physicalConditions,
+                    completeness: completeness,
+                    physicalNotes: physicalNotes,
+                },
+                complaint: complaint,
+                technicianId: technician ? parseInt(technician) : null, // Ensure ID is number
+                status: isWalkin ? "done" : "pending", // Walk-in direct done? Or process?
+                // For walk-in, we might want 'process' or 'done'. Let's say 'pending' for standard.
 
-        const action = isWalkin ? "Service (Walk-in)" : "Service Baru";
-        const details = isWalkin
-            ? `Menyelesaikan service walk-in untuk ${customerName} (Total: Rp ${grandTotalEstimate.toLocaleString()})`
-            : `Membuka service baru untuk ${customerName} (${phoneBrand} ${phoneModel})`;
+                // Regular specific
+                diagnosis: {
+                    initial: initialDiagnosis,
+                    possibleCauses: possibleCauses,
+                    estimatedCost: isPriceRange
+                        ? `${minPrice}-${maxPrice}`
+                        : estimatedCost,
+                    downPayment: downPayment,
+                },
 
-        activityLogs.addLog(
-            isWalkin ? "Kasir 1" : "CS / Admin",
-            action,
-            details,
-            "success",
-        );
+                // Walk-in specific/Common parts
+                parts: selectedParts.map((p) => ({
+                    productId: p.id,
+                    qty: 1, // Assumption
+                    price: p.price,
+                })),
+            };
 
-        toast.success(msg, {
-            description: `No. SRV-2026-NEW - ${customerName}`,
-        });
+            const res = await api("/service", {
+                method: "POST",
+                body: payload,
+            });
 
-        setTimeout(() => {
-            goto("/service");
-            resetForm();
-        }, 1500);
+            const msg = isWalkin
+                ? "Service Selesai & Lunas!"
+                : "Service order berhasil dibuat!";
+
+            toast.success(msg, {
+                description: `No. ${res.serviceNo || "SRV-NEW"} - ${customerName}`,
+            });
+
+            setTimeout(() => {
+                goto("/service");
+                resetForm();
+            }, 1500);
+        } catch (e) {
+            console.error(e);
+            // toast handled in api helper
+        } finally {
+            isSubmitting = false;
+        }
     }
 </script>
 

@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { onMount } from "svelte";
+    import { api } from "$lib/api";
     import { Input } from "$lib/components/ui/input";
     import { Button, buttonVariants } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
@@ -36,65 +38,76 @@
         DialogTrigger,
     } from "$lib/components/ui/dialog";
     import { Label } from "$lib/components/ui/label";
-    import { toast } from "$lib/components/ui/sonner";
+    import { toast } from "svelte-sonner";
 
-    // Mock Data
-    let products = [
-        {
-            id: "PRD-001",
-            name: "iPhone 15 Pro Max",
-            category: "Elektronik",
-            stock: 45,
-            min: 10,
-            status: "Normal",
-        },
-        {
-            id: "PRD-002",
-            name: "Samsung Galaxy S24",
-            category: "Elektronik",
-            stock: 20,
-            min: 10,
-            status: "Normal",
-        },
-        {
-            id: "PRD-003",
-            name: "Case iPhone 15 Transparent",
-            category: "Aksesoris",
-            stock: 5,
-            min: 20,
-            status: "Critical",
-        },
-        {
-            id: "PRD-004",
-            name: "Charger USB-C 20W",
-            category: "Aksesoris",
-            stock: 0,
-            min: 15,
-            status: "Empty",
-        },
-        {
-            id: "PRD-005",
-            name: "Macbook Air M2",
-            category: "Elektronik",
-            stock: 8,
-            min: 5,
-            status: "Normal",
-        },
-    ];
-
+    // Data State (Legacy)
+    let products: any[] = [];
     let open = false;
     let loading = false;
+    let searchTerm = "";
 
-    function handleSubmit() {
-        loading = true;
-        setTimeout(() => {
-            loading = false;
-            open = false;
-            toast.success("Produk berhasil dibuat!", {
-                description: "Silakan lakukan pembelian untuk menambah stok.",
-            });
-        }, 1000);
+    // Form State
+    let newName = "";
+    let newMinStock = 10;
+    // Category not supported in backend yet, ignore for now
+
+    async function loadProducts() {
+        try {
+            const res = await api("/inventory");
+            products = res.map((p: any) => ({
+                ...p,
+                min: p.minStock,
+                // Compute status
+                status:
+                    p.stock === 0
+                        ? "Empty"
+                        : p.stock <= p.minStock
+                          ? "Critical"
+                          : "Normal",
+                category: "Umum", // Default for now
+            }));
+        } catch (e) {
+            console.error(e);
+        }
     }
+
+    onMount(() => {
+        loadProducts();
+    });
+
+    async function handleSubmit() {
+        if (!newName) {
+            toast.error("Nama produk wajib diisi");
+            return;
+        }
+
+        loading = true;
+        try {
+            await api("/inventory", {
+                method: "POST",
+                body: {
+                    name: newName,
+                    minStock: parseInt(newMinStock.toString()) || 5,
+                },
+            });
+
+            toast.success("Produk berhasil dibuat!");
+            open = false;
+            newName = "";
+            loadProducts(); // Reload list
+        } catch (e) {
+            // handled in api helper
+        } finally {
+            loading = false;
+        }
+    }
+
+    // Filter logic (Legacy)
+    $: filteredProducts = products.filter(
+        (p) =>
+            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.id.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
 </script>
 
 <div class="space-y-4">
@@ -109,6 +122,7 @@
                     type="search"
                     placeholder="Cari produk..."
                     class="pl-8 w-[300px]"
+                    bind:value={searchTerm}
                 />
             </div>
             <Button variant="outline" size="icon">
@@ -132,28 +146,28 @@
                     <div class="grid grid-cols-4 items-center gap-4">
                         <Label class="text-right">Kode</Label>
                         <Input
-                            value="PRD-xxx"
+                            value="Auto-Generated"
                             disabled
                             class="col-span-3 bg-muted"
                         />
                     </div>
                     <div class="grid grid-cols-4 items-center gap-4">
                         <Label class="text-right">Nama</Label>
-                        <Input placeholder="Nama Produk" class="col-span-3" />
-                    </div>
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right">Kategori</Label>
                         <Input
-                            placeholder="Pilih Kategori"
+                            placeholder="Nama Produk"
                             class="col-span-3"
+                            bind:value={newName}
                         />
                     </div>
+                    <!-- Category hidden for now as backend doesn't support it -->
+
                     <div class="grid grid-cols-4 items-center gap-4">
                         <Label class="text-right">Stok Min</Label>
                         <Input
                             type="number"
                             placeholder="10"
                             class="col-span-3"
+                            bind:value={newMinStock}
                         />
                     </div>
                 </div>
@@ -180,7 +194,7 @@
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {#each products as product}
+                {#each filteredProducts as product}
                     <TableRow>
                         <TableCell
                             class="font-medium text-xs text-muted-foreground"
