@@ -17,11 +17,27 @@
         SelectItem,
         SelectTrigger,
     } from "$lib/components/ui/select";
+    import {
+        Dialog,
+        DialogContent,
+        DialogDescription,
+        DialogFooter,
+        DialogHeader,
+        DialogTitle,
+        DialogTrigger,
+    } from "$lib/components/ui/dialog";
     import { Separator } from "$lib/components/ui/separator";
     import { Badge } from "$lib/components/ui/badge";
     import { toast } from "$lib/components/ui/sonner";
-    import { ArrowLeft, ArrowRight, CheckCircle } from "lucide-svelte";
+    import {
+        ArrowLeft,
+        ArrowRight,
+        CheckCircle,
+        Grid3X3,
+        Smartphone,
+    } from "lucide-svelte";
     import { goto } from "$app/navigation";
+    import PatternLock from "$lib/components/ui/pattern-lock.svelte";
 
     // Form state
     let currentStep = 1;
@@ -33,18 +49,30 @@
     let customerAddress = "";
     let phoneBrand = "";
     let phoneModel = "";
+
+    // HP Condition
     let phoneStatus = "nyala"; // nyala, mati_total, restart
-    let physicalConditions: string[] = []; // normal, lecet, retak, bekas_air
-    let physicalNotes = "";
     let imei = "";
+    let physicalConditions: string[] = []; // normal, lecet, retak, bekas_air
+    let completeness: string[] = []; // sim_tray, sim_card, softcase, memory_card, box, charger
+    let physicalNotes = "";
+    let pinPattern = "";
+
+    // Pattern Lock Modal
+    let isPatternOpen = false;
+    let patternPoints: number[] = [];
+    $: patternString =
+        patternPoints.length > 0
+            ? patternPoints.map((p) => p + 1).join("-")
+            : "";
 
     // Step 2: Complaint & Technician
     let complaint = "";
     let technician = "";
     let estimatedCost = "";
-    let pinPattern = "";
+    let downPayment = "";
 
-    // Validation - phone optional for walk-in, IMEI optional if phone is mati_total or restart
+    // Validation
     $: step1Valid =
         customerName.trim() !== "" &&
         (isWalkin || customerPhone.trim() !== "") &&
@@ -70,28 +98,24 @@
         currentStep--;
     }
 
+    function handlePatternChange(e: CustomEvent<number[]>) {
+        patternPoints = e.detail;
+        pinPattern = "Pola: " + patternString;
+        // Don't close immediately, let user confirm visual or manual close?
+        // For smoother UX, maybe wait a bit or let them close modal.
+    }
+
+    function handleSavePattern() {
+        isPatternOpen = false;
+        toast.success(`Pola tersimpan: ${patternString}`);
+    }
+
     function handleSubmit() {
         toast.success("Service order berhasil dibuat!", {
             description: `No. SRV-2026-NEW - ${customerName}`,
         });
-        // Reset form
-        currentStep = 1;
-        isWalkin = false;
-        customerName = "";
-        customerPhone = "";
-        customerAddress = "";
-        phoneBrand = "";
-        phoneModel = "";
-        phoneStatus = "nyala";
-        physicalConditions = [];
-        physicalNotes = "";
-        imei = "";
-        complaint = "";
-        technician = "";
-        pinPattern = "";
-        estimatedCost = "";
 
-        // Navigate to list
+        // Reset and navigate
         setTimeout(() => {
             goto("/service");
         }, 1500);
@@ -137,6 +161,7 @@
         {#if currentStep === 1}
             <!-- Step 1: Customer & HP Data -->
             <div class="space-y-6">
+                <!-- Customer Section -->
                 <div>
                     <h4 class="font-medium mb-4">Tipe Customer</h4>
                     <div class="flex gap-4">
@@ -217,31 +242,96 @@
 
                 <Separator />
 
+                <!-- Handphone Section -->
                 <div>
                     <h4 class="font-medium mb-4">Data Handphone</h4>
                     <div class="grid gap-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-2">
+                                <Label for="brand"
+                                    >Merk/Brand <span class="text-red-500"
+                                        >*</span
+                                    ></Label
+                                >
+                                <Input
+                                    id="brand"
+                                    bind:value={phoneBrand}
+                                    placeholder="Samsung"
+                                />
+                            </div>
+                            <div class="space-y-2">
+                                <Label for="model"
+                                    >Model/Tipe <span class="text-red-500"
+                                        >*</span
+                                    ></Label
+                                >
+                                <Input
+                                    id="model"
+                                    bind:value={phoneModel}
+                                    placeholder="Galaxy S24"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- Status Awal (Moved above IMEI) -->
                         <div class="space-y-2">
-                            <Label for="brand"
-                                >Merk/Brand <span class="text-red-500">*</span
+                            <Label
+                                >Status Awal Handphone <span
+                                    class="text-red-500">*</span
                                 ></Label
                             >
-                            <Input
-                                id="brand"
-                                bind:value={phoneBrand}
-                                placeholder="Contoh: Samsung, iPhone, Xiaomi"
-                            />
-                        </div>
-                        <div class="space-y-2">
-                            <Label for="model"
-                                >Model/Tipe <span class="text-red-500">*</span
-                                ></Label
+                            <div
+                                class="flex flex-wrap gap-4 p-3 border rounded-md bg-muted/20"
                             >
-                            <Input
-                                id="model"
-                                bind:value={phoneModel}
-                                placeholder="Contoh: Galaxy S24, iPhone 15 Pro"
-                            />
+                                <label
+                                    class="flex items-center gap-2 cursor-pointer"
+                                >
+                                    <input
+                                        type="radio"
+                                        bind:group={phoneStatus}
+                                        value="nyala"
+                                        class="cursor-pointer"
+                                    />
+                                    <span class="flex items-center gap-1"
+                                        ><Smartphone
+                                            class="w-4 h-4 text-green-600"
+                                        /> Nyala Normal</span
+                                    >
+                                </label>
+                                <label
+                                    class="flex items-center gap-2 cursor-pointer"
+                                >
+                                    <input
+                                        type="radio"
+                                        bind:group={phoneStatus}
+                                        value="mati_total"
+                                        class="cursor-pointer"
+                                    />
+                                    <span class="flex items-center gap-1"
+                                        ><Smartphone
+                                            class="w-4 h-4 text-red-600"
+                                        /> Mati Total</span
+                                    >
+                                </label>
+                                <label
+                                    class="flex items-center gap-2 cursor-pointer"
+                                >
+                                    <input
+                                        type="radio"
+                                        bind:group={phoneStatus}
+                                        value="restart"
+                                        class="cursor-pointer"
+                                    />
+                                    <span class="flex items-center gap-1"
+                                        ><Smartphone
+                                            class="w-4 h-4 text-orange-600"
+                                        /> Restart</span
+                                    >
+                                </label>
+                            </div>
                         </div>
+
+                        <!-- IMEI -->
                         <div class="space-y-2">
                             <Label for="imei">IMEI (15 digit)</Label>
                             <Input
@@ -255,122 +345,134 @@
                                     phoneStatus === "restart"}
                             />
                             <p class="text-xs text-muted-foreground">
-                                {#if phoneStatus === "nyala"}
-                                    Opsional - Masukkan IMEI jika tersedia
-                                {:else}
-                                    IMEI tidak perlu diisi untuk HP mati
-                                    total/restart
-                                {/if}
+                                {phoneStatus === "nyala"
+                                    ? "Opsional - Masukkan IMEI jika tersedia"
+                                    : "IMEI tidak perlu diisi untuk kondisi ini"}
                             </p>
                         </div>
+
+                        <!-- PIN / Pattern -->
                         <div class="space-y-2">
-                            <Label
-                                >Status Awal Handphone <span
-                                    class="text-red-500">*</span
-                                ></Label
-                            >
-                            <div class="flex flex-col gap-2">
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer"
-                                >
-                                    <input
-                                        type="radio"
-                                        bind:group={phoneStatus}
-                                        value="nyala"
-                                        class="cursor-pointer"
-                                    />
-                                    <span>Nyala (Normal)</span>
-                                </label>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer"
-                                >
-                                    <input
-                                        type="radio"
-                                        bind:group={phoneStatus}
-                                        value="mati_total"
-                                        class="cursor-pointer"
-                                    />
-                                    <span>Mati Total</span>
-                                </label>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer"
-                                >
-                                    <input
-                                        type="radio"
-                                        bind:group={phoneStatus}
-                                        value="restart"
-                                        class="cursor-pointer"
-                                    />
-                                    <span>Restart Terus-menerus</span>
-                                </label>
+                            <Label for="pinPattern">PIN / Pola Unlock</Label>
+                            <div class="flex gap-2">
+                                <Input
+                                    id="pinPattern"
+                                    bind:value={pinPattern}
+                                    placeholder="Contoh: 1234 atau 1-2-3-5"
+                                    class="flex-1"
+                                />
+                                <Dialog bind:open={isPatternOpen}>
+                                    <DialogTrigger>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            title="Input Pola"
+                                        >
+                                            <Grid3X3 class="h-4 w-4" />
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent class="sm:max-w-[425px]">
+                                        <DialogHeader>
+                                            <DialogTitle
+                                                >Input Pola Kunci</DialogTitle
+                                            >
+                                            <DialogDescription>
+                                                Gambar pola kunci pada grid di
+                                                bawah ini.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div
+                                            class="flex flex-col items-center justify-center py-4"
+                                        >
+                                            <PatternLock
+                                                size={300}
+                                                on:change={handlePatternChange}
+                                                bind:value={patternPoints}
+                                            />
+                                            <div class="mt-4 text-center">
+                                                <p class="text-sm font-medium">
+                                                    Urutan Titik (1-9):
+                                                </p>
+                                                <p
+                                                    class="text-lg font-mono tracking-widest"
+                                                >
+                                                    {patternString || "-"}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <Button
+                                                variant="outline"
+                                                onclick={() => {
+                                                    patternPoints = [];
+                                                    pinPattern = "";
+                                                }}>Reset</Button
+                                            >
+                                            <Button onclick={handleSavePattern}
+                                                >Simpan Pola</Button
+                                            >
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
                             </div>
                         </div>
-                        <div class="space-y-2">
-                            <Label>Kondisi Fisik</Label>
-                            <div class="flex flex-col gap-2">
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer"
+
+                        <Separator />
+
+                        <!-- Physical Condition & Completeness -->
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <!-- Kondisi Fisik -->
+                            <div class="space-y-2">
+                                <Label>Kondisi Fisik</Label>
+                                <div
+                                    class="flex flex-col gap-2 p-3 border rounded-md"
                                 >
-                                    <input
-                                        type="checkbox"
-                                        bind:group={physicalConditions}
-                                        value="normal"
-                                        class="cursor-pointer"
-                                    />
-                                    <span
-                                        >Normal (Tidak ada kerusakan fisik)</span
-                                    >
-                                </label>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        bind:group={physicalConditions}
-                                        value="lecet"
-                                        class="cursor-pointer"
-                                    />
-                                    <span>Lecet/Goresan</span>
-                                </label>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        bind:group={physicalConditions}
-                                        value="retak"
-                                        class="cursor-pointer"
-                                    />
-                                    <span>Retak/Pecah</span>
-                                </label>
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        bind:group={physicalConditions}
-                                        value="bekas_air"
-                                        class="cursor-pointer"
-                                    />
-                                    <span>Bekas Air/Kena Air</span>
-                                </label>
+                                    {#each [{ v: "normal", l: "Normal (Mulus)" }, { v: "lecet", l: "Lecet / Goresan" }, { v: "retak", l: "Retak / Pecah" }, { v: "bekas_air", l: "Bekas Air / Korosi" }, { v: "bengkok", l: "Bengkok / Dent" }] as item}
+                                        <label
+                                            class="flex items-center gap-2 cursor-pointer text-sm"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                bind:group={physicalConditions}
+                                                value={item.v}
+                                                class="cursor-pointer"
+                                            />
+                                            <span>{item.l}</span>
+                                        </label>
+                                    {/each}
+                                </div>
                             </div>
+
+                            <!-- Kelengkapan (New Field) -->
+                            <div class="space-y-2">
+                                <Label>Kelengkapan</Label>
+                                <div
+                                    class="flex flex-col gap-2 p-3 border rounded-md bg-muted/10"
+                                >
+                                    {#each [{ v: "sim_tray", l: "Sim Tray" }, { v: "sim_card", l: "Sim Card" }, { v: "softcase", l: "Softcase / Case" }, { v: "memory_card", l: "Memory Card" }, { v: "box", l: "Dus / Box" }, { v: "charger", l: "Charger / Kabel" }] as item}
+                                        <label
+                                            class="flex items-center gap-2 cursor-pointer text-sm"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                bind:group={completeness}
+                                                value={item.v}
+                                                class="cursor-pointer"
+                                            />
+                                            <span>{item.l}</span>
+                                        </label>
+                                    {/each}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <Label>Catatan Kondisi</Label>
                             <Textarea
-                                placeholder="Catatan tambahan kondisi fisik (opsional)"
+                                placeholder="Detail tambahan kondisi fisik..."
                                 bind:value={physicalNotes}
                                 rows={2}
                             />
-                        </div>
-                        <div class="space-y-2">
-                            <Label for="pinPattern">PIN / Pola Unlock</Label>
-                            <Input
-                                id="pinPattern"
-                                bind:value={pinPattern}
-                                placeholder="Contoh: 1234 atau Pola L"
-                            />
-                            <p class="text-xs text-muted-foreground">
-                                Opsional - Untuk unlock HP saat service
-                            </p>
                         </div>
                     </div>
                 </div>
@@ -378,16 +480,17 @@
         {:else if currentStep === 2}
             <!-- Step 2: Complaint & Technician -->
             <div class="space-y-6">
-                <div class="p-4 bg-muted rounded-lg">
-                    <p class="text-sm">
-                        <span class="font-medium">Customer:</span>
-                        {customerName} ({customerPhone})
-                    </p>
-                    <p class="text-sm">
-                        <span class="font-medium">HP:</span>
-                        {phoneBrand}
-                        {phoneModel} (IMEI: {imei.substring(0, 10)}...)
-                    </p>
+                <div class="p-4 bg-muted rounded-lg space-y-2">
+                    <div class="flex justify-between">
+                        <span class="font-medium text-sm">Unit:</span>
+                        <span class="text-sm">{phoneBrand} {phoneModel}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-medium text-sm">Status:</span>
+                        <Badge variant="outline" class="uppercase text-[10px]"
+                            >{phoneStatus.replace("_", " ")}</Badge
+                        >
+                    </div>
                 </div>
 
                 <div class="space-y-2">
@@ -398,7 +501,7 @@
                     <Textarea
                         id="complaint"
                         bind:value={complaint}
-                        placeholder="Jelaskan keluhan/masalah pada handphone (max 500 karakter)"
+                        placeholder="Jelaskan keluhan detail..."
                         rows={5}
                         maxlength={500}
                     />
@@ -407,41 +510,54 @@
                     </p>
                 </div>
 
-                <div class="space-y-2">
-                    <Label for="technician">Teknisi</Label>
-                    <Select
-                        type="single"
-                        name="technician"
-                        bind:value={technician}
-                    >
-                        <SelectTrigger>
-                            {technician || "Belum ditentukan (assign nanti)"}
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="">Belum ditentukan</SelectItem>
-                            <SelectItem value="agus"
-                                >Agus (Available)</SelectItem
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <Label for="technician">Teknisi</Label>
+                        <Select
+                            type="single"
+                            name="technician"
+                            bind:value={technician}
+                        >
+                            <SelectTrigger
+                                >{technician ||
+                                    "Belum ditentukan"}</SelectTrigger
                             >
-                            <SelectItem value="rudi"
-                                >Rudi (2 service aktif)</SelectItem
-                            >
-                        </SelectContent>
-                    </Select>
-                    <p class="text-xs text-muted-foreground">
-                        Opsional - Teknisi bisa di-assign nanti saat diagnosa
-                    </p>
+                            <SelectContent>
+                                <SelectItem value=""
+                                    >Belum ditentukan</SelectItem
+                                >
+                                <SelectItem value="agus"
+                                    >Agus (Available)</SelectItem
+                                >
+                                <SelectItem value="rudi"
+                                    >Rudi (2 service)</SelectItem
+                                >
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label for="cost">Estimasi Biaya</Label>
+                        <Input
+                            id="cost"
+                            type="number"
+                            bind:value={estimatedCost}
+                            placeholder="Rp 0"
+                        />
+                    </div>
                 </div>
 
+                <!-- Down Payment (New Field) -->
                 <div class="space-y-2">
-                    <Label for="cost">Estimasi Biaya</Label>
+                    <Label for="dp">DP / Uang Muka</Label>
                     <Input
-                        id="cost"
+                        id="dp"
                         type="number"
-                        bind:value={estimatedCost}
-                        placeholder="500000"
+                        bind:value={downPayment}
+                        placeholder="Rp 0"
                     />
                     <p class="text-xs text-muted-foreground">
-                        Opsional - Bisa diisi/diubah saat diagnosa
+                        Isi jika customer membayar uang muka
                     </p>
                 </div>
             </div>
@@ -455,110 +571,74 @@
                     <h4 class="font-medium text-lg">
                         Konfirmasi Service Order
                     </h4>
-                    <p class="text-sm text-muted-foreground">
-                        Pastikan data sudah benar sebelum menyimpan
-                    </p>
                 </div>
 
                 <div class="space-y-4">
                     <Card>
-                        <CardHeader>
-                            <CardTitle class="text-base"
-                                >Data Customer</CardTitle
-                            >
-                        </CardHeader>
-                        <CardContent class="space-y-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-muted-foreground">Tipe</span>
-                                <Badge variant="outline"
-                                    >{isWalkin ? "Walk-in" : "Reguler"}</Badge
+                        <CardHeader
+                            ><CardTitle class="text-base"
+                                >Customer & Unit</CardTitle
+                            ></CardHeader
+                        >
+                        <CardContent class="grid md:grid-cols-2 gap-4 text-sm">
+                            <div class="space-y-1">
+                                <p class="text-muted-foreground">Nama</p>
+                                <p class="font-medium">{customerName}</p>
+                            </div>
+                            <div class="space-y-1">
+                                <p class="text-muted-foreground">Unit</p>
+                                <p class="font-medium">
+                                    {phoneBrand}
+                                    {phoneModel}
+                                </p>
+                            </div>
+                            <div class="space-y-1">
+                                <p class="text-muted-foreground">Status Awal</p>
+                                <Badge variant="outline" class="uppercase"
+                                    >{phoneStatus.replace("_", " ")}</Badge
                                 >
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-muted-foreground">Nama</span>
-                                <span class="font-medium">{customerName}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-muted-foreground"
-                                    >Telepon</span
-                                >
-                                <span class="font-medium">{customerPhone}</span>
-                            </div>
-                            {#if customerAddress}
-                                <div class="flex justify-between">
-                                    <span class="text-muted-foreground"
-                                        >Alamat</span
-                                    >
-                                    <span class="font-medium"
-                                        >{customerAddress}</span
-                                    >
-                                </div>
-                            {/if}
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle class="text-base"
-                                >Data Handphone</CardTitle
-                            >
-                        </CardHeader>
-                        <CardContent class="space-y-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-muted-foreground"
-                                    >Merk/Model</span
-                                >
-                                <span class="font-medium"
-                                    >{phoneBrand} {phoneModel}</span
-                                >
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-muted-foreground">IMEI</span>
-                                <span class="font-mono text-xs">{imei}</span>
+                            <div class="space-y-1">
+                                <p class="text-muted-foreground">Kelengkapan</p>
+                                <p class="font-medium">
+                                    {completeness.length > 0
+                                        ? completeness
+                                              .join(", ")
+                                              .replace(/_/g, " ")
+                                        : "-"}
+                                </p>
                             </div>
                         </CardContent>
                     </Card>
 
                     <Card>
-                        <CardHeader>
-                            <CardTitle class="text-base">Keluhan</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p class="text-sm">{complaint}</p>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle class="text-base"
-                                >Detail Lainnya</CardTitle
-                            >
-                        </CardHeader>
-                        <CardContent class="space-y-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-muted-foreground"
-                                    >Teknisi</span
-                                >
-                                <span class="font-medium"
-                                    >{technician || "Belum ditentukan"}</span
-                                >
+                        <CardHeader
+                            ><CardTitle class="text-base"
+                                >Service Info</CardTitle
+                            ></CardHeader
+                        >
+                        <CardContent class="grid md:grid-cols-2 gap-4 text-sm">
+                            <div class="space-y-1 col-span-2">
+                                <p class="text-muted-foreground">Keluhan</p>
+                                <p class="font-medium">{complaint}</p>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-muted-foreground"
-                                    >Estimasi</span
-                                >
-                                <span class="font-medium"
-                                    >{estimatedCost
+                            <div class="space-y-1">
+                                <p class="text-muted-foreground">Estimasi</p>
+                                <p class="font-medium">
+                                    {estimatedCost
                                         ? `Rp ${parseInt(estimatedCost).toLocaleString()}`
-                                        : "-"}</span
-                                >
+                                        : "-"}
+                                </p>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-muted-foreground">Status</span
-                                >
-                                <Badge variant="outline"
-                                    >Menunggu Diagnosa</Badge
-                                >
+                            <div class="space-y-1">
+                                <p class="text-muted-foreground">
+                                    DP / Uang Muka
+                                </p>
+                                <p class="font-medium text-green-600">
+                                    {downPayment
+                                        ? `Rp ${parseInt(downPayment).toLocaleString()}`
+                                        : "-"}
+                                </p>
                             </div>
                         </CardContent>
                     </Card>
@@ -570,8 +650,7 @@
     <CardFooter class="flex justify-between">
         {#if currentStep > 1}
             <Button variant="outline" onclick={prevStep}>
-                <ArrowLeft class="mr-2 h-4 w-4" />
-                Kembali
+                <ArrowLeft class="mr-2 h-4 w-4" /> Kembali
             </Button>
         {:else}
             <div></div>
@@ -582,13 +661,11 @@
                 onclick={nextStep}
                 disabled={currentStep === 1 && !step1Valid}
             >
-                Lanjut
-                <ArrowRight class="ml-2 h-4 w-4" />
+                Lanjut <ArrowRight class="ml-2 h-4 w-4" />
             </Button>
         {:else}
             <Button onclick={handleSubmit}>
-                <CheckCircle class="mr-2 h-4 w-4" />
-                Buat Service Order
+                <CheckCircle class="mr-2 h-4 w-4" /> Buat Service Order
             </Button>
         {/if}
     </CardFooter>
