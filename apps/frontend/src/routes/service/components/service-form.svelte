@@ -396,16 +396,24 @@
                     <div class="grid gap-4">
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
-                                <Label for="brand"
+                                <Label
                                     >Merk/Brand <span class="text-red-500"
                                         >*</span
                                     ></Label
                                 >
-                                <Input
-                                    id="brand"
-                                    bind:value={phoneBrand}
-                                    placeholder="Samsung"
-                                />
+                                <Select type="single" bind:value={phoneBrand}>
+                                    <SelectTrigger
+                                        >{phoneBrand ||
+                                            "Pilih Brand"}</SelectTrigger
+                                    >
+                                    <SelectContent>
+                                        {#each ["Samsung", "Apple / iPhone", "Xiaomi", "Oppo", "Vivo", "Realme", "Infinix", "Asus", "Google", "Lainnya"] as brand}
+                                            <SelectItem value={brand}
+                                                >{brand}</SelectItem
+                                            >
+                                        {/each}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div class="space-y-2">
                                 <Label for="model"
@@ -879,15 +887,56 @@
                         </div>
                     </div>
                 {:else}
-                    <!-- Reguler Cost -->
+                    <!-- Regular Cost with Range Option -->
                     <div class="space-y-2">
-                        <Label for="cost">Estimasi Biaya Jasa</Label>
-                        <Input
-                            id="cost"
-                            type="number"
-                            bind:value={estimatedCost}
-                            placeholder="Rp 0"
-                        />
+                        <div class="flex justify-between items-center">
+                            <Label for="cost">Estimasi Biaya</Label>
+                            <label
+                                class="flex items-center gap-2 cursor-pointer text-xs"
+                            >
+                                <input
+                                    type="checkbox"
+                                    bind:checked={isPriceRange}
+                                    class="cursor-pointer"
+                                />
+                                <span>Gunakan Range Harga (Min - Max)</span>
+                            </label>
+                        </div>
+
+                        {#if isPriceRange}
+                            <div class="flex items-center gap-2">
+                                <div class="flex-1 space-y-1">
+                                    <Input
+                                        type="number"
+                                        bind:value={minPrice}
+                                        placeholder="Min (Ex: 100k)"
+                                    />
+                                    <span
+                                        class="text-[10px] text-muted-foreground"
+                                        >Min</span
+                                    >
+                                </div>
+                                <span class="text-muted-foreground">-</span>
+                                <div class="flex-1 space-y-1">
+                                    <Input
+                                        type="number"
+                                        bind:value={maxPrice}
+                                        placeholder="Max (Ex: 300k)"
+                                    />
+                                    <span
+                                        class="text-[10px] text-muted-foreground"
+                                        >Max</span
+                                    >
+                                </div>
+                            </div>
+                        {:else}
+                            <Input
+                                id="cost"
+                                type="number"
+                                bind:value={estimatedCost}
+                                placeholder="Rp 0"
+                            />
+                        {/if}
                     </div>
                 {/if}
 
@@ -933,15 +982,17 @@
                     {/if}
                 </div>
 
-                <!-- Technician Notes (New Field) -->
-                <div class="space-y-2">
-                    <Label>Catatan Teknisi (Fitur Tidak Normal)</Label>
-                    <Textarea
-                        placeholder="Catat jika ada fitur HP yang tidak berfungsi normal..."
-                        bind:value={technicianNotes}
-                        rows={2}
-                    />
-                </div>
+                <!-- Technician Notes (Only for Walk-in) -->
+                {#if isWalkin}
+                    <div class="space-y-2">
+                        <Label>Catatan Teknisi (Fitur Tidak Normal)</Label>
+                        <Textarea
+                            placeholder="Catat jika ada fitur HP yang tidak berfungsi normal..."
+                            bind:value={technicianNotes}
+                            rows={2}
+                        />
+                    </div>
+                {/if}
 
                 {#if !isWalkin}
                     <div class="space-y-2">
