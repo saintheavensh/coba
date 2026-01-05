@@ -55,6 +55,19 @@
             totalCost: 500000,
             technician: "Rudi",
         },
+        {
+            id: 103,
+            no: "SRV-OLD-001",
+            date: "2025-11-20",
+            customer: "Grace Period Test",
+            phone: "0899-1111-2222",
+            brand: "Oppo Reno",
+            imei: "123456789012345",
+            warrantyDuration: 30, // days
+            status: "selesai", // Expired ~20 Dec. Current Jan 5. Gap ~15 days.
+            totalCost: 750000,
+            technician: "Budi",
+        },
     ];
 
     function handleSearch() {
@@ -88,7 +101,41 @@
         const isExpired = diffDays > duration;
         const remainingDays = duration - diffDays;
 
-        return { isExpired, diffDays, remainingDays };
+        // Grace Period: Max 30 days after expiration
+        const GRACE_PERIOD = 30;
+        const daysPastExpiration = diffDays - duration;
+        const isGracePeriod = isExpired && daysPastExpiration <= GRACE_PERIOD;
+
+        return {
+            isExpired,
+            isGracePeriod,
+            diffDays,
+            remainingDays,
+            daysPastExpiration,
+        };
+    }
+
+    let showGraceConfirmation = false;
+
+    function handleGraceClaimClick() {
+        showGraceConfirmation = true;
+    }
+
+    function confirmGraceClaim() {
+        showGraceConfirmation = false;
+        // Proceed to show form or submit directly?
+        // User asked: "bila admin klik klaim garansi muncul warning setuju atau tidak"
+        // If agreed, we allow editing the claim description.
+        // So let's enable a "forceClaim" mode.
+        isForceClaimEnabled = true;
+    }
+
+    let isForceClaimEnabled = false;
+
+    // Reset force claim on new search
+    $: if (searchResult) {
+        isForceClaimEnabled = false;
+        showGraceConfirmation = false;
     }
 
     function handleSubmitClaim() {
@@ -98,12 +145,15 @@
         }
 
         const originalTech = searchResult.technician;
+        const statusType = isForceClaimEnabled
+            ? "Claim (Grace Period)"
+            : "Claim";
 
         // Simulate submission
         toast.success(
             `Klaim garansi untuk nota ${searchResult.no} berhasil dibuat!`,
             {
-                description: `Tiket baru "Warranty Claim" dibuat & otomatis di-assign ke teknisi: ${originalTech}. Status: Menunggu.`,
+                description: `Tiket baru "${statusType}" dibuat & otomatis di-assign ke teknisi: ${originalTech}. Status: Menunggu.`,
             },
         );
 
@@ -111,10 +161,12 @@
         searchQuery = "";
         searchResult = null;
         claimDescription = "";
+        isForceClaimEnabled = false;
     }
 </script>
 
 <div class="max-w-2xl mx-auto space-y-6">
+    <!-- Search Card (Same as before) -->
     <Card>
         <CardHeader>
             <CardTitle>Cari Data Service</CardTitle>
@@ -152,7 +204,9 @@
             <!-- Service Details Card -->
             <Card
                 class="border-l-4 {warranty.isExpired
-                    ? 'border-l-red-500'
+                    ? warranty.isGracePeriod
+                        ? 'border-l-yellow-500'
+                        : 'border-l-red-500'
                     : 'border-l-green-500'}"
             >
                 <CardHeader>
@@ -170,11 +224,19 @@
                         </div>
                         <div class="text-right">
                             {#if warranty.isExpired}
-                                <Badge
-                                    variant="destructive"
-                                    class="text-sm px-3 py-1"
-                                    >GARANSI EXPIRED</Badge
-                                >
+                                {#if warranty.isGracePeriod}
+                                    <Badge
+                                        variant="secondary"
+                                        class="bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                                        >GRACE PERIOD</Badge
+                                    >
+                                {:else}
+                                    <Badge
+                                        variant="destructive"
+                                        class="text-sm px-3 py-1"
+                                        >GARANSI EXPIRED</Badge
+                                    >
+                                {/if}
                             {:else}
                                 <Badge
                                     variant="default"
@@ -221,9 +283,12 @@
                         </div>
                         <div class="p-2 bg-muted rounded text-xs">
                             {#if warranty.isExpired}
-                                <span class="text-red-600 font-medium"
-                                    >Lewat {Math.abs(warranty.remainingDays)} hari
-                                    dari masa garansi.</span
+                                <span
+                                    class="{warranty.isGracePeriod
+                                        ? 'text-yellow-700'
+                                        : 'text-red-600'} font-medium"
+                                    >Lewat {warranty.daysPastExpiration} hari dari
+                                    masa garansi.</span
                                 >
                             {:else}
                                 <span class="text-green-600 font-medium"
@@ -236,11 +301,19 @@
                 </CardContent>
             </Card>
 
-            <!-- Claim Form (Only if Warranty Active) -->
-            {#if !warranty.isExpired}
-                <Card>
+            <!-- Claim Form Logic -->
+            {#if !warranty.isExpired || isForceClaimEnabled}
+                <Card
+                    class={isForceClaimEnabled
+                        ? "border-yellow-500 border-2"
+                        : ""}
+                >
                     <CardHeader>
-                        <CardTitle>Formulir Klaim</CardTitle>
+                        <CardTitle
+                            >Formulir Klaim {isForceClaimEnabled
+                                ? "(Kebijakan Toko)"
+                                : ""}</CardTitle
+                        >
                         <CardDescription
                             >Isi detail keluhan untuk diproses ulang.</CardDescription
                         >
@@ -254,16 +327,29 @@
                                 bind:value={claimDescription}
                             />
                         </div>
-                        <div
-                            class="bg-yellow-50 p-3 rounded-md border border-yellow-200 flex gap-2 text-sm text-yellow-800"
-                        >
-                            <AlertTriangle class="h-5 w-5 shrink-0" />
-                            <p>
-                                Pastikan segel garansi masih utuh dan kerusakan
-                                bukan disebabkan oleh kesalahan pengguna (Human
-                                Error).
-                            </p>
-                        </div>
+
+                        {#if isForceClaimEnabled}
+                            <div
+                                class="bg-yellow-50 p-3 rounded-md border border-yellow-200 flex gap-2 text-sm text-yellow-800"
+                            >
+                                <AlertTriangle class="h-5 w-5 shrink-0" />
+                                <p>
+                                    <strong>PERHATIAN:</strong> Klaim ini diproses
+                                    diluar masa garansi resmi berdasarkan kebijakan
+                                    toko.
+                                </p>
+                            </div>
+                        {:else}
+                            <div
+                                class="bg-blue-50 p-3 rounded-md border border-blue-200 flex gap-2 text-sm text-blue-800"
+                            >
+                                <AlertTriangle class="h-5 w-5 shrink-0" />
+                                <p>
+                                    Pastikan segel garansi masih utuh dan bukan
+                                    human error.
+                                </p>
+                            </div>
+                        {/if}
                     </CardContent>
                     <CardFooter>
                         <Button class="w-full" onclick={handleSubmitClaim}
@@ -271,18 +357,87 @@
                         >
                     </CardFooter>
                 </Card>
+            {:else if warranty.isGracePeriod && !isForceClaimEnabled}
+                <!-- Grace Period Warning / Offer -->
+                <Card class="border-yellow-400 bg-yellow-50/50">
+                    <CardHeader>
+                        <CardTitle
+                            class="text-yellow-800 flex items-center gap-2"
+                        >
+                            <AlertTriangle class="h-5 w-5" />
+                            Garansi Habis (Masa Tenggang)
+                        </CardTitle>
+                        <CardDescription class="text-yellow-700">
+                            Unit ini telah melewati masa garansi, namun masih
+                            dalam periode kebijakan toko (Maks 1 Bulan).
+                            <br />Anda dapat mengajukan klaim khusus dengan
+                            persetujuan Admin.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardFooter>
+                        <Button
+                            variant="outline"
+                            class="w-full border-yellow-600 text-yellow-800 hover:bg-yellow-100"
+                            onclick={handleGraceClaimClick}
+                        >
+                            Ajukan Klaim Kebijakan Toko
+                        </Button>
+                    </CardFooter>
+                </Card>
             {:else}
+                <!-- Hard Expired -->
                 <div
                     class="p-4 rounded-lg border bg-muted text-center space-y-2"
                 >
+                    <AlertTriangle
+                        class="h-8 w-8 mx-auto text-muted-foreground"
+                    />
                     <h4 class="font-medium">Garansi Tidak Tersedia</h4>
                     <p class="text-sm text-muted-foreground">
-                        Masa garansi untuk unit ini telah habis. Silakan buat
-                        Service Order baru (Reguler) jika ingin diperbaiki
-                        kembali.
+                        Masa garansi telah habis lebih dari 1 bulan. Tidak ada
+                        kebijakan toleransi tersedia.<br />
+                        Silakan buat Service Order baru.
                     </p>
                 </div>
             {/if}
+        </div>
+    {/if}
+
+    <!-- Confirmation Dialog for Grace Period -->
+    {#if showGraceConfirmation}
+        <div
+            class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+        >
+            <Card
+                class="w-full max-w-md shadow-lg animate-in fade-in zoom-in-95"
+            >
+                <CardHeader>
+                    <CardTitle class="text-red-600 flex items-center gap-2">
+                        <AlertTriangle class="h-5 w-5" />
+                        Konfirmasi Klaim Diluar Garansi
+                    </CardTitle>
+                    <CardDescription>
+                        Anda akan memproses klaim untuk unit yang sudah <strong
+                            >EXPIRED</strong
+                        >. Tindakan ini memerlukan persetujuan kebijakan toko.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p class="text-sm font-medium">
+                        Apakah Anda setuju untuk melanjutkan klaim ini?
+                    </p>
+                </CardContent>
+                <CardFooter class="flex justify-end gap-2">
+                    <Button
+                        variant="outline"
+                        onclick={() => (showGraceConfirmation = false)}
+                        >Tidak, Batalkan</Button
+                    >
+                    <Button variant="destructive" onclick={confirmGraceClaim}
+                        >Ya, Saya Setuju</Button
+                    >
+                </CardFooter>
+            </Card>
         </div>
     {/if}
 </div>
