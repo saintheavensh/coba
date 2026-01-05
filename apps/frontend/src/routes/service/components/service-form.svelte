@@ -33,6 +33,9 @@
     let customerAddress = "";
     let phoneBrand = "";
     let phoneModel = "";
+    let phoneStatus = "nyala"; // nyala, mati_total, restart
+    let physicalConditions: string[] = []; // normal, lecet, retak, bekas_air
+    let physicalNotes = "";
     let imei = "";
 
     // Step 2: Complaint & Technician
@@ -41,12 +44,13 @@
     let estimatedCost = "";
     let pinPattern = "";
 
-    // Validation - phone optional for walk-in, IMEI always optional
+    // Validation - phone optional for walk-in, IMEI optional if phone is mati_total or restart
     $: step1Valid =
         customerName.trim() !== "" &&
         (isWalkin || customerPhone.trim() !== "") &&
         phoneBrand.trim() !== "" &&
-        phoneModel.trim() !== "";
+        phoneModel.trim() !== "" &&
+        phoneStatus.trim() !== "";
 
     $: step2Valid = complaint && complaint.trim().length > 0;
 
@@ -78,6 +82,9 @@
         customerAddress = "";
         phoneBrand = "";
         phoneModel = "";
+        phoneStatus = "nyala";
+        physicalConditions = [];
+        physicalNotes = "";
         imei = "";
         complaint = "";
         technician = "";
@@ -240,12 +247,119 @@
                             <Input
                                 id="imei"
                                 bind:value={imei}
-                                placeholder="354217123456789 (kosongkan jika HP mati total)"
+                                placeholder={phoneStatus === "nyala"
+                                    ? "354217123456789"
+                                    : "Kosongkan jika HP mati total/restart"}
                                 maxlength={15}
+                                disabled={phoneStatus === "mati_total" ||
+                                    phoneStatus === "restart"}
                             />
                             <p class="text-xs text-muted-foreground">
-                                Opsional - Kosongkan jika HP mati total
+                                {#if phoneStatus === "nyala"}
+                                    Opsional - Masukkan IMEI jika tersedia
+                                {:else}
+                                    IMEI tidak perlu diisi untuk HP mati
+                                    total/restart
+                                {/if}
                             </p>
+                        </div>
+                        <div class="space-y-2">
+                            <Label
+                                >Status Awal Handphone <span
+                                    class="text-red-500">*</span
+                                ></Label
+                            >
+                            <div class="flex flex-col gap-2">
+                                <label
+                                    class="flex items-center gap-2 cursor-pointer"
+                                >
+                                    <input
+                                        type="radio"
+                                        bind:group={phoneStatus}
+                                        value="nyala"
+                                        class="cursor-pointer"
+                                    />
+                                    <span>Nyala (Normal)</span>
+                                </label>
+                                <label
+                                    class="flex items-center gap-2 cursor-pointer"
+                                >
+                                    <input
+                                        type="radio"
+                                        bind:group={phoneStatus}
+                                        value="mati_total"
+                                        class="cursor-pointer"
+                                    />
+                                    <span>Mati Total</span>
+                                </label>
+                                <label
+                                    class="flex items-center gap-2 cursor-pointer"
+                                >
+                                    <input
+                                        type="radio"
+                                        bind:group={phoneStatus}
+                                        value="restart"
+                                        class="cursor-pointer"
+                                    />
+                                    <span>Restart Terus-menerus</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <Label>Kondisi Fisik</Label>
+                            <div class="flex flex-col gap-2">
+                                <label
+                                    class="flex items-center gap-2 cursor-pointer"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        bind:group={physicalConditions}
+                                        value="normal"
+                                        class="cursor-pointer"
+                                    />
+                                    <span
+                                        >Normal (Tidak ada kerusakan fisik)</span
+                                    >
+                                </label>
+                                <label
+                                    class="flex items-center gap-2 cursor-pointer"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        bind:group={physicalConditions}
+                                        value="lecet"
+                                        class="cursor-pointer"
+                                    />
+                                    <span>Lecet/Goresan</span>
+                                </label>
+                                <label
+                                    class="flex items-center gap-2 cursor-pointer"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        bind:group={physicalConditions}
+                                        value="retak"
+                                        class="cursor-pointer"
+                                    />
+                                    <span>Retak/Pecah</span>
+                                </label>
+                                <label
+                                    class="flex items-center gap-2 cursor-pointer"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        bind:group={physicalConditions}
+                                        value="bekas_air"
+                                        class="cursor-pointer"
+                                    />
+                                    <span>Bekas Air/Kena Air</span>
+                                </label>
+                            </div>
+                            <Textarea
+                                placeholder="Catatan tambahan kondisi fisik (opsional)"
+                                bind:value={physicalNotes}
+                                rows={2}
+                            />
                         </div>
                         <div class="space-y-2">
                             <Label for="pinPattern">PIN / Pola Unlock</Label>
