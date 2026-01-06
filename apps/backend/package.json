@@ -14,11 +14,13 @@
     },
     "dependencies": {
         "@hono/zod-validator": "^0.7.6",
+        "@repo/shared": "*",
+        "@types/uuid": "^11.0.0",
         "better-sqlite3": "^12.5.0",
         "drizzle-orm": "^0.45.1",
         "hono": "^4.11.3",
-        "zod": "^3.25.0",
-        "@repo/shared": "*"
+        "uuid": "^13.0.0",
+        "zod": "^3.25.0"
     },
     "devDependencies": {
         "@types/better-sqlite3": "^7.6.13",

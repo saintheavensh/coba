@@ -27,6 +27,7 @@ export const productSchema = z.object({
     name: z.string().min(1),
     code: z.string().optional(), // Universal Code
     categoryId: z.string().optional(), // Link to category
+    image: z.string().optional(),
     minStock: z.number().default(5)
 });
 export type CreateProductRequest = z.infer<typeof productSchema>;

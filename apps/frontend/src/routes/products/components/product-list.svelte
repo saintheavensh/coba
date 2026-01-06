@@ -1,6 +1,8 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { api } from "$lib/api";
+    import { InventoryService } from "$lib/services/inventory.service";
+    import SearchInput from "$lib/components/custom/search-input.svelte";
+    import ImageUpload from "$lib/components/custom/image-upload.svelte";
     import { Input } from "$lib/components/ui/input";
     import { Button, buttonVariants } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
@@ -14,6 +16,7 @@
         Eye,
         ArrowUpDown,
     } from "lucide-svelte";
+    import { Skeleton } from "$lib/components/ui/skeleton";
     import {
         Table,
         TableBody,
@@ -39,7 +42,6 @@
         DialogTitle,
         DialogTrigger,
     } from "$lib/components/ui/dialog";
-    import * as Select from "$lib/components/ui/select";
     import { Label } from "$lib/components/ui/label";
     import { toast } from "svelte-sonner";
     import {
@@ -52,69 +54,111 @@
         AlertDialogHeader,
         AlertDialogTitle,
     } from "$lib/components/ui/alert-dialog";
+    import {
+        createQuery,
+        createMutation,
+        useQueryClient,
+    } from "@tanstack/svelte-query";
 
-    // Data State
-    let products: any[] = [];
-    let categories: any[] = [];
-    let open = false;
-    let detailOpen = false;
-    let loading = false;
-    let searchTerm = "";
+    // Queries (v6: options must be a function for reactivity)
+    const productsQuery = createQuery(() => ({
+        queryKey: ["products"],
+        queryFn: InventoryService.getProducts,
+    }));
 
-    // Form State
-    let newName = "";
-    let newCode = ""; // Universal Code
-    let selectedCategory = ""; // ID
-    let newMinStock = 10;
-    let editingId: string | null = null;
+    const categoriesQuery = createQuery(() => ({
+        queryKey: ["categories"],
+        queryFn: InventoryService.getCategories,
+    }));
 
-    // Sort State
+    // Mutations (v6: options function)
+    const createProductMutation = createMutation(() => ({
+        mutationFn: InventoryService.createProduct,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["products"] });
+            toast.success("Produk berhasil dibuat! Stok awal 0.");
+            open = false;
+            resetForm();
+        },
+        onError: () => toast.error("Gagal menyimpan produk"),
+    }));
+
+    const updateProductMutation = createMutation(() => ({
+        mutationFn: (vars: { id: string; data: any }) =>
+            InventoryService.updateProduct(vars.id, vars.data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["products"] });
+            toast.success("Produk berhasil diupdate!");
+            open = false;
+            resetForm();
+        },
+        onError: () => toast.error("Gagal update produk"),
+    }));
+
+    const deleteProductMutation = createMutation(() => ({
+        mutationFn: InventoryService.deleteProduct,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["products"] });
+            toast.success("Produk dihapus");
+            deleteOpen = false;
+        },
+        onError: () => toast.error("Gagal menghapus produk"),
+    }));
+
+    // Derived client helper
+    const queryClient = useQueryClient();
+
+    // Helper for query access (Using $derived)
+    let products = $derived(
+        (productsQuery.data || []).map((p: any) => ({
+            ...p,
+            categoryName: p.category?.name || "Umum",
+            min: p.minStock,
+            status:
+                p.stock === 0
+                    ? "Empty"
+                    : p.stock <= (p.minStock || 5)
+                      ? "Critical"
+                      : "Normal",
+        })),
+    );
+
+    let categories = $derived(categoriesQuery.data || []);
+    let loading = $derived(
+        productsQuery.isLoading || categoriesQuery.isLoading,
+    );
+
+    // Internal State (Runes)
+    let open = $state(false);
+    let detailOpen = $state(false);
+    let searchTerm = $state("");
+
+    // Form State (Runes)
+    let newName = $state("");
+    let newCode = $state(""); // Universal Code
+    let selectedCategory = $state(""); // ID
+    let newMinStock = $state(5);
+    let editingId = $state<string | null>(null);
+    let newImage = $state("");
+
+    // Sort State (Runes)
     type SortKey = "code" | "name" | "categoryName" | "stock" | "status";
-    let sortKey: SortKey = "name";
-    let sortDir: "asc" | "desc" = "asc";
+    let sortKey = $state<SortKey>("name");
+    let sortDir = $state<"asc" | "desc">("asc");
 
-    // Detail State
-    let selectedProduct: any = null;
+    // Detail State (Runes)
+    let selectedProduct = $state<any>(null);
 
-    // Delete State
-    let deleteOpen = false;
-    let deletingId: string | null = null;
-
-    async function loadData() {
-        try {
-            const [prodRes, catRes] = await Promise.all([
-                api("/inventory"),
-                api("/categories"),
-            ]);
-
-            categories = catRes;
-
-            products = prodRes.map((p: any) => ({
-                ...p,
-                categoryName: p.category?.name || "-",
-                min: p.minStock,
-                status:
-                    p.stock === 0
-                        ? "Empty"
-                        : p.stock <= p.minStock
-                          ? "Critical"
-                          : "Normal",
-                category: p.category?.name || "Umum", // Use relation name
-            }));
-        } catch (e) {
-            console.error(e);
-        }
-    }
-
-    onMount(() => {
-        loadData();
-    });
+    // Delete State (Runes)
+    let deleteOpen = $state(false);
+    let deletingId = $state<string | null>(null);
 
     function resetForm() {
         newName = "";
         newCode = "";
         selectedCategory = "";
-        newMinStock = 10;
+        newMinStock = 5;
+        newImage = "";
         editingId = null;
     }
 
@@ -124,7 +168,7 @@
             return;
         }
 
-        const cat = categories.find((c) => c.id === selectedCategory);
+        const cat = categories.find((c: any) => c.id === selectedCategory);
         const prefix = cat ? cat.name.substring(0, 3).toUpperCase() : "GEN";
         const random = Math.floor(1000 + Math.random() * 9000); // 4 digit random
         newCode = `${prefix}${random}`;
@@ -136,12 +180,17 @@
         newCode = product.code || "";
         selectedCategory = product.categoryId || "";
         newMinStock = product.minStock || 5;
+        newImage = product.image || "";
         open = true;
     }
 
     function handleDetail(product: any) {
-        selectedProduct = product;
-        detailOpen = true;
+        // Need to refetch detailed product to get batches
+        // Optional: Could use a specific query here too, but simple promise is fine for momentary detail
+        InventoryService.getProduct(product.id).then((detail) => {
+            selectedProduct = detail;
+            detailOpen = true;
+        });
     }
 
     function confirmDelete(id: string) {
@@ -149,87 +198,75 @@
         deleteOpen = true;
     }
 
-    async function handleDelete() {
+    function handleDelete() {
         if (!deletingId) return;
-
-        try {
-            await api(`/inventory/${deletingId}`, { method: "DELETE" });
-            toast.success("Produk dihapus");
-            loadData();
-        } catch (e) {
-            // handled by api helper
-        } finally {
-            deleteOpen = false;
-            deletingId = null;
-        }
+        deleteProductMutation.mutate(deletingId);
     }
 
-    async function handleSubmit() {
+    function handleSubmit() {
         if (!newName) {
             toast.error("Nama produk wajib diisi");
             return;
         }
 
-        loading = true;
-        try {
-            const payload = {
-                name: newName,
-                code: newCode || undefined,
-                categoryId: selectedCategory || undefined,
-                minStock: parseInt(newMinStock.toString()) || 5,
-            };
+        const payload = {
+            name: newName,
+            code: newCode || undefined,
+            categoryId: selectedCategory || undefined,
+            minStock: parseInt(newMinStock.toString()) || 5,
+            image: newImage || undefined,
+        };
 
-            if (editingId) {
-                // Update
-                await api(`/inventory/${editingId}`, {
-                    method: "PUT",
-                    body: payload,
-                });
-                toast.success("Produk berhasil diupdate!");
-            } else {
-                // Create
-                await api("/inventory", {
-                    method: "POST",
-                    body: payload,
-                });
-                toast.success("Produk berhasil dibuat!");
-            }
-
-            open = false;
-            resetForm();
-            loadData();
-        } catch (e) {
-            // handled in api helper
-        } finally {
-            loading = false;
+        if (editingId) {
+            updateProductMutation.mutate({ id: editingId, data: payload });
+        } else {
+            createProductMutation.mutate(payload);
         }
     }
 
-    $: filteredProducts = products
-        .filter((p) => {
-            const term = searchTerm.toLowerCase();
-            const matchSearch =
-                p.name.toLowerCase().includes(term) ||
-                (p.code && p.code.toLowerCase().includes(term)) ||
-                (p.categoryName && p.categoryName.toLowerCase().includes(term));
+    // Helper for batches ($derived)
+    let batchesBySupplier = $derived(
+        (selectedProduct?.batches || []).reduce(
+            (acc: Record<string, any[]>, batch: any) => {
+                const sup = batch.supplierName || "Tanpa Supplier";
+                if (!acc[sup]) acc[sup] = [];
+                acc[sup].push(batch);
+                return acc;
+            },
+            {},
+        ),
+    );
 
-            return matchSearch;
-        })
-        .sort((a, b) => {
-            const valA = a[sortKey] || "";
-            const valB = b[sortKey] || "";
+    // Filtering & Sorting (Reactive)
+    // Filtering & Sorting ($derived)
+    let filteredProducts = $derived(
+        products
+            .filter((p: any) => {
+                const term = searchTerm.toLowerCase();
+                const matchSearch =
+                    p.name.toLowerCase().includes(term) ||
+                    (p.code && p.code.toLowerCase().includes(term)) ||
+                    (p.categoryName &&
+                        p.categoryName.toLowerCase().includes(term));
 
-            if (typeof valA === "number" && typeof valB === "number") {
-                return sortDir === "asc" ? valA - valB : valB - valA;
-            }
+                return matchSearch;
+            })
+            .sort((a: any, b: any) => {
+                const valA = a[sortKey] || "";
+                const valB = b[sortKey] || "";
 
-            const strA = String(valA).toLowerCase();
-            const strB = String(valB).toLowerCase();
+                if (typeof valA === "number" && typeof valB === "number") {
+                    return sortDir === "asc" ? valA - valB : valB - valA;
+                }
 
-            if (strA < strB) return sortDir === "asc" ? -1 : 1;
-            if (strA > strB) return sortDir === "asc" ? 1 : -1;
-            return 0;
-        });
+                const strA = String(valA).toLowerCase();
+                const strB = String(valB).toLowerCase();
+
+                if (strA < strB) return sortDir === "asc" ? -1 : 1;
+                if (strA > strB) return sortDir === "asc" ? 1 : -1;
+                return 0;
+            }),
+    );
 
     function toggleSort(key: SortKey) {
         if (sortKey === key) {
@@ -239,58 +276,48 @@
             sortDir = "asc";
         }
     }
-
-    $: batchesBySupplier = (selectedProduct?.batches || []).reduce(
-        (acc: Record<string, any[]>, batch: any) => {
-            const sup = batch.supplier || "Tanpa Supplier";
-            if (!acc[sup]) acc[sup] = [];
-            acc[sup].push(batch);
-            return acc;
-        },
-        {},
-    );
 </script>
 
 <div class="space-y-4">
     <!-- Toolbar -->
     <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
-            <div class="relative w-full max-w-sm">
-                <Search
-                    class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
-                />
-                <Input
-                    type="search"
-                    placeholder="Cari nama atau kode..."
-                    class="pl-8 w-[300px]"
-                    bind:value={searchTerm}
-                />
-            </div>
+            <SearchInput
+                bind:value={searchTerm}
+                placeholder="Cari nama atau kode..."
+                class="w-[300px]"
+            />
         </div>
 
         <!-- Dialog Produk Baru -->
-        <Dialog bind:open onOpenChange={(isOpen) => !isOpen && resetForm()}>
+        <Dialog
+            bind:open
+            onOpenChange={(isOpen) => {
+                if (!isOpen) resetForm();
+                else
+                    queryClient.invalidateQueries({ queryKey: ["categories"] });
+            }}
+        >
             <DialogTrigger class={buttonVariants({ variant: "default" })}>
-                <Plus class="mr-2 h-4 w-4" /> Produk Baru
+                <Plus class="mr-2 h-4 w-4" /> Produk Master Baru
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle
                         >{editingId
-                            ? "Edit Produk"
-                            : "Buat Produk Baru"}</DialogTitle
+                            ? "Edit Master Produk"
+                            : "Buat Master Produk Baru"}</DialogTitle
                     >
                     <DialogDescription>
-                        Isi form berikut untuk {editingId
-                            ? "mengubah"
-                            : "menambah"} produk.
+                        Buat template produk. Stok masuk dilakukan melalui menu <b
+                            >Pembelian</b
+                        >.
                     </DialogDescription>
                 </DialogHeader>
                 <div class="grid gap-4 py-4">
                     <div class="grid grid-cols-4 items-center gap-4">
                         <Label class="text-right">Kategori</Label>
                         <div class="col-span-3">
-                            <!-- Wrapper for Select -->
                             {#if categories.length === 0}
                                 <div
                                     class="text-sm text-muted-foreground p-2 border rounded bg-muted"
@@ -335,14 +362,14 @@
                     <div class="grid grid-cols-4 items-center gap-4">
                         <Label class="text-right">Nama</Label>
                         <Input
-                            placeholder="Nama Produk"
+                            placeholder="Nama Produk (Mis: LCD Samsung)"
                             class="col-span-3"
                             bind:value={newName}
                         />
                     </div>
 
                     <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right">Stok Min</Label>
+                        <Label class="text-right">Min Stock Alert</Label>
                         <Input
                             type="number"
                             placeholder="5"
@@ -350,10 +377,20 @@
                             bind:value={newMinStock}
                         />
                     </div>
+
+                    <div class="grid grid-cols-4 items-start gap-4">
+                        <Label class="text-right pt-2">Foto Produk</Label>
+                        <div class="col-span-3">
+                            <ImageUpload
+                                bind:value={newImage}
+                                disabled={loading}
+                            />
+                        </div>
+                    </div>
                 </div>
                 <DialogFooter>
                     <Button onclick={handleSubmit} disabled={loading}>
-                        {loading ? "Menyimpan..." : "Simpan Produk"}
+                        {loading ? "Menyimpan..." : "Simpan Master Produk"}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -371,7 +408,7 @@
                             onclick={() => toggleSort("code")}
                             class="h-8 -ml-3"
                         >
-                            Kode Universal <ArrowUpDown class="ml-2 h-3 w-3" />
+                            Kode <ArrowUpDown class="ml-2 h-3 w-3" />
                         </Button>
                     </TableHead>
                     <TableHead>
@@ -398,7 +435,7 @@
                             onclick={() => toggleSort("stock")}
                             class="h-8 px-0"
                         >
-                            Stok <ArrowUpDown class="ml-2 h-3 w-3" />
+                            Stok Aggregat <ArrowUpDown class="ml-2 h-3 w-3" />
                         </Button>
                     </TableHead>
                     <TableHead class="text-center">
@@ -414,92 +451,129 @@
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {#each filteredProducts as product}
-                    <TableRow>
-                        <TableCell
-                            class="font-medium text-xs text-muted-foreground"
-                        >
-                            {product.code || "-"}
-                        </TableCell>
-                        <TableCell
-                            ><div class="font-medium">
-                                {product.name}
-                            </div></TableCell
-                        >
-                        <TableCell>{product.categoryName}</TableCell>
-                        <TableCell class="text-right font-bold">
-                            <span
-                                class:text-red-500={product.stock === 0}
-                                class:text-yellow-600={product.status ===
-                                    "Critical"}
+                {#if loading}
+                    {#each Array(5) as _}
+                        <TableRow>
+                            <TableCell
+                                ><Skeleton class="h-4 w-[100px]" /></TableCell
                             >
-                                {product.stock}
-                            </span>
-                        </TableCell>
-                        <TableCell class="text-center">
-                            {#if product.status === "Normal"}
-                                <Badge
-                                    variant="outline"
-                                    class="bg-green-50 text-green-700 border-green-200"
-                                    >Aman</Badge
-                                >
-                            {:else if product.status === "Critical"}
-                                <Badge
-                                    variant="outline"
-                                    class="bg-yellow-50 text-yellow-700 border-yellow-200"
-                                    >Menipis</Badge
-                                >
-                            {:else}
-                                <Badge variant="destructive">Habis</Badge>
-                            {/if}
-                        </TableCell>
-                        <TableCell class="text-right">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger
-                                    class={buttonVariants({
-                                        variant: "ghost",
-                                        size: "icon",
-                                        className: "h-8 w-8",
-                                    })}
-                                >
-                                    <MoreHorizontal class="h-4 w-4" />
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                                    <DropdownMenuItem
-                                        onclick={() => handleDetail(product)}
-                                    >
-                                        <Eye class="mr-2 h-4 w-4" /> Detail
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onclick={() => handleEdit(product)}
-                                    >
-                                        <Pencil class="mr-2 h-4 w-4" /> Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                        class="text-red-600"
-                                        onclick={() =>
-                                            confirmDelete(product.id)}
-                                    >
-                                        <Trash2 class="mr-2 h-4 w-4" /> Hapus
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            <TableCell
+                                ><Skeleton class="h-4 w-[250px]" /></TableCell
+                            >
+                            <TableCell
+                                ><Skeleton class="h-4 w-[100px]" /></TableCell
+                            >
+                            <TableCell class="text-right"
+                                ><Skeleton
+                                    class="h-4 w-[50px] ml-auto"
+                                /></TableCell
+                            >
+                            <TableCell class="text-center"
+                                ><Skeleton
+                                    class="h-4 w-[80px] mx-auto"
+                                /></TableCell
+                            >
+                            <TableCell class="text-right"
+                                ><Skeleton class="h-8 w-8 ml-auto" /></TableCell
+                            >
+                        </TableRow>
+                    {/each}
+                {:else if filteredProducts.length === 0}
+                    <TableRow>
+                        <TableCell colspan={6} class="h-24 text-center">
+                            Tidak ada produk ditemukan.
                         </TableCell>
                     </TableRow>
-                {/each}
+                {:else}
+                    {#each filteredProducts as product}
+                        <TableRow>
+                            <TableCell
+                                class="font-medium text-xs text-muted-foreground"
+                            >
+                                {product.code || "-"}
+                            </TableCell>
+                            <TableCell
+                                ><div class="font-medium">
+                                    {product.name}
+                                </div></TableCell
+                            >
+                            <TableCell>{product.categoryName}</TableCell>
+                            <TableCell class="text-right font-bold w-[120px]">
+                                <span
+                                    class:text-red-500={product.stock === 0}
+                                    class:text-yellow-600={product.status ===
+                                        "Critical"}
+                                >
+                                    {product.stock}
+                                </span>
+                            </TableCell>
+                            <TableCell class="text-center w-[120px]">
+                                {#if product.status === "Normal"}
+                                    <Badge
+                                        variant="outline"
+                                        class="bg-green-50 text-green-700 border-green-200"
+                                        >Aman</Badge
+                                    >
+                                {:else if product.status === "Critical"}
+                                    <Badge
+                                        variant="outline"
+                                        class="bg-yellow-50 text-yellow-700 border-yellow-200"
+                                        >Menipis</Badge
+                                    >
+                                {:else}
+                                    <Badge variant="destructive">Habis</Badge>
+                                {/if}
+                            </TableCell>
+                            <TableCell class="text-right">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger
+                                        class={buttonVariants({
+                                            variant: "ghost",
+                                            size: "icon",
+                                            className: "h-8 w-8",
+                                        })}
+                                    >
+                                        <MoreHorizontal class="h-4 w-4" />
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel
+                                            >Aksi</DropdownMenuLabel
+                                        >
+                                        <DropdownMenuItem
+                                            onclick={() =>
+                                                handleDetail(product)}
+                                        >
+                                            <Eye class="mr-2 h-4 w-4" /> Lihat Batch
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onclick={() => handleEdit(product)}
+                                        >
+                                            <Pencil class="mr-2 h-4 w-4" /> Edit
+                                            Master
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            class="text-red-600"
+                                            onclick={() =>
+                                                confirmDelete(product.id)}
+                                        >
+                                            <Trash2 class="mr-2 h-4 w-4" /> Hapus
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </TableCell>
+                        </TableRow>
+                    {/each}
+                {/if}
             </TableBody>
         </Table>
     </div>
 
     <!-- Detail Dialog -->
-    <!-- Detail Dialog -->
     <Dialog bind:open={detailOpen}>
         <DialogContent class="max-w-3xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-                <DialogTitle>Detail Produk: {selectedProduct?.name}</DialogTitle
-                >
+                <DialogTitle>Detail Stok: {selectedProduct?.name}</DialogTitle>
                 <DialogDescription>
                     Total Stok: <span class="font-bold"
                         >{selectedProduct?.stock}</span
@@ -520,14 +594,14 @@
                                 <div
                                     class="w-1 h-6 bg-primary rounded-full"
                                 ></div>
-                                Supplier: {supplier}
+                                {supplier}
                             </h3>
                             <div class="rounded-md border">
                                 <Table>
                                     <TableHeader>
                                         <TableRow class="bg-muted/50">
                                             <TableHead>Batch ID</TableHead>
-                                            <TableHead>Merk/Brand</TableHead>
+                                            <TableHead>Varian</TableHead>
                                             <TableHead class="text-right"
                                                 >Harga Beli</TableHead
                                             >
@@ -547,8 +621,10 @@
                                                     >{batch.id}</TableCell
                                                 >
                                                 <TableCell
-                                                    >{batch.brand ||
-                                                        "-"}</TableCell
+                                                    ><Badge variant="secondary"
+                                                        >{batch.variant ||
+                                                            "Standard"}</Badge
+                                                    ></TableCell
                                                 >
                                                 <TableCell class="text-right"
                                                     >Rp {batch.buyPrice.toLocaleString()}</TableCell
@@ -568,8 +644,13 @@
                         </div>
                     {/each}
                 {:else}
-                    <div class="text-center text-muted-foreground py-8">
-                        Belum ada data stok/batch.
+                    <div
+                        class="text-center text-muted-foreground py-8 border rounded-lg bg-muted/20"
+                    >
+                        <div class="mb-2">📦</div>
+                        Belum ada stok (Batch). Lakukan<span
+                            class="font-bold text-primary">Pembelian</span
+                        > untuk menambah stok.
                     </div>
                 {/if}
             </div>
@@ -580,10 +661,10 @@
     <AlertDialog bind:open={deleteOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>Apakah anda yakin?</AlertDialogTitle>
+                <AlertDialogTitle>Hapus Master Produk?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Tindakan ini tidak dapat dibatalkan. Produk ini akan dihapus
-                    permanen dari database.
+                    Produk ini akan dihapus permanen. Stok dan riwayat akan
+                    hilang.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

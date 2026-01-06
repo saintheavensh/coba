@@ -22,11 +22,10 @@
     </div>
 
     <Tabs value="products" class="w-full">
-        <TabsList class="grid w-full grid-cols-4 lg:w-[600px] mb-4">
+        <TabsList class="grid w-full grid-cols-3 lg:w-[450px] mb-4">
             <TabsTrigger value="products">Produk & Stok</TabsTrigger>
             <TabsTrigger value="categories">Kategori</TabsTrigger>
             <TabsTrigger value="suppliers">Supplier & Merk</TabsTrigger>
-            <TabsTrigger value="purchases">Pembelian</TabsTrigger>
         </TabsList>
 
         <!-- Tab Content: Produk -->
@@ -45,8 +44,5 @@
         </TabsContent>
 
         <!-- Tab Content: Pembelian -->
-        <TabsContent value="purchases" class="space-y-4">
-            <PurchaseList />
-        </TabsContent>
     </Tabs>
 </div>

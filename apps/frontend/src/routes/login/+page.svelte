@@ -22,7 +22,9 @@
 
     async function handleLogin() {
         if (!username || !password) {
-            toast.error("Validasi Gagal", { description: "Username dan Password harus diisi" });
+            toast.error("Validasi Gagal", {
+                description: "Username dan Password harus diisi",
+            });
             return;
         }
 
@@ -30,20 +32,25 @@
         try {
             const res = await api("/auth/login", {
                 method: "POST",
-                body: { username, password },
+                data: { username, password },
             });
 
             // Save token
-            localStorage.setItem("token", res.token);
-            localStorage.setItem("user", JSON.stringify(res.user));
+            localStorage.setItem("token", res.data.token);
+            localStorage.setItem("user", JSON.stringify(res.data.user));
 
             toast.success("Login Berhasil", {
-                description: `Selamat datang, ${res.user.name}`,
+                description: `Selamat datang, ${res.data.user.name}`,
             });
-            
-            goto("/");
-        } catch (err) {
-            // Error handled in api.ts mostly, but we can stop loading here
+
+            // Force hard redirect to ensure sidebar and header state updates
+            window.location.href = "/";
+            // goto("/"); // Use hard redirect instead for auth state change
+        } catch (err: any) {
+            const msg =
+                err.response?.data?.message ||
+                "Login gagal. Cek username/password.";
+            toast.error("Gagal Masuk", { description: msg });
         } finally {
             isLoading = false;
         }

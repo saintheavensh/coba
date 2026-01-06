@@ -244,7 +244,8 @@
     import { activityLogs, settings } from "$lib/stores/settings"; // Import Store
 
     import { onMount } from "svelte";
-    import { api } from "$lib/api";
+    import { ServiceService } from "$lib/services/service.service";
+    import { InventoryService } from "$lib/services/inventory.service";
 
     import type { CreateServiceRequest } from "@repo/shared";
 
@@ -313,26 +314,25 @@
                         : undefined,
             };
 
-            const res = await api("/service", {
-                method: "POST",
-                body: payload,
-            });
+            // Use ServiceService
+            await ServiceService.create(payload);
 
             const msg = isWalkin
                 ? "Service Selesai & Lunas!"
                 : "Service order berhasil dibuat!";
 
-            toast.success(msg, {
-                description: `No. ${res.serviceNo || "SRV-NEW"} - ${customerName}`,
-            });
+            toast.success(msg);
 
             setTimeout(() => {
                 goto("/service");
                 resetForm();
-            }, 1500);
-        } catch (e) {
+            }, 1000);
+        } catch (e: any) {
             console.error(e);
-            // toast handled in api helper
+            toast.error(
+                "Gagal membuat service: " +
+                    (e.response?.data?.message || e.message),
+            );
         } finally {
             isSubmitting = false;
         }

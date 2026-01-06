@@ -1,6 +1,10 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import { api } from "$lib/api";
+    import {
+        createQuery,
+        createMutation,
+        useQueryClient,
+    } from "@tanstack/svelte-query";
+    import { InventoryService } from "$lib/services/inventory.service";
     import { Button } from "$lib/components/ui/button";
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
@@ -20,35 +24,75 @@
         DialogFooter,
         DialogDescription,
     } from "$lib/components/ui/dialog";
+    import * as AlertDialog from "$lib/components/ui/alert-dialog";
     import { Pencil, Trash2, Plus } from "lucide-svelte";
     import { toast } from "svelte-sonner";
 
-    let categories: any[] = [];
-    let loading = false;
-    let open = false;
-    let editingId: string | null = null;
+    // Query Client
+    const client = useQueryClient();
+    // Helper to use in callbacks (since useQueryClient returns the instance)
+    const queryClient = client;
 
-    // Form
-    let name = "";
-    let description = "";
+    // Queries
+    const categoriesQuery = createQuery(() => ({
+        queryKey: ["categories"],
+        queryFn: InventoryService.getCategories,
+    }));
 
-    async function load() {
-        try {
-            categories = await api("/categories");
-        } catch (e) {
-            console.error(e);
-        }
-    }
+    // Mutations
+    const createMutationFn = createMutation(() => ({
+        mutationFn: InventoryService.createCategory,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["categories"] });
+            toast.success("Kategori dibuat");
+            open = false;
+            reset();
+        },
+        onError: () => toast.error("Gagal membuat kategori"),
+    }));
 
-    onMount(() => {
-        load();
-    });
+    const updateMutationFn = createMutation(() => ({
+        mutationFn: (vars: { id: string; data: any }) =>
+            InventoryService.updateCategory(vars.id, vars.data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["categories"] });
+            toast.success("Kategori diupdate");
+            open = false;
+            reset();
+        },
+        onError: () => toast.error("Gagal update kategori"),
+    }));
+
+    const deleteMutationFn = createMutation(() => ({
+        mutationFn: InventoryService.deleteCategory,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["categories"] });
+            toast.success("Kategori dihapus");
+        },
+        onError: () => toast.error("Gagal menghapus kategori"),
+    }));
+
+    // State (Runes)
+    let categories = $derived(categoriesQuery.data || []);
+    let loading = $derived(categoriesQuery.isLoading);
+
+    let open = $state(false);
+    let editingId = $state<string | null>(null);
+
+    // Form (Runes)
+    let name = $state("");
+    let description = $state("");
+
+    // Import api for direct calls inside inline mutations if service missing (adding TODOs to fix service later)
 
     function reset() {
         name = "";
         description = "";
         editingId = null;
     }
+
+    let deleteId = $state<string | null>(null);
+    let openDelete = $state(false);
 
     function handleEdit(cat: any) {
         editingId = cat.id;
@@ -57,42 +101,28 @@
         open = true;
     }
 
-    async function handleDelete(id: string) {
-        if (!confirm("Hapus kategori ini?")) return;
-        try {
-            await api(`/categories/${id}`, { method: "DELETE" });
-            toast.success("Kategori dihapus");
-            load();
-        } catch (e) {
-            // handled by api
-        }
+    function confirmDelete(id: string) {
+        deleteId = id;
+        openDelete = true;
     }
 
-    async function handleSubmit() {
+    function handleDelete() {
+        if (!deleteId) return;
+        deleteMutationFn.mutate(deleteId);
+        openDelete = false;
+        deleteId = null;
+    }
+
+    function handleSubmit() {
         if (!name) return toast.error("Nama wajib diisi");
 
-        loading = true;
-        try {
-            if (editingId) {
-                await api(`/categories/${editingId}`, {
-                    method: "PUT",
-                    body: { name, description },
-                });
-                toast.success("Kategori diupdate");
-            } else {
-                await api("/categories", {
-                    method: "POST",
-                    body: { name, description },
-                });
-                toast.success("Kategori dibuat");
-            }
-            open = false;
-            reset();
-            load();
-        } catch (e) {
-            // handled
-        } finally {
-            loading = false;
+        if (editingId) {
+            updateMutationFn.mutate({
+                id: editingId,
+                data: { name, description },
+            });
+        } else {
+            createMutationFn.mutate({ name, description });
         }
     }
 </script>
@@ -142,7 +172,7 @@
                                     variant="ghost"
                                     size="icon"
                                     class="text-red-600"
-                                    onclick={() => handleDelete(cat.id)}
+                                    onclick={() => confirmDelete(cat.id)}
                                 >
                                     <Trash2 class="h-4 w-4" />
                                 </Button>

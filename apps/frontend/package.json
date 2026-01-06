@@ -12,7 +12,9 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
 	},
 	"dependencies": {
-		"@repo/shared": "*"
+		"@repo/shared": "*",
+		"@tanstack/svelte-query": "^6.0.14",
+		"axios": "^1.13.2"
 	},
 	"devDependencies": {
 		"@lucide/svelte": "^0.482.0",

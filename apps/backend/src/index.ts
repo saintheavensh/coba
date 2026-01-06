@@ -1,3 +1,4 @@
+import { serveStatic } from "hono/bun";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -5,23 +6,34 @@ import { db } from "./db";
 import { users } from "./db/schema";
 import { sql } from "drizzle-orm";
 
-import auth from "./routes/auth";
-import inventory from "./routes/inventory";
-import service from "./routes/service";
+import authController from "./modules/auth/auth.controller";
+// import inventory from "./routes/inventory"; // Old
+import inventoryController from "./modules/inventory/inventory.controller";
+import categoryController from "./modules/categories/categories.controller";
+import supplierController from "./modules/suppliers/suppliers.controller";
+import uploadsController from "./modules/uploads/uploads.controller";
 
-import category from "./routes/categories";
-import supplier from "./routes/suppliers";
+import purchaseController from "./modules/purchases/purchases.controller";
+import salesController from "./modules/sales/sales.controller";
+import notificationsController from "./modules/notifications/notifications.controller";
 
 const app = new Hono();
 
 app.use("*", cors());
 app.use("*", logger());
 
-app.route("/auth", auth);
-app.route("/inventory", inventory);
-app.route("/categories", category);
-app.route("/service", service);
-app.route("/suppliers", supplier);
+// Serve static files
+app.use("/uploads/*", serveStatic({ root: "./public" }));
+
+app.route("/auth", authController);
+app.route("/inventory", inventoryController);
+app.route("/categories", categoryController);
+// app.route("/service", service);
+app.route("/suppliers", supplierController);
+app.route("/purchases", purchaseController);
+app.route("/sales", salesController);
+app.route("/notifications", notificationsController);
+app.route("/upload", uploadsController);
 
 app.get("/", (c) => {
     return c.json({ message: "Saint Heavens Backend API is Running!" });
