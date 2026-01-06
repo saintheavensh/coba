@@ -19,6 +19,7 @@ description: Sebelum implementasi fitur apapun, baca file ini dan dokumentasi te
    - `docs/folderstructure.md` - Struktur Direktori Project
    - `docs/security.md` - Standar Keamanan
    - `docs/techstack.md` - Teknologi yang digunakan
+   - `docs/purchases_module.md` - Dokumentasi teknis & Logic Purchases (**Fix & Limit**)
 
 2. **Pahami konsep utama:**
    - **Produk**: Template barang (nama, kategori). Stok = 0 saat dibuat.
