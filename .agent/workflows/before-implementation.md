@@ -7,25 +7,18 @@ description: Sebelum implementasi fitur apapun, baca file ini dan dokumentasi te
 ## Langkah Wajib
 
 1. **Baca dokumentasi di folder `docs/`** sebelum menulis kode:
-   - `docs/overview.md` - Arsitektur & tujuan
-   - `docs/development-standards.md` - Standar Coding, API & Rules (**WAJIB BACA**)
+   - `docs/core_concepts.md` - **KNOWLEDGE BASE UTAMA** (Business Logic, Architectures, Essential Flows) - **WAJIB BACA!**
+   - `docs/development-standards.md` - Standar Coding, API & Rules
    - `docs/database.md` - Schema & relasi tabel
-   - `docs/inventoryflow.md` - Alur inventori
-   - `docs/serviceflow.md` - Alur servis
-   - `docs/auth.md` - Sistem Autentikasi
-   - `docs/backend.md` - Dokumentasi API & Backend
-   - `docs/frontend.md` - Arsitektur Frontend
-   - `docs/frontend-guidelines.md` - Panduan & Best Practices Frontend
-   - `docs/folderstructure.md` - Struktur Direktori Project
-   - `docs/security.md` - Standar Keamanan
-   - `docs/techstack.md` - Teknologi yang digunakan
-   - `docs/purchases_module.md` - Dokumentasi teknis & Logic Purchases (**Fix & Limit**)
+   - `docs/inventoryflow.md` - Detail Alur inventori
+   - `docs/serviceflow.md` - Detail Alur servis
 
-2. **Pahami konsep utama:**
-   - **Produk**: Template barang (nama, kategori). Stok = 0 saat dibuat.
-   - **Varian**: Teks bebas (Original, OEM, Copy). Dibuat saat pembelian.
-   - **Batch**: Unit stok aktual dengan harga. FIFO.
-   - **Stok masuk**: Hanya via Menu Pembelian.
+2. **Pahami konsep utama (Detail di `core_concepts.md`):**
+   - **Produk vs Batch**: Stok ada di Batch, Produk hanya template.
+   - **FIFO**: Penjualan memotong stok dari batch tertua.
+   - **Staged Returns (Gudang Retur)**: Barang rusak masuk staging (`defective_items`) -> Baru dibuatkan Retur ke Supplier.
+   - **Stok Masuk**: HANYA via Pembelian.
+   - **Stok Keluar**: Via Penjualan (FIFO) atau Retur (Batch specific).
 
 3. **Jangan melanggar aturan ini:**
    - ❌ JANGAN buat tabel `brands` atau `variants` terpisah
