@@ -1,54 +1,69 @@
 import { db } from "./index";
-import { users } from "./schema";
+import { users, suppliers, categories, products, productBatches } from "./schema";
 import { eq } from "drizzle-orm";
+import { v4 as uuidv4 } from "uuid";
 
 async function main() {
     console.log("Seeding database...");
 
-    // Create or Update Admin User
+    // 1. Users
     const hashedPassword = await Bun.password.hash("admin");
+    await db.insert(users).values({
+        id: "USR-ADMIN",
+        username: "admin",
+        password: hashedPassword,
+        name: "Administrator",
+        role: "admin",
+        createdAt: new Date()
+    }).onConflictDoNothing();
 
-    const existingAdmin = await db.query.users.findFirst({
-        where: eq(users.username, "admin")
-    });
+    // 2. Categories
+    const catId = "CAT-HP";
+    await db.insert(categories).values({
+        id: catId,
+        name: "Handphone",
+        description: "Smartphone dan Tablet"
+    }).onConflictDoNothing();
 
-    if (!existingAdmin) {
-        await db.insert(users).values({
-            id: "USR-ADMIN",
-            username: "admin",
-            password: hashedPassword,
-            name: "Administrator",
-            role: "admin",
-            createdAt: new Date()
-        });
-        console.log("✅ Admin user created.");
-    } else {
-        // Force update password
-        await db.update(users)
-            .set({ password: hashedPassword })
-            .where(eq(users.username, "admin"));
-        console.log("🔄 Admin password reset to 'admin'.");
-    }
+    // 3. Suppliers
+    const supId = "SUP-001";
+    await db.insert(suppliers).values({
+        id: supId,
+        name: "CV. Makmur Jaya",
+        contact: "Budi",
+        phone: "08123456789",
+        address: "Jakarta Pusat"
+    }).onConflictDoNothing();
 
-    // Create Teknisi User (for filtering test)
-    const existingTeknisi = await db.query.users.findFirst({
-        where: eq(users.username, "teknisi")
-    });
+    // 4. Products
+    const prodId = "PRD-001";
+    await db.insert(products).values({
+        id: prodId,
+        code: "IP13PRO",
+        name: "iPhone 13 Pro",
+        categoryId: catId,
+        stock: 10,
+        minStock: 2
+    }).onConflictDoNothing();
 
-    if (!existingTeknisi) {
-        const hashedPassword = await Bun.password.hash("teknisi");
-        await db.insert(users).values({
-            id: "USR-TEKNISI",
-            username: "teknisi",
-            password: hashedPassword,
-            name: "Budi Teknisi",
-            role: "teknisi",
-            createdAt: new Date()
-        });
-        console.log("✅ Teknisi user created: teknisi / teknisi");
-    } else {
-        console.log("ℹ️ Teknisi user already exists.");
-    }
+    // 5. Batches (Initial Stock)
+    await db.insert(productBatches).values({
+        id: "BATCH-001",
+        productId: prodId,
+        supplierId: supId,
+        variant: "Inter 128GB",
+        supplierName: "CV. Makmur Jaya",
+        buyPrice: 10000000,
+        sellPrice: 12000000,
+        initialStock: 10,
+        currentStock: 10,
+        createdAt: new Date()
+    }).onConflictDoNothing();
+
+    // 6. Defective Items (Sample)
+    // Optional: Leave empty for testing Manual Add
+
+    console.log("✅ Database seeded successfully!");
 }
 
 main().catch(console.error);

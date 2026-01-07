@@ -9,16 +9,25 @@ const service = new SalesService();
 
 const saleItemSchema = z.object({
     productId: z.string(),
-    batchId: z.string(),
-    variant: z.string().optional(),
+    // batchId removed: System picks batch automatically (FIFO)
+    variant: z.string().default("Standard"), // Default to Standard if handling old data? Or require it? 
+    // Docs say variant is free text. Let's make it required but default capable.
+    // Actually, if UI sends it, it sends it.
     qty: z.number().min(1),
     price: z.number().min(0)
+});
+
+const paymentSchema = z.object({
+    method: z.enum(["cash", "transfer", "qris", "tempo"]),
+    amount: z.number().min(0),
+    reference: z.string().optional()
 });
 
 const saleSchema = z.object({
     memberId: z.string().optional(),
     customerName: z.string().optional(),
-    paymentMethod: z.enum(["cash", "transfer", "qris"]),
+    // paymentMethod removed, replaced by payments array
+    payments: z.array(paymentSchema).min(1),
     userId: z.string(),
     notes: z.string().optional(),
     items: z.array(saleItemSchema).min(1),
@@ -28,8 +37,17 @@ const saleSchema = z.object({
 app.use("*", authMiddleware);
 
 app.get("/", async (c) => {
-    const list = await service.getAll();
-    return c.json(list);
+    const query = c.req.query();
+    const list = await service.getAll(query);
+    // Wrap in standard response
+    return c.json({ data: list });
+});
+
+app.get("/:id", async (c) => {
+    const id = c.req.param("id");
+    const item = await service.getOne(id);
+    if (!item) return c.json({ message: "Not found" }, 404);
+    return c.json({ data: item });
 });
 
 app.post("/", zValidator("json", saleSchema), async (c) => {

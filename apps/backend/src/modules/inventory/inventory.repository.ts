@@ -6,7 +6,8 @@ export class InventoryRepository {
     async findAll() {
         return await db.query.products.findMany({
             with: {
-                category: true
+                category: true,
+                batches: true // Required for Sales FIFO aggregation
             },
             orderBy: [desc(products.name)]
         });

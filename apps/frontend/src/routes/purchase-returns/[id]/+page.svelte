@@ -1,0 +1,317 @@
+<script lang="ts">
+    import { page } from "$app/stores";
+    import { createQuery } from "@tanstack/svelte-query";
+    import { api } from "$lib/api";
+    import { Button } from "$lib/components/ui/button";
+    import {
+        Card,
+        CardContent,
+        CardHeader,
+        CardTitle,
+    } from "$lib/components/ui/card";
+    import { ArrowLeft, Printer } from "lucide-svelte";
+    import { Skeleton } from "$lib/components/ui/skeleton";
+
+    import { formatCurrency } from "$lib/utils";
+
+    let id = $derived($page.params.id);
+
+    const query = createQuery(() => ({
+        queryKey: ["purchase-return", id],
+        queryFn: async () => {
+            const res = await api.get(`/purchase-returns/${id}`);
+            return res.data.data;
+        },
+    }));
+
+    let r = $derived(query.data);
+</script>
+
+<div class="space-y-6 print:hidden">
+    <div class="flex items-center gap-4">
+        <Button variant="outline" size="icon" href="/purchase-returns">
+            <ArrowLeft class="h-4 w-4" />
+        </Button>
+        <h2 class="text-3xl font-bold tracking-tight">
+            Detail Retur Pembelian
+        </h2>
+        <div class="ml-auto">
+            <Button
+                variant="outline"
+                onclick={() => window.print()}
+                class="print:hidden"
+            >
+                <Printer class="mr-2 h-4 w-4" />
+                Print
+            </Button>
+        </div>
+    </div>
+
+    {#if query.isLoading}
+        <div class="space-y-4">
+            <Skeleton class="h-40 w-full" />
+            <Skeleton class="h-60 w-full" />
+        </div>
+    {:else if query.isError}
+        <div class="p-4 text-red-500 border rounded bg-red-50">
+            Gagal memuat detail retur: {query.error?.message}
+        </div>
+    {:else if r}
+        <!-- Header Info -->
+        <Card>
+            <CardHeader>
+                <CardTitle>Informasi Retur #{r.id}</CardTitle>
+            </CardHeader>
+            <CardContent class="grid grid-cols-2 gap-4">
+                <div>
+                    <div class="text-sm font-medium text-muted-foreground">
+                        Tanggal
+                    </div>
+                    <div class="text-lg">
+                        {new Date(r.date).toLocaleDateString("id-ID", {
+                            dateStyle: "long",
+                        })}
+                    </div>
+                </div>
+                <div>
+                    <div class="text-sm font-medium text-muted-foreground">
+                        Supplier
+                    </div>
+                    <div class="text-lg font-semibold">{r.supplier.name}</div>
+                    <div class="text-sm text-muted-foreground">
+                        {r.supplier.address || "-"}
+                    </div>
+                </div>
+                <div>
+                    <div class="text-sm font-medium text-muted-foreground">
+                        Catatan
+                    </div>
+                    <div class="italic">{r.notes || "-"}</div>
+                </div>
+                <div>
+                    <div class="text-sm font-medium text-muted-foreground">
+                        Dibuat Oleh
+                    </div>
+                    <div>{r.user.name}</div>
+                </div>
+            </CardContent>
+        </Card>
+
+        <!-- Items Table -->
+        <Card>
+            <CardHeader class="flex flex-row items-center justify-between">
+                <CardTitle>Item Retur</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div class="border rounded-md">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b bg-muted/50">
+                                <th class="p-3 text-left">Produk</th>
+                                <th class="p-3 text-left">Kategori</th>
+                                <th class="p-3 text-left">Batch/Varian</th>
+                                <th class="p-3 text-right">Qty Retur</th>
+                                <th class="p-3 text-left">Alasan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {#each r.items as item}
+                                <tr
+                                    class="border-b last:border-0 hover:bg-muted/50"
+                                >
+                                    <td class="p-3 font-medium"
+                                        >{item.product.name}</td
+                                    >
+                                    <td class="p-3 text-muted-foreground"
+                                        >{item.product.category?.name ||
+                                            "-"}</td
+                                    >
+                                    <td class="p-3">{item.batch.variant}</td>
+                                    <td
+                                        class="p-3 text-right font-bold text-red-600"
+                                        >-{item.qty}</td
+                                    >
+                                    <td class="p-3 text-muted-foreground"
+                                        >{item.reason || "-"}</td
+                                    >
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            </CardContent>
+        </Card>
+    {/if}
+</div>
+
+<!-- Print Layout -->
+{#if r}
+    <div
+        class="hidden print:block print-layout absolute top-0 left-0 w-full min-h-screen z-[9999] bg-white text-black p-8 font-sans"
+    >
+        <!-- Header -->
+        <div class="flex justify-between mb-8">
+            <div class="w-1/2">
+                <!-- Logo Layout -->
+                <div class="flex items-center gap-4 mb-4">
+                    <div
+                        class="bg-slate-800 text-white rounded-full h-16 w-16 flex items-center justify-center text-xl font-bold"
+                    >
+                        S
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold">Saint Heavens</h1>
+                        <p class="text-sm">Jalan Contoh No. 123, Kota Besar</p>
+                        <p class="text-sm">Tel: 0812-3456-7890</p>
+                    </div>
+                </div>
+            </div>
+            <div class="w-1/2 text-right">
+                <div class="bg-slate-100 p-2 mb-2 inline-block">
+                    <h3 class="text-2xl font-bold uppercase">Parts Return</h3>
+                </div>
+                <div class="text-xl font-bold text-slate-500 mt-2">
+                    No. {r.id}
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Grid -->
+        <div class="flex mb-8 border-t border-b border-l overflow-hidden">
+            <!-- Left: Supplier Info -->
+            <div class="w-1/2 border-r p-1">
+                <div class="flex flex-col ml-4">
+                    <div class="font-bold text-2xl">{r.supplier.name}</div>
+                    <div class="text-sm">{r.supplier.address || "-"}</div>
+                    <div class="text-sm">{r.supplier.phone || "-"}</div>
+                </div>
+            </div>
+            <!-- Right: Meta Info -->
+            <div class="w-1/2">
+                <div class="grid grid-cols-[150px_1fr] border-b">
+                    <div class="bg-slate-100 p-1 px-2 font-bold text-sm">
+                        RETURNS DATE
+                    </div>
+                    <div class="p-1 px-2">
+                        {new Date(r.date || new Date()).toLocaleDateString()}
+                    </div>
+                </div>
+                <!-- Placeholders for Invoice/Order No as they aren't in schema yet, or use Notes -->
+                <div class="grid grid-cols-[150px_1fr] border-b">
+                    <div class="bg-slate-100 p-1 px-2 font-bold text-sm">
+                        INVOICE NO.
+                    </div>
+                    <div class="p-1 px-2">-</div>
+                </div>
+                <div class="grid grid-cols-[150px_1fr]">
+                    <div class="bg-slate-100 p-1 px-2 font-bold text-sm">
+                        ORDER NO.
+                    </div>
+                    <div class="p-1 px-2">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="mb-8">
+            <table class="w-full border-collapse text-sm">
+                <thead>
+                    <tr class="bg-slate-400 text-white uppercase text-xs">
+                        <th class="p-2 border border-slate-400 w-12 text-center"
+                            >No.</th
+                        >
+                        <th class="p-2 border border-slate-400 text-left"
+                            >Description / Item</th
+                        >
+                        <th class="p-2 border border-slate-400 text-left w-32"
+                            >Kategori</th
+                        >
+                        <th class="p-2 border border-slate-400 text-left"
+                            >Alasan Retur</th
+                        >
+                        <th class="p-2 border border-slate-400 w-16 text-center"
+                            >Qty</th
+                        >
+                    </tr>
+                </thead>
+                <tbody>
+                    {#each r.items as item, i}
+                        <tr class="border-b border-slate-200">
+                            <td
+                                class="p-2 border-r border-l border-slate-200 text-center"
+                                >{i + 1}</td
+                            >
+                            <td class="p-2 border-r border-slate-200">
+                                <div class="font-bold">{item.product.name}</div>
+                                <div class="text-xs text-slate-500">
+                                    {item.product.code || ""} - {item.batch
+                                        .variant}
+                                </div>
+                            </td>
+                            <td class="p-2 border-r border-slate-200"
+                                >{item.product.category?.name || "-"}</td
+                            >
+                            <td
+                                class="p-2 border-r border-slate-200 text-slate-600 italic"
+                                >{item.reason || "-"}</td
+                            >
+                            <td
+                                class="p-2 border-r border-slate-200 text-center font-bold"
+                                >{item.qty}</td
+                            >
+                        </tr>
+                    {/each}
+                </tbody>
+                <tfoot>
+                    <tr class="bg-slate-100 font-bold">
+                        <td
+                            colspan="4"
+                            class="p-2 text-right border border-slate-200"
+                            >TOTAL QTY</td
+                        >
+                        <td class="p-2 text-center border border-slate-200">
+                            {r.items.reduce(
+                                (acc: number, i: any) => acc + i.qty,
+                                0,
+                            )}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+{/if}
+```
+
+<style>
+    @media print {
+        @page {
+            margin: 0.5cm;
+            size: auto;
+        }
+        /* Hide everything */
+        :global(body) {
+            visibility: hidden;
+            overflow: hidden; /* Prevent scrolling if needed */
+        }
+        /* Show only our print layout */
+        .print-layout {
+            visibility: visible;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: auto;
+            overflow: visible;
+        }
+        /* Ensure children are visible */
+        .print-layout * {
+            visibility: visible;
+        }
+        /* Ensure background colors print */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+    }
+</style>

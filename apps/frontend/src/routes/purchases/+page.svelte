@@ -258,14 +258,7 @@
                                         >
                                             <Eye class="mr-2 h-4 w-4" /> Lihat Detail
                                         </DropdownMenu.Item>
-                                        <DropdownMenu.Item
-                                            onclick={() =>
-                                                goto(
-                                                    `/purchases/${po.id}/edit`,
-                                                )}
-                                        >
-                                            <Pencil class="mr-2 h-4 w-4" /> Edit
-                                        </DropdownMenu.Item>
+
                                         <DropdownMenu.Separator />
                                         <DropdownMenu.Item
                                             class="text-red-500 focus:text-red-500"

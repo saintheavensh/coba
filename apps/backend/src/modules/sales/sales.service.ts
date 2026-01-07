@@ -1,6 +1,6 @@
 import { db } from "../../db";
-import { sales, saleItems, productBatches, products, activityLogs } from "../../db/schema";
-import { eq } from "drizzle-orm";
+import { sales, saleItems, productBatches, products, activityLogs, members, salePayments } from "../../db/schema";
+import { eq, and, gt, asc } from "drizzle-orm";
 import { SalesRepository } from "./sales.repository";
 
 export class SalesService {
@@ -10,20 +10,38 @@ export class SalesService {
         this.repo = new SalesRepository();
     }
 
-    async getAll() {
-        return await this.repo.findAll();
+    async getAll(query: { startDate?: string; endDate?: string; search?: string; limit?: string }) {
+        const startDate = query.startDate ? new Date(query.startDate) : undefined;
+        // End date should be end of day if only date string provided
+        const endDate = query.endDate ? new Date(query.endDate + "T23:59:59") : undefined;
+        const limit = query.limit ? parseInt(query.limit) : 50;
+
+        return await this.repo.findAll({
+            startDate,
+            endDate,
+            search: query.search,
+            limit
+        });
+    }
+
+    async getOne(id: string) {
+        return await this.repo.findById(id);
     }
 
     async createSale(data: {
         memberId?: string;
         customerName?: string;
-        paymentMethod: "cash" | "transfer" | "qris";
+        payments: {
+            method: "cash" | "transfer" | "qris" | "tempo";
+            amount: number;
+            reference?: string;
+        }[];
         userId: string;
         notes?: string;
         items: {
             productId: string;
-            batchId: string;
-            variant?: string;
+            // batchId removed
+            variant: string;
             qty: number;
             price: number;
         }[];
@@ -33,13 +51,66 @@ export class SalesService {
         const subtotal = data.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
         const finalAmount = subtotal - (data.discountAmount || 0);
 
+        // 1. Validate Payments
+        const totalPaid = data.payments.reduce((sum, p) => sum + p.amount, 0);
+        // Allow slight tolerance or require exact/over? 
+        // Usually Over is fine (Cash change), Under is not unless strictly Partial.
+        // For now, require totalPaid >= finalAmount.
+        if (totalPaid < finalAmount) {
+            throw new Error(`Insufficient payment. Total: ${finalAmount}, Paid: ${totalPaid}`);
+        }
+
+        // Determine Payment Status & Method String
+        const methodTypes = new Set(data.payments.map(p => p.method));
+        const paymentMethodStr = methodTypes.size > 1 ? "mixed" : data.payments[0].method;
+
+        const nonTempoAmount = data.payments
+            .filter(p => p.method !== "tempo")
+            .reduce((sum, p) => sum + p.amount, 0);
+
+        let paymentStatus: "paid" | "partial" | "unpaid" = "paid";
+        if (nonTempoAmount >= finalAmount) {
+            paymentStatus = "paid";
+        } else if (nonTempoAmount > 0) {
+            paymentStatus = "partial";
+        } else {
+            paymentStatus = "unpaid";
+        }
+
         await db.transaction(async (tx) => {
+            // Handle Tempo (Debt)
+            const tempoPayment = data.payments.find(p => p.method === "tempo");
+            if (tempoPayment) {
+                if (!data.memberId) {
+                    throw new Error("Customer memberId is required for Tempo payments.");
+                }
+                const member = await tx.query.members.findFirst({
+                    where: eq(members.id, data.memberId)
+                });
+                if (!member) {
+                    throw new Error("Customer not found.");
+                }
+
+                // Credit Limit Check
+                const currentDebt = member.debt || 0;
+                const creditLimit = member.creditLimit || 0;
+                if (creditLimit > 0 && (currentDebt + tempoPayment.amount > creditLimit)) {
+                    throw new Error(`Credit limit exceeded. Limit: ${creditLimit}, Current Debt: ${currentDebt}, New: ${tempoPayment.amount}`);
+                }
+
+                // Increase Debt
+                await tx.update(members)
+                    .set({ debt: currentDebt + tempoPayment.amount })
+                    .where(eq(members.id, data.memberId));
+            }
+
             // 1. Create Sale Header
             await tx.insert(sales).values({
                 id: saleId,
                 memberId: data.memberId,
                 customerName: data.customerName,
-                paymentMethod: data.paymentMethod,
+                paymentMethod: paymentMethodStr,
+                paymentStatus: paymentStatus,
                 userId: data.userId,
                 totalAmount: subtotal,
                 discountAmount: data.discountAmount || 0,
@@ -47,44 +118,78 @@ export class SalesService {
                 notes: data.notes
             });
 
-            // 2. Process Items
+            // 1.5 Insert Payments
+            for (const p of data.payments) {
+                await tx.insert(salePayments).values({
+                    saleId: saleId,
+                    method: p.method,
+                    amount: p.amount,
+                    reference: p.reference
+                });
+            }
+
+            // 2. Process Items (FIFO)
             for (const item of data.items) {
-                const batch = await tx.query.productBatches.findFirst({
-                    where: eq(productBatches.id, item.batchId)
+                let remainingQty = item.qty;
+
+                // Find batches with stock for this product & variant, sort by Oldest First
+                const batches = await tx.query.productBatches.findMany({
+                    where: and(
+                        eq(productBatches.productId, item.productId),
+                        eq(productBatches.variant, item.variant),
+                        gt(productBatches.currentStock, 0)
+                    ),
+                    orderBy: [asc(productBatches.createdAt)]
                 });
 
-                if (!batch) throw new Error(`Batch ${item.batchId} not found`);
-                if (batch.currentStock < item.qty) throw new Error(`Insufficient stock for ${batch.id}`);
+                // Calculate Total Available for specific variant
+                const totalVariantStock = batches.reduce((sum, b) => sum + b.currentStock, 0);
+                if (totalVariantStock < remainingQty) {
+                    throw new Error(`Insufficient stock for Product ${item.productId} (${item.variant}). Available: ${totalVariantStock}, Requested: ${remainingQty}`);
+                }
 
-                // Reduce Batch Stock
-                await tx.update(productBatches)
-                    .set({
-                        currentStock: batch.currentStock - item.qty,
-                        updatedAt: new Date()
-                    })
-                    .where(eq(productBatches.id, item.batchId));
+                // Deduct from batches
+                for (const batch of batches) {
+                    if (remainingQty <= 0) break;
 
-                // Reduce Product Stock
+                    const deduct = Math.min(batch.currentStock, remainingQty);
+
+                    // Update Batch Stock
+                    await tx.update(productBatches)
+                        .set({
+                            currentStock: batch.currentStock - deduct,
+                            updatedAt: new Date()
+                        })
+                        .where(eq(productBatches.id, batch.id));
+
+                    // Create Sale Item (One per batch split to maintain Cost Basis accuracy)
+                    await tx.insert(saleItems).values({
+                        saleId: saleId,
+                        productId: item.productId,
+                        batchId: batch.id,
+                        variant: item.variant,
+                        qty: deduct,
+                        price: item.price, // Selling Price (from input)
+                        subtotal: deduct * item.price
+                    });
+
+                    remainingQty -= deduct;
+                }
+
+                if (remainingQty > 0) {
+                    // Should not start transaction if not enough, but concurrency might cause this
+                    throw new Error(`Concurrency Error: Stock changed during processing for ${item.productId}`);
+                }
+
+                // Update Overall Product Stock
                 const product = await tx.query.products.findFirst({
                     where: eq(products.id, item.productId)
                 });
-
                 if (product) {
                     await tx.update(products)
                         .set({ stock: (product.stock || 0) - item.qty })
                         .where(eq(products.id, item.productId));
                 }
-
-                // Insert Item
-                await tx.insert(saleItems).values({
-                    saleId: saleId,
-                    productId: item.productId,
-                    batchId: item.batchId,
-                    variant: item.variant || batch.variant,
-                    qty: item.qty,
-                    price: item.price,
-                    subtotal: item.qty * item.price
-                });
             }
 
             // 3. Log
@@ -99,6 +204,14 @@ export class SalesService {
             });
         });
 
-        return { message: "Sale created", id: saleId };
+        // Calculate Change (Kembalian) if Cash > Total
+        // Only if not using Tempo (Strict logic: Tempo implies exact amount for correct debt tracking)
+        // If Mixed (Cash 100k for 50k bill) -> Return 50k.
+        let change = 0;
+        if (!data.payments.some(p => p.method === "tempo")) {
+            change = totalPaid - finalAmount;
+        }
+
+        return { message: "Sale created", id: saleId, change: change > 0 ? change : 0 };
     }
 }

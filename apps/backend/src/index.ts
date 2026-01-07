@@ -13,9 +13,13 @@ import categoryController from "./modules/categories/categories.controller";
 import supplierController from "./modules/suppliers/suppliers.controller";
 import uploadsController from "./modules/uploads/uploads.controller";
 
+import purchaseReturnsController from "./modules/purchase-returns/purchase-returns.controller";
+
 import purchaseController from "./modules/purchases/purchases.controller";
 import salesController from "./modules/sales/sales.controller";
 import notificationsController from "./modules/notifications/notifications.controller";
+import { customersController } from "./modules/customers/customers.controller";
+import { defectiveItemsController } from "./modules/defective-items/defective-items.controller";
 
 const app = new Hono();
 
@@ -31,9 +35,12 @@ app.route("/categories", categoryController);
 // app.route("/service", service);
 app.route("/suppliers", supplierController);
 app.route("/purchases", purchaseController);
+app.route("/purchase-returns", purchaseReturnsController);
 app.route("/sales", salesController);
 app.route("/notifications", notificationsController);
-app.route("/upload", uploadsController);
+app.route("/uploads", uploadsController);
+app.route("/customers", customersController);
+app.route("/defective-items", defectiveItemsController);
 
 app.get("/", (c) => {
     return c.json({ message: "Saint Heavens Backend API is Running!" });

@@ -33,7 +33,6 @@ export const suppliers = sqliteTable("suppliers", {
     phone: text("phone"),
     address: text("address"),
     image: text("image"), // Supplier logo (optional)
-    brands: text("brands", { mode: "json" }).$type<{ name: string; category: string }[]>(), // List of brands
     createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -290,6 +289,22 @@ export const saleItemsRelations = relations(saleItems, ({ one }) => ({
     }),
 }));
 
+export const salePayments = sqliteTable("sale_payments", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    saleId: text("sale_id").notNull().references(() => sales.id),
+    amount: integer("amount").notNull(),
+    method: text("method").notNull(), // cash, transfer, qris
+    ref: text("ref"),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const salePaymentsRelations = relations(salePayments, ({ one }) => ({
+    sale: one(sales, {
+        fields: [salePayments.saleId],
+        references: [sales.id],
+    }),
+}));
+
 export const servicesRelations = relations(services, ({ one }) => ({
     technician: one(users, {
         fields: [services.technicianId],
@@ -320,5 +335,87 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
     user: one(users, {
         fields: [notifications.userId],
         references: [users.id],
+    }),
+}));
+
+// ============================================
+// PURCHASE RETURNS
+// ============================================
+
+export const purchaseReturns = sqliteTable("purchase_returns", {
+    id: text("id").primaryKey(), // RET-XXX
+    supplierId: text("supplier_id").notNull().references(() => suppliers.id),
+    userId: text("user_id").notNull().references(() => users.id),
+    date: integer("date", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+    notes: text("notes"),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const purchaseReturnItems = sqliteTable("purchase_return_items", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    returnId: text("return_id").notNull().references(() => purchaseReturns.id),
+    productId: text("product_id").notNull().references(() => products.id),
+    batchId: text("batch_id").notNull().references(() => productBatches.id),
+    qty: integer("qty").notNull(),
+    reason: text("reason"),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const purchaseReturnsRelations = relations(purchaseReturns, ({ one, many }) => ({
+    supplier: one(suppliers, {
+        fields: [purchaseReturns.supplierId],
+        references: [suppliers.id],
+    }),
+    user: one(users, {
+        fields: [purchaseReturns.userId],
+        references: [users.id],
+    }),
+    items: many(purchaseReturnItems),
+}));
+
+export const purchaseReturnItemsRelations = relations(purchaseReturnItems, ({ one }) => ({
+    return: one(purchaseReturns, {
+        fields: [purchaseReturnItems.returnId],
+        references: [purchaseReturns.id],
+    }),
+    product: one(products, {
+        fields: [purchaseReturnItems.productId],
+        references: [products.id],
+    }),
+    batch: one(productBatches, {
+        fields: [purchaseReturnItems.batchId],
+        references: [productBatches.id],
+    }),
+}));
+
+// ============================================
+// DEFECTIVE ITEMS (Gudang Retur)
+// ============================================
+
+export const defectiveItems = sqliteTable("defective_items", {
+    id: text("id").primaryKey(), // DEF-XXX
+    productId: text("product_id").notNull().references(() => products.id),
+    batchId: text("batch_id").notNull().references(() => productBatches.id),
+    supplierId: text("supplier_id").notNull().references(() => suppliers.id),
+    qty: integer("qty").notNull(),
+    source: text("source").notNull(), // manual, sales_return, service_return
+    sourceRefId: text("source_ref_id"),
+    reason: text("reason"),
+    status: text("status").notNull().default("pending"), // pending, processed
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const defectiveItemsRelations = relations(defectiveItems, ({ one }) => ({
+    product: one(products, {
+        fields: [defectiveItems.productId],
+        references: [products.id],
+    }),
+    batch: one(productBatches, {
+        fields: [defectiveItems.batchId],
+        references: [productBatches.id],
+    }),
+    supplier: one(suppliers, {
+        fields: [defectiveItems.supplierId],
+        references: [suppliers.id],
     }),
 }));

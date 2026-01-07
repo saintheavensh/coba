@@ -318,7 +318,16 @@
                     <div class="grid grid-cols-4 items-center gap-4">
                         <Label class="text-right">Kategori</Label>
                         <div class="col-span-3">
-                            {#if categories.length === 0}
+                            {#if categoriesQuery.isLoading}
+                                <div
+                                    class="flex items-center space-x-2 text-sm text-muted-foreground p-2 border rounded bg-muted"
+                                >
+                                    <div
+                                        class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
+                                    ></div>
+                                    <span>Memuat kategori...</span>
+                                </div>
+                            {:else if categories.length === 0}
                                 <div
                                     class="text-sm text-muted-foreground p-2 border rounded bg-muted"
                                 >

@@ -10,11 +10,13 @@
         Plus,
         Minus,
         CreditCard,
+        X,
     } from "lucide-svelte";
     import { Badge } from "$lib/components/ui/badge";
     import { Separator } from "$lib/components/ui/separator";
     import { InventoryService } from "$lib/services/inventory.service";
     import { SalesService } from "$lib/services/sales.service";
+    import { CustomersService } from "$lib/services/customers.service";
     import { toast } from "svelte-sonner";
     import {
         Dialog,
@@ -24,6 +26,9 @@
         DialogHeader,
         DialogTitle,
     } from "$lib/components/ui/dialog";
+    import Combobox from "$lib/components/custom/combobox.svelte";
+    import { formatCurrency } from "$lib/utils";
+    import * as Select from "$lib/components/ui/select";
 
     import {
         createQuery,
@@ -33,14 +38,19 @@
 
     // Types
     type CartItem = {
-        uniqueId: string; // for key
+        uniqueId: string; // productId + variant
         productId: string;
-        batchId: string;
         name: string;
         variant: string;
         price: number;
         qty: number;
-        maxQty: number;
+        maxQty: number; // Total available stock across batches
+    };
+
+    type PaymentItem = {
+        method: "cash" | "transfer" | "qris" | "tempo";
+        amount: number;
+        reference?: string;
     };
 
     // Query Client
@@ -52,14 +62,26 @@
         queryFn: InventoryService.getProducts,
     }));
 
+    const customersQuery = createQuery(() => ({
+        queryKey: ["customers"],
+        queryFn: () => CustomersService.getAll(),
+    }));
+
     // Mutation
     const checkoutMutation = createMutation(() => ({
         mutationFn: SalesService.create,
-        onSuccess: () => {
+        onSuccess: (data) => {
             client.invalidateQueries({ queryKey: ["products"] });
-            toast.success("Transaksi Berhasil!");
+            client.invalidateQueries({ queryKey: ["customers"] }); // If debt updated
+            toast.success("Transaksi Berhasil! ID: " + data.id);
+            if (data.change > 0) {
+                toast.info(`Kembalian: ${formatCurrency(data.change)}`, {
+                    duration: 10000,
+                });
+            }
             cart = [];
             paymentOpen = false;
+            resetPaymentForm();
         },
         onError: (e: any) => {
             toast.error("Gagal: " + (e.response?.data?.message || e.message));
@@ -68,7 +90,54 @@
 
     // Reactive Data
     $: products = productsQuery.data || [];
-    $: loading = checkoutMutation.isPending; // Use mutation state for loading spinner
+    $: customers = customersQuery.data || [];
+    $: loading = checkoutMutation.isPending;
+
+    // Derived Logic: Group Batches by Variant
+    $: processedProducts = products.map((p: any) => {
+        const variantMap = new Map();
+
+        // Sort batches by creation (FIFO) to determine Display Price
+        const sortedBatches = (p.batches || []).sort(
+            (a: any, b: any) =>
+                new Date(a.createdAt).getTime() -
+                new Date(b.createdAt).getTime(),
+        );
+
+        for (const b of sortedBatches) {
+            if (b.currentStock <= 0) continue;
+
+            const vName = b.variant || "Standard";
+            if (!variantMap.has(vName)) {
+                variantMap.set(vName, {
+                    name: vName,
+                    stock: 0,
+                    price: b.sellPrice, // FIFO Price (First available batch price)
+                });
+            }
+            const v = variantMap.get(vName);
+            v.stock += b.currentStock;
+        }
+
+        return {
+            ...p,
+            variants: Array.from(variantMap.values()),
+        };
+    });
+
+    $: filteredProducts = processedProducts.filter((p: any) => {
+        const term = searchTerm.toLowerCase();
+        return (
+            p.name.toLowerCase().includes(term) ||
+            (p.code && p.code.toLowerCase().includes(term))
+        );
+    });
+
+    // Customer Combobox Options
+    $: customerOptions = customers.map((c: any) => ({
+        value: c.id,
+        label: `${c.name} (${c.phone})`,
+    }));
 
     // Local State
     let searchTerm = "";
@@ -76,20 +145,23 @@
     let paymentOpen = false;
 
     // Payment State
-    let paymentMethod: "cash" | "transfer" | "qris" = "cash";
-    let customerName = "Guest";
+    let selectedCustomerId = ""; // From Combobox
+    let customerNameManual = "Walk-in Consumen"; // Default
     let notes = "";
 
-    function addToCart(product: any, batch: any) {
-        if (batch.currentStock <= 0) {
+    let payments: PaymentItem[] = [{ method: "cash", amount: 0 }];
+
+    function addToCart(product: any, variant: any) {
+        if (variant.stock <= 0) {
             toast.error("Stok habis!");
             return;
         }
 
-        const existingIdx = cart.findIndex((c) => c.batchId === batch.id);
+        const uniqueId = `${product.id}-${variant.name}`;
+        const existingIdx = cart.findIndex((c) => c.uniqueId === uniqueId);
 
         if (existingIdx >= 0) {
-            if (cart[existingIdx].qty + 1 > batch.currentStock) {
+            if (cart[existingIdx].qty + 1 > variant.stock) {
                 toast.error("Stok tidak mencukupi");
                 return;
             }
@@ -98,14 +170,13 @@
             cart = [
                 ...cart,
                 {
-                    uniqueId: batch.id, // simple match
+                    uniqueId,
                     productId: product.id,
-                    batchId: batch.id,
                     name: product.name,
-                    variant: batch.variant || "Standard",
-                    price: batch.sellPrice,
+                    variant: variant.name,
+                    price: variant.price,
                     qty: 1,
-                    maxQty: batch.currentStock,
+                    maxQty: variant.stock,
                 },
             ];
         }
@@ -128,33 +199,80 @@
         }
     }
 
+    function resetPaymentForm() {
+        selectedCustomerId = "";
+        customerNameManual = "Walk-in Consumen";
+        notes = "";
+        payments = [{ method: "cash", amount: 0 }];
+    }
+
+    function openCheckout() {
+        payments = [{ method: "cash", amount: totalAmount }]; // Default full cash
+        paymentOpen = true;
+    }
+
+    function addPaymentRow() {
+        payments = [...payments, { method: "cash", amount: 0 }];
+    }
+
+    function removePaymentRow(index: number) {
+        if (payments.length > 1) {
+            payments = payments.filter((_, i) => i !== index);
+        }
+    }
+
+    function handleMethodChange(index: number, newMethod: string) {
+        // Strict Rule: If 1st Payment is Cash -> It must be single payment.
+        if (index === 0 && newMethod === "cash") {
+            payments = [{ method: "cash", amount: payments[0].amount }];
+            return;
+        }
+        // Update method normally
+        payments[index].method = newMethod as any;
+    }
+
+    $: totalAmount = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+    $: totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    $: change = totalPaid - totalAmount;
+    $: remaining = totalAmount - totalPaid;
+
     function processCheckout() {
         if (cart.length === 0) return;
 
+        // Validation
+        if (remaining > 0) {
+            // Check if strict payment logic is needed. backend throws if underpaid.
+            // But allow "Tempo" to cover logic?
+            // If totalPaid < totalAmount, user must confirm "Partial" or "Unpaid"?
+            // For now, enforce Total Paid >= Amount UNLESS implicit Tempo logic (but we track tempo explicitly)
+            // So if remaining > 0, it means user hasn't allocated enough funds (even via Tempo).
+            toast.error(`Pembayaran kurang ${formatCurrency(remaining)}`);
+            return;
+        }
+
+        const selectedCustomer = customers.find(
+            (c: any) => c.id === selectedCustomerId,
+        );
+        const name = selectedCustomer
+            ? selectedCustomer.name
+            : customerNameManual || "Walk-in Consumen";
+
         const payload = {
-            // memberId: ... (future)
-            customerName: customerName,
-            paymentMethod: paymentMethod,
+            memberId: selectedCustomerId || undefined,
+            customerName: name,
+            payments: payments,
+            userId: "USR-ADMIN", // Should come from session
             notes: notes,
             items: cart.map((c) => ({
                 productId: c.productId,
-                batchId: c.batchId,
+                variant: c.variant,
                 qty: c.qty,
+                price: c.price,
             })),
         };
 
         checkoutMutation.mutate(payload);
     }
-
-    $: filteredProducts = products.filter((p: any) => {
-        const term = searchTerm.toLowerCase();
-        return (
-            p.name.toLowerCase().includes(term) ||
-            (p.code && p.code.toLowerCase().includes(term))
-        );
-    });
-
-    $: totalAmount = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 </script>
 
 <div class="flex h-[calc(100vh-100px)] gap-6">
@@ -201,7 +319,7 @@
                     </div>
 
                     <div class="space-y-2">
-                        {#if product.stock === 0}
+                        {#if !product.variants || product.variants.length === 0}
                             <div
                                 class="text-center text-sm text-red-500 bg-red-50 py-1 rounded"
                             >
@@ -214,29 +332,26 @@
                                 Pilih Varian:
                             </div>
                             <div class="space-y-1">
-                                {#each product.batches || [] as batch}
-                                    {#if batch.currentStock > 0}
-                                        <button
-                                            class="w-full text-left text-xs flex justify-between items-center p-2 rounded border hover:bg-accent group active:scale-95 transition-transform"
-                                            onclick={() =>
-                                                addToCart(product, batch)}
-                                        >
-                                            <div class="flex flex-col">
-                                                <span
-                                                    class="font-medium group-hover:text-primary"
-                                                    >{batch.variant ||
-                                                        "Standard"}</span
-                                                >
-                                                <span
-                                                    class="text-[10px] text-muted-foreground"
-                                                    >Stok: {batch.currentStock}</span
-                                                >
-                                            </div>
-                                            <div class="font-bold">
-                                                Rp {batch.sellPrice.toLocaleString()}
-                                            </div>
-                                        </button>
-                                    {/if}
+                                {#each product.variants as variant}
+                                    <button
+                                        class="w-full text-left text-xs flex justify-between items-center p-2 rounded border hover:bg-accent group active:scale-95 transition-transform"
+                                        onclick={() =>
+                                            addToCart(product, variant)}
+                                    >
+                                        <div class="flex flex-col">
+                                            <span
+                                                class="font-medium group-hover:text-primary"
+                                                >{variant.name}</span
+                                            >
+                                            <span
+                                                class="text-[10px] text-muted-foreground"
+                                                >Stok: {variant.stock}</span
+                                            >
+                                        </div>
+                                        <div class="font-bold">
+                                            {formatCurrency(variant.price)}
+                                        </div>
+                                    </button>
                                 {/each}
                             </div>
                         {/if}
@@ -278,13 +393,13 @@
                                 {item.variant}
                             </div>
                             <div class="text-xs font-mono mt-1">
-                                @ Rp {item.price.toLocaleString()}
+                                @ {formatCurrency(item.price)}
                             </div>
                         </div>
 
                         <div class="flex flex-col items-end gap-2">
                             <div class="font-bold text-sm">
-                                Rp {(item.price * item.qty).toLocaleString()}
+                                {formatCurrency(item.price * item.qty)}
                             </div>
                             <div class="flex items-center gap-1">
                                 <Button
@@ -318,12 +433,12 @@
             <div class="space-y-2">
                 <div class="flex justify-between text-sm">
                     <span class="text-muted-foreground">Subtotal</span>
-                    <span>Rp {totalAmount.toLocaleString()}</span>
+                    <span>{formatCurrency(totalAmount)}</span>
                 </div>
                 <Separator />
                 <div class="flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span>Rp {totalAmount.toLocaleString()}</span>
+                    <span>{formatCurrency(totalAmount)}</span>
                 </div>
             </div>
 
@@ -331,7 +446,7 @@
                 size="lg"
                 class="w-full"
                 disabled={cart.length === 0}
-                onclick={() => (paymentOpen = true)}
+                onclick={openCheckout}
             >
                 Bayar Sekarang
             </Button>
@@ -340,69 +455,141 @@
 
     <!-- Payment Dialog -->
     <Dialog bind:open={paymentOpen}>
-        <DialogContent>
+        <DialogContent class="max-w-[600px]">
             <DialogHeader>
-                <DialogTitle>Checkout</DialogTitle>
+                <DialogTitle>Checkout & Pembayaran</DialogTitle>
                 <DialogDescription
-                    >Selesaikan pembayaran transaksi ini.</DialogDescription
+                    >Input metode pembayaran untuk transaksi ini.</DialogDescription
                 >
             </DialogHeader>
 
-            <div class="grid gap-4 py-4">
-                <div class="grid grid-cols-4 items-center gap-4">
-                    <Label class="text-right">Total</Label>
-                    <div class="col-span-3 text-2xl font-bold font-mono">
-                        Rp {totalAmount.toLocaleString()}
+            <div class="grid gap-6 py-4">
+                <!-- Top Section: Total & Customer -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div
+                        class="bg-slate-100 p-4 rounded-lg flex flex-col justify-center items-center"
+                    >
+                        <span class="text-sm text-muted-foreground"
+                            >Total Tagihan</span
+                        >
+                        <span class="text-3xl font-bold font-mono text-primary"
+                            >{formatCurrency(totalAmount)}</span
+                        >
+                    </div>
+                    <div class="space-y-2">
+                        <Label>Pelanggan</Label>
+                        <Combobox
+                            items={customerOptions}
+                            bind:value={selectedCustomerId}
+                            placeholder="Cari Pelanggan..."
+                            allowCreate={false}
+                        />
+                        {#if !selectedCustomerId}
+                            <Input
+                                placeholder="Nama Guest (Opsional)"
+                                bind:value={customerNameManual}
+                                class="mt-2"
+                            />
+                        {/if}
                     </div>
                 </div>
 
-                <div class="grid grid-cols-4 items-center gap-4">
-                    <Label class="text-right">Customer</Label>
-                    <Input
-                        class="col-span-3"
-                        placeholder="Nama Pelanggan (Optional)"
-                        bind:value={customerName}
-                    />
-                </div>
+                <Separator />
 
-                <div class="grid grid-cols-4 items-center gap-4">
-                    <Label class="text-right">Metode</Label>
-                    <div class="col-span-3 flex gap-2">
-                        <Button
-                            variant={paymentMethod === "cash"
-                                ? "default"
-                                : "outline"}
-                            onclick={() => (paymentMethod = "cash")}
-                            class="flex-1"
+                <!-- Payment Methods -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <Label class="text-base font-semibold">Pembayaran</Label
                         >
-                            Tunai
-                        </Button>
                         <Button
-                            variant={paymentMethod === "transfer"
-                                ? "default"
-                                : "outline"}
-                            onclick={() => (paymentMethod = "transfer")}
-                            class="flex-1"
+                            variant="outline"
+                            size="sm"
+                            onclick={addPaymentRow}
+                            disabled={payments.length >= 2 ||
+                                payments[0].method === "cash"}
                         >
-                            Transfer
+                            <Plus class="h-3 w-3 mr-1" /> Tambah Split
                         </Button>
-                        <Button
-                            variant={paymentMethod === "qris"
-                                ? "default"
-                                : "outline"}
-                            onclick={() => (paymentMethod = "qris")}
-                            class="flex-1"
-                        >
-                            QRIS
-                        </Button>
+                    </div>
+
+                    {#each payments as payment, i}
+                        <div class="flex gap-2 items-start">
+                            <div class="w-[140px]">
+                                <select
+                                    class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={payment.method}
+                                    onchange={(e) =>
+                                        handleMethodChange(
+                                            i,
+                                            e.currentTarget.value,
+                                        )}
+                                >
+                                    <option value="cash">Tunai</option>
+                                    <option value="transfer">Transfer</option>
+                                    <option value="qris">QRIS</option>
+                                    {#if selectedCustomerId}
+                                        <option value="tempo"
+                                            >Tempo (Kredit)</option
+                                        >
+                                    {/if}
+                                </select>
+                            </div>
+                            <div class="flex-1 relative">
+                                <span
+                                    class="absolute left-3 top-2.5 text-muted-foreground text-sm"
+                                    >Rp</span
+                                >
+                                <Input
+                                    type="number"
+                                    class="pl-9"
+                                    bind:value={payment.amount}
+                                    placeholder="0"
+                                />
+                            </div>
+                            {#if payments.length > 1}
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onclick={() => removePaymentRow(i)}
+                                >
+                                    <Trash2 class="h-4 w-4 text-red-500" />
+                                </Button>
+                            {/if}
+                        </div>
+                    {/each}
+
+                    <!-- Summary -->
+                    <div class="bg-muted/30 p-3 rounded-lg space-y-1 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground"
+                                >Total Bayar:</span
+                            >
+                            <span class="font-semibold"
+                                >{formatCurrency(totalPaid)}</span
+                            >
+                        </div>
+                        {#if remaining > 0}
+                            <div
+                                class="flex justify-between text-red-600 font-medium"
+                            >
+                                <span>Kurang:</span>
+                                <span>{formatCurrency(remaining)}</span>
+                            </div>
+                        {:else}
+                            <div
+                                class="flex justify-between text-green-600 font-medium"
+                            >
+                                <span>Kembalian:</span>
+                                <span>{formatCurrency(change)}</span>
+                            </div>
+                        {/if}
                     </div>
                 </div>
 
-                <div class="grid grid-cols-4 items-center gap-4">
-                    <Label class="text-right">Catatan</Label>
+                <div class="grid gap-2">
+                    <Label>Catatan</Label>
                     <Input
-                        class="col-span-3"
-                        placeholder="Catatan tambahan (Opsional)"
+                        placeholder="Catatan tambahan..."
                         bind:value={notes}
                     />
                 </div>
@@ -414,8 +601,11 @@
                     onclick={() => (paymentOpen = false)}
                     disabled={loading}>Batal</Button
                 >
-                <Button onclick={processCheckout} disabled={loading}>
-                    {#if loading}Processing...{:else}Konfirmasi Bayar{/if}
+                <Button
+                    onclick={processCheckout}
+                    disabled={loading || remaining > 0}
+                >
+                    {loading ? "Memproses..." : "Konfirmasi Bayar"}
                 </Button>
             </DialogFooter>
         </DialogContent>
