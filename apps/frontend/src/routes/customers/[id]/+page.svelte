@@ -295,15 +295,19 @@
                                                 {formatDate(sale.createdAt)}
                                             </div>
                                         </div>
-                                        <div class="flex items-center gap-4">
-                                            <div class="text-right space-y-1">
+                                        <div
+                                            class="flex w-full md:w-auto items-center justify-between md:justify-end gap-4"
+                                        >
+                                            <div
+                                                class="text-left md:text-right space-y-0"
+                                            >
                                                 <div
                                                     class="text-xs text-muted-foreground"
                                                 >
                                                     Sisa Tagihan
                                                 </div>
                                                 <div
-                                                    class="font-bold text-red-600"
+                                                    class="font-bold text-red-600 text-lg leading-tight"
                                                 >
                                                     {formatCurrency(
                                                         remainingAmount,
@@ -315,7 +319,8 @@
                                                 onclick={() =>
                                                     openPayment(sale)}
                                             >
-                                                <Wallet class="h-4 w-4 mr-2" /> Bayar
+                                                <Wallet class="h-4 w-4 mr-2" />
+                                                Bayar
                                             </Button>
                                         </div>
                                     </div>
@@ -627,7 +632,7 @@
                 </div>
                 <div class="space-y-2">
                     <Label>Bukti Transfer (Jika ada)</Label>
-                    <div class="grid w-full max-w-sm items-center gap-1.5">
+                    <div class="grid w-full items-center gap-1.5">
                         <Label
                             for="picture"
                             class="cursor-pointer border-2 border-dashed rounded-md p-4 flex flex-col items-center justify-center hover:bg-muted/50 transition-colors"

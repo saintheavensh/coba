@@ -103,7 +103,7 @@
                         />
                     </div>
                 </div>
-                <div class="flex gap-2 w-full md:w-auto">
+                <div class="grid grid-cols-2 md:flex gap-2 w-full md:w-auto">
                     <div class="space-y-2">
                         <span class="text-sm font-medium">Dari</span>
                         <Input type="date" bind:value={startDate} />
@@ -113,14 +113,19 @@
                         <Input type="date" bind:value={endDate} />
                     </div>
                 </div>
-                <Button variant="secondary" onclick={handleSearch}>
+                <Button
+                    variant="secondary"
+                    onclick={handleSearch}
+                    class="w-full md:w-auto"
+                >
                     <Filter class="mr-2 h-4 w-4" /> Filter
                 </Button>
             </div>
         </CardContent>
     </Card>
 
-    <div class="rounded-md border bg-card">
+    <!-- Desktop Table View -->
+    <div class="hidden md:block rounded-md border bg-card">
         <Table>
             <TableHeader>
                 <TableRow>
@@ -163,7 +168,7 @@
                             <TableCell>
                                 <div class="flex items-center gap-2 text-sm">
                                     <Calendar
-                                        class="h-3 w-3 text-muted-foreground"
+                                        class="h-4 w-4 text-foreground/80"
                                     />
                                     {formatDate(sale.createdAt)}
                                 </div>
@@ -213,5 +218,89 @@
                 {/if}
             </TableBody>
         </Table>
+    </div>
+
+    <!-- Mobile Card View -->
+    <div class="md:hidden space-y-4">
+        {#if loading}
+            <div class="p-8 text-center text-muted-foreground">
+                Memuat data...
+            </div>
+        {:else if sales.length === 0}
+            <div class="p-8 text-center border rounded-lg bg-muted/20">
+                <p class="text-muted-foreground">
+                    Belum ada riwayat penjualan.
+                </p>
+            </div>
+        {:else}
+            {#each sales as sale (sale.id)}
+                <div
+                    class="bg-card rounded-lg border shadow-sm p-4 hover:shadow-md transition-all"
+                >
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="font-mono font-bold text-blue-600">
+                            #{sale.id}
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <Badge
+                                variant="outline"
+                                class={getPaymentStatusColor(
+                                    sale.paymentStatus,
+                                )}
+                            >
+                                {(sale.paymentStatus === "paid"
+                                    ? "Lunas"
+                                    : sale.paymentStatus
+                                ).toUpperCase()}
+                            </Badge>
+                            <div
+                                class="flex items-center gap-1.5 text-xs font-medium text-foreground/80"
+                            >
+                                <Calendar class="h-3.5 w-3.5 text-primary" />
+                                {formatDate(sale.createdAt)}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center mb-3">
+                        <div>
+                            <div class="font-medium text-sm">
+                                {sale.customerName || "Guest"}
+                            </div>
+                            <div class="text-xs text-muted-foreground">
+                                {sale.member?.phone || "-"}
+                            </div>
+                        </div>
+                        <Badge variant="secondary" class="text-xs capitalize">
+                            {sale.paymentMethod === "mixed"
+                                ? "Split"
+                                : sale.paymentMethod}
+                        </Badge>
+                    </div>
+
+                    <div
+                        class="pt-3 border-t flex justify-between items-center"
+                    >
+                        <div>
+                            <div class="text-xs text-muted-foreground">
+                                Total
+                            </div>
+                            <div class="font-bold text-lg">
+                                {formatCurrency(sale.finalAmount)}
+                            </div>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-8"
+                            href="/sales/history/{sale.id}"
+                        >
+                            <Eye class="h-3.5 w-3.5 mr-2" />
+                            Detail
+                        </Button>
+                    </div>
+                </div>
+            {/each}
+        {/if}
     </div>
 </div>

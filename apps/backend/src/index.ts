@@ -64,5 +64,6 @@ app.get("/health", async (c) => {
 
 export default {
     port: 4000,
+    hostname: "0.0.0.0",
     fetch: app.fetch,
 };

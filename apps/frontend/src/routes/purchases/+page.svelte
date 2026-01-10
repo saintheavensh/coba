@@ -141,7 +141,7 @@
                         />
                     </div>
                 </div>
-                <div class="flex gap-2 w-full md:w-auto">
+                <div class="grid grid-cols-2 md:flex gap-2 w-full md:w-auto">
                     <div class="space-y-2">
                         <span class="text-sm font-medium">Dari Tanggal</span>
                         <Input type="date" bind:value={startDate} />
@@ -151,14 +151,19 @@
                         <Input type="date" bind:value={endDate} />
                     </div>
                 </div>
-                <Button variant="secondary" onclick={handleSearch}>
+                <Button
+                    variant="secondary"
+                    onclick={handleSearch}
+                    class="w-full md:w-auto"
+                >
                     <Filter class="mr-2 h-4 w-4" /> Filter
                 </Button>
             </div>
         </CardContent>
     </Card>
 
-    <div class="rounded-md border bg-card">
+    <!-- Desktop Table View -->
+    <div class="hidden md:block rounded-md border bg-card">
         <Table>
             <TableHeader>
                 <TableRow>
@@ -196,7 +201,7 @@
                             <TableCell>
                                 <div class="flex items-center gap-2 text-sm">
                                     <Calendar
-                                        class="h-3 w-3 text-muted-foreground"
+                                        class="h-4 w-4 text-foreground/80"
                                     />
                                     {formatDate(po.date)}
                                 </div>
@@ -274,5 +279,91 @@
                 {/if}
             </TableBody>
         </Table>
+    </div>
+
+    <!-- Mobile Card View -->
+    <div class="md:hidden space-y-4">
+        {#if loading}
+            <div class="p-8 text-center text-muted-foreground">
+                Memuat data...
+            </div>
+        {:else if purchases.length === 0}
+            <div class="p-8 text-center border rounded-lg bg-muted/20">
+                <p class="text-muted-foreground">
+                    Belum ada riwayat pembelian.
+                </p>
+            </div>
+        {:else}
+            {#each purchases as po (po.id)}
+                <div
+                    class="bg-card rounded-lg border shadow-sm p-4 hover:shadow-md transition-all"
+                >
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="font-mono font-bold text-blue-600 text-sm">
+                            #{po.notes || po.id}
+                        </div>
+                        <div
+                            class="flex items-center gap-1.5 text-xs font-medium text-foreground/80"
+                        >
+                            <Calendar class="h-3.5 w-3.5 text-primary" />
+                            {formatDate(po.date)}
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="space-y-1">
+                            <div class="font-medium">
+                                {po.supplier?.name || "Unknown"}
+                            </div>
+                            <div
+                                class="text-xs text-muted-foreground flex items-center gap-1"
+                            >
+                                <User class="h-3 w-3" />
+                                {po.user?.name || po.user?.username || "-"}
+                            </div>
+                        </div>
+                        <div class="text-right space-y-1">
+                            <Badge
+                                variant="secondary"
+                                class="font-normal text-xs"
+                            >
+                                {po.items?.length || 0} Item
+                            </Badge>
+                        </div>
+                    </div>
+
+                    <div
+                        class="pt-3 border-t flex justify-between items-center"
+                    >
+                        <div>
+                            <div class="text-xs text-muted-foreground mb-0.5">
+                                Total Pembelian
+                            </div>
+                            <div class="font-bold text-lg font-mono">
+                                {formatRp(po.totalAmount)}
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                class="h-8 w-8 p-0"
+                                onclick={() => goto(`/purchases/${po.id}`)}
+                            >
+                                <Eye class="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                class="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                onclick={() => handleDelete(po.id)}
+                            >
+                                <Trash2 class="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            {/each}
+        {/if}
     </div>
 </div>

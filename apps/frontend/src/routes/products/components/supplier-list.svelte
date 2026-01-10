@@ -13,6 +13,7 @@
     import { Button, buttonVariants } from "$lib/components/ui/button";
     import { Plus, Pencil, Trash2, Tag, Phone, MapPin } from "lucide-svelte";
     import { Badge } from "$lib/components/ui/badge";
+    import { cn } from "$lib/utils";
     import {
         Dialog,
         DialogContent,
@@ -159,16 +160,25 @@
 </script>
 
 <div class="space-y-6">
-    <div class="flex justify-between items-center">
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4">
         <!-- Reused Component -->
-        <SearchInput bind:value={searchQuery} placeholder="Cari supplier..." />
+        <SearchInput
+            bind:value={searchQuery}
+            placeholder="Cari supplier..."
+            class="w-full max-w-none md:max-w-[300px]"
+        />
 
         <!-- Dialog Tambah Supplier -->
         <Dialog
             bind:open={openSupplier}
             onOpenChange={(o) => !o && resetSupplierForm()}
         >
-            <DialogTrigger class={buttonVariants({ variant: "default" })}>
+            <DialogTrigger
+                class={cn(
+                    buttonVariants({ variant: "default" }),
+                    "w-full md:w-auto",
+                )}
+            >
                 <Plus class="mr-2 h-4 w-4" /> Supplier Baru
             </DialogTrigger>
             <DialogContent>
@@ -182,8 +192,10 @@
                 </DialogHeader>
                 <div class="grid gap-4 py-4">
                     {#if editingId}
-                        <div class="grid grid-cols-4 items-center gap-4">
-                            <Label class="text-right">ID</Label>
+                        <div
+                            class="grid grid-cols-1 md:grid-cols-4 items-center gap-2 md:gap-4"
+                        >
+                            <Label class="text-left md:text-right">ID</Label>
                             <Input
                                 value={editingId}
                                 disabled
@@ -191,8 +203,10 @@
                             />
                         </div>
                     {/if}
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right"
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-center gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right"
                             >Nama PT/Toko <span class="text-red-500">*</span
                             ></Label
                         >
@@ -202,8 +216,12 @@
                             class="col-span-3"
                         />
                     </div>
-                    <div class="grid grid-cols-4 items-start gap-4">
-                        <Label class="text-right pt-2">Logo Supplier</Label>
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-start gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right pt-2"
+                            >Logo Supplier</Label
+                        >
                         <div class="col-span-3">
                             <ImageUpload
                                 bind:value={image}
@@ -215,24 +233,32 @@
                             </div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right">Kontak Person</Label>
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-center gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right"
+                            >Kontak Person</Label
+                        >
                         <Input
                             bind:value={contact}
                             placeholder="Nama Sales"
                             class="col-span-3"
                         />
                     </div>
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right">Telepon</Label>
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-center gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right">Telepon</Label>
                         <Input
                             bind:value={phone}
                             placeholder="08xxx"
                             class="col-span-3"
                         />
                     </div>
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right">Alamat</Label>
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-center gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right">Alamat</Label>
                         <Input
                             bind:value={address}
                             placeholder="Alamat lengkap"
@@ -266,79 +292,99 @@
         {:else}
             {#each filteredSuppliers as supplier (supplier.id)}
                 <div
-                    class="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md"
+                    class="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md relative flex flex-col justify-between"
                 >
-                    <div
-                        class="flex flex-col sm:flex-row items-start justify-between gap-4"
-                    >
-                        <div class="flex gap-4 w-full">
-                            <div class="flex-shrink-0">
-                                <Avatar class="h-12 w-12 rounded-lg border">
-                                    <AvatarImage
-                                        src={supplier.image}
-                                        alt={supplier.name}
-                                    />
-                                    <AvatarFallback
-                                        class="rounded-lg bg-blue-100 text-blue-600 font-bold"
-                                    >
-                                        {getInitials(supplier.name)}
-                                    </AvatarFallback>
-                                </Avatar>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <h4 class="font-semibold text-lg truncate pr-2">
+                    <div class="flex items-start gap-4 mb-4">
+                        <div class="flex-shrink-0">
+                            <Avatar class="h-12 w-12 rounded-lg border">
+                                <AvatarImage
+                                    src={supplier.image}
+                                    alt={supplier.name}
+                                />
+                                <AvatarFallback
+                                    class="rounded-lg bg-blue-100 text-blue-600 font-bold"
+                                >
+                                    {getInitials(supplier.name)}
+                                </AvatarFallback>
+                            </Avatar>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-semibold text-lg truncate">
                                     {supplier.name}
                                 </h4>
-                                <div
-                                    class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mt-1"
+                                <span
+                                    class="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0"
                                 >
-                                    <span
-                                        class="flex items-center gap-1 font-mono text-xs bg-muted px-1.5 py-0.5 rounded"
-                                    >
-                                        {supplier.id}
-                                    </span>
-                                    {#if supplier.contact}
-                                        <span class="flex items-center gap-1">
-                                            <span class="opacity-70"
-                                                >Sales:</span
-                                            >
-                                            {supplier.contact}
-                                        </span>
-                                    {/if}
-                                    <span class="flex items-center gap-1">
-                                        <Phone class="h-3 w-3" />
-                                        {supplier.phone || "-"}
-                                    </span>
-                                </div>
-                                {#if supplier.address}
-                                    <div
-                                        class="text-xs text-muted-foreground mt-1 truncate flex items-center"
-                                    >
-                                        <MapPin class="h-3 w-3 mr-1" />
-                                        {supplier.address}
-                                    </div>
-                                {/if}
+                                    {supplier.id}
+                                </span>
                             </div>
+                            <div
+                                class="flex items-center gap-2 text-sm text-muted-foreground overflow-hidden"
+                            >
+                                {#if supplier.contact}
+                                    <span
+                                        class="flex items-center gap-1 truncate shrink-0"
+                                    >
+                                        <span class="opacity-70 text-xs"
+                                            >Sales:</span
+                                        >
+                                        <span
+                                            class="truncate max-w-[80px] sm:max-w-none"
+                                            >{supplier.contact}</span
+                                        >
+                                    </span>
+                                    <span
+                                        class="text-muted-foreground/30 hidden sm:inline shrink-0"
+                                        >•</span
+                                    >
+                                {/if}
+                                <span class="flex items-center gap-1 truncate">
+                                    {#if supplier.contact}
+                                        <span
+                                            class="inline sm:hidden mx-1 text-muted-foreground/30"
+                                            >•</span
+                                        >
+                                    {/if}
+                                    <Phone class="h-3 w-3 shrink-0" />
+                                    <span class="truncate"
+                                        >{supplier.phone || "-"}</span
+                                    >
+                                </span>
+                            </div>
+                            {#if supplier.address}
+                                <div
+                                    class="text-xs text-muted-foreground mt-1.5 truncate flex items-center"
+                                >
+                                    <MapPin
+                                        class="h-3 w-3 mr-1 flex-shrink-0"
+                                    />
+                                    <span class="truncate"
+                                        >{supplier.address}</span
+                                    >
+                                </div>
+                            {/if}
                         </div>
-                        <div
-                            class="flex gap-2 self-end sm:self-start flex-shrink-0"
+                    </div>
+
+                    <div class="pt-3 border-t flex justify-end gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onclick={() => handleEdit(supplier)}
+                            class="h-8"
                         >
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onclick={() => handleEdit(supplier)}
-                            >
-                                <Pencil class="h-3.5 w-3.5 mr-2" />Edit
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="h-9 w-9 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                onclick={() => confirmDelete(supplier.id)}
-                            >
-                                <Trash2 class="h-4 w-4" />
-                            </Button>
-                        </div>
+                            <Pencil class="h-3.5 w-3.5 mr-2" />
+                            Edit
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            class="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onclick={() => confirmDelete(supplier.id)}
+                        >
+                            <Trash2 class="h-4 w-4" />
+                        </Button>
                     </div>
                 </div>
             {/each}

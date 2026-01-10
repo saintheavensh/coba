@@ -11,9 +11,27 @@
         Minus,
         CreditCard,
         X,
+        Package,
+        Filter,
     } from "lucide-svelte";
     import { Badge } from "$lib/components/ui/badge";
     import { Separator } from "$lib/components/ui/separator";
+    import * as Tabs from "$lib/components/ui/tabs";
+    // import { ScrollArea } from "$lib/components/ui/scroll-area"; // Not installed
+    import {
+        Select,
+        SelectContent,
+        SelectItem,
+        SelectTrigger,
+    } from "$lib/components/ui/select";
+    import {
+        Sheet,
+        SheetContent,
+        SheetHeader,
+        SheetTitle,
+        SheetTrigger,
+    } from "$lib/components/ui/sheet";
+
     import { InventoryService } from "$lib/services/inventory.service";
     import { SalesService } from "$lib/services/sales.service";
     import { CustomersService } from "$lib/services/customers.service";
@@ -29,7 +47,6 @@
     import Combobox from "$lib/components/custom/combobox.svelte";
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import { formatCurrency } from "$lib/utils";
-    import * as Select from "$lib/components/ui/select";
 
     import {
         createQuery,
@@ -63,6 +80,11 @@
         queryFn: InventoryService.getProducts,
     }));
 
+    const categoriesQuery = createQuery(() => ({
+        queryKey: ["categories"],
+        queryFn: InventoryService.getCategories,
+    }));
+
     const customersQuery = createQuery(() => ({
         queryKey: ["customers"],
         queryFn: () => CustomersService.getAll(),
@@ -91,6 +113,7 @@
 
     // Reactive Data using Svelte 5 runes
     let products = $derived(productsQuery.data || []);
+    let categories = $derived(categoriesQuery.data || []);
     let customers = $derived(customersQuery.data || []);
     let loading = $derived(checkoutMutation.isPending);
 
@@ -128,16 +151,21 @@
         }),
     );
 
-    // Local State - must be declared before derived that uses it
+    // Local State
     let searchTerm = $state("");
+    let selectedCategory = $state("all");
 
     let filteredProducts = $derived(
         processedProducts.filter((p: any) => {
             const term = searchTerm.toLowerCase();
-            return (
+            const matchesSearch =
                 p.name.toLowerCase().includes(term) ||
-                (p.code && p.code.toLowerCase().includes(term))
-            );
+                (p.code && p.code.toLowerCase().includes(term));
+
+            const matchesCategory =
+                selectedCategory === "all" || p.categoryId === selectedCategory;
+
+            return matchesSearch && matchesCategory;
         }),
     );
 
@@ -283,341 +311,532 @@
                 price: c.price,
             })),
         };
-
         checkoutMutation.mutate(payload);
     }
 </script>
 
-<div class="flex h-[calc(100vh-100px)] gap-6">
+<div class="flex h-[calc(100vh-80px)] overflow-hidden gap-4 p-4">
     <!-- Left: Product Catalog -->
-    <div class="flex-1 flex flex-col gap-4">
-        <div class="flex gap-2">
-            <div class="relative flex-1">
-                <Search
-                    class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
-                />
-                <Input
-                    type="search"
-                    placeholder="Cari produk (Nama / SKU)..."
-                    class="pl-8"
-                    bind:value={searchTerm}
-                />
+    <div class="flex-1 flex flex-col gap-4 min-w-0">
+        <!-- Header: Search & Category Filter -->
+        <div class="flex flex-col gap-3 flex-shrink-0">
+            <div class="flex gap-2 items-center">
+                <div class="relative flex-1">
+                    <Search
+                        class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                    />
+                    <Input
+                        type="search"
+                        placeholder="Cari produk (Nama / SKU)..."
+                        class="pl-9 h-10 w-full"
+                        bind:value={searchTerm}
+                    />
+                </div>
+                <Select type="single" bind:value={selectedCategory}>
+                    <SelectTrigger class="w-[180px]">
+                        <Filter class="w-4 h-4 mr-2" />
+                        <span class="truncate">
+                            {categories.find((c) => c.id === selectedCategory)
+                                ?.name || "Semua Kategori"}
+                        </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Kategori</SelectItem>
+                        {#each categories as cat}
+                            <SelectItem value={cat.id}>{cat.name}</SelectItem>
+                        {/each}
+                    </SelectContent>
+                </Select>
             </div>
         </div>
 
-        <div
-            class="grid grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pr-2 pb-20"
-        >
-            {#each filteredProducts as product}
+        <!-- Product Grid -->
+        <div class="flex-1 -mr-2 pr-2 overflow-y-auto">
+            {#if filteredProducts.length === 0}
                 <div
-                    class="border rounded-lg p-4 bg-card hover:border-primary/50 transition-colors flex flex-col justify-between space-y-3"
+                    class="flex flex-col items-center justify-center h-64 text-muted-foreground"
                 >
-                    <div>
-                        <div class="flex justify-between items-start">
-                            <h3
-                                class="font-semibold line-clamp-2 leading-tight"
-                            >
-                                {product.name}
-                            </h3>
-                            {#if product.code}
-                                <span
-                                    class="text-[10px] font-mono bg-muted px-1 rounded"
-                                    >{product.code}</span
-                                >
-                            {/if}
-                        </div>
-                        <p class="text-xs text-muted-foreground mt-1">
-                            {product.category?.name || "Umum"}
-                        </p>
-                    </div>
-
-                    <div class="space-y-2">
-                        {#if !product.variants || product.variants.length === 0}
-                            <div
-                                class="text-center text-sm text-red-500 bg-red-50 py-1 rounded"
-                            >
-                                Stok Habis
-                            </div>
-                        {:else}
-                            <div
-                                class="text-xs font-medium text-muted-foreground mb-1"
-                            >
-                                Pilih Varian:
-                            </div>
-                            <div class="space-y-1">
-                                {#each product.variants as variant}
-                                    <button
-                                        class="w-full text-left text-xs flex justify-between items-center p-2 rounded border hover:bg-accent group active:scale-95 transition-transform"
-                                        onclick={() =>
-                                            addToCart(product, variant)}
-                                    >
-                                        <div class="flex flex-col">
-                                            <span
-                                                class="font-medium group-hover:text-primary"
-                                                >{variant.name}</span
-                                            >
-                                            <span
-                                                class="text-[10px] text-muted-foreground"
-                                                >Stok: {variant.stock}</span
-                                            >
-                                        </div>
-                                        <div class="font-bold">
-                                            {formatCurrency(variant.price)}
-                                        </div>
-                                    </button>
-                                {/each}
-                            </div>
-                        {/if}
-                    </div>
+                    <Package class="h-12 w-12 mb-3 opacity-20" />
+                    <p>Tidak ada produk ditemukan</p>
                 </div>
-            {/each}
+            {:else}
+                <div
+                    class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-8"
+                >
+                    {#each filteredProducts as product}
+                        <div
+                            class="group border rounded-lg bg-card hover:border-primary/50 transition-all hover:shadow-sm flex flex-col h-full overflow-hidden"
+                        >
+                            <!-- Image Placeholder / Thumbnail -->
+                            <div
+                                class="aspect-video bg-muted/30 flex items-center justify-center text-muted-foreground/20"
+                            >
+                                <Package class="h-8 w-8" />
+                            </div>
+
+                            <div class="p-3 flex flex-col flex-1 gap-2">
+                                <div>
+                                    <h3
+                                        class="font-medium text-sm line-clamp-2 leading-tight min-h-[2.5em] group-hover:text-primary transition-colors"
+                                    >
+                                        {product.name}
+                                    </h3>
+                                    <div class="flex gap-2 mt-1">
+                                        {#if product.code}
+                                            <Badge
+                                                variant="outline"
+                                                class="text-[10px] px-1 h-5"
+                                                >{product.code}</Badge
+                                            >
+                                        {/if}
+                                    </div>
+                                </div>
+
+                                <div class="mt-auto space-y-2">
+                                    {#if !product.variants || product.variants.length === 0}
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            disabled
+                                            class="w-full h-8 text-xs text-red-500 bg-red-50"
+                                        >
+                                            Stok Habis
+                                        </Button>
+                                    {:else if product.variants.length === 1}
+                                        {@const v = product.variants[0]}
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            class="w-full h-9 flex justify-between px-2 text-xs"
+                                            onclick={() =>
+                                                addToCart(product, v)}
+                                        >
+                                            <span>Stok: {v.stock}</span>
+                                            <span class="font-bold"
+                                                >{formatCurrency(v.price)}</span
+                                            >
+                                        </Button>
+                                    {:else}
+                                        <div class="space-y-1">
+                                            <p
+                                                class="text-[10px] text-muted-foreground font-medium"
+                                            >
+                                                Pilih Varian:
+                                            </p>
+                                            <div class="grid gap-1">
+                                                {#each product.variants.slice(0, 3) as v}
+                                                    <button
+                                                        class="flex items-center justify-between w-full px-2 py-1.5 text-xs border rounded hover:bg-accent text-left"
+                                                        onclick={() =>
+                                                            addToCart(
+                                                                product,
+                                                                v,
+                                                            )}
+                                                    >
+                                                        <div
+                                                            class="flex flex-col"
+                                                        >
+                                                            <span
+                                                                class="font-medium"
+                                                                >{v.name}</span
+                                                            >
+                                                            <span
+                                                                class="text-[9px] text-muted-foreground"
+                                                                >Stok: {v.stock}</span
+                                                            >
+                                                        </div>
+                                                        <span
+                                                            class="font-semibold"
+                                                            >{formatCurrency(
+                                                                v.price,
+                                                            )}</span
+                                                        >
+                                                    </button>
+                                                {/each}
+                                                {#if product.variants.length > 3}
+                                                    <div
+                                                        class="text-[10px] text-center text-muted-foreground italic"
+                                                    >
+                                                        + {product.variants
+                                                            .length - 3} varian lainnya
+                                                    </div>
+                                                {/if}
+                                            </div>
+                                        </div>
+                                    {/if}
+                                </div>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            {/if}
         </div>
     </div>
 
-    <!-- Right: Cart -->
-    <div
-        class="w-[400px] flex flex-col bg-card border rounded-lg h-full shadow-sm"
-    >
-        <div class="p-4 border-b flex items-center justify-between bg-muted/20">
+    <!-- Right: Cart & Checkout -->
+    {#snippet cartContent()}
+        <div
+            class="p-3 border-b bg-muted/10 flex items-center justify-between flex-shrink-0"
+        >
             <h2 class="font-semibold flex items-center gap-2">
-                <ShoppingCart class="h-5 w-5" /> Keranjang
+                <ShoppingCart class="h-4 w-4" /> Keranjang
             </h2>
-            <Badge variant="secondary">{cart.length} Item</Badge>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-4 space-y-4">
-            {#if cart.length === 0}
-                <div
-                    class="h-full flex flex-col items-center justify-center text-muted-foreground space-y-2 opacity-50"
+            <div class="flex items-center gap-2">
+                <Badge variant="secondary" class="text-xs"
+                    >{cart.length} Item</Badge
                 >
-                    <ShoppingCart class="h-12 w-12" />
-                    <p>Keranjang kosong</p>
-                </div>
-            {:else}
-                {#each cart as item, i}
-                    <div
-                        class="flex justify-between items-start gap-3 bg-background p-3 rounded border"
+                {#if cart.length > 0}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-6 w-6 text-muted-foreground hover:text-red-500"
+                        onclick={() => (cart = [])}
+                        title="Kosongkan"
                     >
-                        <div class="flex-1">
-                            <h4 class="font-medium text-sm line-clamp-1">
-                                {item.name}
-                            </h4>
-                            <div class="text-xs text-muted-foreground mt-0.5">
-                                {item.variant}
-                            </div>
-                            <div class="text-xs font-mono mt-1">
-                                @ {formatCurrency(item.price)}
-                            </div>
-                        </div>
-
-                        <div class="flex flex-col items-end gap-2">
-                            <div class="font-bold text-sm">
-                                {formatCurrency(item.price * item.qty)}
-                            </div>
-                            <div class="flex items-center gap-1">
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    class="h-6 w-6"
-                                    onclick={() => updateQty(i, -1)}
-                                >
-                                    <Minus class="h-3 w-3" />
-                                </Button>
-                                <span
-                                    class="w-8 text-center text-sm font-medium"
-                                    >{item.qty}</span
-                                >
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    class="h-6 w-6"
-                                    onclick={() => updateQty(i, 1)}
-                                >
-                                    <Plus class="h-3 w-3" />
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                {/each}
-            {/if}
+                        <Trash2 class="h-3 w-3" />
+                    </Button>
+                {/if}
+            </div>
         </div>
 
-        <div class="p-4 bg-muted/20 border-t space-y-4">
-            <div class="space-y-2">
+        <div class="flex-1 p-3 overflow-y-auto">
+            <div class="flex flex-col gap-2">
+                {#if cart.length === 0}
+                    <div
+                        class="h-64 flex flex-col items-center justify-center text-muted-foreground space-y-3 opacity-50"
+                    >
+                        <ShoppingCart class="h-10 w-10" />
+                        <p class="text-sm">Keranjang kosong</p>
+                    </div>
+                {:else}
+                    {#each cart as item, i}
+                        <div
+                            class="flex flex-col bg-background p-3 rounded-lg border gap-2 shadow-sm"
+                        >
+                            <div class="flex justify-between items-start gap-2">
+                                <div>
+                                    <h4
+                                        class="font-medium text-sm line-clamp-2 leading-tight"
+                                    >
+                                        {item.name}
+                                    </h4>
+                                    <div class="flex items-center gap-1 mt-1">
+                                        <Badge
+                                            variant="outline"
+                                            class="text-[10px] px-1 h-4 font-normal text-muted-foreground"
+                                            >{item.variant}</Badge
+                                        >
+                                    </div>
+                                </div>
+                                <div class="font-semibold text-sm">
+                                    {formatCurrency(item.price * item.qty)}
+                                </div>
+                            </div>
+
+                            <Separator class="bg-border/50" />
+
+                            <div class="flex items-center justify-between">
+                                <div
+                                    class="text-xs text-muted-foreground font-mono"
+                                >
+                                    @ {formatCurrency(item.price)}
+                                </div>
+                                <div
+                                    class="flex items-center gap-1 bg-muted/30 rounded-md p-0.5"
+                                >
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="h-7 w-7 rounded-sm active:scale-90"
+                                        onclick={() => updateQty(i, -1)}
+                                    >
+                                        <Minus class="h-3 w-3" />
+                                    </Button>
+                                    <span
+                                        class="w-8 text-center text-sm font-medium"
+                                        >{item.qty}</span
+                                    >
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="h-7 w-7 rounded-sm active:scale-90"
+                                        onclick={() => updateQty(i, 1)}
+                                    >
+                                        <Plus class="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    {/each}
+                {/if}
+            </div>
+        </div>
+
+        <div class="p-4 bg-muted/20 border-t space-y-4 flex-shrink-0">
+            <div class="space-y-1.5">
                 <div class="flex justify-between text-sm">
                     <span class="text-muted-foreground">Subtotal</span>
                     <span>{formatCurrency(totalAmount)}</span>
                 </div>
                 <Separator />
-                <div class="flex justify-between font-bold text-lg">
-                    <span>Total</span>
-                    <span>{formatCurrency(totalAmount)}</span>
+                <div class="flex justify-between font-bold text-lg pt-1">
+                    <span>Total Tagihan</span>
+                    <span class="text-primary"
+                        >{formatCurrency(totalAmount)}</span
+                    >
                 </div>
             </div>
 
             <Button
                 size="lg"
-                class="w-full"
+                class="w-full text-base font-semibold shadow-sm"
                 disabled={cart.length === 0}
                 onclick={openCheckout}
             >
+                <CreditCard class="mr-2 h-4 w-4" />
                 Bayar Sekarang
             </Button>
         </div>
+    {/snippet}
+
+    <!-- Right: Cart & Checkout (Desktop) -->
+    <div
+        class="hidden lg:flex w-[380px] flex-shrink-0 flex-col bg-card border rounded-lg shadow-sm h-full overflow-hidden"
+    >
+        {@render cartContent()}
+    </div>
+
+    <!-- Mobile Cart Trigger (FAB) -->
+    <div class="lg:hidden fixed bottom-6 right-6 z-50">
+        <Sheet>
+            <SheetTrigger
+                class="h-14 w-14 rounded-full shadow-xl bg-primary text-primary-foreground hover:bg-primary/90 relative inline-flex items-center justify-center transition-colors"
+            >
+                <ShoppingCart class="h-6 w-6" />
+                {#if cart.length > 0}
+                    <span
+                        class="absolute -top-1 -right-1 h-6 w-6 bg-red-600 text-white text-xs font-bold rounded-full flex items-center justify-center border-2 border-background"
+                    >
+                        {cart.length}
+                    </span>
+                {/if}
+            </SheetTrigger>
+            <SheetContent
+                side="right"
+                class="w-[90vw] sm:w-[400px] p-0 flex flex-col h-full bg-card"
+            >
+                {@render cartContent()}
+            </SheetContent>
+        </Sheet>
     </div>
 
     <!-- Payment Dialog -->
     <Dialog bind:open={paymentOpen}>
-        <DialogContent class="max-w-[600px]">
-            <DialogHeader>
-                <DialogTitle>Checkout & Pembayaran</DialogTitle>
+        <DialogContent
+            class="max-w-[700px] p-0 overflow-hidden flex flex-col max-h-[90vh]"
+        >
+            <DialogHeader class="p-6 pb-2">
+                <DialogTitle class="text-xl">Checkout & Pembayaran</DialogTitle>
                 <DialogDescription
-                    >Input metode pembayaran untuk transaksi ini.</DialogDescription
+                    >Selesaikan transaksi penjualan.</DialogDescription
                 >
             </DialogHeader>
 
-            <div class="grid gap-6 py-4">
-                <!-- Top Section: Total & Customer -->
-                <div class="grid grid-cols-2 gap-4">
-                    <div
-                        class="bg-slate-100 p-4 rounded-lg flex flex-col justify-center items-center"
-                    >
-                        <span class="text-sm text-muted-foreground"
-                            >Total Tagihan</span
+            <div class="flex-1 overflow-y-auto px-6 py-2">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- Left: Summary -->
+                    <div class="space-y-6">
+                        <div
+                            class="bg-muted/30 p-4 rounded-lg border text-center space-y-1"
                         >
-                        <span class="text-3xl font-bold font-mono text-primary"
-                            >{formatCurrency(totalAmount)}</span
-                        >
-                    </div>
-                    <div class="space-y-2">
-                        <Label>Pelanggan</Label>
-                        <Combobox
-                            items={customerOptions}
-                            bind:value={selectedCustomerId}
-                            placeholder="Cari Pelanggan..."
-                            allowCreate={false}
-                        />
-                        {#if !selectedCustomerId}
-                            <Input
-                                placeholder="Nama Guest (Opsional)"
-                                bind:value={customerNameManual}
-                                class="mt-2"
-                            />
-                        {/if}
-                    </div>
-                </div>
-
-                <Separator />
-
-                <!-- Payment Methods -->
-                <div class="space-y-4">
-                    <div class="flex justify-between items-center">
-                        <Label class="text-base font-semibold">Pembayaran</Label
-                        >
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onclick={addPaymentRow}
-                            disabled={payments.length >= 2 ||
-                                payments[0].method === "cash"}
-                        >
-                            <Plus class="h-3 w-3 mr-1" /> Tambah Split
-                        </Button>
-                    </div>
-
-                    {#each payments as payment, i}
-                        <div class="flex gap-2 items-start">
-                            <div class="w-[140px]">
-                                <select
-                                    class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    value={payment.method}
-                                    onchange={(e) =>
-                                        handleMethodChange(
-                                            i,
-                                            e.currentTarget.value,
-                                        )}
-                                >
-                                    <option value="cash">Tunai</option>
-                                    <option value="transfer">Transfer</option>
-                                    <option value="qris">QRIS</option>
-                                    {#if selectedCustomerId}
-                                        <option value="tempo"
-                                            >Tempo (Kredit)</option
-                                        >
-                                    {/if}
-                                </select>
+                            <span
+                                class="text-sm text-muted-foreground uppercase tracking-wider font-medium"
+                                >Total Tagihan</span
+                            >
+                            <div
+                                class="text-4xl font-bold font-mono tracking-tight text-primary"
+                            >
+                                {formatCurrency(totalAmount)}
                             </div>
-                            <div class="flex-1 relative">
-                                <span
-                                    class="absolute left-3 top-2.5 text-muted-foreground text-sm z-10"
-                                    >Rp</span
-                                >
-                                <CurrencyInput
-                                    class="pl-9"
-                                    bind:value={payment.amount}
-                                    placeholder="0"
+                        </div>
+
+                        <div class="space-y-3">
+                            <Label>Data Pelanggan</Label>
+                            <div class="space-y-2">
+                                <Combobox
+                                    items={customerOptions}
+                                    bind:value={selectedCustomerId}
+                                    placeholder="Cari Pelanggan..."
+                                    allowCreate={false}
                                 />
+                                {#if !selectedCustomerId}
+                                    <div class="pl-2 border-l-2 border-muted">
+                                        <Input
+                                            placeholder="Nama Guest / Umum (Opsional)"
+                                            bind:value={customerNameManual}
+                                            class="h-9 text-sm"
+                                        />
+                                    </div>
+                                {/if}
                             </div>
-                            {#if payments.length > 1}
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onclick={() => removePaymentRow(i)}
+                        </div>
+
+                        <div class="space-y-2">
+                            <Label>Catatan Transaksi</Label>
+                            <Input
+                                placeholder="Contoh: No. Faktur Referensi..."
+                                bind:value={notes}
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Right: Payment Methods -->
+                    <div class="space-y-4">
+                        <div
+                            class="flex justify-between items-center pb-2 border-b"
+                        >
+                            <Label class="text-base font-semibold"
+                                >Metode Pembayaran</Label
+                            >
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onclick={addPaymentRow}
+                                disabled={payments.length >= 2 ||
+                                    payments[0].method === "cash"}
+                                class="h-8 text-xs"
+                            >
+                                <Plus class="h-3 w-3 mr-1" /> Tambah Split
+                            </Button>
+                        </div>
+
+                        <div class="space-y-3">
+                            {#each payments as payment, i}
+                                <div
+                                    class="p-3 border rounded-lg bg-card space-y-3"
                                 >
-                                    <Trash2 class="h-4 w-4 text-red-500" />
-                                </Button>
+                                    <div
+                                        class="flex justify-between items-center"
+                                    >
+                                        <span
+                                            class="text-xs font-semibold text-muted-foreground uppercase"
+                                            >Pembayaran #{i + 1}</span
+                                        >
+                                        {#if payments.length > 1}
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                class="h-6 w-6 -mr-2 text-muted-foreground hover:text-red-500"
+                                                onclick={() =>
+                                                    removePaymentRow(i)}
+                                            >
+                                                <X class="h-3 w-3" />
+                                            </Button>
+                                        {/if}
+                                    </div>
+
+                                    <div class="grid gap-2">
+                                        <Select
+                                            type="single"
+                                            value={payment.method}
+                                            onValueChange={(val) =>
+                                                handleMethodChange(i, val)}
+                                        >
+                                            <SelectTrigger>
+                                                <span>
+                                                    {#if payment.method === "cash"}
+                                                        Tunai (Cash)
+                                                    {:else if payment.method === "transfer"}
+                                                        Transfer Bank
+                                                    {:else if payment.method === "qris"}
+                                                        QRIS
+                                                    {:else if payment.method === "tempo"}
+                                                        Tempo / Kredit
+                                                    {:else}
+                                                        Pilih Metode
+                                                    {/if}
+                                                </span>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="cash"
+                                                    >Tunai (Cash)</SelectItem
+                                                >
+                                                <SelectItem value="transfer"
+                                                    >Transfer Bank</SelectItem
+                                                >
+                                                <SelectItem value="qris"
+                                                    >QRIS</SelectItem
+                                                >
+                                                {#if selectedCustomerId}
+                                                    <SelectItem value="tempo"
+                                                        >Tempo / Kredit</SelectItem
+                                                    >
+                                                {/if}
+                                            </SelectContent>
+                                        </Select>
+
+                                        <div class="relative">
+                                            <span
+                                                class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium"
+                                                >Rp</span
+                                            >
+                                            <CurrencyInput
+                                                class="pl-9 font-semibold text-right"
+                                                bind:value={payment.amount}
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+
+                        <!-- Payment Summary Box -->
+                        <div class="bg-muted p-4 rounded-lg space-y-2 text-sm">
+                            <div
+                                class="flex justify-between items-center text-muted-foreground"
+                            >
+                                <span>Terbayar</span>
+                                <span>{formatCurrency(totalPaid)}</span>
+                            </div>
+                            <Separator />
+                            {#if remaining > 0}
+                                <div
+                                    class="flex justify-between items-center font-bold text-red-600 text-base"
+                                >
+                                    <span>Kurang Bayar</span>
+                                    <span>{formatCurrency(remaining)}</span>
+                                </div>
+                            {:else}
+                                <div
+                                    class="flex justify-between items-center font-bold text-green-600 text-base"
+                                >
+                                    <span>Kembalian</span>
+                                    <span>{formatCurrency(change)}</span>
+                                </div>
                             {/if}
                         </div>
-                    {/each}
-
-                    <!-- Summary -->
-                    <div class="bg-muted/30 p-3 rounded-lg space-y-1 text-sm">
-                        <div class="flex justify-between">
-                            <span class="text-muted-foreground"
-                                >Total Bayar:</span
-                            >
-                            <span class="font-semibold"
-                                >{formatCurrency(totalPaid)}</span
-                            >
-                        </div>
-                        {#if remaining > 0}
-                            <div
-                                class="flex justify-between text-red-600 font-medium"
-                            >
-                                <span>Kurang:</span>
-                                <span>{formatCurrency(remaining)}</span>
-                            </div>
-                        {:else}
-                            <div
-                                class="flex justify-between text-green-600 font-medium"
-                            >
-                                <span>Kembalian:</span>
-                                <span>{formatCurrency(change)}</span>
-                            </div>
-                        {/if}
                     </div>
-                </div>
-
-                <div class="grid gap-2">
-                    <Label>Catatan</Label>
-                    <Input
-                        placeholder="Catatan tambahan..."
-                        bind:value={notes}
-                    />
                 </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter
+                class="p-6 border-t bg-muted/50 sm:justify-between items-center"
+            >
                 <Button
-                    variant="outline"
+                    variant="ghost"
                     onclick={() => (paymentOpen = false)}
-                    disabled={loading}>Batal</Button
+                    disabled={loading}
                 >
+                    Batal
+                </Button>
                 <Button
+                    size="lg"
                     onclick={processCheckout}
                     disabled={loading || remaining > 0}
+                    class="w-full sm:w-auto min-w-[150px]"
                 >
-                    {loading ? "Memproses..." : "Konfirmasi Bayar"}
+                    {loading ? "Memproses..." : "Konfirmasi Pembayaran"}
                 </Button>
             </DialogFooter>
         </DialogContent>

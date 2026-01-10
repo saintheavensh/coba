@@ -12,7 +12,9 @@
         </div>
     </div>
 
-    <div class="border rounded-md bg-white p-4">
+    <div
+        class="bg-transparent px-0 sm:px-0 sm:bg-white sm:border sm:rounded-md sm:p-4"
+    >
         <SupplierList />
     </div>
 </div>

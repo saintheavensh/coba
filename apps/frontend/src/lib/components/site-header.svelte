@@ -13,6 +13,13 @@
         Settings,
         Store,
         LogOut,
+        Users,
+        Truck,
+        Tags,
+        Wrench,
+        ChevronDown,
+        ChevronRight,
+        Circle,
     } from "lucide-svelte";
     import {
         Avatar,
@@ -46,14 +53,131 @@
         return "Dashboard";
     }
 
-    const menuItems = [
-        { title: "Dashboard", href: "/", icon: LayoutDashboard },
-        { title: "Inventory", href: "/products", icon: Store },
-        { title: "Purchases", href: "/purchases", icon: ShoppingCart },
-        { title: "Sales", href: "/sales", icon: ChartBar },
-        { title: "Reports", href: "/reports", icon: Boxes },
-        { title: "Settings", href: "/settings", icon: Settings },
+    // Grouped Menu Structure with Submenus (Mirrored from AppSidebar)
+    const menuGroups = [
+        {
+            label: "",
+            items: [
+                {
+                    title: "Dashboard",
+                    href: "/",
+                    icon: LayoutDashboard,
+                },
+            ],
+        },
+        {
+            label: "Manajemen",
+            items: [
+                {
+                    title: "Produk",
+                    href: "/products",
+                    icon: Store,
+                },
+                {
+                    title: "Kategori",
+                    href: "/categories",
+                    icon: Tags,
+                },
+                {
+                    title: "Supplier",
+                    href: "/suppliers",
+                    icon: Truck,
+                },
+                {
+                    title: "Customers",
+                    href: "/customers",
+                    icon: Users,
+                },
+            ],
+        },
+        {
+            label: "Transaksi",
+            items: [
+                {
+                    title: "Penjualan",
+                    icon: ChartBar,
+                    children: [
+                        {
+                            title: "Input Penjualan",
+                            href: "/sales",
+                            icon: Circle,
+                        },
+                        {
+                            title: "Riwayat Penjualan",
+                            href: "/sales/history",
+                            icon: Circle,
+                        },
+                    ],
+                },
+                {
+                    title: "Pembelian",
+                    icon: ShoppingCart,
+                    children: [
+                        {
+                            title: "Input Pembelian",
+                            href: "/purchases",
+                            icon: Circle,
+                        },
+                        {
+                            title: "Retur Pembelian",
+                            href: "/purchase-returns",
+                            icon: Circle,
+                        },
+                    ],
+                },
+                {
+                    title: "Service",
+                    href: "/service",
+                    icon: Wrench,
+                },
+            ],
+        },
+        {
+            label: "Laporan",
+            items: [
+                {
+                    title: "Laporan",
+                    href: "/reports",
+                    icon: Boxes,
+                },
+            ],
+        },
+        {
+            label: "Pengaturan",
+            items: [
+                {
+                    title: "Pengaturan",
+                    href: "/settings",
+                    icon: Settings,
+                },
+            ],
+        },
     ];
+
+    let expanded: Record<string, boolean> = $state({});
+
+    $effect(() => {
+        const path = $page.url.pathname;
+        for (const group of menuGroups) {
+            for (const item of group.items) {
+                if (item.children) {
+                    if (
+                        item.children.some(
+                            (child) =>
+                                path === child.href ||
+                                path.startsWith(child.href!),
+                        )
+                    ) {
+                        expanded[item.title] = true;
+                    }
+                }
+            }
+        }
+    });
+
+    function toggle(title: string) {
+        expanded[title] = !expanded[title];
+    }
 
     function getTimeDifference(date: Date) {
         const now = new Date();
@@ -97,24 +221,94 @@
                     </div>
                 </div>
                 <div class="flex-1 overflow-y-auto py-4">
-                    <nav class="grid gap-1 px-4">
-                        {#each menuItems as item}
-                            <a
-                                href={item.href}
-                                class={cn(
-                                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all hover:text-blue-600",
-                                    $page.url.pathname === item.href ||
-                                        ($page.url.pathname.startsWith(
-                                            item.href,
-                                        ) &&
-                                            item.href !== "/")
-                                        ? "bg-blue-50 text-blue-600"
-                                        : "text-muted-foreground hover:bg-muted",
-                                )}
-                            >
-                                <item.icon class="h-5 w-5" />
-                                {item.title}
-                            </a>
+                    <nav class="grid gap-6 px-4">
+                        {#each menuGroups as group}
+                            <div class="grid gap-1">
+                                {#if group.label}
+                                    <h4
+                                        class="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70"
+                                    >
+                                        {group.label}
+                                    </h4>
+                                {/if}
+                                {#each group.items as item}
+                                    {#if item.children}
+                                        <div>
+                                            <button
+                                                onclick={() =>
+                                                    toggle(item.title)}
+                                                class={cn(
+                                                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-all text-muted-foreground hover:bg-muted hover:text-foreground",
+                                                    expanded[item.title] &&
+                                                        "text-foreground",
+                                                )}
+                                            >
+                                                <div
+                                                    class="flex items-center gap-3"
+                                                >
+                                                    <item.icon
+                                                        class="h-5 w-5"
+                                                    />
+                                                    {item.title}
+                                                </div>
+                                                {#if expanded[item.title]}
+                                                    <ChevronDown
+                                                        class="h-4 w-4 opacity-50"
+                                                    />
+                                                {:else}
+                                                    <ChevronRight
+                                                        class="h-4 w-4 opacity-50"
+                                                    />
+                                                {/if}
+                                            </button>
+                                            {#if expanded[item.title]}
+                                                <div
+                                                    class="ml-4 mt-1 border-l pl-2 space-y-1"
+                                                >
+                                                    {#each item.children as child}
+                                                        <a
+                                                            href={child.href}
+                                                            class={cn(
+                                                                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:text-blue-600",
+                                                                $page.url
+                                                                    .pathname ===
+                                                                    child.href ||
+                                                                    ($page.url.pathname.startsWith(
+                                                                        child.href!,
+                                                                    ) &&
+                                                                        child.href !==
+                                                                            "/")
+                                                                    ? "bg-blue-50 text-blue-600"
+                                                                    : "text-muted-foreground hover:bg-muted",
+                                                            )}
+                                                        >
+                                                            {child.title}
+                                                        </a>
+                                                    {/each}
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    {:else}
+                                        <a
+                                            href={item.href}
+                                            class={cn(
+                                                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:text-blue-600",
+                                                $page.url.pathname ===
+                                                    item.href ||
+                                                    ($page.url.pathname.startsWith(
+                                                        item.href!,
+                                                    ) &&
+                                                        item.href !== "/")
+                                                    ? "bg-blue-50 text-blue-600"
+                                                    : "text-muted-foreground hover:bg-muted",
+                                            )}
+                                        >
+                                            <item.icon class="h-5 w-5" />
+                                            {item.title}
+                                        </a>
+                                    {/if}
+                                {/each}
+                            </div>
                         {/each}
                     </nav>
                 </div>

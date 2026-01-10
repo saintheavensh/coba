@@ -59,6 +59,13 @@
         createMutation,
         useQueryClient,
     } from "@tanstack/svelte-query";
+    import { cn } from "$lib/utils";
+    import {
+        Select,
+        SelectContent,
+        SelectItem,
+        SelectTrigger,
+    } from "$lib/components/ui/select";
 
     // Queries (v6: options must be a function for reactivity)
     const productsQuery = createQuery(() => ({
@@ -138,8 +145,12 @@
     let newCode = $state(""); // Universal Code
     let selectedCategory = $state(""); // ID
     let newMinStock = $state(5);
+
     let editingId = $state<string | null>(null);
     let newImage = $state("");
+
+    // Filter State (Runes)
+    let selectedFilterCategory = $state("all");
 
     // Sort State (Runes)
     type SortKey = "code" | "name" | "categoryName" | "stock" | "status";
@@ -249,7 +260,11 @@
                     (p.categoryName &&
                         p.categoryName.toLowerCase().includes(term));
 
-                return matchSearch;
+                const matchCategory =
+                    selectedFilterCategory === "all" ||
+                    p.categoryId === selectedFilterCategory;
+
+                return matchSearch && matchCategory;
             })
             .sort((a: any, b: any) => {
                 const valA = a[sortKey] || "";
@@ -280,13 +295,41 @@
 
 <div class="space-y-4">
     <!-- Toolbar -->
-    <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-            <SearchInput
-                bind:value={searchTerm}
-                placeholder="Cari nama atau kode..."
-                class="w-[300px]"
-            />
+    <div class="flex flex-row items-center gap-2 w-full md:w-auto">
+        <SearchInput
+            bind:value={searchTerm}
+            placeholder="Cari..."
+            class="flex-1 w-auto md:w-[300px]"
+        />
+        <Select
+            type="single"
+            value={selectedFilterCategory}
+            onValueChange={(v) => (selectedFilterCategory = v)}
+        >
+            <SelectTrigger class="w-[140px] md:w-[200px]">
+                <span class="truncate">
+                    {#if selectedFilterCategory === "all"}
+                        Kategori
+                    {:else}
+                        {categories.find((c) => c.id === selectedFilterCategory)
+                            ?.name || "Kategori"}
+                    {/if}
+                </span>
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="all">Semua Kategori</SelectItem>
+                {#each categories as cat}
+                    <SelectItem value={cat.id}>{cat.name}</SelectItem>
+                {/each}
+            </SelectContent>
+        </Select>
+    </div>
+
+    <div
+        class="flex flex-col md:flex-row md:items-center justify-between gap-4"
+    >
+        <div>
+            <!-- Spacer to maintain layout structure if needed, or remove completely if not needed -->
         </div>
 
         <!-- Dialog Produk Baru -->
@@ -315,9 +358,11 @@
                     </DialogDescription>
                 </DialogHeader>
                 <div class="grid gap-4 py-4">
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right">Kategori</Label>
-                        <div class="col-span-3">
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-start md:items-center gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right">Kategori</Label>
+                        <div class="col-span-1 md:col-span-3">
                             {#if categoriesQuery.isLoading}
                                 <div
                                     class="flex items-center space-x-2 text-sm text-muted-foreground p-2 border rounded bg-muted"
@@ -351,9 +396,13 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right">Kode Universal</Label>
-                        <div class="col-span-3 flex gap-2">
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-start md:items-center gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right"
+                            >Kode Universal</Label
+                        >
+                        <div class="col-span-1 md:col-span-3 flex gap-2">
                             <Input
                                 placeholder="Scan Barcode / SKU"
                                 bind:value={newCode}
@@ -368,28 +417,38 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right">Nama</Label>
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-start md:items-center gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right">Nama</Label>
                         <Input
                             placeholder="Nama Produk (Mis: LCD Samsung)"
-                            class="col-span-3"
+                            class="col-span-1 md:col-span-3"
                             bind:value={newName}
                         />
                     </div>
 
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right">Min Stock Alert</Label>
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-start md:items-center gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right"
+                            >Min Stock Alert</Label
+                        >
                         <Input
                             type="number"
                             placeholder="5"
-                            class="col-span-3"
+                            class="col-span-1 md:col-span-3"
                             bind:value={newMinStock}
                         />
                     </div>
 
-                    <div class="grid grid-cols-4 items-start gap-4">
-                        <Label class="text-right pt-2">Foto Produk</Label>
-                        <div class="col-span-3">
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-start gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right pt-0 md:pt-2"
+                            >Foto Produk</Label
+                        >
+                        <div class="col-span-1 md:col-span-3">
                             <ImageUpload
                                 bind:value={newImage}
                                 disabled={loading}
@@ -406,8 +465,124 @@
         </Dialog>
     </div>
 
-    <!-- Table -->
-    <div class="rounded-md border bg-card">
+    <!-- Mobile List View -->
+    <div class="grid gap-4 md:hidden">
+        {#if loading}
+            {#each Array(3) as _}
+                <div class="border rounded-lg p-4 space-y-3">
+                    <Skeleton class="h-4 w-1/3" />
+                    <Skeleton class="h-4 w-2/3" />
+                    <Skeleton class="h-8 w-full" />
+                </div>
+            {/each}
+        {:else if filteredProducts.length === 0}
+            <div
+                class="text-center py-8 text-muted-foreground border rounded-lg bg-muted/20"
+            >
+                Tidak ada produk ditemukan.
+            </div>
+        {:else}
+            {#each filteredProducts as product}
+                <div class="bg-card border rounded-lg p-4 shadow-sm space-y-3">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div
+                                class="text-[10px] font-mono text-muted-foreground uppercase tracking-wider"
+                            >
+                                {product.code || "-"}
+                            </div>
+                            <h3
+                                class="font-semibold text-base leading-tight mt-0.5"
+                            >
+                                {product.name}
+                            </h3>
+                        </div>
+                        <div class="flex-shrink-0">
+                            {#if product.status === "Normal"}
+                                <Badge
+                                    variant="outline"
+                                    class="bg-green-50 text-green-700 border-green-200 text-[10px] px-1.5 h-5"
+                                    >Aman</Badge
+                                >
+                            {:else if product.status === "Critical"}
+                                <Badge
+                                    variant="outline"
+                                    class="bg-yellow-50 text-yellow-700 border-yellow-200 text-[10px] px-1.5 h-5"
+                                    >Menipis</Badge
+                                >
+                            {:else}
+                                <Badge
+                                    variant="destructive"
+                                    class="text-[10px] px-1.5 h-5">Habis</Badge
+                                >
+                            {/if}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-sm pt-1">
+                        <Badge
+                            variant="secondary"
+                            class="font-normal text-muted-foreground bg-muted/50"
+                        >
+                            {product.categoryName}
+                        </Badge>
+                        <div class="text-right">
+                            <div class="text-xs text-muted-foreground">
+                                Stok
+                            </div>
+                            <div
+                                class="font-bold text-lg leading-none"
+                                class:text-red-500={product.stock === 0}
+                                class:text-yellow-600={product.status ===
+                                    "Critical"}
+                            >
+                                {product.stock}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t flex justify-end gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-8 text-xs flex-1"
+                            onclick={() => handleDetail(product)}
+                        >
+                            <Eye class="mr-1.5 h-3.5 w-3.5" /> Detail
+                        </Button>
+                        <!-- Action Menu Trigger -->
+                        <DropdownMenu>
+                            <DropdownMenuTrigger
+                                class={buttonVariants({
+                                    variant: "ghost",
+                                    size: "icon",
+                                    className: "h-8 w-8",
+                                })}
+                            >
+                                <MoreHorizontal class="h-4 w-4" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                    onclick={() => handleEdit(product)}
+                                >
+                                    <Pencil class="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    class="text-red-600"
+                                    onclick={() => confirmDelete(product.id)}
+                                >
+                                    <Trash2 class="mr-2 h-4 w-4" /> Hapus
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </div>
+            {/each}
+        {/if}
+    </div>
+
+    <!-- Desktop Table -->
+    <div class="hidden md:block rounded-md border bg-card">
         <Table>
             <TableHeader>
                 <TableRow>
@@ -605,7 +780,7 @@
                                 ></div>
                                 {supplier}
                             </h3>
-                            <div class="rounded-md border">
+                            <div class="rounded-md border overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow class="bg-muted/50">

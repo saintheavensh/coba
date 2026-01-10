@@ -37,7 +37,7 @@
     import { toast } from "svelte-sonner";
     import SearchInput from "$lib/components/custom/search-input.svelte";
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
-    import { formatCurrency } from "$lib/utils";
+    import { formatCurrency, cn } from "$lib/utils";
 
     const client = useQueryClient();
 
@@ -143,54 +143,6 @@
         deleteId = null;
     }
 
-    const payDebtMutation = createMutation(() => ({
-        mutationFn: async (data: any) => {
-            return CustomersService.payDebt(data.id, data.amount, data.notes);
-        },
-        onSuccess: () => {
-            client.invalidateQueries({ queryKey: ["customers"] });
-            toast.success("Pembayaran berhasil dicatat");
-            openPaymentDialog = false;
-            resetPaymentForm();
-        },
-        onError: (err: any) => {
-            toast.error(
-                err.response?.data?.message || "Gagal mencatat pembayaran",
-            );
-        },
-    }));
-
-    // Payment State
-    let openPaymentDialog = $state(false);
-    let payingCustomerId = $state<string | null>(null);
-    let paymentAmount = $state<number>(0);
-    let paymentNotes = $state("");
-
-    function resetPaymentForm() {
-        payingCustomerId = null;
-        paymentAmount = 0;
-        paymentNotes = "";
-    }
-
-    function openPayment(customer: any) {
-        payingCustomerId = customer.id;
-        paymentAmount = customer.debt || 0; // Default to full debt
-        paymentNotes = "";
-        openPaymentDialog = true;
-    }
-
-    function handlePayment() {
-        if (!payingCustomerId) return;
-        if (paymentAmount <= 0)
-            return toast.error("Jumlah pembayaran harus > 0");
-
-        payDebtMutation.mutate({
-            id: payingCustomerId,
-            amount: Number(paymentAmount),
-            notes: paymentNotes,
-        });
-    }
-
     function handleSave() {
         if (!name) return toast.error("Nama wajib diisi");
         if (!phone) return toast.error("Telepon wajib diisi");
@@ -216,11 +168,20 @@
         </div>
     </div>
 
-    <div class="flex justify-between items-center">
-        <SearchInput bind:value={searchQuery} placeholder="Cari pelanggan..." />
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+        <SearchInput
+            bind:value={searchQuery}
+            placeholder="Cari pelanggan..."
+            class="w-full md:w-[300px]"
+        />
 
         <Dialog bind:open={openDialog} onOpenChange={(o) => !o && resetForm()}>
-            <DialogTrigger class={buttonVariants({ variant: "default" })}>
+            <DialogTrigger
+                class={cn(
+                    buttonVariants({ variant: "default" }),
+                    "w-full md:w-auto",
+                )}
+            >
                 <Plus class="mr-2 h-4 w-4" /> Pelanggan Baru
             </DialogTrigger>
             <DialogContent>
@@ -233,8 +194,10 @@
                     >
                 </DialogHeader>
                 <div class="grid gap-4 py-4">
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right"
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-center gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right"
                             >Nama <span class="text-red-500">*</span></Label
                         >
                         <Input
@@ -243,8 +206,10 @@
                             class="col-span-3"
                         />
                     </div>
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right"
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-center gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right"
                             >Telepon <span class="text-red-500">*</span></Label
                         >
                         <Input
@@ -253,16 +218,22 @@
                             class="col-span-3"
                         />
                     </div>
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right">Alamat</Label>
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-center gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right">Alamat</Label>
                         <Input
                             bind:value={address}
                             placeholder="Alamat lengkap"
                             class="col-span-3"
                         />
                     </div>
-                    <div class="grid grid-cols-4 items-center gap-4">
-                        <Label class="text-right">Limit Kredit</Label>
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-center gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right"
+                            >Limit Kredit</Label
+                        >
                         <div class="col-span-3 relative">
                             <span
                                 class="absolute left-3 top-2.5 text-muted-foreground text-sm z-10"
@@ -304,7 +275,7 @@
         {:else}
             {#each filteredCustomers as cust (cust.id)}
                 <div
-                    class="rounded-lg border bg-card p-4 shadow-sm hover:shadow-md transition-all"
+                    class="rounded-lg border bg-card p-5 shadow-sm hover:shadow-md transition-all"
                 >
                     <div class="flex items-start justify-between">
                         <div class="flex gap-3">
@@ -334,14 +305,6 @@
                                 variant="ghost"
                                 size="icon"
                                 class="h-8 w-8"
-                                href={`/customers/${cust.id}`}
-                            >
-                                <ArrowRight class="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="h-8 w-8"
                                 onclick={() => handleEdit(cust)}
                             >
                                 <Pencil class="h-3.5 w-3.5" />
@@ -357,7 +320,7 @@
                         </div>
                     </div>
 
-                    <div class="mt-4 space-y-2 text-sm">
+                    <div class="mt-4 space-y-4 text-sm">
                         {#if cust.address}
                             <div
                                 class="flex items-center gap-2 text-muted-foreground"
@@ -388,69 +351,19 @@
                             </div>
                         </div>
 
-                        {#if (cust.debt || 0) > 0}
-                            <Button
-                                class="w-full mt-2"
-                                size="sm"
-                                onclick={() => openPayment(cust)}
-                            >
-                                <Wallet class="h-4 w-4 mr-2" /> Bayar Hutang
-                            </Button>
-                        {/if}
+                        <Button
+                            variant="outline"
+                            class="w-full mt-4"
+                            size="sm"
+                            href={`/customers/${cust.id}`}
+                        >
+                            Lihat Detail
+                        </Button>
                     </div>
                 </div>
             {/each}
         {/if}
     </div>
-
-    <!-- Payment Dialog -->
-    <Dialog
-        bind:open={openPaymentDialog}
-        onOpenChange={(o) => !o && resetPaymentForm()}
-    >
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Bayar Hutang</DialogTitle>
-                <DialogDescription>
-                    Catat pembayaran hutang pelanggan.
-                </DialogDescription>
-            </DialogHeader>
-            <div class="grid gap-4 py-4">
-                <div class="space-y-2">
-                    <Label>Jumlah Pembayaran</Label>
-                    <div class="relative">
-                        <span
-                            class="absolute left-3 top-2.5 text-muted-foreground text-sm z-10"
-                            >Rp</span
-                        >
-                        <CurrencyInput
-                            class="pl-9"
-                            bind:value={paymentAmount}
-                        />
-                    </div>
-                </div>
-                <div class="space-y-2">
-                    <Label>Catatan (Opsional)</Label>
-                    <Input
-                        bind:value={paymentNotes}
-                        placeholder="Contoh: Transfer Bank BCA"
-                    />
-                </div>
-            </div>
-            <DialogFooter>
-                <Button
-                    variant="outline"
-                    onclick={() => (openPaymentDialog = false)}>Batal</Button
-                >
-                <Button
-                    onclick={handlePayment}
-                    disabled={payDebtMutation.isPending}
-                >
-                    {payDebtMutation.isPending ? "Memproses..." : "Bayar"}
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-    </Dialog>
 
     <AlertDialog.Root bind:open={openDelete}>
         <AlertDialog.Content>
