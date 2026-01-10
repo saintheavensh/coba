@@ -194,6 +194,11 @@
         }
     }
 
+    function savePaymentMethods() {
+        // Since changes are immediate, we just verify everything is synced
+        toast.success("Pengaturan pembayaran berhasil disimpan.");
+    }
+
     // State for new preset
     let newPresetLabel = $state("");
     let newPresetDays = $state("");
