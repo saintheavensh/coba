@@ -43,6 +43,8 @@ export const members = sqliteTable("members", {
     email: text("email"),
     discountPercent: integer("discount_percent").default(0),
     points: integer("points").default(0),
+    debt: integer("debt").default(0),
+    creditLimit: integer("credit_limit").default(0),
     image: text("image"),
     createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
 });
@@ -113,7 +115,8 @@ export const sales = sqliteTable("sales", {
     totalAmount: integer("total_amount").notNull(),
     discountAmount: integer("discount_amount").default(0),
     finalAmount: integer("final_amount").notNull(),
-    paymentMethod: text("payment_method", { enum: ["cash", "transfer", "qris"] }).notNull(),
+    paymentMethod: text("payment_method", { enum: ["cash", "transfer", "qris", "mixed"] }).notNull(),
+    paymentStatus: text("payment_status", { enum: ["paid", "partial", "unpaid"] }).notNull().default("paid"),
     userId: text("user_id").notNull().references(() => users.id), // Cashier
     notes: text("notes"),
     createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
@@ -272,6 +275,7 @@ export const salesRelations = relations(sales, ({ one, many }) => ({
         references: [users.id],
     }),
     items: many(saleItems),
+    payments: many(salePayments),
 }));
 
 export const saleItemsRelations = relations(saleItems, ({ one }) => ({
@@ -289,12 +293,55 @@ export const saleItemsRelations = relations(saleItems, ({ one }) => ({
     }),
 }));
 
+// ============================================
+// PAYMENT METHODS
+// ============================================
+
+export const paymentMethods = sqliteTable("payment_methods", {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    type: text("type", { enum: ["cash", "transfer", "qris", "ewallet", "custom"] }).notNull(),
+    icon: text("icon").notNull().default("💳"),
+    enabled: integer("enabled", { mode: "boolean" }).default(true),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const paymentVariants = sqliteTable("payment_variants", {
+    id: text("id").primaryKey(),
+    methodId: text("method_id").notNull().references(() => paymentMethods.id),
+    name: text("name").notNull(),
+    accountNumber: text("account_number"),
+    accountHolder: text("account_holder"),
+    enabled: integer("enabled", { mode: "boolean" }).default(true),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const paymentMethodsRelations = relations(paymentMethods, ({ many }) => ({
+    variants: many(paymentVariants),
+    payments: many(salePayments),
+}));
+
+export const paymentVariantsRelations = relations(paymentVariants, ({ one }) => ({
+    method: one(paymentMethods, {
+        fields: [paymentVariants.methodId],
+        references: [paymentMethods.id],
+    }),
+}));
+
+// ============================================
+// SALE PAYMENTS
+// ============================================
+
 export const salePayments = sqliteTable("sale_payments", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     saleId: text("sale_id").notNull().references(() => sales.id),
     amount: integer("amount").notNull(),
-    method: text("method").notNull(), // cash, transfer, qris
-    ref: text("ref"),
+    method: text("method").notNull(), // Snapshot name: "Transfer Bank", "Cash", etc.
+    methodId: text("method_id").references(() => paymentMethods.id), // FK to payment_methods
+    variantName: text("variant_name"), // Snapshot: "BCA - 1234567890"
+    variantId: text("variant_id").references(() => paymentVariants.id), // FK to payment_variants
+    reference: text("reference"), // Transfer ref, etc.
+    proofImage: text("proof_image"), // Payment proof image
     createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -302,6 +349,14 @@ export const salePaymentsRelations = relations(salePayments, ({ one }) => ({
     sale: one(sales, {
         fields: [salePayments.saleId],
         references: [sales.id],
+    }),
+    paymentMethod: one(paymentMethods, {
+        fields: [salePayments.methodId],
+        references: [paymentMethods.id],
+    }),
+    paymentVariant: one(paymentVariants, {
+        fields: [salePayments.variantId],
+        references: [paymentVariants.id],
     }),
 }));
 

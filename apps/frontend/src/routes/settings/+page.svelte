@@ -29,6 +29,8 @@
         Receipt,
         ScrollText,
         MinusCircle,
+        CreditCard,
+        Banknote,
     } from "lucide-svelte";
     import {
         Table,
@@ -55,13 +57,146 @@
     } from "$lib/components/ui/select";
     import { Badge } from "$lib/components/ui/badge";
     import { Textarea } from "$lib/components/ui/textarea";
+    import { Switch } from "$lib/components/ui/switch";
+    import { onMount } from "svelte";
+    import {
+        SettingsService,
+        PaymentMethodsService,
+        type PaymentMethod,
+        type PaymentVariant,
+        PAYMENT_ICONS,
+        PAYMENT_TYPES,
+    } from "$lib/services/settings.service";
 
     // Store
     import { settings, activityLogs } from "$lib/stores/settings";
 
+    // Payment Methods State
+    let paymentMethods = $state<PaymentMethod[]>([]);
+    let loadingPayment = $state(false);
+    let savingPayment = $state(false);
+    let newVariantByMethod = $state<
+        Record<
+            string,
+            { name: string; accountNumber: string; accountHolder: string }
+        >
+    >({});
+    let newMethod = $state({
+        name: "",
+        icon: "💳",
+        type: "custom" as "cash" | "transfer" | "qris" | "ewallet" | "custom",
+    });
+    let showAddMethod = $state(false);
+
+    async function loadPaymentMethods() {
+        loadingPayment = true;
+        try {
+            paymentMethods = await PaymentMethodsService.getAll();
+        } catch (e) {
+            console.error("Failed to load payment methods", e);
+            toast.error("Gagal memuat metode pembayaran.");
+        } finally {
+            loadingPayment = false;
+        }
+    }
+
+    onMount(() => {
+        loadPaymentMethods();
+    });
+
+    async function addPaymentMethod() {
+        if (!newMethod.name) return;
+        savingPayment = true;
+        try {
+            await PaymentMethodsService.create({
+                name: newMethod.name,
+                type: newMethod.type,
+                icon: newMethod.icon || "💳",
+            });
+            await loadPaymentMethods();
+            newMethod = { name: "", icon: "💳", type: "custom" };
+            showAddMethod = false;
+            toast.success("Metode pembayaran berhasil ditambahkan.");
+        } catch (e) {
+            toast.error("Gagal menambah metode pembayaran.");
+        } finally {
+            savingPayment = false;
+        }
+    }
+
+    async function togglePaymentMethod(id: string, enabled: boolean) {
+        try {
+            await PaymentMethodsService.update(id, { enabled });
+            await loadPaymentMethods();
+        } catch (e) {
+            toast.error("Gagal mengubah status metode.");
+        }
+    }
+
+    async function removePaymentMethod(id: string) {
+        savingPayment = true;
+        try {
+            await PaymentMethodsService.disable(id);
+            await loadPaymentMethods();
+            toast.success("Metode pembayaran berhasil dinonaktifkan.");
+        } catch (e) {
+            toast.error("Gagal menonaktifkan metode pembayaran.");
+        } finally {
+            savingPayment = false;
+        }
+    }
+
+    function getNewVariant(methodId: string) {
+        if (!newVariantByMethod[methodId]) {
+            newVariantByMethod[methodId] = {
+                name: "",
+                accountNumber: "",
+                accountHolder: "",
+            };
+        }
+        return newVariantByMethod[methodId];
+    }
+
+    async function addVariant(methodId: string) {
+        const variant = newVariantByMethod[methodId];
+        if (!variant?.name) return;
+        savingPayment = true;
+        try {
+            await PaymentMethodsService.addVariant(methodId, {
+                name: variant.name,
+                accountNumber: variant.accountNumber || undefined,
+                accountHolder: variant.accountHolder || undefined,
+            });
+            await loadPaymentMethods();
+            newVariantByMethod[methodId] = {
+                name: "",
+                accountNumber: "",
+                accountHolder: "",
+            };
+            toast.success("Varian berhasil ditambahkan.");
+        } catch (e) {
+            toast.error("Gagal menambah varian.");
+        } finally {
+            savingPayment = false;
+        }
+    }
+
+    async function removeVariant(methodId: string, variantId: string) {
+        savingPayment = true;
+        try {
+            await PaymentMethodsService.disableVariant(methodId, variantId);
+            await loadPaymentMethods();
+            toast.success("Varian berhasil dinonaktifkan.");
+        } catch (e) {
+            toast.error("Gagal menonaktifkan varian.");
+        } finally {
+            savingPayment = false;
+        }
+    }
+
     // State for new preset
-    let newPresetLabel = "";
-    let newPresetDays = "";
+    let newPresetLabel = $state("");
+    let newPresetDays = $state("");
 
     function addPreset() {
         if (!newPresetLabel || !newPresetDays) return;
@@ -85,8 +220,8 @@
     // Local state to bind with store
     // Ideally we subscribe, but for simplicity in this form we can auto-subscribe via $settings
 
-    let userName = "Admin Toko";
-    let userEmail = "admin@jayaabadi.com";
+    let userName = $state("Admin Toko");
+    let userEmail = $state("admin@jayaabadi.com");
 
     function handleSaveSettings() {
         // In a real app, we would persist to backend here
@@ -111,7 +246,7 @@
     }
 
     // Employee Management Logic
-    let employees = [
+    let employees = $state([
         {
             id: 1,
             name: "Budi Santoso",
@@ -133,10 +268,15 @@
             role: "Administrator",
             status: "Aktif",
         },
-    ];
+    ]);
 
-    let showAddEmployee = false;
-    let newEmployee = { name: "", username: "", password: "", role: "Kasir" };
+    let showAddEmployee = $state(false);
+    let newEmployee = $state({
+        name: "",
+        username: "",
+        password: "",
+        role: "Kasir",
+    });
 
     function handleAddEmployee() {
         employees = [
@@ -195,6 +335,9 @@
             >
             <TabsTrigger value="account" class="flex gap-2"
                 ><User class="h-4 w-4" /> Akun Saya</TabsTrigger
+            >
+            <TabsTrigger value="payment" class="flex gap-2"
+                ><CreditCard class="h-4 w-4" /> Pembayaran</TabsTrigger
             >
         </TabsList>
 
@@ -416,12 +559,10 @@
                             Kasir, Staf).
                         </CardDescription>
                     </div>
+                    <Button size="sm" onclick={() => (showAddEmployee = true)}>
+                        <Plus class="mr-2 h-4 w-4" /> Tambah Karyawan
+                    </Button>
                     <Dialog bind:open={showAddEmployee}>
-                        <DialogTrigger>
-                            <Button size="sm"
-                                ><Plus class="mr-2 h-4 w-4" /> Tambah Karyawan</Button
-                            >
-                        </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>Tambah Karyawan Baru</DialogTitle>
@@ -528,6 +669,337 @@
                         </TableBody>
                     </Table>
                 </CardContent>
+            </Card>
+        </TabsContent>
+
+        <!-- Tab: Pembayaran -->
+        <TabsContent value="payment">
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>Metode Pembayaran</CardTitle>
+                        <CardDescription>
+                            Atur metode pembayaran yang tersedia untuk
+                            pelanggan.
+                        </CardDescription>
+                    </div>
+                    <Button size="sm" onclick={() => (showAddMethod = true)}>
+                        <Plus class="h-4 w-4 mr-1" /> Tambah Metode
+                    </Button>
+                    <Dialog bind:open={showAddMethod}>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle
+                                    >Tambah Metode Pembayaran</DialogTitle
+                                >
+                                <DialogDescription>
+                                    Buat metode pembayaran baru.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div class="grid gap-4 py-4">
+                                <div class="space-y-2">
+                                    <Label>Nama Metode</Label>
+                                    <Input
+                                        bind:value={newMethod.name}
+                                        placeholder="Contoh: GoPay, OVO, BCA"
+                                    />
+                                </div>
+                                <div class="space-y-2">
+                                    <Label>Tipe</Label>
+                                    <select
+                                        class="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                                        bind:value={newMethod.type}
+                                    >
+                                        {#each PAYMENT_TYPES as pt}
+                                            <option value={pt.id}
+                                                >{pt.label}</option
+                                            >
+                                        {/each}
+                                    </select>
+                                </div>
+                                <div class="space-y-2">
+                                    <Label>Pilih Ikon</Label>
+                                    <div class="flex flex-wrap gap-2">
+                                        {#each PAYMENT_ICONS as pi}
+                                            <button
+                                                type="button"
+                                                class="p-3 text-2xl rounded-lg border-2 transition-all {newMethod.icon ===
+                                                pi.icon
+                                                    ? 'border-primary bg-primary/10'
+                                                    : 'border-transparent bg-muted/50 hover:bg-muted'}"
+                                                onclick={() =>
+                                                    (newMethod.icon = pi.icon)}
+                                                title={pi.label}
+                                            >
+                                                {pi.icon}
+                                            </button>
+                                        {/each}
+                                    </div>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button onclick={addPaymentMethod}
+                                    >Tambah</Button
+                                >
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </CardHeader>
+                <CardContent class="space-y-4">
+                    {#if loadingPayment}
+                        <p class="text-center text-muted-foreground py-8">
+                            Memuat...
+                        </p>
+                    {:else if paymentMethods.length === 0}
+                        <p class="text-center text-muted-foreground py-8">
+                            Belum ada metode pembayaran. Klik "Tambah Metode"
+                            untuk memulai.
+                        </p>
+                    {:else}
+                        {#each paymentMethods as method, idx}
+                            <div class="p-4 border rounded-lg space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="p-2 rounded-lg {method.type ===
+                                            'cash'
+                                                ? 'bg-green-100'
+                                                : method.type === 'transfer'
+                                                  ? 'bg-blue-100'
+                                                  : method.type === 'qris'
+                                                    ? 'bg-purple-100'
+                                                    : 'bg-gray-100'}"
+                                        >
+                                            <span class="text-xl"
+                                                >{method.icon}</span
+                                            >
+                                        </div>
+                                        <div>
+                                            <p class="font-medium">
+                                                {method.name}
+                                            </p>
+                                            <p
+                                                class="text-xs text-muted-foreground capitalize"
+                                            >
+                                                {method.type}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <Switch
+                                            checked={method.enabled}
+                                            onCheckedChange={(checked) =>
+                                                togglePaymentMethod(
+                                                    method.id,
+                                                    checked,
+                                                )}
+                                        />
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            class="text-red-500 h-8 w-8"
+                                            onclick={() =>
+                                                removePaymentMethod(method.id)}
+                                        >
+                                            <Trash2 class="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <!-- Variants section for non-cash types -->
+                                {#if method.type !== "cash" && method.enabled}
+                                    {@const methodId = method.id}
+                                    <Separator />
+                                    <div class="space-y-3">
+                                        <Label class="text-sm font-medium">
+                                            {method.type === "transfer"
+                                                ? "Daftar Rekening Bank"
+                                                : "Daftar " + method.name}
+                                        </Label>
+
+                                        <!-- Add Variant Form -->
+                                        <div class="grid grid-cols-4 gap-2">
+                                            <Input
+                                                placeholder={method.type ===
+                                                "transfer"
+                                                    ? "Nama Bank"
+                                                    : "Nama"}
+                                                value={newVariantByMethod[
+                                                    methodId
+                                                ]?.name ?? ""}
+                                                oninput={(e) => {
+                                                    if (
+                                                        !newVariantByMethod[
+                                                            methodId
+                                                        ]
+                                                    )
+                                                        newVariantByMethod[
+                                                            methodId
+                                                        ] = {
+                                                            name: "",
+                                                            accountNumber: "",
+                                                            accountHolder: "",
+                                                        };
+                                                    newVariantByMethod[
+                                                        methodId
+                                                    ].name =
+                                                        e.currentTarget.value;
+                                                }}
+                                            />
+                                            {#if method.type === "transfer"}
+                                                <Input
+                                                    placeholder="Nomor Rekening"
+                                                    value={newVariantByMethod[
+                                                        methodId
+                                                    ]?.accountNumber ?? ""}
+                                                    oninput={(e) => {
+                                                        if (
+                                                            !newVariantByMethod[
+                                                                methodId
+                                                            ]
+                                                        )
+                                                            newVariantByMethod[
+                                                                methodId
+                                                            ] = {
+                                                                name: "",
+                                                                accountNumber:
+                                                                    "",
+                                                                accountHolder:
+                                                                    "",
+                                                            };
+                                                        newVariantByMethod[
+                                                            methodId
+                                                        ].accountNumber =
+                                                            e.currentTarget.value;
+                                                    }}
+                                                />
+                                                <Input
+                                                    placeholder="Atas Nama"
+                                                    value={newVariantByMethod[
+                                                        methodId
+                                                    ]?.accountHolder ?? ""}
+                                                    oninput={(e) => {
+                                                        if (
+                                                            !newVariantByMethod[
+                                                                methodId
+                                                            ]
+                                                        )
+                                                            newVariantByMethod[
+                                                                methodId
+                                                            ] = {
+                                                                name: "",
+                                                                accountNumber:
+                                                                    "",
+                                                                accountHolder:
+                                                                    "",
+                                                            };
+                                                        newVariantByMethod[
+                                                            methodId
+                                                        ].accountHolder =
+                                                            e.currentTarget.value;
+                                                    }}
+                                                />
+                                            {:else}
+                                                <Input
+                                                    placeholder="Nomor/ID (opsional)"
+                                                    value={newVariantByMethod[
+                                                        methodId
+                                                    ]?.accountNumber ?? ""}
+                                                    oninput={(e) => {
+                                                        if (
+                                                            !newVariantByMethod[
+                                                                methodId
+                                                            ]
+                                                        )
+                                                            newVariantByMethod[
+                                                                methodId
+                                                            ] = {
+                                                                name: "",
+                                                                accountNumber:
+                                                                    "",
+                                                                accountHolder:
+                                                                    "",
+                                                            };
+                                                        newVariantByMethod[
+                                                            methodId
+                                                        ].accountNumber =
+                                                            e.currentTarget.value;
+                                                    }}
+                                                />
+                                                <div></div>
+                                            {/if}
+                                            <Button
+                                                variant="secondary"
+                                                onclick={() =>
+                                                    addVariant(method.id)}
+                                            >
+                                                <Plus class="h-4 w-4 mr-1" /> Tambah
+                                            </Button>
+                                        </div>
+
+                                        <!-- Variant List -->
+                                        {#if !method.variants?.length}
+                                            <p
+                                                class="text-sm text-muted-foreground text-center py-2"
+                                            >
+                                                Belum ada. Tambahkan di atas.
+                                            </p>
+                                        {:else}
+                                            <div class="space-y-2">
+                                                {#each method.variants as variant}
+                                                    <div
+                                                        class="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                                                    >
+                                                        <div>
+                                                            <p
+                                                                class="font-medium"
+                                                            >
+                                                                {variant.name}
+                                                            </p>
+                                                            {#if variant.accountNumber || variant.accountHolder}
+                                                                <p
+                                                                    class="text-sm text-muted-foreground"
+                                                                >
+                                                                    {variant.accountNumber ||
+                                                                        ""}{variant.accountHolder
+                                                                        ? " - " +
+                                                                          variant.accountHolder
+                                                                        : ""}
+                                                                </p>
+                                                            {/if}
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            class="text-red-500"
+                                                            onclick={() =>
+                                                                removeVariant(
+                                                                    method.id,
+                                                                    variant.id,
+                                                                )}
+                                                        >
+                                                            <Trash2
+                                                                class="h-4 w-4"
+                                                            />
+                                                        </Button>
+                                                    </div>
+                                                {/each}
+                                            </div>
+                                        {/if}
+                                    </div>
+                                {/if}
+                            </div>
+                        {/each}
+                    {/if}
+                </CardContent>
+                <CardFooter>
+                    <Button
+                        onclick={savePaymentMethods}
+                        disabled={savingPayment}
+                    >
+                        {savingPayment ? "Menyimpan..." : "Simpan Pembayaran"}
+                    </Button>
+                </CardFooter>
             </Card>
         </TabsContent>
     </Tabs>

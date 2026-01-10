@@ -20,6 +20,10 @@ import salesController from "./modules/sales/sales.controller";
 import notificationsController from "./modules/notifications/notifications.controller";
 import { customersController } from "./modules/customers/customers.controller";
 import { defectiveItemsController } from "./modules/defective-items/defective-items.controller";
+import serviceController from "./modules/service/service.controller";
+import reportsController from "./modules/reports/reports.controller";
+import { settingsController } from "./modules/settings/settings.controller";
+import { paymentMethodsController } from "./modules/payment-methods/payment-methods.controller";
 
 const app = new Hono();
 
@@ -32,7 +36,7 @@ app.use("/uploads/*", serveStatic({ root: "./public" }));
 app.route("/auth", authController);
 app.route("/inventory", inventoryController);
 app.route("/categories", categoryController);
-// app.route("/service", service);
+app.route("/service", serviceController);
 app.route("/suppliers", supplierController);
 app.route("/purchases", purchaseController);
 app.route("/purchase-returns", purchaseReturnsController);
@@ -41,6 +45,9 @@ app.route("/notifications", notificationsController);
 app.route("/uploads", uploadsController);
 app.route("/customers", customersController);
 app.route("/defective-items", defectiveItemsController);
+app.route("/reports", reportsController);
+app.route("/settings", settingsController);
+app.route("/payment-methods", paymentMethodsController);
 
 app.get("/", (c) => {
     return c.json({ message: "Saint Heavens Backend API is Running!" });
