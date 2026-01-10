@@ -21,27 +21,18 @@ bun run db:seed
 ### Menjalankan Aplikasi
 Buka dua terminal terpisah:
 
-**Terminal 1 (Backend)**
+**Terminal 1 (root folder)**
 ```bash
-cd apps/backend
-bun run dev
-# Server berjalan di http://localhost:3000
-```
-
-**Terminal 2 (Frontend)**
-```bash
-cd apps/frontend
 bun run dev
 # Buka browser di http://localhost:5173
-```
 
 ---
 
 ## 📖 Panduan Penggunaan
 
 ### 1. Login
-*   **Email**: `admin@toko.com` (Default)
-*   **Password**: `password` (Default)
+*   **Email**: `admin` (Default)
+*   **Password**: `admin` (Default)
 
 ### 2. Manajemen Master Data (Setup Awal)
 Sebelum transaksi, pastikan data master terisi:
