@@ -14,13 +14,15 @@
         },
     }));
 
-    let searchQuery = "";
-    $: filtered = (query.data || []).filter(
-        (item: any) =>
-            item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.supplier.name
-                .toLowerCase()
-                .includes(searchQuery.toLowerCase()),
+    let searchQuery = $state("");
+    let filtered = $derived(
+        (query.data || []).filter(
+            (item: any) =>
+                item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.supplier.name
+                    .toLowerCase()
+                    .includes(searchQuery.toLowerCase()),
+        ),
     );
 </script>
 

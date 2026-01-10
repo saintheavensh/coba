@@ -1,4 +1,5 @@
 import { CategoriesRepository } from "./categories.repository";
+import { generateId, ID_PREFIX } from "../../lib/utils";
 
 export class CategoriesService {
     private repo: CategoriesRepository;
@@ -12,7 +13,7 @@ export class CategoriesService {
     }
 
     async create(data: { name: string; description?: string }) {
-        const id = "CAT-" + Date.now().toString().slice(-6);
+        const id = generateId(ID_PREFIX.CATEGORY);
         return await this.repo.create({
             id,
             name: data.name,

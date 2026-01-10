@@ -1,65 +1,87 @@
 import { api } from "../api";
+import type { Product, Category, Supplier, ApiResponse } from "@repo/shared";
+
+/** Input type for creating a product */
+interface CreateProductInput {
+    name: string;
+    code?: string;
+    categoryId?: string;
+    image?: string;
+    minStock?: number;
+}
+
+/** Input type for creating a category */
+interface CreateCategoryInput {
+    name: string;
+    description?: string;
+}
+
+/** Input type for creating a supplier */
+interface CreateSupplierInput {
+    name: string;
+    contact?: string;
+    phone?: string;
+    address?: string;
+    image?: string;
+}
 
 export const InventoryService = {
     // Products
-    getProducts: async () => {
-        const res = await api.get("/inventory");
-        return res.data?.data || res.data;
+    getProducts: async (): Promise<Product[]> => {
+        const res = await api.get<ApiResponse<Product[]>>("/inventory");
+        return res.data?.data ?? [];
     },
-    getProduct: async (id: string) => {
-        const res = await api.get(`/inventory/${id}`);
-        return res.data?.data || res.data;
+    getProduct: async (id: string): Promise<Product> => {
+        const res = await api.get<ApiResponse<Product>>(`/inventory/${id}`);
+        return res.data?.data!;
     },
-    createProduct: async (data: any) => {
-        const res = await api.post("/inventory", data);
-        return res.data?.data || res.data;
+    createProduct: async (data: CreateProductInput): Promise<Product> => {
+        const res = await api.post<ApiResponse<Product>>("/inventory", data);
+        return res.data?.data!;
     },
-    updateProduct: async (id: string, data: any) => {
-        const res = await api.put(`/inventory/${id}`, data);
-        return res.data?.data || res.data;
+    updateProduct: async (id: string, data: Partial<CreateProductInput>): Promise<Product> => {
+        const res = await api.put<ApiResponse<Product>>(`/inventory/${id}`, data);
+        return res.data?.data!;
     },
-    deleteProduct: async (id: string) => {
-        const res = await api.delete(`/inventory/${id}`);
-        return res.data?.data || res.data;
+    deleteProduct: async (id: string): Promise<void> => {
+        await api.delete(`/inventory/${id}`);
     },
-    getSupplierVariants: async (supplierId: string) => {
-        const res = await api.get(`/inventory/suppliers/${supplierId}/variants`);
-        return res.data?.data || res.data;
+    getSupplierVariants: async (supplierId: string): Promise<string[]> => {
+        const res = await api.get<ApiResponse<string[]>>(`/inventory/suppliers/${supplierId}/variants`);
+        return res.data?.data ?? [];
     },
 
     // Categories
-    getCategories: async () => {
-        const res = await api.get("/categories");
-        return res.data?.data || res.data;
+    getCategories: async (): Promise<Category[]> => {
+        const res = await api.get<ApiResponse<Category[]>>("/categories");
+        return res.data?.data ?? [];
     },
-    createCategory: async (data: any) => {
-        const res = await api.post("/categories", data);
-        return res.data?.data || res.data;
+    createCategory: async (data: CreateCategoryInput): Promise<Category> => {
+        const res = await api.post<ApiResponse<Category>>("/categories", data);
+        return res.data?.data!;
     },
-    updateCategory: async (id: string, data: any) => {
-        const res = await api.put(`/categories/${id}`, data);
-        return res.data?.data || res.data;
+    updateCategory: async (id: string, data: Partial<CreateCategoryInput>): Promise<Category> => {
+        const res = await api.put<ApiResponse<Category>>(`/categories/${id}`, data);
+        return res.data?.data!;
     },
-    deleteCategory: async (id: string) => {
-        const res = await api.delete(`/categories/${id}`);
-        return res.data?.data || res.data;
+    deleteCategory: async (id: string): Promise<void> => {
+        await api.delete(`/categories/${id}`);
     },
 
     // Suppliers
-    getSuppliers: async () => {
-        const res = await api.get("/suppliers");
-        return res.data?.data || res.data;
+    getSuppliers: async (): Promise<Supplier[]> => {
+        const res = await api.get<ApiResponse<Supplier[]>>("/suppliers");
+        return res.data?.data ?? [];
     },
-    createSupplier: async (data: any) => {
-        const res = await api.post("/suppliers", data);
-        return res.data?.data || res.data;
+    createSupplier: async (data: CreateSupplierInput): Promise<Supplier> => {
+        const res = await api.post<ApiResponse<Supplier>>("/suppliers", data);
+        return res.data?.data!;
     },
-    updateSupplier: async (id: string, data: any) => {
-        const res = await api.put(`/suppliers/${id}`, data);
-        return res.data?.data || res.data;
+    updateSupplier: async (id: string, data: Partial<CreateSupplierInput>): Promise<Supplier> => {
+        const res = await api.put<ApiResponse<Supplier>>(`/suppliers/${id}`, data);
+        return res.data?.data!;
     },
-    deleteSupplier: async (id: string) => {
-        const res = await api.delete(`/suppliers/${id}`);
-        return res.data?.data || res.data;
+    deleteSupplier: async (id: string): Promise<void> => {
+        await api.delete(`/suppliers/${id}`);
     }
 };

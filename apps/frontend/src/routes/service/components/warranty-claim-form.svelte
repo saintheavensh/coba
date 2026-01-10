@@ -22,10 +22,10 @@
     } from "lucide-svelte";
     import { toast } from "svelte-sonner";
 
-    let searchQuery = "";
-    let searchResult: any = null;
-    let isSearching = false;
-    let claimDescription = "";
+    let searchQuery = $state("");
+    let searchResult = $state<any>(null);
+    let isSearching = $state(false);
+    let claimDescription = $state("");
 
     // Mock Database of Finished Services
     const mockServices = [
@@ -115,7 +115,7 @@
         };
     }
 
-    let showGraceConfirmation = false;
+    let showGraceConfirmation = $state(false);
 
     function handleGraceClaimClick() {
         showGraceConfirmation = true;
@@ -130,13 +130,15 @@
         isForceClaimEnabled = true;
     }
 
-    let isForceClaimEnabled = false;
+    let isForceClaimEnabled = $state(false);
 
     // Reset force claim on new search
-    $: if (searchResult) {
-        isForceClaimEnabled = false;
-        showGraceConfirmation = false;
-    }
+    $effect(() => {
+        if (searchResult) {
+            isForceClaimEnabled = false;
+            showGraceConfirmation = false;
+        }
+    });
 
     function handleSubmitClaim() {
         if (!claimDescription) {

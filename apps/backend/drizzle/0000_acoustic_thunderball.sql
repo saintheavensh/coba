@@ -18,12 +18,27 @@ CREATE TABLE `categories` (
 	`created_at` integer DEFAULT CURRENT_TIMESTAMP
 );
 --> statement-breakpoint
+CREATE TABLE `defective_items` (
+	`id` text PRIMARY KEY NOT NULL,
+	`product_id` text NOT NULL,
+	`batch_id` text NOT NULL,
+	`supplier_id` text NOT NULL,
+	`qty` integer NOT NULL,
+	`source` text NOT NULL,
+	`source_ref_id` text,
+	`reason` text,
+	`status` text DEFAULT 'pending' NOT NULL,
+	`created_at` integer DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`batch_id`) REFERENCES `product_batches`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
 CREATE TABLE `members` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`phone` text NOT NULL,
 	`email` text,
-	`address` text,
 	`discount_percent` integer DEFAULT 0,
 	`points` integer DEFAULT 0,
 	`debt` integer DEFAULT 0,
@@ -91,6 +106,30 @@ CREATE TABLE `purchase_items` (
 	FOREIGN KEY (`batch_id`) REFERENCES `product_batches`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE TABLE `purchase_return_items` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`return_id` text NOT NULL,
+	`product_id` text NOT NULL,
+	`batch_id` text NOT NULL,
+	`qty` integer NOT NULL,
+	`reason` text,
+	`created_at` integer DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (`return_id`) REFERENCES `purchase_returns`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`batch_id`) REFERENCES `product_batches`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE TABLE `purchase_returns` (
+	`id` text PRIMARY KEY NOT NULL,
+	`supplier_id` text NOT NULL,
+	`user_id` text NOT NULL,
+	`date` integer DEFAULT CURRENT_TIMESTAMP,
+	`notes` text,
+	`created_at` integer DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
 CREATE TABLE `purchases` (
 	`id` text PRIMARY KEY NOT NULL,
 	`supplier_id` text NOT NULL,
@@ -120,9 +159,10 @@ CREATE TABLE `sale_items` (
 CREATE TABLE `sale_payments` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`sale_id` text NOT NULL,
-	`method` text NOT NULL,
 	`amount` integer NOT NULL,
+	`method` text NOT NULL,
 	`reference` text,
+	`proof_image` text,
 	`created_at` integer DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (`sale_id`) REFERENCES `sales`(`id`) ON UPDATE no action ON DELETE no action
 );
@@ -175,7 +215,6 @@ CREATE TABLE `suppliers` (
 	`phone` text,
 	`address` text,
 	`image` text,
-	`brands` text,
 	`created_at` integer DEFAULT CURRENT_TIMESTAMP
 );
 --> statement-breakpoint

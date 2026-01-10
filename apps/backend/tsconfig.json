@@ -26,6 +26,7 @@
     },
     "include": [
         "src/**/*",
-        "../../packages/shared/index.ts"
+        "../../packages/shared/index.ts",
+        "../../packages/shared/types.ts"
     ]
 }

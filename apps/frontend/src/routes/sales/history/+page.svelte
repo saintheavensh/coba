@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { onMount } from "svelte";
     import { SalesService } from "$lib/services/sales.service";
     import { Button } from "$lib/components/ui/button";
     import { Input } from "$lib/components/ui/input";
@@ -13,47 +12,40 @@
     } from "$lib/components/ui/table";
     import { Badge } from "$lib/components/ui/badge";
     import { Card, CardContent } from "$lib/components/ui/card";
-    import {
-        Search,
-        Calendar,
-        Filter,
-        Eye,
-        MoreHorizontal,
-    } from "lucide-svelte";
+    import { Search, Calendar, Filter, Eye, RefreshCw } from "lucide-svelte";
     import { formatCurrency } from "$lib/utils";
-    import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
+    import { createQuery } from "@tanstack/svelte-query";
 
-    let sales: any[] = [];
-    let loading = false;
-    let search = "";
-    let startDate = "";
-    let endDate = "";
+    // Reactive filter state
+    let search = $state("");
+    let startDate = $state("");
+    let endDate = $state("");
 
-    async function load() {
-        loading = true;
-        try {
-            const params: Record<string, string> = {};
-            if (search) params.search = search;
-            if (startDate) params.startDate = startDate;
-            if (endDate) params.endDate = endDate;
-
-            sales = await SalesService.getAll(params);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            loading = false;
-        }
-    }
-
-    onMount(() => {
-        load();
+    // Build query params reactively
+    let queryParams = $derived(() => {
+        const params: Record<string, string> = {};
+        if (search) params.search = search;
+        if (startDate) params.startDate = startDate;
+        if (endDate) params.endDate = endDate;
+        return params;
     });
 
+    // TanStack Query with reactive params
+    const salesQuery = createQuery(() => ({
+        queryKey: ["sales", "history", search, startDate, endDate],
+        queryFn: () => SalesService.getAll(queryParams()),
+    }));
+
+    // Derived state from query
+    let sales = $derived(salesQuery.data || []);
+    let loading = $derived(salesQuery.isPending);
+
     function handleSearch() {
-        load();
+        salesQuery.refetch();
     }
 
-    function formatDate(dateStr: string) {
+    function formatDate(dateStr: string | Date | null | undefined) {
+        if (!dateStr) return "-";
         return new Date(dateStr).toLocaleDateString("id-ID", {
             day: "numeric",
             month: "short",

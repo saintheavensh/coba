@@ -1,9 +1,9 @@
-import { v4 as uuidv4 } from "uuid";
 import { CustomersRepository } from "./customers.repository";
 import { members, sales, salePayments } from "../../db/schema";
 import { HTTPException } from "hono/http-exception";
 import { db } from "../../db";
 import { eq } from "drizzle-orm";
+import { generateId, ID_PREFIX } from "../../lib/utils";
 
 
 export class CustomersService {
@@ -32,7 +32,7 @@ export class CustomersService {
             throw new HTTPException(400, { message: "Phone number already registered" });
         }
 
-        const id = `CUST-${uuidv4().substring(0, 8).toUpperCase()}`; // CUST-XXXXXXXX
+        const id = generateId(ID_PREFIX.CUSTOMER);
 
         const [customer] = await this.repository.create({
             ...data,
@@ -78,7 +78,7 @@ export class CustomersService {
         return await this.repository.findUnpaidSales(id);
     }
 
-    async processPayment(id: string, amount: number, notes?: string, saleId?: string, proofImage?: string) {
+    async processPayment(id: string, amount: number, method: "cash" | "transfer" | "qris" = "cash", notes?: string, saleId?: string, proofImage?: string) {
         const existing = await this.repository.findById(id);
         if (!existing) {
             throw new HTTPException(404, { message: "Costumer not found" });
@@ -99,34 +99,31 @@ export class CustomersService {
                 if (!sale) throw new HTTPException(404, { message: "Invoice not found" });
                 if (sale.paymentStatus === 'paid') throw new HTTPException(400, { message: "Invoice already paid" });
 
-                // Add Payment Record
+                // Add Payment Record using provided method
                 await tx.insert(salePayments).values({
                     saleId: saleId,
-                    method: proofImage ? "transfer" : "cash",
+                    method: method,
                     amount: amount,
                     reference: notes,
                     proofImage: proofImage
                 });
 
-                // Update Sale Status
-                // Calculate total paid including this one
-                const payments = await tx.query.salePayments.findMany({
-                    where: eq(salePayments.saleId, saleId)
-                });
-                const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0) + amount; // +amount because txn might not see inserted yet unless flush? 
-                // Wait, Drizzle inside transaction might not see previous insert if not awaited? It is awaited.
-                // But safer to calculate manually:
-                // const currentPaid = ...;
-                // Actually if I inserted above, findMany will see it? SQLite supports read-your-writes in txn.
-
-                // Let's re-query payments
+                // Update Sale Status - Calculate total paid excluding tempo payments
                 const allPayments = await tx.query.salePayments.findMany({
                     where: eq(salePayments.saleId, saleId)
                 });
-                const totalPaidReal = allPayments.reduce((sum, p) => sum + p.amount, 0);
 
-                let status: "paid" | "partial" | "unpaid" = "partial";
-                if (totalPaidReal >= sale.finalAmount) status = "paid";
+                // Only count actual payments (cash, transfer, qris) - NOT tempo (debt)
+                const totalPaidReal = allPayments
+                    .filter(p => p.method !== 'tempo')
+                    .reduce((sum, p) => sum + p.amount, 0);
+
+                let status: "paid" | "partial" | "unpaid" = "unpaid";
+                if (totalPaidReal >= sale.finalAmount) {
+                    status = "paid";
+                } else if (totalPaidReal > 0) {
+                    status = "partial";
+                }
 
                 await tx.update(sales).set({ paymentStatus: status }).where(eq(sales.id, saleId));
             }

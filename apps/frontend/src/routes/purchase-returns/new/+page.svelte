@@ -26,8 +26,8 @@
         },
     }));
 
-    let selectedSupplierId = "";
-    let notes = "";
+    let selectedSupplierId = $state("");
+    let notes = $state("");
 
     // 2. Fetch Batches when Supplier Selected
     // Note: We need an endpoint to get batches by supplier!
@@ -58,40 +58,45 @@
         },
     }));
 
-    let availableBatches: any[] = [];
+    let availableBatches = $state<any[]>([]);
 
-    $: if (productsQuery.data && selectedSupplierId) {
-        // Flatten batches from all products that match supplier
-        const batches = [];
-        for (const p of productsQuery.data) {
-            if (p.batches) {
-                for (const b of p.batches) {
-                    if (
-                        b.supplierId === selectedSupplierId &&
-                        b.currentStock > 0
-                    ) {
-                        batches.push({
-                            ...b,
-                            productName: p.name,
-                            label: `${p.name} - ${p.category?.name || "Uncategorized"} - ${b.variant} (Stok: ${b.currentStock})`,
-                            value: b.id,
-                        });
+    // Update available batches when products or supplier changes
+    $effect(() => {
+        if (productsQuery.data && selectedSupplierId) {
+            // Flatten batches from all products that match supplier
+            const batches = [];
+            for (const p of productsQuery.data) {
+                if (p.batches) {
+                    for (const b of p.batches) {
+                        if (
+                            b.supplierId === selectedSupplierId &&
+                            b.currentStock > 0
+                        ) {
+                            batches.push({
+                                ...b,
+                                productName: p.name,
+                                label: `${p.name} - ${p.category?.name || "Uncategorized"} - ${b.variant} (Stok: ${b.currentStock})`,
+                                value: b.id,
+                            });
+                        }
                     }
                 }
             }
+            availableBatches = batches;
         }
-        availableBatches = batches;
-    }
+    });
 
     // Return Items State
-    let items: {
-        batchId: string;
-        qty: number;
-        reason: string;
-        maxQty: number;
-        label: string;
-    }[] = [];
-    let selectedBatchId = "";
+    let items = $state<
+        {
+            batchId: string;
+            qty: number;
+            reason: string;
+            maxQty: number;
+            label: string;
+        }[]
+    >([]);
+    let selectedBatchId = $state("");
 
     function addItem() {
         if (!selectedBatchId) return;

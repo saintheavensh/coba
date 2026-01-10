@@ -23,59 +23,59 @@
         Download,
         Calendar as CalendarIcon,
         Filter,
+        Loader2,
     } from "lucide-svelte";
     import { Badge } from "$lib/components/ui/badge";
-
-    // Mock Data Laporan
-    const transactions = [
-        {
-            id: 1,
-            date: "2026-01-05",
-            nota: "NOTA-2026-001",
-            items: 2,
-            total: 108350000,
-            hpp: 90500000,
-            profit: 17850000,
-        },
-        {
-            id: 2,
-            date: "2026-01-10",
-            nota: "NOTA-2026-002",
-            items: 1,
-            total: 150000000,
-            hpp: 120000000,
-            profit: 30000000,
-        },
-        {
-            id: 3,
-            date: "2026-01-15",
-            nota: "NOTA-2026-003",
-            items: 3,
-            total: 431500000,
-            hpp: 363500000,
-            profit: 68000000,
-        },
-        {
-            id: 4,
-            date: "2026-01-20",
-            nota: "NOTA-2026-004",
-            items: 5,
-            total: 160150000,
-            hpp: 125150000,
-            profit: 35000000,
-        },
-    ];
+    import { createQuery } from "@tanstack/svelte-query";
+    import {
+        ReportsService,
+        type TransactionReport,
+        type SalesSummary,
+    } from "$lib/services/reports.service";
 
     // State Filter
-    let startDate = "2026-01-01";
-    let endDate = "2026-01-31";
+    let startDate = $state("2026-01-01");
+    let endDate = $state("2026-01-31");
 
-    // Derived Metrics
-    $: totalRevenue = transactions.reduce((acc, t) => acc + t.total, 0);
-    $: totalHPP = transactions.reduce((acc, t) => acc + t.hpp, 0);
-    $: totalProfit = transactions.reduce((acc, t) => acc + t.profit, 0);
-    $: totalItems = transactions.reduce((acc, t) => acc + t.items, 0);
-    $: profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+    // Queries
+    const summaryQuery = createQuery(() => ({
+        queryKey: ["reports", "summary", startDate, endDate],
+        queryFn: () => ReportsService.getSummary({ startDate, endDate }),
+    }));
+
+    const transactionsQuery = createQuery(() => ({
+        queryKey: ["reports", "transactions", startDate, endDate],
+        queryFn: () => ReportsService.getTransactions({ startDate, endDate }),
+    }));
+
+    // Derived from queries
+    let summary = $derived<SalesSummary>(
+        summaryQuery.data || {
+            totalRevenue: 0,
+            totalHPP: 0,
+            totalProfit: 0,
+            totalTransactions: 0,
+            totalItems: 0,
+            profitMargin: 0,
+        },
+    );
+    let transactions = $derived<TransactionReport[]>(
+        transactionsQuery.data || [],
+    );
+    let isLoading = $derived(
+        summaryQuery.isPending || transactionsQuery.isPending,
+    );
+
+    // Legacy variable names for template compatibility
+    let totalRevenue = $derived(summary.totalRevenue);
+    let totalHPP = $derived(summary.totalHPP);
+    let totalProfit = $derived(summary.totalProfit);
+    let totalItems = $derived(summary.totalItems);
+    let profitMargin = $derived(summary.profitMargin);
+
+    function handleFilter() {
+        // Queries will automatically refetch when startDate/endDate change
+    }
 </script>
 
 <div class="space-y-6">

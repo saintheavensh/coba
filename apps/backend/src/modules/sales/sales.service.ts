@@ -62,7 +62,8 @@ export class SalesService {
 
         // Determine Payment Status & Method String
         const methodTypes = new Set(data.payments.map(p => p.method));
-        const paymentMethodStr = methodTypes.size > 1 ? "mixed" : data.payments[0].method;
+        const paymentMethodStr: "cash" | "transfer" | "qris" | "mixed" =
+            methodTypes.size > 1 ? "mixed" : data.payments[0].method as "cash" | "transfer" | "qris";
 
         const nonTempoAmount = data.payments
             .filter(p => p.method !== "tempo")

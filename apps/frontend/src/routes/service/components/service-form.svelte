@@ -46,113 +46,115 @@
     import PatternLock from "$lib/components/ui/pattern-lock.svelte";
 
     // Form state
-    let currentStep = 1;
+    let currentStep = $state(1);
 
     // Step 1: Customer & HP Data
-    let isWalkin = false;
-    let customerName = "";
-    let customerPhone = "";
-    let customerAddress = "";
-    let phoneBrand = "";
-    let phoneModel = "";
+    let isWalkin = $state(false);
+    let customerName = $state("");
+    let customerPhone = $state("");
+    let customerAddress = $state("");
+    let phoneBrand = $state("");
+    let phoneModel = $state("");
 
     // HP Condition
-    let phoneStatus = "nyala";
-    let imei = "";
-    let physicalConditions: string[] = [];
-    let completeness: string[] = [];
-    let physicalNotes = "";
-    let pinPattern = "";
+    let phoneStatus = $state("nyala");
+    let imei = $state("");
+    let physicalConditions = $state<string[]>([]);
+    let completeness = $state<string[]>([]);
+    let physicalNotes = $state("");
+    let pinPattern = $state("");
 
     // Pattern Lock Modal
-    let isPatternOpen = false;
-    let patternPoints: number[] = [];
-    $: patternString =
+    let isPatternOpen = $state(false);
+    let patternPoints = $state<number[]>([]);
+    let patternString = $derived(
         patternPoints.length > 0
             ? patternPoints.map((p) => p + 1).join("-")
-            : "";
+            : "",
+    );
 
     // Step 2: Service Details
-    let complaint = "";
-    let technician = "";
-    let estimatedCost = "";
-    let downPayment = "";
-    let warranty = "none";
-    let technicianNotes = ""; // New Field
+    let complaint = $state("");
+    let technician = $state("");
+    let estimatedCost = $state("");
+    let downPayment = $state("");
+    let warranty = $state("none");
+    let technicianNotes = $state(""); // New Field
 
     // Regular Service Specifics (NEW)
-    let initialDiagnosis = ""; // Diagnosa Awal (Cek Arus dll)
-    let possibleCauses = ""; // Kemungkinan Kerusakan
-    let isPriceRange = false; // Toggle Range Price
-    let minPrice = "";
-    let maxPrice = "";
+    let initialDiagnosis = $state(""); // Diagnosa Awal (Cek Arus dll)
+    let possibleCauses = $state(""); // Kemungkinan Kerusakan
+    let isPriceRange = $state(false); // Toggle Range Price
+    let minPrice = $state("");
+    let maxPrice = $state("");
 
     // Walk-in Sparepart Logic
-    let sparepartSource = "none";
-    let selectedParts: any[] = [];
+    let sparepartSource = $state("none");
+    let selectedParts = $state<any[]>([]);
     const mockInventory = [
         { id: 1, name: "LCD Samsung A50 Original", stock: 5, price: 450000 },
         { id: 2, name: "Baterai Xiaomi BN45", stock: 10, price: 120000 },
         { id: 3, name: "Connector Cas Type-C", stock: 50, price: 15000 },
         { id: 4, name: "Tempered Glass Universal", stock: 100, price: 10000 },
     ];
-    let showInventoryModal = false;
-    let searchTerm = "";
+    let showInventoryModal = $state(false);
+    let searchTerm = $state("");
 
     // External Part Data
-    let extPartName = "";
-    let extPartBuyPrice = "";
-    let extPartSellPrice = "";
+    let extPartName = $state("");
+    let extPartBuyPrice = $state("");
+    let extPartSellPrice = $state("");
 
     // Payment State (Step 3 Walk-in)
-    let paymentMethod = "cash"; // cash, transfer, split
-    let payAmountCash = "";
-    let payAmountTransfer = "";
+    let paymentMethod = $state("cash"); // cash, transfer, split
+    let payAmountCash = $state("");
+    let payAmountTransfer = $state("");
 
     // Computed Totals
-    $: totalPartPrice =
+    let totalPartPrice = $derived(
         selectedParts.reduce((sum, p) => sum + (parseInt(p.price) || 0), 0) +
-        (sparepartSource === "external" ? parseInt(extPartSellPrice) || 0 : 0);
-    $: serviceFee = parseInt(estimatedCost) || 0;
-    $: grandTotalEstimate = serviceFee + totalPartPrice;
+            (sparepartSource === "external"
+                ? parseInt(extPartSellPrice) || 0
+                : 0),
+    );
+    let serviceFee = $derived(parseInt(estimatedCost) || 0);
+    let grandTotalEstimate = $derived(serviceFee + totalPartPrice);
 
     // Split Payment Logic
-    $: splitTransferAmount =
+    let splitTransferAmount = $derived(
         paymentMethod === "split"
             ? grandTotalEstimate - (parseInt(payAmountCash) || 0)
-            : 0;
-    $: {
-        if (paymentMethod === "split") {
-            // Auto calculate transfer amount if cash is entered, but let user edit too if needed logic (simplified here)
-            // For UX, maybe just show remaining needed for transfer.
-        }
-    }
+            : 0,
+    );
 
-    $: totalPaid =
+    let totalPaid = $derived(
         paymentMethod === "split"
             ? (parseInt(payAmountCash) || 0) +
-              (parseInt(payAmountTransfer) || 0)
+                  (parseInt(payAmountTransfer) || 0)
             : paymentMethod === "transfer"
               ? parseInt(payAmountTransfer) || 0
-              : parseInt(payAmountCash) || 0;
+              : parseInt(payAmountCash) || 0,
+    );
 
-    $: changeAmount = totalPaid - grandTotalEstimate;
+    let changeAmount = $derived(totalPaid - grandTotalEstimate);
 
     // Validation
     const isErrorStatus = (status: string) =>
         ["mati_total", "restart", "blank_hitam"].includes(status);
 
-    $: step1Valid =
+    let step1Valid = $derived(
         customerName.trim() !== "" &&
-        (isWalkin || customerPhone.trim() !== "") &&
-        phoneBrand.trim() !== "" &&
-        phoneModel.trim() !== "" &&
-        phoneStatus.trim() !== "";
+            (isWalkin || customerPhone.trim() !== "") &&
+            phoneBrand.trim() !== "" &&
+            phoneModel.trim() !== "" &&
+            phoneStatus.trim() !== "",
+    );
 
-    $: step2Valid =
+    let step2Valid = $derived(
         complaint &&
-        complaint.trim().length > 0 &&
-        (!isWalkin || technician !== "");
+            complaint.trim().length > 0 &&
+            (!isWalkin || technician !== ""),
+    );
 
     function nextStep() {
         if (currentStep === 1) {
@@ -244,17 +246,20 @@
     import { activityLogs, settings } from "$lib/stores/settings"; // Import Store
 
     import { onMount } from "svelte";
-    import { ServiceService } from "$lib/services/service.service";
+    import {
+        ServiceService,
+        type CreateServiceInput,
+    } from "$lib/services/service.service";
     import { InventoryService } from "$lib/services/inventory.service";
 
-    import type { CreateServiceRequest } from "@repo/shared";
+    // Local CreateServiceInput type (matches ServiceService.create signature)
 
     // ... imports
 
     // Data from API
-    let technicians: any[] = [];
-    let inventoryItems: any[] = [];
-    let isSubmitting = false;
+    let technicians = $state<any[]>([]);
+    let inventoryItems = $state<any[]>([]);
+    let isSubmitting = $state(false);
 
     // ...
 
@@ -267,31 +272,20 @@
         isSubmitting = true;
         try {
             // Use Shared Type for payload structure guarantee
-            const payload: CreateServiceRequest = {
-                type: isWalkin ? "walk_in" : "regular",
+            const payload: CreateServiceInput = {
                 customer: {
                     name: customerName,
                     phone: customerPhone,
                     address: customerAddress || undefined,
                 },
-                unit: {
+                device: {
                     brand: phoneBrand,
                     model: phoneModel,
-                    status: phoneStatus,
                     imei: imei || undefined,
-                    pin: pinPattern || undefined,
-                    condition: physicalConditions.length
-                        ? physicalConditions
-                        : undefined,
-                    completeness: completeness.length
-                        ? completeness
-                        : undefined,
-                    physicalNotes: physicalNotes || undefined,
                 },
                 complaint: complaint,
-                technicianId: technician || null, // Fix: Send string ID or null
-                status: isWalkin ? "selesai" : "antrian", // Fix status enum match ("selesai" instead of "done")
-                // Status enum in shared: ["antrian", "dicek", ... "selesai"]
+                technicianId: technician || null,
+                status: isWalkin ? "selesai" : "antrian",
 
                 // Regular specific
                 diagnosis: {
@@ -302,16 +296,6 @@
                         : estimatedCost,
                     downPayment: downPayment || undefined,
                 },
-
-                // Walk-in parts
-                parts:
-                    isWalkin && selectedParts.length > 0
-                        ? selectedParts.map((p) => ({
-                              productId: p.id,
-                              qty: 1,
-                              price: p.price,
-                          }))
-                        : undefined,
             };
 
             // Use ServiceService
@@ -606,21 +590,16 @@
                                     class="flex-1"
                                     disabled={isErrorStatus(phoneStatus)}
                                 />
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    title="Input Pola"
+                                    disabled={isErrorStatus(phoneStatus)}
+                                    onclick={() => (isPatternOpen = true)}
+                                >
+                                    <Grid3X3 class="h-4 w-4" />
+                                </Button>
                                 <Dialog bind:open={isPatternOpen}>
-                                    <DialogTrigger
-                                        disabled={isErrorStatus(phoneStatus)}
-                                    >
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            title="Input Pola"
-                                            disabled={isErrorStatus(
-                                                phoneStatus,
-                                            )}
-                                        >
-                                            <Grid3X3 class="h-4 w-4" />
-                                        </Button>
-                                    </DialogTrigger>
                                     <DialogContent class="sm:max-w-[425px]">
                                         <DialogHeader>
                                             <DialogTitle

@@ -36,6 +36,7 @@
     } from "$lib/components/ui/avatar";
     import { toast } from "svelte-sonner";
     import SearchInput from "$lib/components/custom/search-input.svelte";
+    import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import { formatCurrency } from "$lib/utils";
 
     const client = useQueryClient();
@@ -264,11 +265,10 @@
                         <Label class="text-right">Limit Kredit</Label>
                         <div class="col-span-3 relative">
                             <span
-                                class="absolute left-3 top-2.5 text-muted-foreground text-sm"
+                                class="absolute left-3 top-2.5 text-muted-foreground text-sm z-10"
                                 >Rp</span
                             >
-                            <Input
-                                type="number"
+                            <CurrencyInput
                                 bind:value={creditLimit}
                                 class="pl-9"
                                 placeholder="0"
@@ -392,9 +392,9 @@
                             <Button
                                 class="w-full mt-2"
                                 size="sm"
-                                href={`/customers/${cust.id}`}
+                                onclick={() => openPayment(cust)}
                             >
-                                <Wallet class="h-4 w-4 mr-2" /> Lihat Tagihan
+                                <Wallet class="h-4 w-4 mr-2" /> Bayar Hutang
                             </Button>
                         {/if}
                     </div>
@@ -420,11 +420,10 @@
                     <Label>Jumlah Pembayaran</Label>
                     <div class="relative">
                         <span
-                            class="absolute left-3 top-2.5 text-muted-foreground text-sm"
+                            class="absolute left-3 top-2.5 text-muted-foreground text-sm z-10"
                             >Rp</span
                         >
-                        <Input
-                            type="number"
+                        <CurrencyInput
                             class="pl-9"
                             bind:value={paymentAmount}
                         />

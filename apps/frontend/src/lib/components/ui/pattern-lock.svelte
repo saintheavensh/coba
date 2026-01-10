@@ -2,26 +2,39 @@
     import { createEventDispatcher } from "svelte";
     import { cn } from "$lib/utils";
 
-    export let size = 300;
-    export let value: number[] = [];
-    export let readonly = false;
+    interface Props {
+        size?: number;
+        value?: number[];
+        readonly?: boolean;
+    }
+
+    let {
+        size = 300,
+        value = $bindable([]),
+        readonly = false,
+    }: Props = $props();
 
     const dispatch = createEventDispatcher();
 
-    // 3x3 Grid
-    const points = Array.from({ length: 9 }, (_, i) => ({
-        id: i,
-        x: (i % 3) * (size / 3) + size / 6,
-        y: Math.floor(i / 3) * (size / 3) + size / 6,
-    }));
+    // 3x3 Grid - use $derived for computed values
+    let points = $derived(
+        Array.from({ length: 9 }, (_, i) => ({
+            id: i,
+            x: (i % 3) * (size / 3) + size / 6,
+            y: Math.floor(i / 3) * (size / 3) + size / 6,
+        })),
+    );
 
-    let isDrawing = false;
-    let currentPath: number[] = value;
-    let currentPos = { x: 0, y: 0 };
+    let isDrawing = $state(false);
+    let currentPath = $state<number[]>([]);
+    let currentPos = $state({ x: 0, y: 0 });
 
-    $: if (value) {
-        currentPath = value;
-    }
+    // Sync currentPath with value prop
+    $effect(() => {
+        if (value) {
+            currentPath = value;
+        }
+    });
 
     function getPointAt(x: number, y: number) {
         const radius = 20; // Hit radius
@@ -96,11 +109,11 @@
         "touch-none select-none bg-muted/20 rounded-lg cursor-pointer",
         readonly && "pointer-events-none opacity-80",
     )}
-    on:mousemove={handleMove}
-    on:mouseup={handleEnd}
-    on:mouseleave={handleEnd}
-    on:touchmove={handleMove}
-    on:touchend={handleEnd}
+    onmousemove={handleMove}
+    onmouseup={handleEnd}
+    onmouseleave={handleEnd}
+    ontouchmove={handleMove}
+    ontouchend={handleEnd}
     role="application"
     aria-label="Pattern Lock Input"
 >
@@ -174,8 +187,11 @@
             cy={point.y}
             r="30"
             fill="transparent"
-            on:mousedown={(e) => handleStart(e, point.id)}
-            on:touchstart|nonpassive={(e) => handleStart(e, point.id)}
+            onmousedown={(e) => handleStart(e, point.id)}
+            ontouchstart={(e) => {
+                e.preventDefault();
+                handleStart(e, point.id);
+            }}
             role="button"
             aria-label="Connect point {point.id + 1}"
             tabindex="-1"

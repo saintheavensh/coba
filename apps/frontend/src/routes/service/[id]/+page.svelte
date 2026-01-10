@@ -36,8 +36,8 @@
     import { ServiceService } from "$lib/services/service.service";
 
     const serviceId = parseInt($page.params.id ?? "0");
-    let serviceOrder: any = null;
-    let loading = true;
+    let serviceOrder = $state<any>(null);
+    let loading = $state(true);
 
     async function loadData() {
         loading = true;
@@ -57,16 +57,18 @@
         loadData();
     });
 
-    // Computed properties need to handle null serviceOrder
-    $: totalParts =
+    // Computed properties using $derived
+    let totalParts = $derived(
         serviceOrder?.parts?.reduce(
             (sum: number, p: any) => sum + (p.subtotal || p.price * p.qty),
             0,
-        ) || 0;
+        ) || 0,
+    );
     // Calculation logic for grandTotal might differ if backend provides it
-    $: grandTotal =
+    let grandTotal = $derived(
         (serviceOrder?.actualCost || serviceOrder?.costEstimate || 0) +
-        totalParts; // Simplified logic, adjust as needed based on backend response structure.
+            totalParts,
+    ); // Simplified logic, adjust as needed based on backend response structure.
     // Actually backend `services` table has `actualCost`.
 
     async function handleSave() {
@@ -79,7 +81,13 @@
     async function handleComplete() {
         if (!confirm("Tandai service ini selesai?")) return;
         try {
-            await ServiceService.updateStatus(serviceId, { status: "selesai" });
+            const userId =
+                JSON.parse(localStorage.getItem("user") || "{}").id ||
+                "USR-ADMIN";
+            await ServiceService.updateStatus(serviceId, {
+                status: "selesai",
+                userId,
+            });
             toast.success("Service selesai!");
             loadData();
         } catch (e) {
@@ -90,7 +98,13 @@
     async function handleCancel() {
         if (!confirm("Batalkan service ini?")) return;
         try {
-            await ServiceService.updateStatus(serviceId, { status: "batal" });
+            const userId =
+                JSON.parse(localStorage.getItem("user") || "{}").id ||
+                "USR-ADMIN";
+            await ServiceService.updateStatus(serviceId, {
+                status: "batal",
+                userId,
+            });
             toast.success("Service dibatalkan");
             loadData();
         } catch (e) {
@@ -118,7 +132,7 @@
         window.open(url, "_blank");
     }
 
-    let showPrintLabel = false;
+    let showPrintLabel = $state(false);
     function handlePrintLabel() {
         showPrintLabel = true;
         setTimeout(() => {
@@ -473,8 +487,8 @@
 
 <style>
     @media print {
-        /* Hide everything by default */
-        body * {
+        /* Hide everything by default - using :global for body */
+        :global(body) * {
             visibility: hidden;
         }
 

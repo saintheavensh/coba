@@ -59,6 +59,7 @@ customersController.delete("/:id", async (c) => {
 
 const paymentSchema = z.object({
     amount: z.number().min(1),
+    method: z.enum(["cash", "transfer", "qris"]).default("cash"),
     notes: z.string().optional(),
     saleId: z.string().optional(),
     proofImage: z.string().optional()
@@ -81,8 +82,8 @@ customersController.post(
     zValidator("json", paymentSchema),
     async (c) => {
         const id = c.req.param("id");
-        const { amount, notes, saleId, proofImage } = c.req.valid("json");
-        const customer = await membersService.processPayment(id, amount, notes, saleId, proofImage);
+        const { amount, method, notes, saleId, proofImage } = c.req.valid("json");
+        const customer = await membersService.processPayment(id, amount, method, notes, saleId, proofImage);
         return c.json({ success: true, data: customer });
     }
 );

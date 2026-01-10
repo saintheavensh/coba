@@ -17,19 +17,31 @@
     import { Label } from "$lib/components/ui/label";
     import { toast } from "svelte-sonner";
 
-    export let open = false;
-    export let serviceId: number | null = null;
-    export let serviceNo: string = "";
-    export let currentTechnician: string | null = null;
-    export let onConfirm: (newItem: any) => void;
-
-    let selectedTechnician = "";
-
-    $: if (open && currentTechnician) {
-        selectedTechnician = currentTechnician;
-    } else if (open && !currentTechnician) {
-        selectedTechnician = "";
+    interface Props {
+        open?: boolean;
+        serviceId?: number | null;
+        serviceNo?: string;
+        currentTechnician?: string | null;
+        onConfirm: (newItem: any) => void;
     }
+
+    let {
+        open = $bindable(false),
+        serviceId = null,
+        serviceNo = "",
+        currentTechnician = null,
+        onConfirm,
+    }: Props = $props();
+
+    let selectedTechnician = $state("");
+
+    $effect(() => {
+        if (open && currentTechnician) {
+            selectedTechnician = currentTechnician;
+        } else if (open && !currentTechnician) {
+            selectedTechnician = "";
+        }
+    });
 
     function handleSave() {
         if (!selectedTechnician) {

@@ -27,6 +27,7 @@
         DialogTitle,
     } from "$lib/components/ui/dialog";
     import Combobox from "$lib/components/custom/combobox.svelte";
+    import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import { formatCurrency } from "$lib/utils";
     import * as Select from "$lib/components/ui/select";
 
@@ -88,68 +89,76 @@
         },
     }));
 
-    // Reactive Data
-    $: products = productsQuery.data || [];
-    $: customers = customersQuery.data || [];
-    $: loading = checkoutMutation.isPending;
+    // Reactive Data using Svelte 5 runes
+    let products = $derived(productsQuery.data || []);
+    let customers = $derived(customersQuery.data || []);
+    let loading = $derived(checkoutMutation.isPending);
 
     // Derived Logic: Group Batches by Variant
-    $: processedProducts = products.map((p: any) => {
-        const variantMap = new Map();
+    let processedProducts = $derived(
+        products.map((p: any) => {
+            const variantMap = new Map();
 
-        // Sort batches by creation (FIFO) to determine Display Price
-        const sortedBatches = (p.batches || []).sort(
-            (a: any, b: any) =>
-                new Date(a.createdAt).getTime() -
-                new Date(b.createdAt).getTime(),
-        );
+            // Sort batches by creation (FIFO) to determine Display Price
+            const sortedBatches = (p.batches || []).sort(
+                (a: any, b: any) =>
+                    new Date(a.createdAt).getTime() -
+                    new Date(b.createdAt).getTime(),
+            );
 
-        for (const b of sortedBatches) {
-            if (b.currentStock <= 0) continue;
+            for (const b of sortedBatches) {
+                if (b.currentStock <= 0) continue;
 
-            const vName = b.variant || "Standard";
-            if (!variantMap.has(vName)) {
-                variantMap.set(vName, {
-                    name: vName,
-                    stock: 0,
-                    price: b.sellPrice, // FIFO Price (First available batch price)
-                });
+                const vName = b.variant || "Standard";
+                if (!variantMap.has(vName)) {
+                    variantMap.set(vName, {
+                        name: vName,
+                        stock: 0,
+                        price: b.sellPrice, // FIFO Price (First available batch price)
+                    });
+                }
+                const v = variantMap.get(vName);
+                v.stock += b.currentStock;
             }
-            const v = variantMap.get(vName);
-            v.stock += b.currentStock;
-        }
 
-        return {
-            ...p,
-            variants: Array.from(variantMap.values()),
-        };
-    });
+            return {
+                ...p,
+                variants: Array.from(variantMap.values()),
+            };
+        }),
+    );
 
-    $: filteredProducts = processedProducts.filter((p: any) => {
-        const term = searchTerm.toLowerCase();
-        return (
-            p.name.toLowerCase().includes(term) ||
-            (p.code && p.code.toLowerCase().includes(term))
-        );
-    });
+    // Local State - must be declared before derived that uses it
+    let searchTerm = $state("");
+
+    let filteredProducts = $derived(
+        processedProducts.filter((p: any) => {
+            const term = searchTerm.toLowerCase();
+            return (
+                p.name.toLowerCase().includes(term) ||
+                (p.code && p.code.toLowerCase().includes(term))
+            );
+        }),
+    );
 
     // Customer Combobox Options
-    $: customerOptions = customers.map((c: any) => ({
-        value: c.id,
-        label: `${c.name} (${c.phone})`,
-    }));
+    let customerOptions = $derived(
+        customers.map((c: any) => ({
+            value: c.id,
+            label: `${c.name} (${c.phone})`,
+        })),
+    );
 
     // Local State
-    let searchTerm = "";
-    let cart: CartItem[] = [];
-    let paymentOpen = false;
+    let cart = $state<CartItem[]>([]);
+    let paymentOpen = $state(false);
 
     // Payment State
-    let selectedCustomerId = ""; // From Combobox
-    let customerNameManual = "Walk-in Consumen"; // Default
-    let notes = "";
+    let selectedCustomerId = $state(""); // From Combobox
+    let customerNameManual = $state("Walk-in Consumen"); // Default
+    let notes = $state("");
 
-    let payments: PaymentItem[] = [{ method: "cash", amount: 0 }];
+    let payments = $state<PaymentItem[]>([{ method: "cash", amount: 0 }]);
 
     function addToCart(product: any, variant: any) {
         if (variant.stock <= 0) {
@@ -231,10 +240,14 @@
         payments[index].method = newMethod as any;
     }
 
-    $: totalAmount = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-    $: totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-    $: change = totalPaid - totalAmount;
-    $: remaining = totalAmount - totalPaid;
+    let totalAmount = $derived(
+        cart.reduce((sum, item) => sum + item.price * item.qty, 0),
+    );
+    let totalPaid = $derived(
+        payments.reduce((sum, p) => sum + (p.amount || 0), 0),
+    );
+    let change = $derived(totalPaid - totalAmount);
+    let remaining = $derived(totalAmount - totalPaid);
 
     function processCheckout() {
         if (cart.length === 0) return;
@@ -536,11 +549,10 @@
                             </div>
                             <div class="flex-1 relative">
                                 <span
-                                    class="absolute left-3 top-2.5 text-muted-foreground text-sm"
+                                    class="absolute left-3 top-2.5 text-muted-foreground text-sm z-10"
                                     >Rp</span
                                 >
-                                <Input
-                                    type="number"
+                                <CurrencyInput
                                     class="pl-9"
                                     bind:value={payment.amount}
                                     placeholder="0"

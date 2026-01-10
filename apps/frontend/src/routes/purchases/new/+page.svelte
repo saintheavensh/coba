@@ -29,27 +29,31 @@
     import DateTimePicker from "$lib/components/custom/date-time-picker.svelte";
     import { InventoryService } from "$lib/services/inventory.service";
 
-    let suppliers: any[] = [];
-    let products: any[] = [];
-    let loading = false;
-    let recentPurchases: any[] = [];
+    let suppliers = $state<any[]>([]);
+    let products = $state<any[]>([]);
+    let loading = $state(false);
+    let recentPurchases = $state<any[]>([]);
 
     // Form State
-    let selectedSupplierId = "";
-    let notes = "";
+    let selectedSupplierId = $state("");
+    let notes = $state("");
     // Default to Today YYYY-MM-DDTHH:mm
     const now = new Date();
     // Adjust to local ISO string for datetime-local
     const offset = now.getTimezoneOffset() * 60000;
-    let date = new Date(now.getTime() - offset).toISOString().slice(0, 16);
-    let items: Array<{
-        productId: string;
-        productName: string;
-        variant: string;
-        qty: number;
-        buyPrice: number;
-        sellPrice: number;
-    }> = [];
+    let date = $state(
+        new Date(now.getTime() - offset).toISOString().slice(0, 16),
+    );
+    let items = $state<
+        Array<{
+            productId: string;
+            productName: string;
+            variant: string;
+            qty: number;
+            buyPrice: number;
+            sellPrice: number;
+        }>
+    >([]);
 
     // Helper for adding row
     function addItem() {
@@ -71,7 +75,7 @@
     }
 
     // Cache variants for current supplier
-    let supplierVariants: string[] = [];
+    let supplierVariants = $state<string[]>([]);
 
     async function loadVariants(supplierId: string) {
         if (!supplierId) return;
@@ -159,9 +163,8 @@
         items = items;
     }
 
-    $: totalAmount = items.reduce(
-        (sum, item) => sum + item.buyPrice * item.qty,
-        0,
+    let totalAmount = $derived(
+        items.reduce((sum, item) => sum + item.buyPrice * item.qty, 0),
     );
 
     async function handleSubmit() {
@@ -233,10 +236,11 @@
     });
 
     // Refresh history when date changes
-    // Refresh history when date changes
-    $: if (date) {
-        loadRecentHistory();
-    }
+    $effect(() => {
+        if (date) {
+            loadRecentHistory();
+        }
+    });
 </script>
 
 <div class="space-y-6 max-w-4xl mx-auto pb-12">

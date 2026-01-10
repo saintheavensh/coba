@@ -51,7 +51,7 @@ export class CustomersRepository {
             where: (sales, { eq }) => eq(sales.memberId, memberId),
             orderBy: (sales, { desc }) => [desc(sales.createdAt)],
             with: {
-                // Include necessary relations if needed
+                payments: true
             }
         });
     }
@@ -63,7 +63,10 @@ export class CustomersRepository {
                 eq(sales.memberId, memberId),
                 or(eq(sales.paymentStatus, "unpaid"), eq(sales.paymentStatus, "partial"))
             ),
-            orderBy: (sales, { desc }) => [desc(sales.createdAt)]
+            orderBy: (sales, { desc }) => [desc(sales.createdAt)],
+            with: {
+                payments: true
+            }
         });
     }
 }

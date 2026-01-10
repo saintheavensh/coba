@@ -123,3 +123,8 @@ export type User = {
     name: string;
     role: "admin" | "teknisi" | "kasir";
 };
+
+// ============================================
+// Re-export all shared types
+// ============================================
+export * from "./types";

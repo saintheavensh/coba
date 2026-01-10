@@ -64,7 +64,7 @@ app.post("/", zValidator("json", purchaseSchema), async (c) => {
 
         // For now align with frontend which might send userId manually or logic
         const result = await service.createPurchase(data);
-        return apiSuccess(c, result, "Purchase created successfully", null); // 201 created ideally, but helper defaults 200. Refactor helper later if needed.
+        return apiSuccess(c, result, "Purchase created successfully", 201);
     } catch (e) {
         return apiError(c, e, "Failed to create purchase"); // Default 500, could be 400
     }

@@ -54,7 +54,7 @@ app.post("/", zValidator("json", saleSchema), async (c) => {
     const data = c.req.valid("json");
     try {
         const result = await service.createSale(data);
-        return c.json(result);
+        return c.json({ data: result });
     } catch (e) {
         return c.json({ message: String(e) }, 400);
     }

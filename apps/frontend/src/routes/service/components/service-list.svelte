@@ -29,19 +29,19 @@
     import { goto } from "$app/navigation";
 
     // Data State
-    let serviceOrders: any[] = [];
-    let loading = false;
+    let serviceOrders = $state<any[]>([]);
+    let loading = $state(false);
 
     // Filters
-    let searchQuery = "";
-    let filterStatus = "all";
-    let filterTechnician = "all";
+    let searchQuery = $state("");
+    let filterStatus = $state("all");
+    let filterTechnician = $state("all");
 
     import { ServiceService } from "$lib/services/service.service";
     import ReassignTechnicianModal from "./reassign-technician-modal.svelte";
 
-    let showReassignModal = false;
-    let selectedServiceForReassign: any = null;
+    let showReassignModal = $state(false);
+    let selectedServiceForReassign = $state<any>(null);
 
     function handleReassignConfirm() {
         showReassignModal = false;
@@ -84,23 +84,23 @@
         loadData();
     });
 
-    // Reactive: Reload when filters change (debounced for search could be better, but simple for now)
-    // Actually, backend search is not implemented yet, so we filter search CLIENT SIDE.
-    // Status filter is SERVER SIDE (implemented in backend just now).
-    $: {
+    // Reactive: Reload when filters change
+    $effect(() => {
         if (filterStatus) loadData();
-    }
+    });
 
     // Client-side Search Filter
-    $: filteredOrders = serviceOrders.filter((order) => {
-        const term = searchQuery.toLowerCase();
-        return (
-            order.no.toLowerCase().includes(term) ||
-            order.customer.name.toLowerCase().includes(term) ||
-            order.device.brand.toLowerCase().includes(term) ||
-            (order.technician?.name || "").toLowerCase().includes(term)
-        );
-    });
+    let filteredOrders = $derived(
+        serviceOrders.filter((order) => {
+            const term = searchQuery.toLowerCase();
+            return (
+                order.no.toLowerCase().includes(term) ||
+                order.customer.name.toLowerCase().includes(term) ||
+                order.device.brand.toLowerCase().includes(term) ||
+                (order.technician?.name || "").toLowerCase().includes(term)
+            );
+        }),
+    );
 
     function getStatusBadge(status: string) {
         switch (status) {
