@@ -27,6 +27,7 @@
     import { Badge } from "$lib/components/ui/badge";
     import { Search, Eye } from "lucide-svelte";
     import { goto } from "$app/navigation";
+    import { Separator } from "$lib/components/ui/separator";
 
     // Data State
     let serviceOrders = $state<any[]>([]);
@@ -224,8 +225,102 @@
             </Select>
         </div>
 
-        <!-- Table -->
-        <div class="rounded-md border">
+        <!-- Mobile Card List -->
+        <div class="grid gap-4 md:hidden">
+            {#if loading}
+                <div class="text-center p-4">Loading...</div>
+            {:else if filteredOrders.length === 0}
+                <div class="text-center p-4 text-muted-foreground">
+                    Tidak ada data service.
+                </div>
+            {:else}
+                {#each filteredOrders as order}
+                    {@const statusInfo = getStatusBadge(order.status)}
+                    <div
+                        class="rounded-lg border p-4 space-y-3 bg-card text-card-foreground shadow-sm"
+                    >
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-medium text-primary">
+                                    {order.no}
+                                </div>
+                                <div class="text-xs text-muted-foreground">
+                                    {new Date(
+                                        order.dateIn,
+                                    ).toLocaleDateString()}
+                                </div>
+                            </div>
+                            <Badge
+                                variant={statusInfo.variant as any}
+                                class={statusInfo.className}
+                            >
+                                {statusInfo.icon}
+                                {statusInfo.label}
+                            </Badge>
+                        </div>
+
+                        <Separator />
+
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                                <div class="text-muted-foreground text-xs">
+                                    Customer
+                                </div>
+                                <div class="font-medium">
+                                    {order.customer.name}
+                                </div>
+                                <div class="text-xs text-muted-foreground">
+                                    {order.customer.phone}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-muted-foreground text-xs">
+                                    Handphone
+                                </div>
+                                <div class="font-medium">
+                                    {order.device.brand}
+                                    {order.device.model}
+                                </div>
+                                <div
+                                    class="text-xs text-muted-foreground truncate"
+                                    title={order.device.imei}
+                                >
+                                    {order.device.imei || "-"}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center pt-2">
+                            <div class="text-sm">
+                                <span
+                                    class="text-muted-foreground text-xs block"
+                                    >Teknisi</span
+                                >
+                                {#if order.technician}
+                                    <span class="font-medium"
+                                        >{order.technician.name}</span
+                                    >
+                                {:else}
+                                    <span class="text-muted-foreground italic"
+                                        >Unassigned</span
+                                    >
+                                {/if}
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onclick={() => viewServiceDetail(order.id)}
+                            >
+                                <Eye class="mr-2 h-3 w-3" /> Detail
+                            </Button>
+                        </div>
+                    </div>
+                {/each}
+            {/if}
+        </div>
+
+        <!-- Desktop Table -->
+        <div class="hidden md:block rounded-md border">
             <Table>
                 <TableHeader>
                     <TableRow>

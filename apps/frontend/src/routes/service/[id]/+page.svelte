@@ -122,12 +122,18 @@
 
     function handleChatCustomer() {
         if (!serviceOrder) return;
-        const phone = serviceOrder.customer.phone.replace(/[^0-9]/g, "");
+        const phone =
+            serviceOrder.customer?.phone?.replace(/[^0-9]/g, "") || "";
         // Format +62
         const formattedPhone = phone.startsWith("0")
             ? "62" + phone.slice(1)
             : phone;
-        const message = `Halo Kak ${serviceOrder.customer.name}, mengenai service HP ${serviceOrder.device.brand} ${serviceOrder.device.model} (No: ${serviceOrder.no})...`;
+
+        // Use serviceOrder.phone safely, fallback to empty string if missing
+        const brand = serviceOrder.phone?.brand || "HP";
+        const model = serviceOrder.phone?.model || "";
+
+        const message = `Halo Kak ${serviceOrder.customer?.name || "Customer"}, mengenai service ${brand} ${model} (No: ${serviceOrder.no})...`;
         const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
         window.open(url, "_blank");
     }
@@ -151,17 +157,22 @@
         </div>
     {:else}
         <!-- Header -->
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-4">
+        <div
+            class="flex flex-col md:flex-row md:items-center justify-between gap-4"
+        >
+            <div class="flex items-start gap-4">
                 <Button
                     variant="ghost"
                     size="icon"
                     onclick={() => goto("/service")}
+                    class="mt-1 md:mt-0"
                 >
                     <ArrowLeft class="h-5 w-5" />
                 </Button>
                 <div>
-                    <h3 class="text-lg font-medium flex items-center gap-2">
+                    <h3
+                        class="text-lg font-medium flex items-center gap-2 flex-wrap"
+                    >
                         Detail Service: {serviceOrder.no}
                         <Button
                             variant="ghost"
@@ -173,13 +184,15 @@
                         </Button>
                     </h3>
                     <p class="text-sm text-muted-foreground">
-                        {serviceOrder.customer.name} - {serviceOrder.phone
-                            .brand}
-                        {serviceOrder.phone.model}
+                        {serviceOrder.customer?.name || "Unknown Customer"} - {serviceOrder
+                            .phone?.brand || "Unknown Brand"}
+                        {serviceOrder.phone?.model || ""}
                     </p>
                 </div>
             </div>
-            <Badge class="bg-orange-100 text-orange-700 hover:bg-orange-100">
+            <Badge
+                class="bg-orange-100 text-orange-700 hover:bg-orange-100 self-start md:self-center ml-14 md:ml-0"
+            >
                 🔴 {serviceOrder.status}
             </Badge>
         </div>
@@ -197,7 +210,7 @@
                         <span class="text-muted-foreground">Nama</span>
                         <div class="flex items-center gap-2">
                             <span class="font-medium"
-                                >{serviceOrder.customer.name}</span
+                                >{serviceOrder.customer?.name || "-"}</span
                             >
                             <Button
                                 variant="ghost"
@@ -213,13 +226,13 @@
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">Telepon</span>
                         <span class="font-medium"
-                            >{serviceOrder.customer.phone}</span
+                            >{serviceOrder.customer?.phone || "-"}</span
                         >
                     </div>
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">Alamat</span>
                         <span class="font-medium text-right"
-                            >{serviceOrder.customer.address}</span
+                            >{serviceOrder.customer?.address || "-"}</span
                         >
                     </div>
                     <div class="flex justify-between">
@@ -241,19 +254,21 @@
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">Merk/Model</span>
                         <span class="font-medium"
-                            >{serviceOrder.phone.brand}
-                            {serviceOrder.phone.model}</span
+                            >{serviceOrder.phone?.brand || "-"}
+                            {serviceOrder.phone?.model || ""}</span
                         >
                     </div>
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">IMEI</span>
                         <span class="font-mono text-xs"
-                            >{serviceOrder.phone.imei}</span
+                            >{serviceOrder.phone?.imei || "-"}</span
                         >
                     </div>
                     <div class="flex justify-between">
                         <span class="text-muted-foreground">Tanggal Masuk</span>
-                        <span class="font-medium">{serviceOrder.dateIn}</span>
+                        <span class="font-medium"
+                            >{serviceOrder.dateIn || "-"}</span
+                        >
                     </div>
                 </CardContent>
             </Card>
@@ -266,13 +281,13 @@
             </CardHeader>
             <CardContent>
                 <div class="space-y-4">
-                    {#each serviceOrder.timeline as item, i}
+                    {#each serviceOrder.timeline || [] as item, i}
                         <div class="flex gap-4">
                             <div class="flex flex-col items-center">
                                 <div
                                     class="h-3 w-3 rounded-full bg-primary"
                                 ></div>
-                                {#if i < serviceOrder.timeline.length - 1}
+                                {#if i < (serviceOrder.timeline?.length || 0) - 1}
                                     <div class="h-full w-0.5 bg-border"></div>
                                 {/if}
                             </div>
@@ -298,7 +313,7 @@
                     <CardTitle class="text-base">Keluhan Customer</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p class="text-sm">{serviceOrder.complaint}</p>
+                    <p class="text-sm">{serviceOrder.complaint || "-"}</p>
                 </CardContent>
             </Card>
 
@@ -332,10 +347,12 @@
             <CardContent>
                 <div class="text-sm">
                     <span class="font-medium"
-                        >{serviceOrder.technician.name}</span
+                        >{serviceOrder.technician?.name ||
+                            "Belum Ditentukan"}</span
                     >
                     <span class="text-muted-foreground">
-                        (Assigned: {serviceOrder.technician.assignedAt})</span
+                        (Assigned: {serviceOrder.technician?.assignedAt ||
+                            "-"})</span
                     >
                 </div>
             </CardContent>
@@ -353,40 +370,44 @@
                 </Button>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Nama Parts</TableHead>
-                            <TableHead>Sumber</TableHead>
-                            <TableHead class="text-right">Qty</TableHead>
-                            <TableHead class="text-right">Harga</TableHead>
-                            <TableHead class="text-right">Subtotal</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {#each serviceOrder.parts as part}
+                <div class="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
                             <TableRow>
-                                <TableCell class="font-medium"
-                                    >{part.name}</TableCell
-                                >
-                                <TableCell>
-                                    <Badge variant="outline"
-                                        >{part.source}</Badge
-                                    >
-                                </TableCell>
-                                <TableCell class="text-right"
-                                    >{part.qty}</TableCell
-                                >
-                                <TableCell class="text-right"
-                                    >Rp {part.price.toLocaleString()}</TableCell
-                                >
-                                <TableCell class="text-right"
-                                    >Rp {part.subtotal.toLocaleString()}</TableCell
+                                <TableHead>Nama Parts</TableHead>
+                                <TableHead>Sumber</TableHead>
+                                <TableHead class="text-right">Qty</TableHead>
+                                <TableHead class="text-right">Harga</TableHead>
+                                <TableHead class="text-right"
+                                    >Subtotal</TableHead
                                 >
                             </TableRow>
-                        {/each}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {#each serviceOrder.parts || [] as part}
+                                <TableRow>
+                                    <TableCell class="font-medium"
+                                        >{part.name}</TableCell
+                                    >
+                                    <TableCell>
+                                        <Badge variant="outline"
+                                            >{part.source}</Badge
+                                        >
+                                    </TableCell>
+                                    <TableCell class="text-right"
+                                        >{part.qty}</TableCell
+                                    >
+                                    <TableCell class="text-right"
+                                        >Rp {part.price.toLocaleString()}</TableCell
+                                    >
+                                    <TableCell class="text-right"
+                                        >Rp {part.subtotal.toLocaleString()}</TableCell
+                                    >
+                                </TableRow>
+                            {/each}
+                        </TableBody>
+                    </Table>
+                </div>
             </CardContent>
         </Card>
 
@@ -398,31 +419,44 @@
             <CardContent class="space-y-2">
                 <div class="flex justify-between text-sm">
                     <span>Biaya Jasa</span>
-                    <span>Rp {serviceOrder.serviceFee.toLocaleString()}</span>
+                    <span
+                        >Rp {(
+                            serviceOrder.serviceFee || 0
+                        ).toLocaleString()}</span
+                    >
                 </div>
                 <div class="flex justify-between text-sm">
                     <span>Biaya Parts</span>
-                    <span>Rp {totalParts.toLocaleString()}</span>
+                    <span>Rp {(totalParts || 0).toLocaleString()}</span>
                 </div>
                 <Separator />
                 <div class="flex justify-between font-bold text-lg">
                     <span>TOTAL BIAYA</span>
-                    <span>Rp {grandTotal.toLocaleString()}</span>
+                    <span>Rp {(grandTotal || 0).toLocaleString()}</span>
                 </div>
             </CardContent>
         </Card>
 
         <!-- Actions -->
-        <div class="flex gap-2 justify-end">
-            <Button variant="outline" onclick={handleCancel}>
+        <!-- Actions -->
+        <div class="flex flex-col-reverse md:flex-row gap-2 justify-end">
+            <Button
+                variant="outline"
+                onclick={handleCancel}
+                class="w-full md:w-auto"
+            >
                 <XCircle class="mr-2 h-4 w-4" />
                 Batalkan Service
             </Button>
-            <Button variant="secondary" onclick={handleSave}>
+            <Button
+                variant="secondary"
+                onclick={handleSave}
+                class="w-full md:w-auto"
+            >
                 <Save class="mr-2 h-4 w-4" />
                 Simpan Perubahan
             </Button>
-            <Button onclick={handleComplete}>
+            <Button onclick={handleComplete} class="w-full md:w-auto">
                 <CheckCircle class="mr-2 h-4 w-4" />
                 Tandai Selesai
             </Button>
@@ -446,11 +480,11 @@
                         {serviceOrder.no}
                     </h2>
                     <p class="text-[6pt] mb-[1mm]">
-                        {serviceOrder.dateIn.split(" ")[0]}
+                        {serviceOrder.dateIn?.split(" ")[0]}
                     </p>
                     <p class="text-[7pt] font-semibold truncate leading-tight">
-                        {serviceOrder.phone.brand}
-                        {serviceOrder.phone.model}
+                        {serviceOrder.phone?.brand || ""}
+                        {serviceOrder.phone?.model || ""}
                     </p>
                 </div>
                 <div class="mt-auto">

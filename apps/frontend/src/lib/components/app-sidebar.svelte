@@ -187,10 +187,7 @@
                   {/if}
                 </button>
                 {#if expanded[item.title]}
-                  <div
-                    transition:slide={{ duration: 200 }}
-                    class="ml-4 mt-1 border-l pl-2 space-y-1"
-                  >
+                  <div class="ml-4 mt-1 border-l pl-2 space-y-1">
                     {#each item.children as child}
                       <a
                         href={child.href}

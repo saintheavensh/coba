@@ -328,20 +328,22 @@
     <Separator />
 
     <Tabs value="general" class="space-y-4">
-        <TabsList>
-            <TabsTrigger value="general" class="flex gap-2"
+        <TabsList
+            class="w-full justify-start overflow-x-auto flex-nowrap h-auto p-1"
+        >
+            <TabsTrigger value="general" class="flex gap-2 min-w-fit"
                 ><Settings class="h-4 w-4" /> Umum & Garansi</TabsTrigger
             >
-            <TabsTrigger value="store" class="flex gap-2"
+            <TabsTrigger value="store" class="flex gap-2 min-w-fit"
                 ><Store class="h-4 w-4" /> Informasi Toko</TabsTrigger
             >
-            <TabsTrigger value="employees" class="flex gap-2"
+            <TabsTrigger value="employees" class="flex gap-2 min-w-fit"
                 ><Users class="h-4 w-4" /> Karyawan</TabsTrigger
             >
-            <TabsTrigger value="account" class="flex gap-2"
+            <TabsTrigger value="account" class="flex gap-2 min-w-fit"
                 ><User class="h-4 w-4" /> Akun Saya</TabsTrigger
             >
-            <TabsTrigger value="payment" class="flex gap-2"
+            <TabsTrigger value="payment" class="flex gap-2 min-w-fit"
                 ><CreditCard class="h-4 w-4" /> Pembayaran</TabsTrigger
             >
         </TabsList>
@@ -361,7 +363,9 @@
                         <div class="space-y-4 col-span-2">
                             <Label>Opsi Pilihan Garansi</Label>
                             <div class="border rounded-md p-4 space-y-4">
-                                <div class="grid grid-cols-2 gap-2">
+                                <div
+                                    class="grid grid-cols-1 md:grid-cols-2 gap-2"
+                                >
                                     <div class="space-y-1">
                                         <Label class="text-xs"
                                             >Label (Tampilan)</Label
@@ -630,49 +634,101 @@
                     </Dialog>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nama</TableHead>
-                                <TableHead>Username</TableHead>
-                                <TableHead>Role</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead class="text-right">Aksi</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {#each employees as emp}
+                    <!-- Desktop Table View -->
+                    <div class="hidden md:block">
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell class="font-medium"
-                                        >{emp.name}</TableCell
+                                    <TableHead>Nama</TableHead>
+                                    <TableHead>Username</TableHead>
+                                    <TableHead>Role</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead class="text-right"
+                                        >Aksi</TableHead
                                     >
-                                    <TableCell>{emp.username}</TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline"
-                                            >{emp.role}</Badge
-                                        >
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            class="bg-green-100 text-green-700 hover:bg-green-100 border-none"
-                                            >{emp.status}</Badge
-                                        >
-                                    </TableCell>
-                                    <TableCell class="text-right">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            class="h-8 w-8 text-red-500"
-                                            onclick={() =>
-                                                handleDeleteEmployee(emp.id)}
-                                        >
-                                            <Trash2 class="h-4 w-4" />
-                                        </Button>
-                                    </TableCell>
                                 </TableRow>
-                            {/each}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {#each employees as emp}
+                                    <TableRow>
+                                        <TableCell class="font-medium"
+                                            >{emp.name}</TableCell
+                                        >
+                                        <TableCell>{emp.username}</TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline"
+                                                >{emp.role}</Badge
+                                            >
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                class="bg-green-100 text-green-700 hover:bg-green-100 border-none"
+                                                >{emp.status}</Badge
+                                            >
+                                        </TableCell>
+                                        <TableCell class="text-right">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                class="h-8 w-8 text-red-500"
+                                                onclick={() =>
+                                                    handleDeleteEmployee(
+                                                        emp.id,
+                                                    )}
+                                            >
+                                                <Trash2 class="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                {/each}
+                            </TableBody>
+                        </Table>
+                    </div>
+
+                    <!-- Mobile Card View -->
+                    <div class="md:hidden space-y-4">
+                        {#each employees as emp}
+                            <div
+                                class="bg-card rounded-lg border shadow-sm p-4 relative"
+                            >
+                                <div
+                                    class="flex justify-between items-start mb-2"
+                                >
+                                    <div class="space-y-1">
+                                        <div class="font-medium">
+                                            {emp.name}
+                                        </div>
+                                        <div
+                                            class="text-xs text-muted-foreground flex items-center gap-1"
+                                        >
+                                            <User class="h-3 w-3" />
+                                            {emp.username}
+                                        </div>
+                                    </div>
+                                    <Badge
+                                        class="bg-green-100 text-green-700 hover:bg-green-100 border-none text-xs"
+                                        >{emp.status}</Badge
+                                    >
+                                </div>
+                                <div
+                                    class="flex items-center justify-between pt-2 border-t mt-2"
+                                >
+                                    <Badge variant="outline" class="text-xs"
+                                        >{emp.role}</Badge
+                                    >
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        class="h-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        onclick={() =>
+                                            handleDeleteEmployee(emp.id)}
+                                    >
+                                        <Trash2 class="h-4 w-4 mr-2" /> Hapus
+                                    </Button>
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
                 </CardContent>
             </Card>
         </TabsContent>
@@ -823,7 +879,9 @@
                                         </Label>
 
                                         <!-- Add Variant Form -->
-                                        <div class="grid grid-cols-4 gap-2">
+                                        <div
+                                            class="grid grid-cols-1 md:grid-cols-4 gap-2"
+                                        >
                                             <Input
                                                 placeholder={method.type ===
                                                 "transfer"

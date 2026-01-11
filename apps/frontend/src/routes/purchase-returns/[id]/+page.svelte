@@ -56,13 +56,25 @@
         <div class="p-4 text-red-500 border rounded bg-red-50">
             Gagal memuat detail retur: {query.error?.message}
         </div>
-    {:else if r}
+    {:else if !r}
+        <div class="p-8 text-center border rounded bg-muted/20">
+            <h3 class="text-lg font-semibold">Retur Tidak Ditemukan</h3>
+            <p class="text-muted-foreground">
+                Data retur dengan ID <span class="font-mono font-bold"
+                    >{id}</span
+                > tidak ditemukan.
+            </p>
+            <Button variant="outline" class="mt-4" href="/purchase-returns">
+                Kembali ke Daftar
+            </Button>
+        </div>
+    {:else}
         <!-- Header Info -->
         <Card>
             <CardHeader>
                 <CardTitle>Informasi Retur #{r.id}</CardTitle>
             </CardHeader>
-            <CardContent class="grid grid-cols-2 gap-4">
+            <CardContent class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <div class="text-sm font-medium text-muted-foreground">
                         Tanggal
@@ -92,7 +104,7 @@
                     <div class="text-sm font-medium text-muted-foreground">
                         Dibuat Oleh
                     </div>
-                    <div>{r.user.name}</div>
+                    <div>{r.user?.name || "-"}</div>
                 </div>
             </CardContent>
         </Card>
@@ -103,7 +115,8 @@
                 <CardTitle>Item Retur</CardTitle>
             </CardHeader>
             <CardContent>
-                <div class="border rounded-md">
+                <!-- Desktop Table View -->
+                <div class="hidden md:block border rounded-md">
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="border-b bg-muted/50">
@@ -120,13 +133,16 @@
                                     class="border-b last:border-0 hover:bg-muted/50"
                                 >
                                     <td class="p-3 font-medium"
-                                        >{item.product.name}</td
+                                        >{item.product?.name ||
+                                            "Unknown Product"}</td
                                     >
                                     <td class="p-3 text-muted-foreground"
-                                        >{item.product.category?.name ||
+                                        >{item.product?.category?.name ||
                                             "-"}</td
                                     >
-                                    <td class="p-3">{item.batch.variant}</td>
+                                    <td class="p-3"
+                                        >{item.batch?.variant || "-"}</td
+                                    >
                                     <td
                                         class="p-3 text-right font-bold text-red-600"
                                         >-{item.qty}</td
@@ -138,6 +154,29 @@
                             {/each}
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Mobile Card View -->
+                <div class="md:hidden space-y-4">
+                    {#each r.items as item}
+                        <div class="bg-muted/30 rounded-lg border p-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="font-medium">
+                                    {item.product?.name || "Unknown Product"}
+                                </div>
+                                <div class="font-bold text-red-600">
+                                    -{item.qty}
+                                </div>
+                            </div>
+                            <div class="text-sm text-muted-foreground mb-2">
+                                {item.batch?.variant || "-"} • {item.product
+                                    ?.category?.name || "-"}
+                            </div>
+                            <div class="text-sm italic bg-muted p-2 rounded">
+                                " {item.reason || "-"} "
+                            </div>
+                        </div>
+                    {/each}
                 </div>
             </CardContent>
         </Card>
@@ -181,9 +220,11 @@
             <!-- Left: Supplier Info -->
             <div class="w-1/2 border-r p-1">
                 <div class="flex flex-col ml-4">
-                    <div class="font-bold text-2xl">{r.supplier.name}</div>
-                    <div class="text-sm">{r.supplier.address || "-"}</div>
-                    <div class="text-sm">{r.supplier.phone || "-"}</div>
+                    <div class="font-bold text-2xl">
+                        {r.supplier?.name || "Unknown Supplier"}
+                    </div>
+                    <div class="text-sm">{r.supplier?.address || "-"}</div>
+                    <div class="text-sm">{r.supplier?.phone || "-"}</div>
                 </div>
             </div>
             <!-- Right: Meta Info -->
@@ -242,14 +283,16 @@
                                 >{i + 1}</td
                             >
                             <td class="p-2 border-r border-slate-200">
-                                <div class="font-bold">{item.product.name}</div>
+                                <div class="font-bold">
+                                    {item.product?.name || "Unknown"}
+                                </div>
                                 <div class="text-xs text-slate-500">
-                                    {item.product.code || ""} - {item.batch
-                                        .variant}
+                                    {item.product?.code || ""} - {item.batch
+                                        ?.variant || "-"}
                                 </div>
                             </td>
                             <td class="p-2 border-r border-slate-200"
-                                >{item.product.category?.name || "-"}</td
+                                >{item.product?.category?.name || "-"}</td
                             >
                             <td
                                 class="p-2 border-r border-slate-200 text-slate-600 italic"
@@ -281,7 +324,6 @@
         </div>
     </div>
 {/if}
-```
 
 <style>
     @media print {

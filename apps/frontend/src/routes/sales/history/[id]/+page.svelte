@@ -80,37 +80,82 @@
                     </p>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Produk</TableHead>
-                                <TableHead>Varian</TableHead>
-                                <TableHead class="text-right">Qty</TableHead>
-                                <TableHead class="text-right">Harga</TableHead>
-                                <TableHead class="text-right">Total</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {#each sale.items as item}
-                                <TableRow>
-                                    <TableCell class="font-medium">
-                                        {item.product?.name ||
-                                            "Unknown Product"}
-                                    </TableCell>
-                                    <TableCell>{item.variant}</TableCell>
-                                    <TableCell class="text-right"
-                                        >{item.qty}</TableCell
-                                    >
-                                    <TableCell class="text-right"
-                                        >{formatCurrency(item.price)}</TableCell
-                                    >
-                                    <TableCell class="text-right font-bold">
+                    <!-- Mobile Items List -->
+                    <div class="grid gap-4 md:hidden">
+                        {#each sale.items as item}
+                            <div
+                                class="rounded-lg border p-4 space-y-2 bg-card text-card-foreground shadow-sm"
+                            >
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <div class="font-medium">
+                                            {item.product?.name ||
+                                                "Unknown Product"}
+                                        </div>
+                                        <div
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            {item.variant}
+                                        </div>
+                                    </div>
+                                    <div class="font-bold">
                                         {formatCurrency(item.subtotal)}
-                                    </TableCell>
+                                    </div>
+                                </div>
+                                <div
+                                    class="flex justify-between text-sm text-muted-foreground"
+                                >
+                                    <span
+                                        >{item.qty} x {formatCurrency(
+                                            item.price,
+                                        )}</span
+                                    >
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+
+                    <!-- Desktop Items Table -->
+                    <div class="hidden md:block">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Produk</TableHead>
+                                    <TableHead>Varian</TableHead>
+                                    <TableHead class="text-right">Qty</TableHead
+                                    >
+                                    <TableHead class="text-right"
+                                        >Harga</TableHead
+                                    >
+                                    <TableHead class="text-right"
+                                        >Total</TableHead
+                                    >
                                 </TableRow>
-                            {/each}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {#each sale.items as item}
+                                    <TableRow>
+                                        <TableCell class="font-medium">
+                                            {item.product?.name ||
+                                                "Unknown Product"}
+                                        </TableCell>
+                                        <TableCell>{item.variant}</TableCell>
+                                        <TableCell class="text-right"
+                                            >{item.qty}</TableCell
+                                        >
+                                        <TableCell class="text-right"
+                                            >{formatCurrency(
+                                                item.price,
+                                            )}</TableCell
+                                        >
+                                        <TableCell class="text-right font-bold">
+                                            {formatCurrency(item.subtotal)}
+                                        </TableCell>
+                                    </TableRow>
+                                {/each}
+                            </TableBody>
+                        </Table>
+                    </div>
 
                     <Separator class="my-4" />
 
