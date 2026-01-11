@@ -15,7 +15,29 @@ export class ServiceService {
     }
 
     async getById(id: number) {
-        return await this.repo.findById(id);
+        const srv = await this.repo.findById(id);
+        if (!srv) return null;
+
+        // Fetch Timeline from Activity Logs
+        const logs = await db.select().from(activityLogs)
+            .where(eq(activityLogs.entityId, srv.no))
+            .orderBy(desc(activityLogs.createdAt));
+
+        const timeline = logs.map(log => ({
+            event: log.action === 'CREATE' ? 'Service Created' :
+                log.action === 'STATUS_CHANGE' ? `Status: ${JSON.parse(log.newValue as string).status}` :
+                    log.description,
+            by: "System", // Join with users to get name if possible, or just System for now
+            time: log.createdAt?.toLocaleString() || "-"
+        }));
+
+        // Flatten device for frontend compatibility if needed, or valid mapping
+        return {
+            ...srv,
+            timeline,
+            // Ensure photos are accessible at top level for frontend convenience
+            photos: (srv.device as any).photos || []
+        };
     }
 
     async createService(data: any, userId?: string) {
@@ -36,12 +58,14 @@ export class ServiceService {
             await tx.insert(services).values({
                 no,
                 customer: data.customer,
-                device: data.unit,
+                // Save photos inside device JSON to avoid schema migration
+                device: { ...data.unit, photos: data.photos },
                 complaint: data.complaint,
                 diagnosis: JSON.stringify(data.diagnosis || {}),
                 technicianId: data.technicianId || null,
                 status: "antrian" as any,
-                createdBy: userId || null
+                createdBy: userId || null,
+                dateIn: new Date() // Fix for 1970 issue (SQLite default string mismatch)
             });
 
             // Log
@@ -84,5 +108,21 @@ export class ServiceService {
         });
 
         return { message: "Status updated" };
+    }
+
+    async delete(id: number) {
+        // Optional: Check if can delete (e.g. only if not finished?)
+        // For now allow delete all, maybe restricted by role in controller
+        const srv = await this.repo.findById(id);
+        if (!srv) throw new Error("Service not found");
+
+        await db.transaction(async (tx) => {
+            // Delete logs first (foreign key?) - technically cascade might not be set in SQLite schema definition in strict way, 
+            // but let's be safe or just delete service
+            await tx.delete(activityLogs).where(eq(activityLogs.entityId, srv.no)); // simple cleanup
+            await tx.delete(services).where(eq(services.id, id));
+        });
+
+        return { message: "Service deleted" };
     }
 }

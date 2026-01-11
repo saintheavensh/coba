@@ -56,5 +56,37 @@ app.put("/:id/status", zValidator("json", updateStatusSchema), async (c) => {
     }
 });
 
+app.delete("/:id", async (c) => {
+    const id = parseInt(c.req.param("id"));
+    try {
+        await service.delete(id);
+        return apiSuccess(c, null, "Service deleted successfully");
+    } catch (e) {
+        return apiError(c, e, "Failed to delete service", 500);
+    }
+});
+
+import { PrintService } from "../../services/print.service";
+const printer = new PrintService();
+
+app.post("/:id/print", async (c) => {
+    const id = parseInt(c.req.param("id"));
+    if (isNaN(id)) return apiError(c, "Invalid ID", "Validation error", 400);
+
+    try {
+        const item = await service.getById(id);
+        if (!item) return apiError(c, "Service not found", "Not found", 404);
+
+        const result = await printer.printServiceNote(item);
+        if (!result.success) {
+            return apiError(c, result.error, "Print failed", 500);
+        }
+
+        return apiSuccess(c, null, "Print command sent to server printer");
+    } catch (e) {
+        return apiError(c, String(e), "Print failed", 500);
+    }
+});
+
 export default app;
 

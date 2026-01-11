@@ -41,5 +41,8 @@ export const ServiceService = {
     updateStatus: async (id: number | string, data: UpdateStatusInput): Promise<Service> => {
         const res = await api.put<ApiResponse<Service>>(`/service/${id}/status`, data);
         return res.data.data!;
+    },
+    print: async (id: number | string): Promise<void> => {
+        await api.post(`/service/${id}/print`);
     }
 };

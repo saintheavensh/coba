@@ -29,11 +29,14 @@
         Repeat,
         Printer,
         MessageCircle,
+        Trash2,
     } from "lucide-svelte";
     import PatternLock from "$lib/components/ui/pattern-lock.svelte";
 
     import { onMount } from "svelte";
     import { ServiceService } from "$lib/services/service.service";
+    import { api } from "$lib/api";
+    import { generateBarcodeSvg } from "$lib/utils";
 
     const serviceId = parseInt($page.params.id ?? "0");
     let serviceOrder = $state<any>(null);
@@ -43,6 +46,8 @@
         loading = true;
         try {
             serviceOrder = await ServiceService.getById(serviceId);
+            // Map 'device' to 'phone' for UI compatibility
+            if (serviceOrder.device) serviceOrder.phone = serviceOrder.device;
             if (!serviceOrder.parts) serviceOrder.parts = [];
             if (!serviceOrder.timeline) serviceOrder.timeline = [];
         } catch (e) {
@@ -139,12 +144,18 @@
     }
 
     let showPrintLabel = $state(false);
-    function handlePrintLabel() {
-        showPrintLabel = true;
-        setTimeout(() => {
-            window.print();
-            showPrintLabel = false;
-        }, 500);
+    async function handlePrintLabel() {
+        try {
+            await ServiceService.print(serviceId);
+            toast.success("Perintah cetak dikirim ke server");
+        } catch (e: any) {
+            console.error(e);
+            const errMsg =
+                e.response?.data?.errors?.[0] ||
+                e.response?.data?.message ||
+                e.message;
+            toast.error("Gagal mencetak: " + errMsg);
+        }
     }
 </script>
 
@@ -274,6 +285,41 @@
             </Card>
         </div>
 
+        <!-- Photos -->
+        {#if serviceOrder.photos && serviceOrder.photos.length > 0}
+            <Card>
+                <CardHeader>
+                    <CardTitle class="text-base"
+                        >📸 Foto Kondisi Fisik</CardTitle
+                    >
+                </CardHeader>
+                <CardContent>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {#each serviceOrder.photos as photo, i}
+                            <button
+                                class="aspect-square rounded-md overflow-hidden border p-0 w-full hover:ring-2 hover:ring-primary focus:ring-2 focus:ring-primary focus:outline-none transition-all"
+                                onclick={() => {
+                                    const url = photo.startsWith("http")
+                                        ? photo
+                                        : photo;
+                                    window.open(url, "_blank");
+                                }}
+                                title="Lihat foto penuh"
+                            >
+                                <img
+                                    src={photo.startsWith("http")
+                                        ? photo
+                                        : photo}
+                                    alt={`Bukti kondisi fisik ${i + 1}`}
+                                    class="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+                                />
+                            </button>
+                        {/each}
+                    </div>
+                </CardContent>
+            </Card>
+        {/if}
+
         <!-- Timeline -->
         <Card>
             <CardHeader>
@@ -322,9 +368,49 @@
                     <CardTitle class="text-base">Diagnosa Teknisi</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p class="text-sm">
-                        {serviceOrder.diagnosis || "Belum ada diagnosa"}
-                    </p>
+                    {#if serviceOrder.diagnosis}
+                        {#if typeof serviceOrder.diagnosis === "string" && serviceOrder.diagnosis.startsWith("{")}
+                            {@const diag = JSON.parse(serviceOrder.diagnosis)}
+                            <div class="space-y-4 text-sm">
+                                {#if diag.initial}
+                                    <div>
+                                        <h4
+                                            class="font-medium text-xs text-muted-foreground uppercase mb-1"
+                                        >
+                                            Diagnosa Awal
+                                        </h4>
+                                        <p>{diag.initial}</p>
+                                    </div>
+                                {/if}
+                                {#if diag.possibleCauses}
+                                    <div>
+                                        <h4
+                                            class="font-medium text-xs text-muted-foreground uppercase mb-1"
+                                        >
+                                            Kemungkinan Kerusakan
+                                        </h4>
+                                        <p>{diag.possibleCauses}</p>
+                                    </div>
+                                {/if}
+                                {#if diag.estimatedCost}
+                                    <div>
+                                        <h4
+                                            class="font-medium text-xs text-muted-foreground uppercase mb-1"
+                                        >
+                                            Estimasi Biaya
+                                        </h4>
+                                        <p>{diag.estimatedCost}</p>
+                                    </div>
+                                {/if}
+                            </div>
+                        {:else}
+                            <p class="text-sm">{serviceOrder.diagnosis}</p>
+                        {/if}
+                    {:else}
+                        <p class="text-sm text-muted-foreground italic">
+                            Belum ada diagnosa
+                        </p>
+                    {/if}
                 </CardContent>
             </Card>
         </div>
@@ -439,116 +525,60 @@
 
         <!-- Actions -->
         <!-- Actions -->
-        <div class="flex flex-col-reverse md:flex-row gap-2 justify-end">
-            <Button
-                variant="outline"
-                onclick={handleCancel}
-                class="w-full md:w-auto"
+        <!-- Actions -->
+        {@const isReadOnly =
+            serviceOrder.status === "selesai" ||
+            serviceOrder.status === "batal" ||
+            serviceOrder.status === "diambil"}
+        {#if !isReadOnly}
+            <div class="flex flex-col-reverse md:flex-row gap-2 justify-end">
+                <Button
+                    variant="outline"
+                    onclick={handleCancel}
+                    class="w-full md:w-auto text-red-600 hover:text-red-700"
+                >
+                    <XCircle class="mr-2 h-4 w-4" />
+                    Batalkan Service
+                </Button>
+                <Button
+                    variant="secondary"
+                    onclick={handleSave}
+                    class="w-full md:w-auto"
+                >
+                    <Save class="mr-2 h-4 w-4" />
+                    Simpan Perubahan
+                </Button>
+                <Button onclick={handleComplete} class="w-full md:w-auto">
+                    <CheckCircle class="mr-2 h-4 w-4" />
+                    Tandai Selesai
+                </Button>
+            </div>
+        {:else}
+            <div
+                class="flex justify-center p-4 bg-muted/50 rounded-lg text-muted-foreground text-sm italic"
             >
-                <XCircle class="mr-2 h-4 w-4" />
-                Batalkan Service
-            </Button>
-            <Button
-                variant="secondary"
-                onclick={handleSave}
-                class="w-full md:w-auto"
-            >
-                <Save class="mr-2 h-4 w-4" />
-                Simpan Perubahan
-            </Button>
-            <Button onclick={handleComplete} class="w-full md:w-auto">
-                <CheckCircle class="mr-2 h-4 w-4" />
-                Tandai Selesai
-            </Button>
-        </div>
+                Service status {serviceOrder.status} - Data terkunci.
+            </div>
+            <!-- Add Delete Here if needed, or keep in List only. Let's add it for consistency if user wants to delete closed ones too. -->
+            <div class="flex justify-end mt-2">
+                <Button
+                    variant="outline"
+                    class="text-red-500 border-red-200 hover:bg-red-50"
+                    onclick={async () => {
+                        if (!confirm("Hapus permanen history service ini?"))
+                            return;
+                        try {
+                            await api.delete(`/service/${serviceId}`);
+                            toast.success("Service dihapus");
+                            goto("/service");
+                        } catch (e) {
+                            toast.error("Gagal hapus");
+                        }
+                    }}
+                >
+                    <Trash2 class="mr-2 h-4 w-4" /> Hapus Data
+                </Button>
+            </div>
+        {/if}
     {/if}
 </div>
-
-<!-- Printable Label (Sticker Layout: 6.5cm x 3.2cm) -->
-{#if showPrintLabel}
-    <div
-        class="fixed inset-0 bg-white z-[9999] print-area flex items-center justify-center"
-    >
-        <!-- Container simulating the label size for screen preview -->
-        <div
-            class="w-[65mm] h-[32mm] border border-gray-200 p-[2mm] flex gap-[2mm] overflow-hidden bg-white text-black relative"
-        >
-            <!-- Left Info -->
-            <div class="flex-1 flex flex-col justify-between overflow-hidden">
-                <div>
-                    <h2 class="font-bold text-[10pt] leading-none mb-[1mm]">
-                        {serviceOrder.no}
-                    </h2>
-                    <p class="text-[6pt] mb-[1mm]">
-                        {serviceOrder.dateIn?.split(" ")[0]}
-                    </p>
-                    <p class="text-[7pt] font-semibold truncate leading-tight">
-                        {serviceOrder.phone?.brand || ""}
-                        {serviceOrder.phone?.model || ""}
-                    </p>
-                </div>
-                <div class="mt-auto">
-                    <p class="text-[5pt] leading-tight text-gray-600">
-                        Keluhan:
-                    </p>
-                    <p class="text-[6pt] leading-tight line-clamp-2">
-                        {serviceOrder.complaint}
-                    </p>
-                </div>
-            </div>
-
-            <!-- Right: Pattern -->
-            <div
-                class="w-[20mm] flex flex-col items-center justify-center border-l border-black pl-[1mm]"
-            >
-                <p class="text-[5pt] mb-[1mm] text-center">Pola / PIN</p>
-                <div
-                    class="w-[15mm] h-[15mm] border border-black border-dashed flex items-center justify-center relative"
-                >
-                    <!-- 3x3 Grid Dots Visual -->
-                    <div class="grid grid-cols-3 gap-[3mm]">
-                        {#each Array(9) as _, i}
-                            <div
-                                class="w-[1mm] h-[1mm] bg-black rounded-full"
-                            ></div>
-                        {/each}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-{/if}
-
-<style>
-    @media print {
-        /* Hide everything by default - using :global for body */
-        :global(body) * {
-            visibility: hidden;
-        }
-
-        /* Show only the print area and its children */
-        .print-area,
-        .print-area * {
-            visibility: visible;
-        }
-
-        /* Position the print area to fill the page */
-        .print-area {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 65mm !important;
-            height: 32mm !important;
-            margin: 0;
-            padding: 0;
-            background: white;
-            z-index: 9999;
-            /* Flex layout from inline style will persist */
-        }
-
-        @page {
-            size: 65mm 32mm;
-            margin: 0;
-        }
-    }
-</style>

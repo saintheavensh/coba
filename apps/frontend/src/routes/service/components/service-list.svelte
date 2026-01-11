@@ -40,9 +40,31 @@
 
     import { ServiceService } from "$lib/services/service.service";
     import ReassignTechnicianModal from "./reassign-technician-modal.svelte";
+    import BarcodeScannerModal from "./barcode-scanner-modal.svelte";
+    import { Trash2, ScanBarcode } from "lucide-svelte";
+    import { toast } from "svelte-sonner";
 
     let showReassignModal = $state(false);
+    let showScanner = $state(false);
     let selectedServiceForReassign = $state<any>(null);
+    let searchInput = $state<HTMLInputElement | null>(null);
+
+    async function handleDelete(id: number) {
+        if (
+            !confirm(
+                "Apakah anda yakin ingin menghapus data service ini? Data tidak dapat dikembalikan.",
+            )
+        )
+            return;
+        try {
+            await api.delete(`/service/${id}`);
+            toast.success("Data service berhasil dihapus");
+            loadData();
+        } catch (e) {
+            console.error(e);
+            toast.error("Gagal menghapus data service");
+        }
+    }
 
     function handleReassignConfirm() {
         showReassignModal = false;
@@ -85,9 +107,17 @@
         loadData();
     });
 
-    // Reactive: Reload when filters change
+    import { refreshServiceList } from "$lib/stores/events";
+
+    // Reactive: Reload when filters change or refresh triggered
     $effect(() => {
         if (filterStatus) loadData();
+    });
+
+    $effect(() => {
+        // Subscribe to refresh trigger
+        const _ = $refreshServiceList; // Dependency
+        loadData();
     });
 
     // Client-side Search Filter
@@ -183,15 +213,38 @@
     <CardContent class="space-y-4">
         <!-- Filters -->
         <div class="flex flex-col sm:flex-row gap-4">
-            <div class="relative flex-1">
-                <Search
-                    class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
-                />
-                <Input
-                    bind:value={searchQuery}
-                    placeholder="Cari customer, nota, IMEI..."
-                    class="pl-8"
-                />
+            <div class="relative flex-1 md:max-w-sm flex gap-2">
+                <div class="relative flex-1">
+                    <Search
+                        class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
+                    />
+                    <Input
+                        type="search"
+                        placeholder="Cari Service No, Customer, Device..."
+                        class="pl-8"
+                        bind:ref={searchInput}
+                        bind:value={searchQuery}
+                        onkeydown={(e) => {
+                            if (e.key === "Enter") {
+                                if (filteredOrders.length === 1) {
+                                    viewServiceDetail(filteredOrders[0].id);
+                                    searchQuery = "";
+                                }
+                            }
+                        }}
+                    />
+                </div>
+                <Button
+                    variant="outline"
+                    size="icon"
+                    title="Mode Scan Barcode"
+                    class="md:hidden"
+                    onclick={() => {
+                        showScanner = true;
+                    }}
+                >
+                    <ScanBarcode class="h-4 w-4" />
+                </Button>
             </div>
             <Select type="single" name="status" bind:value={filterStatus}>
                 <SelectTrigger class="w-full sm:w-[180px]">
@@ -413,6 +466,15 @@
                                     <Button
                                         variant="ghost"
                                         size="icon"
+                                        class="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                        onclick={() => handleDelete(order.id)}
+                                        title="Hapus"
+                                    >
+                                        <Trash2 class="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
                                         class="h-8 w-8"
                                         onclick={() =>
                                             viewServiceDetail(order.id)}
@@ -438,3 +500,24 @@
         onConfirm={handleReassignConfirm}
     />
 {/if}
+
+<BarcodeScannerModal
+    open={showScanner}
+    onClose={() => (showScanner = false)}
+    onScan={(code) => {
+        searchQuery = code;
+        showScanner = false;
+        // Optional: Auto-trigger search/open logic similar to Enter key
+        // Need to wait for reactivity if using filteredOrders
+        setTimeout(() => {
+            if (filteredOrders.length === 1) {
+                viewServiceDetail(filteredOrders[0].id);
+                // searchQuery = '';
+            }
+        }, 100);
+    }}
+/>
+
+<style>
+    /* ... */
+</style>

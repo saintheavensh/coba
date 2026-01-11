@@ -96,7 +96,8 @@ export const createServiceSchema = z.object({
         productId: z.string().or(z.number()), // might be ID or name?
         qty: z.number(),
         price: z.number()
-    })).optional()
+    })).optional(),
+    photos: z.array(z.string()).optional()
 });
 
 export type CreateServiceRequest = z.infer<typeof createServiceSchema>;

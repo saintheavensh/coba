@@ -152,8 +152,9 @@
                             <td class="p-3">
                                 <Checkbox
                                     checked={selectedIds.includes(item.id)}
-                                    onCheckedChange={(c) =>
-                                        toggleSelect(item.id, c as boolean)}
+                                    onCheckedChange={(
+                                        c: boolean | "indeterminate",
+                                    ) => toggleSelect(item.id, c as boolean)}
                                 />
                             </td>
                             <td class="p-3">
@@ -247,8 +248,9 @@
                             </div>
                             <Checkbox
                                 checked={selectedIds.includes(item.id)}
-                                onCheckedChange={(c) =>
-                                    toggleSelect(item.id, c as boolean)}
+                                onCheckedChange={(
+                                    c: boolean | "indeterminate",
+                                ) => toggleSelect(item.id, c as boolean)}
                                 class="mt-1"
                             />
                         </div>
