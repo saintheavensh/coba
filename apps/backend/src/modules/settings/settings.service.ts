@@ -2,6 +2,10 @@ import { db } from "../../db";
 import { settings } from "../../db/schema";
 import { eq } from "drizzle-orm";
 
+// ============================================
+// PAYMENT METHODS (Existing)
+// ============================================
+
 export interface PaymentVariant {
     id: string;
     name: string;
@@ -15,14 +19,13 @@ export interface PaymentMethod {
     type: "cash" | "transfer" | "qris" | "ewallet" | "custom";
     icon: string;
     enabled: boolean;
-    variants?: PaymentVariant[]; // Bank accounts for transfer, QRIS providers, e-wallets, etc.
+    variants?: PaymentVariant[];
 }
 
 export interface PaymentMethodConfig {
     methods: PaymentMethod[];
 }
 
-// Available icons for payment methods
 export const PAYMENT_ICONS = [
     { id: "cash", label: "Tunai", icon: "💵" },
     { id: "bank", label: "Bank", icon: "🏦" },
@@ -34,6 +37,91 @@ export const PAYMENT_ICONS = [
     { id: "credit", label: "Kredit", icon: "🔖" },
 ];
 
+// ============================================
+// STORE INFO
+// ============================================
+
+export interface StoreInfo {
+    name: string;
+    address: string;
+    phone: string;
+    email?: string;
+    logo?: string;
+    socialMedia?: string;
+}
+
+// ============================================
+// RECEIPT SETTINGS
+// ============================================
+
+export interface ReceiptSettings {
+    // Header
+    showLogo: boolean;
+    headerText: string;
+    // Footer
+    footerText: string;
+    termsConditions: string;
+    // Display toggles
+    showCustomerPhone: boolean;
+    showCustomerAddress: boolean;
+    showImei: boolean;
+    showSparepartDetails: boolean; // OFF = show total only
+    showTechnicianName: boolean;
+    showWarrantyInfo: boolean;
+    // Printer settings
+    printerType: "thermal" | "inkjet" | "dotmatrix";
+    paperSize: string; // "58mm" | "80mm" | "A4" | "A5"
+    printCopies: number;
+}
+
+// ============================================
+// SERVICE SETTINGS
+// ============================================
+
+export interface WarrantyPreset {
+    label: string;
+    days: number;
+}
+
+export interface ServiceSettings {
+    // Numbering
+    numberFormat: string; // e.g., "SRV-{YYYY}-{XXX}"
+    resetCounterYearly: boolean;
+    // Workflow
+    defaultStatus: "antrian" | "proses";
+    autoNotifyOnStatusChange: boolean;
+    // Warranty
+    warrantyPresets: WarrantyPreset[];
+    defaultWarrantyDays: number;
+    gracePeriodDays: number;
+    // Automation
+    autoCloseAfterDays: number;
+    reminderBeforePickup: boolean;
+    reminderDays: number;
+}
+
+// ============================================
+// WHATSAPP SETTINGS
+// ============================================
+
+export interface WhatsAppSettings {
+    enabled: boolean;
+    phoneNumber: string;
+    // Templates
+    newServiceTemplate: string;
+    statusUpdateTemplate: string;
+    readyForPickupTemplate: string;
+    warrantyReminderTemplate: string;
+    // Auto-send toggles
+    autoSendOnNewService: boolean;
+    autoSendOnStatusChange: boolean;
+    autoSendOnComplete: boolean;
+}
+
+// ============================================
+// DEFAULT VALUES
+// ============================================
+
 const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig = {
     methods: [
         { id: "cash", name: "Tunai", type: "cash", icon: "💵", enabled: true },
@@ -42,7 +130,68 @@ const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig = {
     ]
 };
 
+const DEFAULT_STORE_INFO: StoreInfo = {
+    name: "Toko Service HP",
+    address: "",
+    phone: "",
+    email: "",
+    logo: "",
+    socialMedia: "",
+};
+
+const DEFAULT_RECEIPT_SETTINGS: ReceiptSettings = {
+    showLogo: true,
+    headerText: "",
+    footerText: "Terima kasih atas kepercayaan Anda",
+    termsConditions: "Barang yang sudah diambil tidak dapat diklaim kembali",
+    showCustomerPhone: true,
+    showCustomerAddress: false,
+    showImei: false,
+    showSparepartDetails: false, // Default: show total only
+    showTechnicianName: true,
+    showWarrantyInfo: true,
+    printerType: "thermal",
+    paperSize: "58mm",
+    printCopies: 1,
+};
+
+const DEFAULT_SERVICE_SETTINGS: ServiceSettings = {
+    numberFormat: "SRV-{YYYY}-{XXX}",
+    resetCounterYearly: true,
+    defaultStatus: "antrian",
+    autoNotifyOnStatusChange: false,
+    warrantyPresets: [
+        { label: "Tanpa Garansi", days: 0 },
+        { label: "1 Minggu", days: 7 },
+        { label: "2 Minggu", days: 14 },
+        { label: "1 Bulan", days: 30 },
+        { label: "3 Bulan", days: 90 },
+    ],
+    defaultWarrantyDays: 7,
+    gracePeriodDays: 3,
+    autoCloseAfterDays: 30,
+    reminderBeforePickup: true,
+    reminderDays: 7,
+};
+
+const DEFAULT_WHATSAPP_SETTINGS: WhatsAppSettings = {
+    enabled: false,
+    phoneNumber: "",
+    newServiceTemplate: "Halo {customer}, terima kasih telah mempercayakan service HP Anda kepada kami. Nomor service: {serviceNo}. Kami akan menghubungi Anda setelah ada perkembangan.",
+    statusUpdateTemplate: "Halo {customer}, status service {serviceNo} Anda telah diupdate menjadi: {status}.",
+    readyForPickupTemplate: "Halo {customer}, HP Anda sudah selesai dan siap diambil. Nomor service: {serviceNo}. Total biaya: Rp {total}. Terima kasih!",
+    warrantyReminderTemplate: "Halo {customer}, garansi service {serviceNo} Anda akan berakhir dalam {days} hari. Jika ada kendala, segera hubungi kami.",
+    autoSendOnNewService: false,
+    autoSendOnStatusChange: false,
+    autoSendOnComplete: false,
+};
+
+// ============================================
+// SETTINGS SERVICE
+// ============================================
+
 export class SettingsService {
+    // Generic methods
     async get<T>(key: string, defaultValue: T): Promise<T> {
         const result = await db.query.settings.findFirst({
             where: eq(settings.key, key)
@@ -68,11 +217,64 @@ export class SettingsService {
         }
     }
 
+    // Get all settings at once
+    async getAll(): Promise<{
+        storeInfo: StoreInfo;
+        receiptSettings: ReceiptSettings;
+        serviceSettings: ServiceSettings;
+        whatsappSettings: WhatsAppSettings;
+    }> {
+        const [storeInfo, receiptSettings, serviceSettings, whatsappSettings] = await Promise.all([
+            this.getStoreInfo(),
+            this.getReceiptSettings(),
+            this.getServiceSettings(),
+            this.getWhatsAppSettings(),
+        ]);
+        return { storeInfo, receiptSettings, serviceSettings, whatsappSettings };
+    }
+
+    // Payment methods
     async getPaymentMethods(): Promise<PaymentMethodConfig> {
         return this.get("payment_methods", DEFAULT_PAYMENT_METHODS);
     }
 
     async setPaymentMethods(config: PaymentMethodConfig): Promise<void> {
         await this.set("payment_methods", config);
+    }
+
+    // Store info
+    async getStoreInfo(): Promise<StoreInfo> {
+        return this.get("store_info", DEFAULT_STORE_INFO);
+    }
+
+    async setStoreInfo(info: StoreInfo): Promise<void> {
+        await this.set("store_info", info);
+    }
+
+    // Receipt settings
+    async getReceiptSettings(): Promise<ReceiptSettings> {
+        return this.get("receipt_settings", DEFAULT_RECEIPT_SETTINGS);
+    }
+
+    async setReceiptSettings(settings: ReceiptSettings): Promise<void> {
+        await this.set("receipt_settings", settings);
+    }
+
+    // Service settings
+    async getServiceSettings(): Promise<ServiceSettings> {
+        return this.get("service_settings", DEFAULT_SERVICE_SETTINGS);
+    }
+
+    async setServiceSettings(settings: ServiceSettings): Promise<void> {
+        await this.set("service_settings", settings);
+    }
+
+    // WhatsApp settings
+    async getWhatsAppSettings(): Promise<WhatsAppSettings> {
+        return this.get("whatsapp_settings", DEFAULT_WHATSAPP_SETTINGS);
+    }
+
+    async setWhatsAppSettings(settings: WhatsAppSettings): Promise<void> {
+        await this.set("whatsapp_settings", settings);
     }
 }

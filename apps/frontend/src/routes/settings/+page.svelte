@@ -17,7 +17,7 @@
         TabsTrigger,
     } from "$lib/components/ui/tabs";
     import { Separator } from "$lib/components/ui/separator";
-    import { toast } from "svelte-sonner"; // Update import according to svelte-sonner usage
+    import { toast } from "svelte-sonner";
     import {
         Store,
         User,
@@ -27,10 +27,14 @@
         Trash2,
         Settings,
         Receipt,
-        ScrollText,
-        MinusCircle,
+        Wrench,
+        MessageCircle,
         CreditCard,
-        Banknote,
+        Save,
+        Loader2,
+        MinusCircle,
+        Printer,
+        RefreshCw,
     } from "lucide-svelte";
     import {
         Table,
@@ -47,7 +51,6 @@
         DialogFooter,
         DialogHeader,
         DialogTitle,
-        DialogTrigger,
     } from "$lib/components/ui/dialog";
     import {
         Select,
@@ -62,87 +65,333 @@
     import {
         SettingsService,
         PaymentMethodsService,
+        type StoreInfo,
+        type ReceiptSettings,
+        type ServiceSettings,
+        type WhatsAppSettings,
         type PaymentMethod,
-        type PaymentVariant,
+        type WarrantyPreset,
         PAYMENT_ICONS,
         PAYMENT_TYPES,
+        PRINTER_TYPES,
+        PAPER_SIZES,
     } from "$lib/services/settings.service";
+    import {
+        createQuery,
+        createMutation,
+        useQueryClient,
+    } from "@tanstack/svelte-query";
+    import { api } from "$lib/api";
 
-    // Store
-    import { settings, activityLogs } from "$lib/stores/settings";
+    const queryClient = useQueryClient();
 
-    // Payment Methods State
+    // ============================================
+    // STATE
+    // ============================================
+
+    let activeTab = $state("store");
+    let saving = $state(false);
+
+    // Store Info
+    let storeInfo = $state<StoreInfo>({
+        name: "",
+        address: "",
+        phone: "",
+        email: "",
+        logo: "",
+        socialMedia: "",
+    });
+
+    // Receipt Settings
+    let receiptSettings = $state<ReceiptSettings>({
+        showLogo: true,
+        headerText: "",
+        footerText: "",
+        termsConditions: "",
+        showCustomerPhone: true,
+        showCustomerAddress: false,
+        showImei: false,
+        showSparepartDetails: false,
+        showTechnicianName: true,
+        showWarrantyInfo: true,
+        printerType: "thermal",
+        paperSize: "58mm",
+        printCopies: 1,
+    });
+
+    // Service Settings
+    let serviceSettings = $state<ServiceSettings>({
+        numberFormat: "SRV-{YYYY}-{XXX}",
+        resetCounterYearly: true,
+        defaultStatus: "antrian",
+        autoNotifyOnStatusChange: false,
+        warrantyPresets: [],
+        defaultWarrantyDays: 7,
+        gracePeriodDays: 3,
+        autoCloseAfterDays: 30,
+        reminderBeforePickup: true,
+        reminderDays: 7,
+    });
+
+    // WhatsApp Settings
+    let whatsappSettings = $state<WhatsAppSettings>({
+        enabled: false,
+        phoneNumber: "",
+        newServiceTemplate: "",
+        statusUpdateTemplate: "",
+        readyForPickupTemplate: "",
+        warrantyReminderTemplate: "",
+        autoSendOnNewService: false,
+        autoSendOnStatusChange: false,
+        autoSendOnComplete: false,
+    });
+
+    // New warranty preset form
+    let newPresetLabel = $state("");
+    let newPresetDays = $state(0);
+
+    // Payment Methods
     let paymentMethods = $state<PaymentMethod[]>([]);
-    let loadingPayment = $state(false);
-    let savingPayment = $state(false);
+    let showAddMethod = $state(false);
+    let newMethod = $state({
+        name: "",
+        icon: "💳",
+        type: "custom" as const,
+    });
     let newVariantByMethod = $state<
         Record<
             string,
             { name: string; accountNumber: string; accountHolder: string }
         >
     >({});
-    let newMethod = $state({
-        name: "",
-        icon: "💳",
-        type: "custom" as "cash" | "transfer" | "qris" | "ewallet" | "custom",
-    });
-    let showAddMethod = $state(false);
 
-    async function loadPaymentMethods() {
-        loadingPayment = true;
+    // ============================================
+    // DATA LOADING
+    // ============================================
+
+    const settingsQuery = createQuery(() => ({
+        queryKey: ["settings", "all"],
+        queryFn: async () => {
+            const all = await SettingsService.getAll();
+            return all;
+        },
+    }));
+
+    const paymentMethodsQuery = createQuery(() => ({
+        queryKey: ["payment-methods"],
+        queryFn: () => PaymentMethodsService.getAll(),
+    }));
+
+    const usersQuery = createQuery(() => ({
+        queryKey: ["users"],
+        queryFn: async () => {
+            const res = await api.get("/auth/users");
+            return res.data.data || [];
+        },
+    }));
+
+    // Sync query data to local state (only when query data changes)
+    let initialDataLoaded = $state(false);
+
+    $effect(() => {
+        const data = settingsQuery.data;
+        if (data && !initialDataLoaded) {
+            initialDataLoaded = true;
+            storeInfo = {
+                name: data.storeInfo?.name || "",
+                address: data.storeInfo?.address || "",
+                phone: data.storeInfo?.phone || "",
+                email: data.storeInfo?.email || "",
+                logo: data.storeInfo?.logo || "",
+                socialMedia: data.storeInfo?.socialMedia || "",
+            };
+            receiptSettings = {
+                showLogo: data.receiptSettings?.showLogo ?? true,
+                headerText: data.receiptSettings?.headerText || "",
+                footerText: data.receiptSettings?.footerText || "",
+                termsConditions: data.receiptSettings?.termsConditions || "",
+                showCustomerPhone:
+                    data.receiptSettings?.showCustomerPhone ?? true,
+                showCustomerAddress:
+                    data.receiptSettings?.showCustomerAddress ?? false,
+                showImei: data.receiptSettings?.showImei ?? false,
+                showSparepartDetails:
+                    data.receiptSettings?.showSparepartDetails ?? false,
+                showTechnicianName:
+                    data.receiptSettings?.showTechnicianName ?? true,
+                showWarrantyInfo:
+                    data.receiptSettings?.showWarrantyInfo ?? true,
+                printerType: data.receiptSettings?.printerType || "thermal",
+                paperSize: data.receiptSettings?.paperSize || "58mm",
+                printCopies: data.receiptSettings?.printCopies || 1,
+            };
+            serviceSettings = {
+                numberFormat:
+                    data.serviceSettings?.numberFormat || "SRV-{YYYY}-{XXX}",
+                resetCounterYearly:
+                    data.serviceSettings?.resetCounterYearly ?? true,
+                defaultStatus: data.serviceSettings?.defaultStatus || "antrian",
+                autoNotifyOnStatusChange:
+                    data.serviceSettings?.autoNotifyOnStatusChange ?? false,
+                warrantyPresets: data.serviceSettings?.warrantyPresets || [],
+                defaultWarrantyDays:
+                    data.serviceSettings?.defaultWarrantyDays || 7,
+                gracePeriodDays: data.serviceSettings?.gracePeriodDays || 3,
+                autoCloseAfterDays:
+                    data.serviceSettings?.autoCloseAfterDays || 30,
+                reminderBeforePickup:
+                    data.serviceSettings?.reminderBeforePickup ?? true,
+                reminderDays: data.serviceSettings?.reminderDays || 7,
+            };
+            whatsappSettings = {
+                enabled: data.whatsappSettings?.enabled ?? false,
+                phoneNumber: data.whatsappSettings?.phoneNumber || "",
+                newServiceTemplate:
+                    data.whatsappSettings?.newServiceTemplate || "",
+                statusUpdateTemplate:
+                    data.whatsappSettings?.statusUpdateTemplate || "",
+                readyForPickupTemplate:
+                    data.whatsappSettings?.readyForPickupTemplate || "",
+                warrantyReminderTemplate:
+                    data.whatsappSettings?.warrantyReminderTemplate || "",
+                autoSendOnNewService:
+                    data.whatsappSettings?.autoSendOnNewService ?? false,
+                autoSendOnStatusChange:
+                    data.whatsappSettings?.autoSendOnStatusChange ?? false,
+                autoSendOnComplete:
+                    data.whatsappSettings?.autoSendOnComplete ?? false,
+            };
+        }
+    });
+
+    $effect(() => {
+        const data = paymentMethodsQuery.data;
+        if (data) {
+            paymentMethods = data as PaymentMethod[];
+        }
+    });
+
+    // ============================================
+    // SAVE FUNCTIONS
+    // ============================================
+
+    async function saveStoreInfo() {
+        saving = true;
         try {
-            paymentMethods = await PaymentMethodsService.getAll();
+            await SettingsService.setStoreInfo(storeInfo);
+            toast.success("Informasi toko berhasil disimpan");
+            queryClient.invalidateQueries({ queryKey: ["settings"] });
         } catch (e) {
-            console.error("Failed to load payment methods", e);
-            toast.error("Gagal memuat metode pembayaran.");
+            toast.error("Gagal menyimpan informasi toko");
         } finally {
-            loadingPayment = false;
+            saving = false;
         }
     }
 
-    onMount(() => {
-        loadPaymentMethods();
-    });
+    async function saveReceiptSettings() {
+        saving = true;
+        try {
+            await SettingsService.setReceiptSettings(receiptSettings);
+            toast.success("Pengaturan nota berhasil disimpan");
+            queryClient.invalidateQueries({ queryKey: ["settings"] });
+        } catch (e) {
+            toast.error("Gagal menyimpan pengaturan nota");
+        } finally {
+            saving = false;
+        }
+    }
+
+    async function saveServiceSettings() {
+        saving = true;
+        try {
+            await SettingsService.setServiceSettings(serviceSettings);
+            toast.success("Pengaturan service berhasil disimpan");
+            queryClient.invalidateQueries({ queryKey: ["settings"] });
+        } catch (e) {
+            toast.error("Gagal menyimpan pengaturan service");
+        } finally {
+            saving = false;
+        }
+    }
+
+    async function saveWhatsAppSettings() {
+        saving = true;
+        try {
+            await SettingsService.setWhatsAppSettings(whatsappSettings);
+            toast.success("Pengaturan WhatsApp berhasil disimpan");
+            queryClient.invalidateQueries({ queryKey: ["settings"] });
+        } catch (e) {
+            toast.error("Gagal menyimpan pengaturan WhatsApp");
+        } finally {
+            saving = false;
+        }
+    }
+
+    // ============================================
+    // WARRANTY PRESETS
+    // ============================================
+
+    function addPreset() {
+        if (!newPresetLabel || newPresetDays < 0) return;
+        serviceSettings.warrantyPresets = [
+            ...serviceSettings.warrantyPresets,
+            { label: newPresetLabel, days: newPresetDays },
+        ];
+        newPresetLabel = "";
+        newPresetDays = 0;
+    }
+
+    function removePreset(index: number) {
+        serviceSettings.warrantyPresets =
+            serviceSettings.warrantyPresets.filter((_, i) => i !== index);
+    }
+
+    // ============================================
+    // PAYMENT METHODS
+    // ============================================
 
     async function addPaymentMethod() {
         if (!newMethod.name) return;
-        savingPayment = true;
+        saving = true;
         try {
             await PaymentMethodsService.create({
                 name: newMethod.name,
                 type: newMethod.type,
-                icon: newMethod.icon || "💳",
+                icon: newMethod.icon,
             });
-            await loadPaymentMethods();
+            await queryClient.invalidateQueries({
+                queryKey: ["payment-methods"],
+            });
             newMethod = { name: "", icon: "💳", type: "custom" };
             showAddMethod = false;
-            toast.success("Metode pembayaran berhasil ditambahkan.");
+            toast.success("Metode pembayaran berhasil ditambahkan");
         } catch (e) {
-            toast.error("Gagal menambah metode pembayaran.");
+            toast.error("Gagal menambah metode pembayaran");
         } finally {
-            savingPayment = false;
+            saving = false;
         }
     }
 
     async function togglePaymentMethod(id: string, enabled: boolean) {
         try {
             await PaymentMethodsService.update(id, { enabled });
-            await loadPaymentMethods();
+            await queryClient.invalidateQueries({
+                queryKey: ["payment-methods"],
+            });
         } catch (e) {
-            toast.error("Gagal mengubah status metode.");
+            toast.error("Gagal mengubah status metode");
         }
     }
 
     async function removePaymentMethod(id: string) {
-        savingPayment = true;
         try {
             await PaymentMethodsService.disable(id);
-            await loadPaymentMethods();
-            toast.success("Metode pembayaran berhasil dinonaktifkan.");
+            await queryClient.invalidateQueries({
+                queryKey: ["payment-methods"],
+            });
+            toast.success("Metode pembayaran dinonaktifkan");
         } catch (e) {
-            toast.error("Gagal menonaktifkan metode pembayaran.");
-        } finally {
-            savingPayment = false;
+            toast.error("Gagal menonaktifkan metode");
         }
     }
 
@@ -160,318 +409,294 @@
     async function addVariant(methodId: string) {
         const variant = newVariantByMethod[methodId];
         if (!variant?.name) return;
-        savingPayment = true;
+        saving = true;
         try {
             await PaymentMethodsService.addVariant(methodId, {
                 name: variant.name,
                 accountNumber: variant.accountNumber || undefined,
                 accountHolder: variant.accountHolder || undefined,
             });
-            await loadPaymentMethods();
+            await queryClient.invalidateQueries({
+                queryKey: ["payment-methods"],
+            });
             newVariantByMethod[methodId] = {
                 name: "",
                 accountNumber: "",
                 accountHolder: "",
             };
-            toast.success("Varian berhasil ditambahkan.");
+            toast.success("Varian berhasil ditambahkan");
         } catch (e) {
-            toast.error("Gagal menambah varian.");
+            toast.error("Gagal menambah varian");
         } finally {
-            savingPayment = false;
+            saving = false;
         }
     }
 
     async function removeVariant(methodId: string, variantId: string) {
-        savingPayment = true;
         try {
             await PaymentMethodsService.disableVariant(methodId, variantId);
-            await loadPaymentMethods();
-            toast.success("Varian berhasil dinonaktifkan.");
+            await queryClient.invalidateQueries({
+                queryKey: ["payment-methods"],
+            });
+            toast.success("Varian dinonaktifkan");
         } catch (e) {
-            toast.error("Gagal menonaktifkan varian.");
-        } finally {
-            savingPayment = false;
+            toast.error("Gagal menonaktifkan varian");
         }
     }
 
-    function savePaymentMethods() {
-        // Since changes are immediate, we just verify everything is synced
-        toast.success("Pengaturan pembayaran berhasil disimpan.");
-    }
+    // ============================================
+    // PAPER SIZE OPTIONS
+    // ============================================
 
-    // State for new preset
-    let newPresetLabel = $state("");
-    let newPresetDays = $state("");
-
-    function addPreset() {
-        if (!newPresetLabel || !newPresetDays) return;
-
-        settings.updateSetting("warrantyPresets", [
-            ...$settings.warrantyPresets,
-            { label: newPresetLabel, days: parseInt(newPresetDays) },
-        ]);
-
-        newPresetLabel = "";
-        newPresetDays = "";
-    }
-
-    function removePreset(index: number) {
-        const newPresets = $settings.warrantyPresets.filter(
-            (_, i) => i !== index,
-        );
-        settings.updateSetting("warrantyPresets", newPresets);
-    }
-
-    // Local state to bind with store
-    // Ideally we subscribe, but for simplicity in this form we can auto-subscribe via $settings
-
-    let userName = $state("Admin Toko");
-    let userEmail = $state("admin@jayaabadi.com");
-
-    function handleSaveSettings() {
-        // In a real app, we would persist to backend here
-        // Store is already updated via two-way binding with $settings
-        activityLogs.addLog(
-            "Admin",
-            "Update Settings",
-            "Mengubah pengaturan sistem/toko.",
-            "info",
-        );
-        toast.success("Pengaturan berhasil disimpan.");
-    }
-
-    function handleSaveAccount() {
-        activityLogs.addLog(
-            "Admin",
-            "Update Profile",
-            "Memperbarui profil akun.",
-            "success",
-        );
-        toast.success("Profil akun berhasil diperbarui.");
-    }
-
-    // Employee Management Logic
-    let employees = $state([
-        {
-            id: 1,
-            name: "Budi Santoso",
-            username: "budi",
-            role: "Kasir",
-            status: "Aktif",
-        },
-        {
-            id: 2,
-            name: "Siti Aminah",
-            username: "siti",
-            role: "Staf Gudang",
-            status: "Aktif",
-        },
-        {
-            id: 3,
-            name: "Admin Toko",
-            username: "admin",
-            role: "Administrator",
-            status: "Aktif",
-        },
-    ]);
-
-    let showAddEmployee = $state(false);
-    let newEmployee = $state({
-        name: "",
-        username: "",
-        password: "",
-        role: "Kasir",
-    });
-
-    function handleAddEmployee() {
-        employees = [
-            ...employees,
-            {
-                id: Date.now(),
-                name: newEmployee.name,
-                username: newEmployee.username,
-                role: newEmployee.role,
-                status: "Aktif",
-            },
-        ];
-        showAddEmployee = false;
-        newEmployee = { name: "", username: "", password: "", role: "Kasir" };
-        activityLogs.addLog(
-            "Admin",
-            "Add Employee",
-            `Menambahkan karyawan baru: ${employees[employees.length - 1].name}`,
-            "success",
-        );
-        toast.success("Karyawan baru berhasil ditambahkan.");
-    }
-
-    function handleDeleteEmployee(id: number) {
-        const emp = employees.find((e) => e.id === id);
-        employees = employees.filter((e) => e.id !== id);
-        activityLogs.addLog(
-            "Admin",
-            "Delete Employee",
-            `Menghapus karyawan: ${emp?.name}`,
-            "warning",
-        );
-        toast.success("Karyawan dihapus.");
-    }
+    let availablePaperSizes = $derived(
+        PAPER_SIZES[receiptSettings.printerType as keyof typeof PAPER_SIZES] ||
+            PAPER_SIZES.thermal,
+    );
 </script>
 
 <div class="space-y-6">
     <div>
         <h3 class="text-lg font-medium">Pengaturan</h3>
         <p class="text-sm text-muted-foreground">
-            Kelola preferensi aplikasi, informasi toko, dan karyawan.
+            Kelola preferensi aplikasi, informasi toko, dan notifikasi.
         </p>
     </div>
     <Separator />
 
-    <Tabs value="general" class="space-y-4">
+    <Tabs bind:value={activeTab} class="space-y-4">
         <TabsList
             class="w-full justify-start overflow-x-auto flex-nowrap h-auto p-1"
         >
-            <TabsTrigger value="general" class="flex gap-2 min-w-fit"
-                ><Settings class="h-4 w-4" /> Umum & Garansi</TabsTrigger
-            >
-            <TabsTrigger value="store" class="flex gap-2 min-w-fit"
-                ><Store class="h-4 w-4" /> Informasi Toko</TabsTrigger
-            >
-            <TabsTrigger value="employees" class="flex gap-2 min-w-fit"
-                ><Users class="h-4 w-4" /> Karyawan</TabsTrigger
-            >
-            <TabsTrigger value="account" class="flex gap-2 min-w-fit"
-                ><User class="h-4 w-4" /> Akun Saya</TabsTrigger
-            >
-            <TabsTrigger value="payment" class="flex gap-2 min-w-fit"
-                ><CreditCard class="h-4 w-4" /> Pembayaran</TabsTrigger
-            >
+            <TabsTrigger value="store" class="flex gap-2 min-w-fit">
+                <Store class="h-4 w-4" /> Informasi Toko
+            </TabsTrigger>
+            <TabsTrigger value="receipt" class="flex gap-2 min-w-fit">
+                <Receipt class="h-4 w-4" /> Nota & Struk
+            </TabsTrigger>
+            <TabsTrigger value="service" class="flex gap-2 min-w-fit">
+                <Wrench class="h-4 w-4" /> Pengaturan Service
+            </TabsTrigger>
+            <TabsTrigger value="whatsapp" class="flex gap-2 min-w-fit">
+                <MessageCircle class="h-4 w-4" /> WhatsApp
+            </TabsTrigger>
+            <TabsTrigger value="payment" class="flex gap-2 min-w-fit">
+                <CreditCard class="h-4 w-4" /> Pembayaran
+            </TabsTrigger>
+            <TabsTrigger value="employees" class="flex gap-2 min-w-fit">
+                <Users class="h-4 w-4" /> Karyawan
+            </TabsTrigger>
+            <TabsTrigger value="account" class="flex gap-2 min-w-fit">
+                <User class="h-4 w-4" /> Akun Saya
+            </TabsTrigger>
         </TabsList>
 
-        <!-- Tab: Umum & Garansi -->
-        <TabsContent value="general">
+        <!-- ============================================ -->
+        <!-- TAB: INFORMASI TOKO -->
+        <!-- ============================================ -->
+        <TabsContent value="store">
             <Card>
                 <CardHeader>
-                    <CardTitle>Konfigurasi Garansi</CardTitle>
+                    <CardTitle>Profil Toko</CardTitle>
                     <CardDescription>
-                        Atur kebijakan standar untuk layanan service.
+                        Informasi ini akan ditampilkan pada nota dan laporan.
                     </CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- Default Warranty Removed in favor of Presets -->
-                        <div class="space-y-4 col-span-2">
-                            <Label>Opsi Pilihan Garansi</Label>
-                            <div class="border rounded-md p-4 space-y-4">
-                                <div
-                                    class="grid grid-cols-1 md:grid-cols-2 gap-2"
-                                >
-                                    <div class="space-y-1">
-                                        <Label class="text-xs"
-                                            >Label (Tampilan)</Label
-                                        >
-                                        <Input
-                                            placeholder="Contoh: Garansi 1 Minggu"
-                                            bind:value={newPresetLabel}
-                                        />
-                                    </div>
-                                    <div class="space-y-1">
-                                        <Label class="text-xs"
-                                            >Durasi (Hari)</Label
-                                        >
-                                        <div class="flex gap-2">
-                                            <Input
-                                                type="number"
-                                                placeholder="7"
-                                                bind:value={newPresetDays}
-                                            />
-                                            <Button
-                                                variant="secondary"
-                                                onclick={addPreset}
-                                                >Tambah</Button
-                                            >
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="space-y-2">
-                                    {#each $settings.warrantyPresets as preset, i}
-                                        <div
-                                            class="flex items-center justify-between p-2 bg-muted/50 rounded text-sm"
-                                        >
-                                            <span
-                                                >{preset.label} ({preset.days} Hari)</span
-                                            >
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                class="h-6 w-6 text-red-500"
-                                                onclick={() => removePreset(i)}
-                                            >
-                                                <MinusCircle class="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    {/each}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="space-y-1">
-                            <Label>Masa Tenggang Garansi (Hari)</Label>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div class="space-y-2">
+                            <Label for="storeName">Nama Toko</Label>
                             <Input
-                                type="number"
-                                bind:value={$settings.gracePeriodDays}
+                                id="storeName"
+                                bind:value={storeInfo.name}
+                                placeholder="Nama toko Anda"
                             />
-                            <p class="text-xs text-muted-foreground">
-                                Batas waktu klaim kebijakan toko setelah
-                                expired.
-                            </p>
+                        </div>
+                        <div class="space-y-2">
+                            <Label for="storePhone">Nomor Telepon / WA</Label>
+                            <Input
+                                id="storePhone"
+                                bind:value={storeInfo.phone}
+                                type="tel"
+                                placeholder="0812-xxxx-xxxx"
+                            />
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <Label for="storeAddress">Alamat Lengkap</Label>
+                        <Textarea
+                            id="storeAddress"
+                            bind:value={storeInfo.address}
+                            rows={2}
+                            placeholder="Jl. Contoh No. 123, Kota"
+                        />
+                    </div>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div class="space-y-2">
+                            <Label for="storeEmail">Email (Opsional)</Label>
+                            <Input
+                                id="storeEmail"
+                                bind:value={storeInfo.email}
+                                type="email"
+                                placeholder="toko@email.com"
+                            />
+                        </div>
+                        <div class="space-y-2">
+                            <Label for="storeSocial"
+                                >Social Media (Opsional)</Label
+                            >
+                            <Input
+                                id="storeSocial"
+                                bind:value={storeInfo.socialMedia}
+                                placeholder="@instagram_toko"
+                            />
                         </div>
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button onclick={handleSaveSettings}
-                        >Simpan Pengaturan</Button
-                    >
+                    <Button onclick={saveStoreInfo} disabled={saving}>
+                        {#if saving}
+                            <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+                        {:else}
+                            <Save class="mr-2 h-4 w-4" />
+                        {/if}
+                        Simpan Perubahan
+                    </Button>
                 </CardFooter>
             </Card>
         </TabsContent>
 
-        <!-- Tab: Informasi Toko -->
-        <TabsContent value="store">
+        <!-- ============================================ -->
+        <!-- TAB: NOTA & STRUK -->
+        <!-- ============================================ -->
+        <TabsContent value="receipt">
             <Card>
                 <CardHeader>
-                    <CardTitle>Profil Toko & Nota</CardTitle>
+                    <CardTitle>Pengaturan Nota / Struk</CardTitle>
                     <CardDescription>
-                        Informasi ini akan ditampilkan pada Nota Penjualan dan
-                        Service.
+                        Kustomisasi tampilan nota penjualan dan service.
                     </CardDescription>
                 </CardHeader>
-                <CardContent class="space-y-4">
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2 mb-2">
-                            <Store class="h-4 w-4 text-muted-foreground" />
-                            <Label class="font-semibold">Identitas Toko</Label>
-                        </div>
-                        <div class="grid gap-4">
-                            <div>
-                                <Label for="name">Nama Toko</Label>
-                                <Input id="name" bind:value={$settings.name} />
-                            </div>
-                            <div>
-                                <Label for="address">Alamat Lengkap</Label>
-                                <Textarea
-                                    id="address"
-                                    bind:value={$settings.address}
-                                    rows={2}
+                <CardContent class="space-y-6">
+                    <!-- Header Settings -->
+                    <div class="space-y-4">
+                        <h4 class="font-medium flex items-center gap-2">
+                            <Receipt class="h-4 w-4" /> Header Nota
+                        </h4>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div
+                                class="flex items-center justify-between p-3 border rounded-lg"
+                            >
+                                <div>
+                                    <Label>Tampilkan Logo</Label>
+                                    <p class="text-xs text-muted-foreground">
+                                        Logo toko di bagian atas
+                                    </p>
+                                </div>
+                                <Switch
+                                    bind:checked={receiptSettings.showLogo}
                                 />
                             </div>
-                            <div>
-                                <Label for="phone">Nomor Telepon / WA</Label>
-                                <Input
-                                    id="phone"
-                                    bind:value={$settings.phone}
-                                    type="tel"
+                        </div>
+                        <div class="space-y-2">
+                            <Label>Teks Header Tambahan</Label>
+                            <Textarea
+                                bind:value={receiptSettings.headerText}
+                                placeholder="Teks tambahan di bawah nama toko"
+                                rows={2}
+                            />
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    <!-- Footer Settings -->
+                    <div class="space-y-4">
+                        <h4 class="font-medium">Footer Nota</h4>
+                        <div class="space-y-2">
+                            <Label>Catatan Footer</Label>
+                            <Textarea
+                                bind:value={receiptSettings.footerText}
+                                placeholder="Terima kasih atas kepercayaan Anda"
+                                rows={2}
+                            />
+                        </div>
+                        <div class="space-y-2">
+                            <Label>Syarat & Ketentuan</Label>
+                            <Textarea
+                                bind:value={receiptSettings.termsConditions}
+                                placeholder="Barang yang sudah dibeli tidak dapat dikembalikan"
+                                rows={2}
+                            />
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    <!-- Display Options -->
+                    <div class="space-y-4">
+                        <h4 class="font-medium">Opsi Tampilan</h4>
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <div
+                                class="flex items-center justify-between p-3 border rounded-lg"
+                            >
+                                <Label>Tampilkan No. HP Customer</Label>
+                                <Switch
+                                    bind:checked={
+                                        receiptSettings.showCustomerPhone
+                                    }
+                                />
+                            </div>
+                            <div
+                                class="flex items-center justify-between p-3 border rounded-lg"
+                            >
+                                <Label>Tampilkan Alamat Customer</Label>
+                                <Switch
+                                    bind:checked={
+                                        receiptSettings.showCustomerAddress
+                                    }
+                                />
+                            </div>
+                            <div
+                                class="flex items-center justify-between p-3 border rounded-lg"
+                            >
+                                <Label>Tampilkan IMEI</Label>
+                                <Switch
+                                    bind:checked={receiptSettings.showImei}
+                                />
+                            </div>
+                            <div
+                                class="flex items-center justify-between p-3 border rounded-lg"
+                            >
+                                <div>
+                                    <Label>Tampilkan Detail Sparepart</Label>
+                                    <p class="text-xs text-muted-foreground">
+                                        OFF = Hanya total
+                                    </p>
+                                </div>
+                                <Switch
+                                    bind:checked={
+                                        receiptSettings.showSparepartDetails
+                                    }
+                                />
+                            </div>
+                            <div
+                                class="flex items-center justify-between p-3 border rounded-lg"
+                            >
+                                <Label>Tampilkan Nama Teknisi</Label>
+                                <Switch
+                                    bind:checked={
+                                        receiptSettings.showTechnicianName
+                                    }
+                                />
+                            </div>
+                            <div
+                                class="flex items-center justify-between p-3 border rounded-lg"
+                            >
+                                <Label>Tampilkan Info Garansi</Label>
+                                <Switch
+                                    bind:checked={
+                                        receiptSettings.showWarrantyInfo
+                                    }
                                 />
                             </div>
                         </div>
@@ -479,163 +704,755 @@
 
                     <Separator />
 
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2 mb-2">
-                            <ScrollText class="h-4 w-4 text-muted-foreground" />
-                            <Label class="font-semibold"
-                                >Pengaturan Nota (Receipt)</Label
-                            >
-                        </div>
-                        <div>
-                            <Label for="footer">Catatan Footer Nota</Label>
-                            <Textarea
-                                id="footer"
-                                bind:value={$settings.receiptFooter}
-                                placeholder="Contoh: Barang yang sudah dibeli tidak dapat dikembalikan."
-                                rows={2}
-                            />
-                            <p class="text-xs text-muted-foreground">
-                                Pesan ini akan muncul di bagian bawah struk.
-                            </p>
+                    <!-- Printer Settings -->
+                    <div class="space-y-4">
+                        <h4 class="font-medium flex items-center gap-2">
+                            <Printer class="h-4 w-4" /> Pengaturan Printer
+                        </h4>
+                        <div class="grid gap-4 md:grid-cols-3">
+                            <div class="space-y-2">
+                                <Label>Jenis Printer</Label>
+                                <Select
+                                    type="single"
+                                    bind:value={receiptSettings.printerType}
+                                >
+                                    <SelectTrigger>
+                                        {PRINTER_TYPES.find(
+                                            (p) =>
+                                                p.id ===
+                                                receiptSettings.printerType,
+                                        )?.label || "Pilih"}
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {#each PRINTER_TYPES as pt}
+                                            <SelectItem value={pt.id}
+                                                >{pt.label}</SelectItem
+                                            >
+                                        {/each}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div class="space-y-2">
+                                <Label>Ukuran Kertas</Label>
+                                <Select
+                                    type="single"
+                                    bind:value={receiptSettings.paperSize}
+                                >
+                                    <SelectTrigger>
+                                        {receiptSettings.paperSize || "Pilih"}
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {#each availablePaperSizes as ps}
+                                            <SelectItem value={ps.id}
+                                                >{ps.label}</SelectItem
+                                            >
+                                        {/each}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div class="space-y-2">
+                                <Label>Jumlah Cetak Default</Label>
+                                <Input
+                                    type="number"
+                                    bind:value={receiptSettings.printCopies}
+                                    min={1}
+                                    max={5}
+                                />
+                            </div>
                         </div>
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button onclick={handleSaveSettings}
-                        >Simpan Perubahan</Button
-                    >
+                    <Button onclick={saveReceiptSettings} disabled={saving}>
+                        {#if saving}
+                            <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+                        {:else}
+                            <Save class="mr-2 h-4 w-4" />
+                        {/if}
+                        Simpan Pengaturan
+                    </Button>
                 </CardFooter>
             </Card>
         </TabsContent>
 
-        <!-- Tab: Akun -->
-        <TabsContent value="account">
+        <!-- ============================================ -->
+        <!-- TAB: PENGATURAN SERVICE -->
+        <!-- ============================================ -->
+        <TabsContent value="service">
             <Card>
                 <CardHeader>
-                    <CardTitle>Akun Pengguna</CardTitle>
+                    <CardTitle>Pengaturan Service</CardTitle>
                     <CardDescription>
-                        Informasi login dan keamanan akun.
+                        Konfigurasi workflow, penomoran, dan garansi service.
                     </CardDescription>
                 </CardHeader>
-                <CardContent class="space-y-4">
-                    <div class="space-y-1">
-                        <Label for="username">Nama Pengguna</Label>
-                        <Input id="username" bind:value={userName} />
-                    </div>
-                    <div class="space-y-1">
-                        <Label for="email">Email</Label>
-                        <Input id="email" bind:value={userEmail} type="email" />
-                    </div>
-                    <Separator class="my-4" />
+                <CardContent class="space-y-6">
+                    <!-- Numbering -->
                     <div class="space-y-4">
-                        <h4 class="text-sm font-medium flex items-center gap-2">
-                            <Shield class="h-4 w-4 text-muted-foreground" /> Keamanan
-                        </h4>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="space-y-1">
-                                <Label for="password">Password Baru</Label>
+                        <h4 class="font-medium">Penomoran Service</h4>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div class="space-y-2">
+                                <Label>Format Nomor</Label>
                                 <Input
-                                    id="password"
-                                    type="password"
-                                    placeholder="Kosongkan jika tidak ubah"
+                                    bind:value={serviceSettings.numberFormat}
+                                    placeholder={"SRV-{YYYY}-{XXX}"}
                                 />
+                                <p class="text-xs text-muted-foreground">
+                                    Gunakan {"{YYYY}"} untuk tahun, {"{XXX}"} untuk
+                                    counter
+                                </p>
                             </div>
-                            <div class="space-y-1">
-                                <Label for="confirm">Konfirmasi Password</Label>
-                                <Input
-                                    id="confirm"
-                                    type="password"
-                                    placeholder="Ulangi password baru"
+                            <div
+                                class="flex items-center justify-between p-3 border rounded-lg"
+                            >
+                                <div>
+                                    <Label>Reset Counter Tiap Tahun</Label>
+                                    <p class="text-xs text-muted-foreground">
+                                        Counter dimulai dari 001 setiap tahun
+                                        baru
+                                    </p>
+                                </div>
+                                <Switch
+                                    bind:checked={
+                                        serviceSettings.resetCounterYearly
+                                    }
                                 />
                             </div>
                         </div>
                     </div>
+
+                    <Separator />
+
+                    <!-- Workflow -->
+                    <div class="space-y-4">
+                        <h4 class="font-medium">Workflow</h4>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div class="space-y-2">
+                                <Label>Status Default Service Baru</Label>
+                                <Select
+                                    type="single"
+                                    bind:value={serviceSettings.defaultStatus}
+                                >
+                                    <SelectTrigger>
+                                        {serviceSettings.defaultStatus ===
+                                        "antrian"
+                                            ? "Antrian"
+                                            : "Proses"}
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="antrian"
+                                            >Antrian</SelectItem
+                                        >
+                                        <SelectItem value="proses"
+                                            >Proses</SelectItem
+                                        >
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div
+                                class="flex items-center justify-between p-3 border rounded-lg"
+                            >
+                                <div>
+                                    <Label
+                                        >Auto-Notify Saat Status Berubah</Label
+                                    >
+                                    <p class="text-xs text-muted-foreground">
+                                        Kirim notifikasi otomatis
+                                    </p>
+                                </div>
+                                <Switch
+                                    bind:checked={
+                                        serviceSettings.autoNotifyOnStatusChange
+                                    }
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    <!-- Warranty Presets -->
+                    <div class="space-y-4">
+                        <h4 class="font-medium">Opsi Garansi</h4>
+                        <div class="border rounded-lg p-4 space-y-4">
+                            <div class="grid gap-2 md:grid-cols-3">
+                                <div class="space-y-1">
+                                    <Label class="text-xs">Label</Label>
+                                    <Input
+                                        bind:value={newPresetLabel}
+                                        placeholder="Garansi 1 Minggu"
+                                    />
+                                </div>
+                                <div class="space-y-1">
+                                    <Label class="text-xs">Durasi (Hari)</Label>
+                                    <Input
+                                        type="number"
+                                        bind:value={newPresetDays}
+                                        placeholder="7"
+                                    />
+                                </div>
+                                <div class="flex items-end">
+                                    <Button
+                                        variant="secondary"
+                                        onclick={addPreset}
+                                        class="w-full"
+                                    >
+                                        <Plus class="mr-2 h-4 w-4" /> Tambah
+                                    </Button>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                {#each serviceSettings.warrantyPresets as preset, i}
+                                    <div
+                                        class="flex items-center justify-between p-2 bg-muted/50 rounded text-sm"
+                                    >
+                                        <span
+                                            >{preset.label} ({preset.days} Hari)</span
+                                        >
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            class="h-6 w-6 text-red-500"
+                                            onclick={() => removePreset(i)}
+                                        >
+                                            <MinusCircle class="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                {/each}
+                            </div>
+                        </div>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div class="space-y-2">
+                                <Label>Garansi Default (Hari)</Label>
+                                <Input
+                                    type="number"
+                                    bind:value={
+                                        serviceSettings.defaultWarrantyDays
+                                    }
+                                />
+                            </div>
+                            <div class="space-y-2">
+                                <Label>Masa Tenggang Klaim (Hari)</Label>
+                                <Input
+                                    type="number"
+                                    bind:value={serviceSettings.gracePeriodDays}
+                                />
+                                <p class="text-xs text-muted-foreground">
+                                    Setelah garansi berakhir
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    <!-- Automation -->
+                    <div class="space-y-4">
+                        <h4 class="font-medium">Otomatisasi</h4>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div class="space-y-2">
+                                <Label>Auto-Close Setelah (Hari)</Label>
+                                <Input
+                                    type="number"
+                                    bind:value={
+                                        serviceSettings.autoCloseAfterDays
+                                    }
+                                />
+                                <p class="text-xs text-muted-foreground">
+                                    Tutup otomatis service yang sudah selesai
+                                </p>
+                            </div>
+                            <div
+                                class="flex items-center justify-between p-3 border rounded-lg"
+                            >
+                                <div>
+                                    <Label>Reminder Pengambilan</Label>
+                                    <p class="text-xs text-muted-foreground">
+                                        Ingatkan customer mengambil barang
+                                    </p>
+                                </div>
+                                <Switch
+                                    bind:checked={
+                                        serviceSettings.reminderBeforePickup
+                                    }
+                                />
+                            </div>
+                        </div>
+                        {#if serviceSettings.reminderBeforePickup}
+                            <div class="space-y-2 max-w-xs">
+                                <Label>Ingatkan Setelah (Hari)</Label>
+                                <Input
+                                    type="number"
+                                    bind:value={serviceSettings.reminderDays}
+                                />
+                            </div>
+                        {/if}
+                    </div>
                 </CardContent>
                 <CardFooter>
-                    <Button onclick={handleSaveAccount}>Update Profil</Button>
+                    <Button onclick={saveServiceSettings} disabled={saving}>
+                        {#if saving}
+                            <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+                        {:else}
+                            <Save class="mr-2 h-4 w-4" />
+                        {/if}
+                        Simpan Pengaturan
+                    </Button>
                 </CardFooter>
             </Card>
         </TabsContent>
 
-        <!-- Tab: Karyawan -->
+        <!-- ============================================ -->
+        <!-- TAB: WHATSAPP -->
+        <!-- ============================================ -->
+        <TabsContent value="whatsapp">
+            <Card>
+                <CardHeader>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <CardTitle>Integrasi WhatsApp</CardTitle>
+                            <CardDescription>
+                                Kirim notifikasi otomatis ke customer via
+                                WhatsApp.
+                            </CardDescription>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <Label>Aktifkan</Label>
+                            <Switch bind:checked={whatsappSettings.enabled} />
+                        </div>
+                    </div>
+                </CardHeader>
+                {#if whatsappSettings.enabled}
+                    <CardContent class="space-y-6">
+                        <!-- Phone Number -->
+                        <div class="space-y-2 max-w-md">
+                            <Label>Nomor WhatsApp Toko</Label>
+                            <Input
+                                bind:value={whatsappSettings.phoneNumber}
+                                placeholder="6281234567890"
+                            />
+                            <p class="text-xs text-muted-foreground">
+                                Format internasional tanpa + (contoh:
+                                6281234567890)
+                            </p>
+                        </div>
+
+                        <Separator />
+
+                        <!-- Templates -->
+                        <div class="space-y-4">
+                            <h4 class="font-medium">Template Pesan</h4>
+                            <p class="text-sm text-muted-foreground">
+                                Gunakan placeholder: {"{customer}"}, {"{serviceNo}"},
+                                {"{status}"}, {"{total}"}, {"{days}"}
+                            </p>
+                            <div class="space-y-4">
+                                <div class="space-y-2">
+                                    <Label>Service Baru</Label>
+                                    <Textarea
+                                        bind:value={
+                                            whatsappSettings.newServiceTemplate
+                                        }
+                                        rows={3}
+                                    />
+                                </div>
+                                <div class="space-y-2">
+                                    <Label>Update Status</Label>
+                                    <Textarea
+                                        bind:value={
+                                            whatsappSettings.statusUpdateTemplate
+                                        }
+                                        rows={3}
+                                    />
+                                </div>
+                                <div class="space-y-2">
+                                    <Label>Siap Diambil</Label>
+                                    <Textarea
+                                        bind:value={
+                                            whatsappSettings.readyForPickupTemplate
+                                        }
+                                        rows={3}
+                                    />
+                                </div>
+                                <div class="space-y-2">
+                                    <Label>Reminder Garansi</Label>
+                                    <Textarea
+                                        bind:value={
+                                            whatsappSettings.warrantyReminderTemplate
+                                        }
+                                        rows={3}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        <!-- Auto-Send Options -->
+                        <div class="space-y-4">
+                            <h4 class="font-medium">Kirim Otomatis</h4>
+                            <div class="grid gap-3 md:grid-cols-3">
+                                <div
+                                    class="flex items-center justify-between p-3 border rounded-lg"
+                                >
+                                    <Label class="text-sm"
+                                        >Saat Service Baru</Label
+                                    >
+                                    <Switch
+                                        bind:checked={
+                                            whatsappSettings.autoSendOnNewService
+                                        }
+                                    />
+                                </div>
+                                <div
+                                    class="flex items-center justify-between p-3 border rounded-lg"
+                                >
+                                    <Label class="text-sm"
+                                        >Saat Status Berubah</Label
+                                    >
+                                    <Switch
+                                        bind:checked={
+                                            whatsappSettings.autoSendOnStatusChange
+                                        }
+                                    />
+                                </div>
+                                <div
+                                    class="flex items-center justify-between p-3 border rounded-lg"
+                                >
+                                    <Label class="text-sm">Saat Selesai</Label>
+                                    <Switch
+                                        bind:checked={
+                                            whatsappSettings.autoSendOnComplete
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                        <Button
+                            onclick={saveWhatsAppSettings}
+                            disabled={saving}
+                        >
+                            {#if saving}
+                                <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+                            {:else}
+                                <Save class="mr-2 h-4 w-4" />
+                            {/if}
+                            Simpan Pengaturan
+                        </Button>
+                    </CardFooter>
+                {:else}
+                    <CardContent>
+                        <div class="text-center py-8 text-muted-foreground">
+                            <MessageCircle
+                                class="h-12 w-12 mx-auto mb-4 opacity-50"
+                            />
+                            <p>
+                                Aktifkan integrasi WhatsApp untuk mengirim
+                                notifikasi ke customer.
+                            </p>
+                        </div>
+                    </CardContent>
+                {/if}
+            </Card>
+        </TabsContent>
+
+        <!-- ============================================ -->
+        <!-- TAB: PEMBAYARAN -->
+        <!-- ============================================ -->
+        <TabsContent value="payment">
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>Metode Pembayaran</CardTitle>
+                        <CardDescription>
+                            Atur metode pembayaran yang tersedia.
+                        </CardDescription>
+                    </div>
+                    <Button size="sm" onclick={() => (showAddMethod = true)}>
+                        <Plus class="h-4 w-4 mr-1" /> Tambah Metode
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    {#if paymentMethodsQuery.isLoading}
+                        <div class="flex items-center justify-center py-8">
+                            <Loader2 class="h-6 w-6 animate-spin" />
+                        </div>
+                    {:else}
+                        <div class="space-y-4">
+                            {#each paymentMethods as method}
+                                <div class="border rounded-lg p-4">
+                                    <div
+                                        class="flex items-center justify-between mb-3"
+                                    >
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-2xl"
+                                                >{method.icon}</span
+                                            >
+                                            <div>
+                                                <h4 class="font-medium">
+                                                    {method.name}
+                                                </h4>
+                                                <Badge
+                                                    variant="outline"
+                                                    class="text-xs"
+                                                    >{method.type}</Badge
+                                                >
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <Switch
+                                                checked={method.enabled}
+                                                onCheckedChange={(checked) =>
+                                                    togglePaymentMethod(
+                                                        method.id,
+                                                        checked,
+                                                    )}
+                                            />
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                class="text-red-500"
+                                                onclick={() =>
+                                                    removePaymentMethod(
+                                                        method.id,
+                                                    )}
+                                            >
+                                                <Trash2 class="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {#if method.type !== "cash"}
+                                        <!-- Variants -->
+                                        <div class="pl-10 space-y-2">
+                                            {#if method.variants && method.variants.length > 0}
+                                                {#each method.variants.filter((v) => v.enabled) as variant}
+                                                    <div
+                                                        class="flex items-center justify-between p-2 bg-muted/50 rounded text-sm"
+                                                    >
+                                                        <div>
+                                                            <span
+                                                                class="font-medium"
+                                                                >{variant.name}</span
+                                                            >
+                                                            {#if variant.accountNumber}
+                                                                <span
+                                                                    class="text-muted-foreground ml-2"
+                                                                    >{variant.accountNumber}</span
+                                                                >
+                                                            {/if}
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            class="h-6 w-6 text-red-500"
+                                                            onclick={() =>
+                                                                removeVariant(
+                                                                    method.id,
+                                                                    variant.id,
+                                                                )}
+                                                        >
+                                                            <MinusCircle
+                                                                class="h-4 w-4"
+                                                            />
+                                                        </Button>
+                                                    </div>
+                                                {/each}
+                                            {/if}
+                                            <!-- Add Variant Form -->
+                                            <div
+                                                class="grid gap-2 md:grid-cols-4 pt-2"
+                                            >
+                                                <Input
+                                                    value={newVariantByMethod[
+                                                        method.id
+                                                    ]?.name || ""}
+                                                    oninput={(e) => {
+                                                        if (
+                                                            !newVariantByMethod[
+                                                                method.id
+                                                            ]
+                                                        ) {
+                                                            newVariantByMethod[
+                                                                method.id
+                                                            ] = {
+                                                                name: "",
+                                                                accountNumber:
+                                                                    "",
+                                                                accountHolder:
+                                                                    "",
+                                                            };
+                                                        }
+                                                        newVariantByMethod[
+                                                            method.id
+                                                        ].name =
+                                                            e.currentTarget.value;
+                                                    }}
+                                                    placeholder="Nama (BCA, Mandiri...)"
+                                                />
+                                                <Input
+                                                    value={newVariantByMethod[
+                                                        method.id
+                                                    ]?.accountNumber || ""}
+                                                    oninput={(e) => {
+                                                        if (
+                                                            !newVariantByMethod[
+                                                                method.id
+                                                            ]
+                                                        ) {
+                                                            newVariantByMethod[
+                                                                method.id
+                                                            ] = {
+                                                                name: "",
+                                                                accountNumber:
+                                                                    "",
+                                                                accountHolder:
+                                                                    "",
+                                                            };
+                                                        }
+                                                        newVariantByMethod[
+                                                            method.id
+                                                        ].accountNumber =
+                                                            e.currentTarget.value;
+                                                    }}
+                                                    placeholder="No. Rekening"
+                                                />
+                                                <Input
+                                                    value={newVariantByMethod[
+                                                        method.id
+                                                    ]?.accountHolder || ""}
+                                                    oninput={(e) => {
+                                                        if (
+                                                            !newVariantByMethod[
+                                                                method.id
+                                                            ]
+                                                        ) {
+                                                            newVariantByMethod[
+                                                                method.id
+                                                            ] = {
+                                                                name: "",
+                                                                accountNumber:
+                                                                    "",
+                                                                accountHolder:
+                                                                    "",
+                                                            };
+                                                        }
+                                                        newVariantByMethod[
+                                                            method.id
+                                                        ].accountHolder =
+                                                            e.currentTarget.value;
+                                                    }}
+                                                    placeholder="Nama Pemilik"
+                                                />
+                                                <Button
+                                                    variant="secondary"
+                                                    onclick={() =>
+                                                        addVariant(method.id)}
+                                                >
+                                                    <Plus
+                                                        class="h-4 w-4 mr-1"
+                                                    /> Tambah
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/each}
+                        </div>
+                    {/if}
+                </CardContent>
+            </Card>
+
+            <!-- Add Method Dialog -->
+            <Dialog bind:open={showAddMethod}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Tambah Metode Pembayaran</DialogTitle>
+                        <DialogDescription
+                            >Buat metode pembayaran baru.</DialogDescription
+                        >
+                    </DialogHeader>
+                    <div class="grid gap-4 py-4">
+                        <div class="space-y-2">
+                            <Label>Nama Metode</Label>
+                            <Input
+                                bind:value={newMethod.name}
+                                placeholder="Contoh: GoPay, OVO, BCA"
+                            />
+                        </div>
+                        <div class="space-y-2">
+                            <Label>Tipe</Label>
+                            <select
+                                class="w-full h-10 px-3 rounded-md border bg-background text-sm"
+                                bind:value={newMethod.type}
+                            >
+                                {#each PAYMENT_TYPES as pt}
+                                    <option value={pt.id}>{pt.label}</option>
+                                {/each}
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <Label>Pilih Ikon</Label>
+                            <div class="flex flex-wrap gap-2">
+                                {#each PAYMENT_ICONS as pi}
+                                    <button
+                                        type="button"
+                                        class="p-3 text-2xl rounded-lg border-2 transition-all {newMethod.icon ===
+                                        pi.icon
+                                            ? 'border-primary bg-primary/10'
+                                            : 'border-transparent bg-muted/50 hover:bg-muted'}"
+                                        onclick={() =>
+                                            (newMethod.icon = pi.icon)}
+                                        title={pi.label}
+                                    >
+                                        {pi.icon}
+                                    </button>
+                                {/each}
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button onclick={addPaymentMethod} disabled={saving}>
+                            {#if saving}
+                                <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+                            {/if}
+                            Simpan
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </TabsContent>
+
+        <!-- ============================================ -->
+        <!-- TAB: KARYAWAN -->
+        <!-- ============================================ -->
         <TabsContent value="employees">
             <Card>
                 <CardHeader class="flex flex-row items-center justify-between">
                     <div>
                         <CardTitle>Daftar Karyawan</CardTitle>
                         <CardDescription>
-                            Kelola akses pengguna aplikasi (Administrator,
-                            Kasir, Staf).
+                            Kelola akses pengguna aplikasi.
                         </CardDescription>
                     </div>
-                    <Button size="sm" onclick={() => (showAddEmployee = true)}>
+                    <Button
+                        size="sm"
+                        onclick={() =>
+                            toast.info(
+                                "Fitur tambah karyawan akan segera hadir",
+                            )}
+                    >
                         <Plus class="mr-2 h-4 w-4" /> Tambah Karyawan
                     </Button>
-                    <Dialog bind:open={showAddEmployee}>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Tambah Karyawan Baru</DialogTitle>
-                                <DialogDescription
-                                    >Buat akun login baru untuk staf Anda.</DialogDescription
-                                >
-                            </DialogHeader>
-                            <div class="grid gap-4 py-4">
-                                <div class="space-y-1">
-                                    <Label>Nama Lengkap</Label>
-                                    <Input
-                                        bind:value={newEmployee.name}
-                                        placeholder="Contoh: Budi Santoso"
-                                    />
-                                </div>
-                                <div class="space-y-1">
-                                    <Label>Username</Label>
-                                    <Input
-                                        bind:value={newEmployee.username}
-                                        placeholder="Username untuk login"
-                                    />
-                                </div>
-                                <div class="space-y-1">
-                                    <Label>Password</Label>
-                                    <Input
-                                        type="password"
-                                        bind:value={newEmployee.password}
-                                    />
-                                </div>
-                                <div class="space-y-1">
-                                    <Label>Role / Jabatan</Label>
-                                    <Select
-                                        type="single"
-                                        name="role"
-                                        bind:value={newEmployee.role}
-                                    >
-                                        <SelectTrigger>
-                                            {newEmployee.role || "Pilih Role"}
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Administrator"
-                                                >Administrator (Full Akses)</SelectItem
-                                            >
-                                            <SelectItem value="Kasir"
-                                                >Kasir (Penjualan saja)</SelectItem
-                                            >
-                                            <SelectItem value="Staf Gudang"
-                                                >Staf Gudang (Stok saja)</SelectItem
-                                            >
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <Button onclick={handleAddEmployee}
-                                    >Simpan Akun</Button
-                                >
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
                 </CardHeader>
                 <CardContent>
-                    <!-- Desktop Table View -->
-                    <div class="hidden md:block">
+                    {#if usersQuery.isLoading}
+                        <div class="flex items-center justify-center py-8">
+                            <Loader2 class="h-6 w-6 animate-spin" />
+                        </div>
+                    {:else}
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -643,426 +1460,57 @@
                                     <TableHead>Username</TableHead>
                                     <TableHead>Role</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead class="text-right"
-                                        >Aksi</TableHead
-                                    >
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {#each employees as emp}
+                                {#each usersQuery.data || [] as user}
                                     <TableRow>
                                         <TableCell class="font-medium"
-                                            >{emp.name}</TableCell
+                                            >{user.name}</TableCell
                                         >
-                                        <TableCell>{emp.username}</TableCell>
+                                        <TableCell>{user.username}</TableCell>
                                         <TableCell>
                                             <Badge variant="outline"
-                                                >{emp.role}</Badge
+                                                >{user.role}</Badge
                                             >
                                         </TableCell>
                                         <TableCell>
                                             <Badge
-                                                class="bg-green-100 text-green-700 hover:bg-green-100 border-none"
-                                                >{emp.status}</Badge
+                                                class={user.isActive
+                                                    ? "bg-green-100 text-green-700"
+                                                    : "bg-red-100 text-red-700"}
                                             >
-                                        </TableCell>
-                                        <TableCell class="text-right">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                class="h-8 w-8 text-red-500"
-                                                onclick={() =>
-                                                    handleDeleteEmployee(
-                                                        emp.id,
-                                                    )}
-                                            >
-                                                <Trash2 class="h-4 w-4" />
-                                            </Button>
+                                                {user.isActive
+                                                    ? "Aktif"
+                                                    : "Nonaktif"}
+                                            </Badge>
                                         </TableCell>
                                     </TableRow>
                                 {/each}
                             </TableBody>
                         </Table>
-                    </div>
-
-                    <!-- Mobile Card View -->
-                    <div class="md:hidden space-y-4">
-                        {#each employees as emp}
-                            <div
-                                class="bg-card rounded-lg border shadow-sm p-4 relative"
-                            >
-                                <div
-                                    class="flex justify-between items-start mb-2"
-                                >
-                                    <div class="space-y-1">
-                                        <div class="font-medium">
-                                            {emp.name}
-                                        </div>
-                                        <div
-                                            class="text-xs text-muted-foreground flex items-center gap-1"
-                                        >
-                                            <User class="h-3 w-3" />
-                                            {emp.username}
-                                        </div>
-                                    </div>
-                                    <Badge
-                                        class="bg-green-100 text-green-700 hover:bg-green-100 border-none text-xs"
-                                        >{emp.status}</Badge
-                                    >
-                                </div>
-                                <div
-                                    class="flex items-center justify-between pt-2 border-t mt-2"
-                                >
-                                    <Badge variant="outline" class="text-xs"
-                                        >{emp.role}</Badge
-                                    >
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        class="h-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                        onclick={() =>
-                                            handleDeleteEmployee(emp.id)}
-                                    >
-                                        <Trash2 class="h-4 w-4 mr-2" /> Hapus
-                                    </Button>
-                                </div>
-                            </div>
-                        {/each}
-                    </div>
+                    {/if}
                 </CardContent>
             </Card>
         </TabsContent>
 
-        <!-- Tab: Pembayaran -->
-        <TabsContent value="payment">
+        <!-- ============================================ -->
+        <!-- TAB: AKUN SAYA -->
+        <!-- ============================================ -->
+        <TabsContent value="account">
             <Card>
-                <CardHeader class="flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle>Metode Pembayaran</CardTitle>
-                        <CardDescription>
-                            Atur metode pembayaran yang tersedia untuk
-                            pelanggan.
-                        </CardDescription>
-                    </div>
-                    <Button size="sm" onclick={() => (showAddMethod = true)}>
-                        <Plus class="h-4 w-4 mr-1" /> Tambah Metode
-                    </Button>
-                    <Dialog bind:open={showAddMethod}>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle
-                                    >Tambah Metode Pembayaran</DialogTitle
-                                >
-                                <DialogDescription>
-                                    Buat metode pembayaran baru.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div class="grid gap-4 py-4">
-                                <div class="space-y-2">
-                                    <Label>Nama Metode</Label>
-                                    <Input
-                                        bind:value={newMethod.name}
-                                        placeholder="Contoh: GoPay, OVO, BCA"
-                                    />
-                                </div>
-                                <div class="space-y-2">
-                                    <Label>Tipe</Label>
-                                    <select
-                                        class="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                                        bind:value={newMethod.type}
-                                    >
-                                        {#each PAYMENT_TYPES as pt}
-                                            <option value={pt.id}
-                                                >{pt.label}</option
-                                            >
-                                        {/each}
-                                    </select>
-                                </div>
-                                <div class="space-y-2">
-                                    <Label>Pilih Ikon</Label>
-                                    <div class="flex flex-wrap gap-2">
-                                        {#each PAYMENT_ICONS as pi}
-                                            <button
-                                                type="button"
-                                                class="p-3 text-2xl rounded-lg border-2 transition-all {newMethod.icon ===
-                                                pi.icon
-                                                    ? 'border-primary bg-primary/10'
-                                                    : 'border-transparent bg-muted/50 hover:bg-muted'}"
-                                                onclick={() =>
-                                                    (newMethod.icon = pi.icon)}
-                                                title={pi.label}
-                                            >
-                                                {pi.icon}
-                                            </button>
-                                        {/each}
-                                    </div>
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <Button onclick={addPaymentMethod}
-                                    >Tambah</Button
-                                >
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+                <CardHeader>
+                    <CardTitle>Akun Saya</CardTitle>
+                    <CardDescription>
+                        Informasi login dan keamanan akun.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-4">
-                    {#if loadingPayment}
-                        <p class="text-center text-muted-foreground py-8">
-                            Memuat...
-                        </p>
-                    {:else if paymentMethods.length === 0}
-                        <p class="text-center text-muted-foreground py-8">
-                            Belum ada metode pembayaran. Klik "Tambah Metode"
-                            untuk memulai.
-                        </p>
-                    {:else}
-                        {#each paymentMethods as method, idx}
-                            <div class="p-4 border rounded-lg space-y-4">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <div
-                                            class="p-2 rounded-lg {method.type ===
-                                            'cash'
-                                                ? 'bg-green-100'
-                                                : method.type === 'transfer'
-                                                  ? 'bg-blue-100'
-                                                  : method.type === 'qris'
-                                                    ? 'bg-purple-100'
-                                                    : 'bg-gray-100'}"
-                                        >
-                                            <span class="text-xl"
-                                                >{method.icon}</span
-                                            >
-                                        </div>
-                                        <div>
-                                            <p class="font-medium">
-                                                {method.name}
-                                            </p>
-                                            <p
-                                                class="text-xs text-muted-foreground capitalize"
-                                            >
-                                                {method.type}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <Switch
-                                            checked={method.enabled}
-                                            onCheckedChange={(checked) =>
-                                                togglePaymentMethod(
-                                                    method.id,
-                                                    checked,
-                                                )}
-                                        />
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            class="text-red-500 h-8 w-8"
-                                            onclick={() =>
-                                                removePaymentMethod(method.id)}
-                                        >
-                                            <Trash2 class="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                <!-- Variants section for non-cash types -->
-                                {#if method.type !== "cash" && method.enabled}
-                                    {@const methodId = method.id}
-                                    <Separator />
-                                    <div class="space-y-3">
-                                        <Label class="text-sm font-medium">
-                                            {method.type === "transfer"
-                                                ? "Daftar Rekening Bank"
-                                                : "Daftar " + method.name}
-                                        </Label>
-
-                                        <!-- Add Variant Form -->
-                                        <div
-                                            class="grid grid-cols-1 md:grid-cols-4 gap-2"
-                                        >
-                                            <Input
-                                                placeholder={method.type ===
-                                                "transfer"
-                                                    ? "Nama Bank"
-                                                    : "Nama"}
-                                                value={newVariantByMethod[
-                                                    methodId
-                                                ]?.name ?? ""}
-                                                oninput={(e) => {
-                                                    if (
-                                                        !newVariantByMethod[
-                                                            methodId
-                                                        ]
-                                                    )
-                                                        newVariantByMethod[
-                                                            methodId
-                                                        ] = {
-                                                            name: "",
-                                                            accountNumber: "",
-                                                            accountHolder: "",
-                                                        };
-                                                    newVariantByMethod[
-                                                        methodId
-                                                    ].name =
-                                                        e.currentTarget.value;
-                                                }}
-                                            />
-                                            {#if method.type === "transfer"}
-                                                <Input
-                                                    placeholder="Nomor Rekening"
-                                                    value={newVariantByMethod[
-                                                        methodId
-                                                    ]?.accountNumber ?? ""}
-                                                    oninput={(e) => {
-                                                        if (
-                                                            !newVariantByMethod[
-                                                                methodId
-                                                            ]
-                                                        )
-                                                            newVariantByMethod[
-                                                                methodId
-                                                            ] = {
-                                                                name: "",
-                                                                accountNumber:
-                                                                    "",
-                                                                accountHolder:
-                                                                    "",
-                                                            };
-                                                        newVariantByMethod[
-                                                            methodId
-                                                        ].accountNumber =
-                                                            e.currentTarget.value;
-                                                    }}
-                                                />
-                                                <Input
-                                                    placeholder="Atas Nama"
-                                                    value={newVariantByMethod[
-                                                        methodId
-                                                    ]?.accountHolder ?? ""}
-                                                    oninput={(e) => {
-                                                        if (
-                                                            !newVariantByMethod[
-                                                                methodId
-                                                            ]
-                                                        )
-                                                            newVariantByMethod[
-                                                                methodId
-                                                            ] = {
-                                                                name: "",
-                                                                accountNumber:
-                                                                    "",
-                                                                accountHolder:
-                                                                    "",
-                                                            };
-                                                        newVariantByMethod[
-                                                            methodId
-                                                        ].accountHolder =
-                                                            e.currentTarget.value;
-                                                    }}
-                                                />
-                                            {:else}
-                                                <Input
-                                                    placeholder="Nomor/ID (opsional)"
-                                                    value={newVariantByMethod[
-                                                        methodId
-                                                    ]?.accountNumber ?? ""}
-                                                    oninput={(e) => {
-                                                        if (
-                                                            !newVariantByMethod[
-                                                                methodId
-                                                            ]
-                                                        )
-                                                            newVariantByMethod[
-                                                                methodId
-                                                            ] = {
-                                                                name: "",
-                                                                accountNumber:
-                                                                    "",
-                                                                accountHolder:
-                                                                    "",
-                                                            };
-                                                        newVariantByMethod[
-                                                            methodId
-                                                        ].accountNumber =
-                                                            e.currentTarget.value;
-                                                    }}
-                                                />
-                                                <div></div>
-                                            {/if}
-                                            <Button
-                                                variant="secondary"
-                                                onclick={() =>
-                                                    addVariant(method.id)}
-                                            >
-                                                <Plus class="h-4 w-4 mr-1" /> Tambah
-                                            </Button>
-                                        </div>
-
-                                        <!-- Variant List -->
-                                        {#if !method.variants?.length}
-                                            <p
-                                                class="text-sm text-muted-foreground text-center py-2"
-                                            >
-                                                Belum ada. Tambahkan di atas.
-                                            </p>
-                                        {:else}
-                                            <div class="space-y-2">
-                                                {#each method.variants as variant}
-                                                    <div
-                                                        class="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                                                    >
-                                                        <div>
-                                                            <p
-                                                                class="font-medium"
-                                                            >
-                                                                {variant.name}
-                                                            </p>
-                                                            {#if variant.accountNumber || variant.accountHolder}
-                                                                <p
-                                                                    class="text-sm text-muted-foreground"
-                                                                >
-                                                                    {variant.accountNumber ||
-                                                                        ""}{variant.accountHolder
-                                                                        ? " - " +
-                                                                          variant.accountHolder
-                                                                        : ""}
-                                                                </p>
-                                                            {/if}
-                                                        </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            class="text-red-500"
-                                                            onclick={() =>
-                                                                removeVariant(
-                                                                    method.id,
-                                                                    variant.id,
-                                                                )}
-                                                        >
-                                                            <Trash2
-                                                                class="h-4 w-4"
-                                                            />
-                                                        </Button>
-                                                    </div>
-                                                {/each}
-                                            </div>
-                                        {/if}
-                                    </div>
-                                {/if}
-                            </div>
-                        {/each}
-                    {/if}
+                    <div class="text-center py-8 text-muted-foreground">
+                        <User class="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>Edit profil akun akan segera hadir.</p>
+                    </div>
                 </CardContent>
-                <CardFooter>
-                    <Button
-                        onclick={savePaymentMethods}
-                        disabled={savingPayment}
-                    >
-                        {savingPayment ? "Menyimpan..." : "Simpan Pembayaran"}
-                    </Button>
-                </CardFooter>
             </Card>
         </TabsContent>
     </Tabs>
