@@ -125,4 +125,20 @@ export class ServiceService {
 
         return { message: "Service deleted" };
     }
+
+    /**
+     * Reschedule a service by updating its estimated completion date
+     */
+    async reschedule(id: number, estimatedCompletionDate: string) {
+        const srv = await this.repo.findById(id);
+        if (!srv) throw new Error("Service not found");
+
+        const newDate = estimatedCompletionDate ? new Date(estimatedCompletionDate) : null;
+
+        await db.update(services).set({
+            estimatedCompletionDate: newDate
+        }).where(eq(services.id, id));
+
+        return await this.repo.findById(id);
+    }
 }

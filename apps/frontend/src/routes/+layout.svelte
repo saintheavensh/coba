@@ -44,16 +44,18 @@
 		</div>
 		<Toaster />
 	{:else}
-		<div class="flex h-screen w-full bg-slate-50/50">
-			<aside class="hidden border-r bg-background lg:block">
+		<div class="flex min-h-screen w-full bg-slate-50/50">
+			<aside
+				class="hidden border-r bg-background lg:block sticky top-0 h-screen"
+			>
 				<AppSidebar />
 			</aside>
 
-			<div class="flex flex-col flex-1 h-screen overflow-hidden">
+			<div class="flex flex-col flex-1 min-w-0">
 				<SiteHeader />
 
 				<!-- Main Content -->
-				<main class="flex-1 overflow-y-auto p-6 md:p-8">
+				<main class="flex-1 p-6 md:p-8">
 					{@render children()}
 				</main>
 			</div>

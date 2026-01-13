@@ -18,6 +18,10 @@
     Circle,
     Truck,
     Tags,
+    Calendar,
+    Plus,
+    Shield,
+    List,
   } from "lucide-svelte";
   import { cn } from "$lib/utils";
   import { slide } from "svelte/transition";
@@ -88,8 +92,13 @@
         },
         {
           title: "Service",
-          href: "/service",
           icon: Wrench,
+          children: [
+            { title: "Service Baru", href: "/service/new", icon: Plus },
+            { title: "Daftar Service", href: "/service", icon: List },
+            { title: "Kalender", href: "/service/calendar", icon: Calendar },
+            { title: "Klaim Garansi", href: "/service/warranty", icon: Shield },
+          ],
         },
       ],
     },

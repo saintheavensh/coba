@@ -159,6 +159,7 @@ export const services = sqliteTable("services", {
 
     dateIn: integer("date_in", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
     dateOut: integer("date_out", { mode: "timestamp" }),
+    estimatedCompletionDate: integer("estimated_completion_date", { mode: "timestamp" }),
 });
 
 // ============================================

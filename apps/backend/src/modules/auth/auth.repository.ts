@@ -18,4 +18,10 @@ export class AuthRepository {
     async create(data: typeof users.$inferInsert) {
         return await db.insert(users).values(data).returning();
     }
+
+    async findByRole(role: "admin" | "teknisi" | "kasir") {
+        return await db.query.users.findMany({
+            where: eq(users.role, role)
+        });
+    }
 }

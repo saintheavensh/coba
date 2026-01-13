@@ -23,8 +23,36 @@ export interface TransactionReport {
 
 export interface ServiceStats {
     total: number;
+    completed: number;
     byStatus: Record<string, number>;
     revenue: number;
+}
+
+export interface ServiceReport {
+    id: number;
+    no: string;
+    date: string;
+    customerName: string;
+    deviceInfo: string;
+    status: string;
+    estimatedCost: number;
+    actualCost: number;
+}
+
+export interface PurchasesSummary {
+    totalAmount: number;
+    totalTransactions: number;
+    totalItems: number;
+}
+
+export interface PurchaseReport {
+    id: string;
+    date: string;
+    supplierId: string;
+    supplierName: string | null;
+    items: number;
+    totalAmount: number;
+    notes: string | null;
 }
 
 export interface ReportFilters {
@@ -67,5 +95,67 @@ export const ReportsService = {
 
         const res = await api.get<ApiResponse<ServiceStats>>(`/reports/services?${params.toString()}`);
         return res.data.data!;
+    },
+
+    /**
+     * Get service transactions list
+     */
+    getServiceTransactions: async (filters: ReportFilters = {}): Promise<ServiceReport[]> => {
+        const params = new URLSearchParams();
+        if (filters.startDate) params.set("startDate", filters.startDate);
+        if (filters.endDate) params.set("endDate", filters.endDate);
+
+        const res = await api.get<ApiResponse<ServiceReport[]>>(`/reports/services/transactions?${params.toString()}`);
+        return res.data.data || [];
+    },
+
+    /**
+     * Get purchases summary
+     */
+    getPurchasesSummary: async (filters: ReportFilters = {}): Promise<PurchasesSummary> => {
+        const params = new URLSearchParams();
+        if (filters.startDate) params.set("startDate", filters.startDate);
+        if (filters.endDate) params.set("endDate", filters.endDate);
+
+        const res = await api.get<ApiResponse<PurchasesSummary>>(`/reports/purchases/summary?${params.toString()}`);
+        return res.data.data!;
+    },
+
+    /**
+     * Get purchase transactions list
+     */
+    getPurchaseTransactions: async (filters: ReportFilters = {}): Promise<PurchaseReport[]> => {
+        const params = new URLSearchParams();
+        if (filters.startDate) params.set("startDate", filters.startDate);
+        if (filters.endDate) params.set("endDate", filters.endDate);
+
+        const res = await api.get<ApiResponse<PurchaseReport[]>>(`/reports/purchases/transactions?${params.toString()}`);
+        return res.data.data || [];
+    },
+
+    /**
+     * Get technician performance statistics
+     */
+    getTechnicianStats: async (filters: ReportFilters = {}): Promise<TechnicianReport[]> => {
+        const params = new URLSearchParams();
+        if (filters.startDate) params.set("startDate", filters.startDate);
+        if (filters.endDate) params.set("endDate", filters.endDate);
+
+        const res = await api.get<ApiResponse<TechnicianReport[]>>(`/reports/technicians?${params.toString()}`);
+        return res.data.data || [];
     }
 };
+
+export interface TechnicianReport {
+    id: string;
+    name: string;
+    image: string | null;
+    totalServices: number;
+    completed: number;
+    inProgress: number;
+    cancelled: number;
+    revenue: number;
+    completionRate: number;
+}
+
+

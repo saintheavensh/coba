@@ -44,5 +44,9 @@ export const ServiceService = {
     },
     print: async (id: number | string): Promise<void> => {
         await api.post(`/service/${id}/print`);
+    },
+    update: async (id: number | string, data: Partial<{ estimatedCompletionDate: string }>): Promise<Service> => {
+        const res = await api.patch<ApiResponse<Service>>(`/service/${id}`, data);
+        return res.data.data!;
     }
 };

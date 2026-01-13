@@ -88,5 +88,21 @@ app.post("/:id/print", async (c) => {
     }
 });
 
+/**
+ * PATCH /:id - Update service (for rescheduling)
+ */
+app.patch("/:id", async (c) => {
+    const id = parseInt(c.req.param("id"));
+    if (isNaN(id)) return apiError(c, "Invalid ID", "Validation error", 400);
+
+    try {
+        const body = await c.req.json();
+        const result = await service.reschedule(id, body.estimatedCompletionDate);
+        return apiSuccess(c, result, "Service rescheduled successfully");
+    } catch (e) {
+        return apiError(c, e, "Failed to reschedule service", 400);
+    }
+});
+
 export default app;
 

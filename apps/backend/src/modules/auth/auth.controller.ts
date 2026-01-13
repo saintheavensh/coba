@@ -19,4 +19,18 @@ app.post("/login", zValidator("json", loginSchema), async (c) => {
 // Register endpoint (Optional, usually admin only)
 // app.post("/register", ...)
 
+// Get users by role (for technician selection, etc.)
+app.get("/users", async (c) => {
+    try {
+        const role = c.req.query("role") as "admin" | "teknisi" | "kasir" | undefined;
+        if (!role || !["admin", "teknisi", "kasir"].includes(role)) {
+            return c.json({ success: false, message: "Invalid or missing role parameter" }, 400);
+        }
+        const users = await service.getUsersByRole(role);
+        return c.json({ success: true, data: users });
+    } catch (e) {
+        return c.json({ success: false, message: String(e) }, 500);
+    }
+});
+
 export default app;

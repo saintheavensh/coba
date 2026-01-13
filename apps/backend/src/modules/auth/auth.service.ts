@@ -56,4 +56,14 @@ export class AuthService {
             role: data.role
         });
     }
+
+    async getUsersByRole(role: "admin" | "teknisi" | "kasir") {
+        const users = await this.repo.findByRole(role);
+        // Return only safe fields, exclude password
+        return users.map(u => ({
+            id: u.id,
+            name: u.name,
+            role: u.role
+        }));
+    }
 }

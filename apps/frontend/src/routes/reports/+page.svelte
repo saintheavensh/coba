@@ -19,11 +19,23 @@
     import { Label } from "$lib/components/ui/label";
     import { Separator } from "$lib/components/ui/separator";
     import {
-        Search,
+        Tabs,
+        TabsContent,
+        TabsList,
+        TabsTrigger,
+    } from "$lib/components/ui/tabs";
+    import {
         Download,
         Calendar as CalendarIcon,
         Filter,
-        Loader2,
+        TrendingUp,
+        Package,
+        Wrench,
+        ShoppingCart,
+        DollarSign,
+        ClipboardList,
+        CheckCircle,
+        Users,
     } from "lucide-svelte";
     import { Badge } from "$lib/components/ui/badge";
     import { createQuery } from "@tanstack/svelte-query";
@@ -31,26 +43,64 @@
         ReportsService,
         type TransactionReport,
         type SalesSummary,
+        type PurchasesSummary,
+        type PurchaseReport,
+        type ServiceStats,
+        type ServiceReport,
+        type TechnicianReport,
     } from "$lib/services/reports.service";
 
     // State Filter
     let startDate = $state("2026-01-01");
     let endDate = $state("2026-01-31");
+    let activeTab = $state("sales");
 
-    // Queries
-    const summaryQuery = createQuery(() => ({
-        queryKey: ["reports", "summary", startDate, endDate],
+    // Sales Queries
+    const salesSummaryQuery = createQuery(() => ({
+        queryKey: ["reports", "sales", "summary", startDate, endDate],
         queryFn: () => ReportsService.getSummary({ startDate, endDate }),
     }));
 
-    const transactionsQuery = createQuery(() => ({
-        queryKey: ["reports", "transactions", startDate, endDate],
+    const salesTransactionsQuery = createQuery(() => ({
+        queryKey: ["reports", "sales", "transactions", startDate, endDate],
         queryFn: () => ReportsService.getTransactions({ startDate, endDate }),
     }));
 
-    // Derived from queries
-    let summary = $derived<SalesSummary>(
-        summaryQuery.data || {
+    // Purchases Queries
+    const purchasesSummaryQuery = createQuery(() => ({
+        queryKey: ["reports", "purchases", "summary", startDate, endDate],
+        queryFn: () =>
+            ReportsService.getPurchasesSummary({ startDate, endDate }),
+    }));
+
+    const purchasesTransactionsQuery = createQuery(() => ({
+        queryKey: ["reports", "purchases", "transactions", startDate, endDate],
+        queryFn: () =>
+            ReportsService.getPurchaseTransactions({ startDate, endDate }),
+    }));
+
+    // Services Queries
+    const servicesStatsQuery = createQuery(() => ({
+        queryKey: ["reports", "services", "stats", startDate, endDate],
+        queryFn: () => ReportsService.getServiceStats({ startDate, endDate }),
+    }));
+
+    const servicesTransactionsQuery = createQuery(() => ({
+        queryKey: ["reports", "services", "transactions", startDate, endDate],
+        queryFn: () =>
+            ReportsService.getServiceTransactions({ startDate, endDate }),
+    }));
+
+    // Technicians Query
+    const techniciansQuery = createQuery(() => ({
+        queryKey: ["reports", "technicians", startDate, endDate],
+        queryFn: () =>
+            ReportsService.getTechnicianStats({ startDate, endDate }),
+    }));
+
+    // Derived from queries - Sales
+    let salesSummary = $derived<SalesSummary>(
+        salesSummaryQuery.data || {
             totalRevenue: 0,
             totalHPP: 0,
             totalProfit: 0,
@@ -59,32 +109,109 @@
             profitMargin: 0,
         },
     );
-    let transactions = $derived<TransactionReport[]>(
-        transactionsQuery.data || [],
+    let salesTransactions = $derived<TransactionReport[]>(
+        salesTransactionsQuery.data || [],
     );
+
+    // Derived from queries - Purchases
+    let purchasesSummary = $derived<PurchasesSummary>(
+        purchasesSummaryQuery.data || {
+            totalAmount: 0,
+            totalTransactions: 0,
+            totalItems: 0,
+        },
+    );
+    let purchasesTransactions = $derived<PurchaseReport[]>(
+        purchasesTransactionsQuery.data || [],
+    );
+
+    // Derived from queries - Services
+    let servicesStats = $derived<ServiceStats>(
+        servicesStatsQuery.data || {
+            total: 0,
+            completed: 0,
+            byStatus: {},
+            revenue: 0,
+        },
+    );
+    let servicesTransactions = $derived<ServiceReport[]>(
+        servicesTransactionsQuery.data || [],
+    );
+
+    // Derived from queries - Technicians
+    let technicians = $derived<TechnicianReport[]>(techniciansQuery.data || []);
+    let totalTechnicianRevenue = $derived(
+        technicians.reduce((sum, t) => sum + t.revenue, 0),
+    );
+    let totalTechnicianServices = $derived(
+        technicians.reduce((sum, t) => sum + t.totalServices, 0),
+    );
+
+    // Loading state
     let isLoading = $derived(
-        summaryQuery.isPending || transactionsQuery.isPending,
+        salesSummaryQuery.isPending ||
+            purchasesSummaryQuery.isPending ||
+            servicesStatsQuery.isPending ||
+            techniciansQuery.isPending,
     );
 
-    // Legacy variable names for template compatibility
-    let totalRevenue = $derived(summary.totalRevenue);
-    let totalHPP = $derived(summary.totalHPP);
-    let totalProfit = $derived(summary.totalProfit);
-    let totalItems = $derived(summary.totalItems);
-    let profitMargin = $derived(summary.profitMargin);
+    // Helper functions
+    function formatDate(dateStr: string) {
+        return new Date(dateStr).toLocaleDateString("id-ID", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+        });
+    }
 
-    function handleFilter() {
-        // Queries will automatically refetch when startDate/endDate change
+    function formatCurrency(amount: number) {
+        return `Rp ${amount.toLocaleString("id-ID")}`;
+    }
+
+    function getStatusBadgeVariant(
+        status: string,
+    ): "default" | "secondary" | "outline" | "destructive" {
+        switch (status) {
+            case "selesai":
+            case "diambil":
+                return "default";
+            case "dikerjakan":
+                return "secondary";
+            case "batal":
+                return "destructive";
+            default:
+                return "outline";
+        }
+    }
+
+    function getStatusLabel(status: string): string {
+        const labels: Record<string, string> = {
+            antrian: "Antrian",
+            dicek: "Dicek",
+            konfirmasi: "Konfirmasi",
+            dikerjakan: "Dikerjakan",
+            selesai: "Selesai",
+            diambil: "Diambil",
+            batal: "Batal",
+        };
+        return labels[status] || status;
+    }
+
+    function calculateStatusPercentage(count: number, total: number): number {
+        if (total === 0) return 0;
+        return Math.round((count / total) * 100);
     }
 </script>
 
 <div class="space-y-6">
+    <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
-            <h3 class="text-lg font-medium">Laporan Keuntungan</h3>
+            <h3 class="text-2xl font-bold tracking-tight">
+                📊 Laporan Keuangan
+            </h3>
             <p class="text-sm text-muted-foreground">
-                Analisis pendapatan, modal (HPP), dan keuntungan bersih periode
-                ini.
+                Analisis komprehensif penjualan, pembelian, dan layanan service
             </p>
         </div>
         <div class="flex items-center gap-2">
@@ -96,7 +223,7 @@
     </div>
     <Separator />
 
-    <!-- Filters -->
+    <!-- Date Filter -->
     <Card>
         <CardContent class="p-4">
             <div class="flex flex-col sm:flex-row gap-4 items-end">
@@ -122,129 +249,715 @@
                         <Input type="date" bind:value={endDate} class="pl-8" />
                     </div>
                 </div>
-                <Button>
-                    <Filter class="mr-2 h-4 w-4" /> Terapkan Filter
+                <Button disabled={isLoading}>
+                    <Filter class="mr-2 h-4 w-4" />
+                    {isLoading ? "Loading..." : "Terapkan Filter"}
                 </Button>
             </div>
         </CardContent>
     </Card>
 
-    <!-- Summary Cards -->
-    <div class="grid gap-4 md:grid-cols-3">
-        <Card>
-            <CardHeader
-                class="flex flex-row items-center justify-between space-y-0 pb-2"
-            >
-                <CardTitle class="text-sm font-medium">
-                    Total Penjualan (Omzet)
-                </CardTitle>
-                <span class="text-muted-foreground font-bold">💰</span>
-            </CardHeader>
-            <CardContent>
-                <div class="text-2xl font-bold">
-                    Rp {totalRevenue.toLocaleString()}
-                </div>
-                <p class="text-xs text-muted-foreground">
-                    +20.1% dari bulan lalu
-                </p>
-            </CardContent>
-        </Card>
-        <Card>
-            <CardHeader
-                class="flex flex-row items-center justify-between space-y-0 pb-2"
-            >
-                <CardTitle class="text-sm font-medium">
-                    Total Modal (HPP)
-                </CardTitle>
-                <span class="text-muted-foreground font-bold">📦</span>
-            </CardHeader>
-            <CardContent>
-                <div class="text-2xl font-bold">
-                    Rp {totalHPP.toLocaleString()}
-                </div>
-                <p class="text-xs text-muted-foreground">Cost of Goods Sold</p>
-            </CardContent>
-        </Card>
-        <Card class="bg-primary/5 border-primary/20">
-            <CardHeader
-                class="flex flex-row items-center justify-between space-y-0 pb-2"
-            >
-                <CardTitle class="text-sm font-medium text-green-700">
-                    Keuntungan Bersih
-                </CardTitle>
-                <span class="text-green-600 font-bold">📈</span>
-            </CardHeader>
-            <CardContent>
-                <div class="text-2xl font-bold text-green-700">
-                    Rp {totalProfit.toLocaleString()}
-                </div>
-                <p class="text-xs text-green-600 font-medium">
-                    Margin: {profitMargin.toFixed(1)}%
-                </p>
-            </CardContent>
-        </Card>
-    </div>
+    <!-- Tabbed Reports -->
+    <Tabs bind:value={activeTab} class="space-y-4">
+        <TabsList class="grid w-full grid-cols-4">
+            <TabsTrigger value="sales" class="flex items-center gap-2">
+                <TrendingUp class="h-4 w-4" />
+                <span class="hidden sm:inline">Penjualan</span>
+                <span class="sm:hidden">Sales</span>
+            </TabsTrigger>
+            <TabsTrigger value="purchases" class="flex items-center gap-2">
+                <Package class="h-4 w-4" />
+                <span class="hidden sm:inline">Pembelian</span>
+                <span class="sm:hidden">Purchase</span>
+            </TabsTrigger>
+            <TabsTrigger value="services" class="flex items-center gap-2">
+                <Wrench class="h-4 w-4" />
+                <span>Service</span>
+            </TabsTrigger>
+            <TabsTrigger value="technicians" class="flex items-center gap-2">
+                <Users class="h-4 w-4" />
+                <span>Teknisi</span>
+            </TabsTrigger>
+        </TabsList>
 
-    <!-- Detail Table -->
-    <Card>
-        <CardHeader>
-            <CardTitle>Rincian Transaksi</CardTitle>
-            <CardDescription
-                >Detail keuntungan per nomor nota penjualan.</CardDescription
-            >
-        </CardHeader>
-        <CardContent>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Tanggal</TableHead>
-                        <TableHead>No. Nota</TableHead>
-                        <TableHead class="text-center">Jml Item</TableHead>
-                        <TableHead class="text-right">Penjualan</TableHead>
-                        <TableHead class="text-right">HPP (Modal)</TableHead>
-                        <TableHead class="text-right font-bold text-green-600"
-                            >Keuntungan</TableHead
+        <!-- Sales Tab -->
+        <TabsContent value="sales" class="space-y-4">
+            <!-- Sales Summary Cards -->
+            <div class="grid gap-4 md:grid-cols-3">
+                <Card>
+                    <CardHeader
+                        class="flex flex-row items-center justify-between space-y-0 pb-2"
+                    >
+                        <CardTitle class="text-sm font-medium">
+                            Total Penjualan (Omzet)
+                        </CardTitle>
+                        <DollarSign class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">
+                            {formatCurrency(salesSummary.totalRevenue)}
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            {salesSummary.totalTransactions} transaksi
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader
+                        class="flex flex-row items-center justify-between space-y-0 pb-2"
+                    >
+                        <CardTitle class="text-sm font-medium">
+                            Total Modal (HPP)
+                        </CardTitle>
+                        <ShoppingCart class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">
+                            {formatCurrency(salesSummary.totalHPP)}
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Cost of Goods Sold
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card
+                    class="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                >
+                    <CardHeader
+                        class="flex flex-row items-center justify-between space-y-0 pb-2"
+                    >
+                        <CardTitle
+                            class="text-sm font-medium text-green-700 dark:text-green-300"
                         >
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {#each transactions as t}
-                        <TableRow>
-                            <TableCell>{t.date}</TableCell>
-                            <TableCell class="font-medium text-primary"
-                                >{t.nota}</TableCell
-                            >
-                            <TableCell class="text-center">
-                                <Badge variant="outline">{t.items} Items</Badge>
-                            </TableCell>
-                            <TableCell class="text-right"
-                                >Rp {t.total.toLocaleString()}</TableCell
-                            >
-                            <TableCell class="text-right text-muted-foreground"
-                                >Rp {t.hpp.toLocaleString()}</TableCell
-                            >
-                            <TableCell
-                                class="text-right font-bold text-green-600"
-                                >+ Rp {t.profit.toLocaleString()}</TableCell
-                            >
-                        </TableRow>
-                    {/each}
-                    <TableRow class="bg-muted/50 font-medium hover:bg-muted/50">
-                        <TableCell colspan={3} class="text-right"
-                            >TOTAL</TableCell
+                            Keuntungan Bersih
+                        </CardTitle>
+                        <TrendingUp class="h-4 w-4 text-green-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div
+                            class="text-2xl font-bold text-green-700 dark:text-green-300"
                         >
-                        <TableCell class="text-right"
-                            >Rp {totalRevenue.toLocaleString()}</TableCell
+                            {formatCurrency(salesSummary.totalProfit)}
+                        </div>
+                        <p
+                            class="text-xs text-green-600 dark:text-green-400 font-medium"
                         >
-                        <TableCell class="text-right"
-                            >Rp {totalHPP.toLocaleString()}</TableCell
+                            Margin: {salesSummary.profitMargin.toFixed(1)}%
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <!-- Sales Transaction Table -->
+            <Card>
+                <CardHeader>
+                    <CardTitle>Rincian Transaksi Penjualan</CardTitle>
+                    <CardDescription>
+                        Detail keuntungan per nomor nota penjualan.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Tanggal</TableHead>
+                                <TableHead>No. Nota</TableHead>
+                                <TableHead class="text-center"
+                                    >Jml Item</TableHead
+                                >
+                                <TableHead class="text-right"
+                                    >Penjualan</TableHead
+                                >
+                                <TableHead class="text-right"
+                                    >HPP (Modal)</TableHead
+                                >
+                                <TableHead
+                                    class="text-right font-bold text-green-600"
+                                >
+                                    Keuntungan
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {#each salesTransactions as t}
+                                <TableRow>
+                                    <TableCell>{formatDate(t.date)}</TableCell>
+                                    <TableCell class="font-medium text-primary"
+                                        >{t.nota}</TableCell
+                                    >
+                                    <TableCell class="text-center">
+                                        <Badge variant="outline"
+                                            >{t.items} Items</Badge
+                                        >
+                                    </TableCell>
+                                    <TableCell class="text-right"
+                                        >{formatCurrency(t.total)}</TableCell
+                                    >
+                                    <TableCell
+                                        class="text-right text-muted-foreground"
+                                    >
+                                        {formatCurrency(t.hpp)}
+                                    </TableCell>
+                                    <TableCell
+                                        class="text-right font-bold text-green-600"
+                                    >
+                                        + {formatCurrency(t.profit)}
+                                    </TableCell>
+                                </TableRow>
+                            {/each}
+                            {#if salesTransactions.length === 0}
+                                <TableRow>
+                                    <TableCell
+                                        colspan={6}
+                                        class="text-center text-muted-foreground py-8"
+                                    >
+                                        Tidak ada transaksi dalam periode ini
+                                    </TableCell>
+                                </TableRow>
+                            {:else}
+                                <TableRow
+                                    class="bg-muted/50 font-medium hover:bg-muted/50"
+                                >
+                                    <TableCell colspan={3} class="text-right"
+                                        >TOTAL</TableCell
+                                    >
+                                    <TableCell class="text-right"
+                                        >{formatCurrency(
+                                            salesSummary.totalRevenue,
+                                        )}</TableCell
+                                    >
+                                    <TableCell class="text-right"
+                                        >{formatCurrency(
+                                            salesSummary.totalHPP,
+                                        )}</TableCell
+                                    >
+                                    <TableCell class="text-right text-green-600"
+                                        >{formatCurrency(
+                                            salesSummary.totalProfit,
+                                        )}</TableCell
+                                    >
+                                </TableRow>
+                            {/if}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <!-- Purchases Tab -->
+        <TabsContent value="purchases" class="space-y-4">
+            <!-- Purchases Summary Cards -->
+            <div class="grid gap-4 md:grid-cols-3">
+                <Card>
+                    <CardHeader
+                        class="flex flex-row items-center justify-between space-y-0 pb-2"
+                    >
+                        <CardTitle class="text-sm font-medium">
+                            Total Pembelian
+                        </CardTitle>
+                        <Package class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">
+                            {formatCurrency(purchasesSummary.totalAmount)}
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Pengeluaran stok masuk
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader
+                        class="flex flex-row items-center justify-between space-y-0 pb-2"
+                    >
+                        <CardTitle class="text-sm font-medium">
+                            Jumlah Transaksi
+                        </CardTitle>
+                        <ClipboardList class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">
+                            {purchasesSummary.totalTransactions}
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Purchase Orders
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader
+                        class="flex flex-row items-center justify-between space-y-0 pb-2"
+                    >
+                        <CardTitle class="text-sm font-medium">
+                            Total Item Masuk
+                        </CardTitle>
+                        <ShoppingCart class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">
+                            {purchasesSummary.totalItems.toLocaleString()}
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Stock received
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <!-- Purchases Transaction Table -->
+            <Card>
+                <CardHeader>
+                    <CardTitle>Rincian Pembelian</CardTitle>
+                    <CardDescription>
+                        Detail transaksi pembelian dari supplier.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Tanggal</TableHead>
+                                <TableHead>No. PO</TableHead>
+                                <TableHead>Supplier</TableHead>
+                                <TableHead class="text-center"
+                                    >Jml Item</TableHead
+                                >
+                                <TableHead class="text-right"
+                                    >Total Pembelian</TableHead
+                                >
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {#each purchasesTransactions as p}
+                                <TableRow>
+                                    <TableCell>{formatDate(p.date)}</TableCell>
+                                    <TableCell class="font-medium text-primary"
+                                        >{p.id}</TableCell
+                                    >
+                                    <TableCell
+                                        >{p.supplierName || "-"}</TableCell
+                                    >
+                                    <TableCell class="text-center">
+                                        <Badge variant="outline"
+                                            >{p.items} Items</Badge
+                                        >
+                                    </TableCell>
+                                    <TableCell class="text-right font-medium">
+                                        {formatCurrency(p.totalAmount)}
+                                    </TableCell>
+                                </TableRow>
+                            {/each}
+                            {#if purchasesTransactions.length === 0}
+                                <TableRow>
+                                    <TableCell
+                                        colspan={5}
+                                        class="text-center text-muted-foreground py-8"
+                                    >
+                                        Tidak ada pembelian dalam periode ini
+                                    </TableCell>
+                                </TableRow>
+                            {:else}
+                                <TableRow
+                                    class="bg-muted/50 font-medium hover:bg-muted/50"
+                                >
+                                    <TableCell colspan={4} class="text-right"
+                                        >TOTAL</TableCell
+                                    >
+                                    <TableCell class="text-right"
+                                        >{formatCurrency(
+                                            purchasesSummary.totalAmount,
+                                        )}</TableCell
+                                    >
+                                </TableRow>
+                            {/if}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <!-- Services Tab -->
+        <TabsContent value="services" class="space-y-4">
+            <!-- Services Summary Cards -->
+            <div class="grid gap-4 md:grid-cols-3">
+                <Card>
+                    <CardHeader
+                        class="flex flex-row items-center justify-between space-y-0 pb-2"
+                    >
+                        <CardTitle class="text-sm font-medium">
+                            Total Service
+                        </CardTitle>
+                        <Wrench class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">
+                            {servicesStats.total}
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Dalam periode ini
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card
+                    class="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                >
+                    <CardHeader
+                        class="flex flex-row items-center justify-between space-y-0 pb-2"
+                    >
+                        <CardTitle
+                            class="text-sm font-medium text-green-700 dark:text-green-300"
                         >
-                        <TableCell class="text-right text-green-600"
-                            >Rp {totalProfit.toLocaleString()}</TableCell
+                            Pendapatan Service
+                        </CardTitle>
+                        <DollarSign class="h-4 w-4 text-green-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div
+                            class="text-2xl font-bold text-green-700 dark:text-green-300"
                         >
-                    </TableRow>
-                </TableBody>
-            </Table>
-        </CardContent>
-    </Card>
+                            {formatCurrency(servicesStats.revenue)}
+                        </div>
+                        <p class="text-xs text-green-600 dark:text-green-400">
+                            Service revenue
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader
+                        class="flex flex-row items-center justify-between space-y-0 pb-2"
+                    >
+                        <CardTitle class="text-sm font-medium">
+                            Selesai / Diambil
+                        </CardTitle>
+                        <CheckCircle class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">
+                            {servicesStats.completed}
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            {servicesStats.total > 0
+                                ? `${calculateStatusPercentage(servicesStats.completed, servicesStats.total)}% completion rate`
+                                : "No services"}
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <!-- Status Breakdown -->
+            {#if Object.keys(servicesStats.byStatus).length > 0}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Status Service</CardTitle>
+                        <CardDescription
+                            >Breakdown berdasarkan status</CardDescription
+                        >
+                    </CardHeader>
+                    <CardContent class="space-y-3">
+                        {#each Object.entries(servicesStats.byStatus) as [status, count]}
+                            <div class="flex items-center gap-3">
+                                <div class="w-24 text-sm font-medium">
+                                    {getStatusLabel(status)}
+                                </div>
+                                <div
+                                    class="flex-1 bg-muted rounded-full h-4 overflow-hidden"
+                                >
+                                    <div
+                                        class="h-full bg-primary transition-all duration-300"
+                                        style="width: {calculateStatusPercentage(
+                                            count,
+                                            servicesStats.total,
+                                        )}%"
+                                    ></div>
+                                </div>
+                                <div class="w-16 text-sm text-right">
+                                    <span class="font-medium">{count}</span>
+                                    <span
+                                        class="text-muted-foreground text-xs ml-1"
+                                        >({calculateStatusPercentage(
+                                            count,
+                                            servicesStats.total,
+                                        )}%)</span
+                                    >
+                                </div>
+                            </div>
+                        {/each}
+                    </CardContent>
+                </Card>
+            {/if}
+
+            <!-- Services Transaction Table -->
+            <Card>
+                <CardHeader>
+                    <CardTitle>Rincian Service</CardTitle>
+                    <CardDescription>
+                        Detail transaksi service dalam periode.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Tanggal</TableHead>
+                                <TableHead>No. Service</TableHead>
+                                <TableHead>Customer</TableHead>
+                                <TableHead>Device</TableHead>
+                                <TableHead class="text-center">Status</TableHead
+                                >
+                                <TableHead class="text-right"
+                                    >Biaya Aktual</TableHead
+                                >
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {#each servicesTransactions as s}
+                                <TableRow>
+                                    <TableCell>{formatDate(s.date)}</TableCell>
+                                    <TableCell class="font-medium text-primary"
+                                        >{s.no}</TableCell
+                                    >
+                                    <TableCell>{s.customerName}</TableCell>
+                                    <TableCell class="text-muted-foreground"
+                                        >{s.deviceInfo || "-"}</TableCell
+                                    >
+                                    <TableCell class="text-center">
+                                        <Badge
+                                            variant={getStatusBadgeVariant(
+                                                s.status,
+                                            )}
+                                        >
+                                            {getStatusLabel(s.status)}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell class="text-right font-medium">
+                                        {s.actualCost > 0
+                                            ? formatCurrency(s.actualCost)
+                                            : "-"}
+                                    </TableCell>
+                                </TableRow>
+                            {/each}
+                            {#if servicesTransactions.length === 0}
+                                <TableRow>
+                                    <TableCell
+                                        colspan={6}
+                                        class="text-center text-muted-foreground py-8"
+                                    >
+                                        Tidak ada service dalam periode ini
+                                    </TableCell>
+                                </TableRow>
+                            {:else}
+                                <TableRow
+                                    class="bg-muted/50 font-medium hover:bg-muted/50"
+                                >
+                                    <TableCell colspan={5} class="text-right"
+                                        >TOTAL PENDAPATAN</TableCell
+                                    >
+                                    <TableCell class="text-right text-green-600"
+                                        >{formatCurrency(
+                                            servicesStats.revenue,
+                                        )}</TableCell
+                                    >
+                                </TableRow>
+                            {/if}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <!-- Technicians Tab -->
+        <TabsContent value="technicians" class="space-y-4">
+            <!-- Technicians Summary Cards -->
+            <div class="grid gap-4 md:grid-cols-3">
+                <Card>
+                    <CardHeader
+                        class="flex flex-row items-center justify-between space-y-0 pb-2"
+                    >
+                        <CardTitle class="text-sm font-medium">
+                            Total Teknisi
+                        </CardTitle>
+                        <Users class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">
+                            {technicians.length}
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Teknisi aktif dalam sistem
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader
+                        class="flex flex-row items-center justify-between space-y-0 pb-2"
+                    >
+                        <CardTitle class="text-sm font-medium">
+                            Total Service Dikerjakan
+                        </CardTitle>
+                        <Wrench class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">
+                            {totalTechnicianServices}
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Dalam periode ini
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card
+                    class="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                >
+                    <CardHeader
+                        class="flex flex-row items-center justify-between space-y-0 pb-2"
+                    >
+                        <CardTitle
+                            class="text-sm font-medium text-green-700 dark:text-green-300"
+                        >
+                            Total Pendapatan
+                        </CardTitle>
+                        <DollarSign class="h-4 w-4 text-green-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div
+                            class="text-2xl font-bold text-green-700 dark:text-green-300"
+                        >
+                            {formatCurrency(totalTechnicianRevenue)}
+                        </div>
+                        <p class="text-xs text-green-600 dark:text-green-400">
+                            Revenue dari service selesai
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <!-- Technician Performance Table -->
+            <Card>
+                <CardHeader>
+                    <CardTitle>Performa Teknisi</CardTitle>
+                    <CardDescription>
+                        Statistik kinerja setiap teknisi dalam periode ini.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Teknisi</TableHead>
+                                <TableHead class="text-center"
+                                    >Total Service</TableHead
+                                >
+                                <TableHead class="text-center"
+                                    >Selesai</TableHead
+                                >
+                                <TableHead class="text-center"
+                                    >Dalam Proses</TableHead
+                                >
+                                <TableHead class="text-center"
+                                    >Completion Rate</TableHead
+                                >
+                                <TableHead class="text-right"
+                                    >Pendapatan</TableHead
+                                >
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {#each technicians as t}
+                                <TableRow>
+                                    <TableCell>
+                                        <div class="flex items-center gap-2">
+                                            <div
+                                                class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium"
+                                            >
+                                                {t.name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <span class="font-medium"
+                                                >{t.name}</span
+                                            >
+                                        </div>
+                                    </TableCell>
+                                    <TableCell class="text-center">
+                                        <Badge variant="outline"
+                                            >{t.totalServices}</Badge
+                                        >
+                                    </TableCell>
+                                    <TableCell class="text-center">
+                                        <Badge variant="default"
+                                            >{t.completed}</Badge
+                                        >
+                                    </TableCell>
+                                    <TableCell class="text-center">
+                                        <Badge variant="secondary"
+                                            >{t.inProgress}</Badge
+                                        >
+                                    </TableCell>
+                                    <TableCell class="text-center">
+                                        <div
+                                            class="flex items-center gap-2 justify-center"
+                                        >
+                                            <div
+                                                class="w-16 bg-muted rounded-full h-2 overflow-hidden"
+                                            >
+                                                <div
+                                                    class="h-full bg-green-500 transition-all duration-300"
+                                                    style="width: {t.completionRate}%"
+                                                ></div>
+                                            </div>
+                                            <span class="text-xs font-medium"
+                                                >{t.completionRate}%</span
+                                            >
+                                        </div>
+                                    </TableCell>
+                                    <TableCell
+                                        class="text-right font-medium text-green-600"
+                                    >
+                                        {formatCurrency(t.revenue)}
+                                    </TableCell>
+                                </TableRow>
+                            {/each}
+                            {#if technicians.length === 0}
+                                <TableRow>
+                                    <TableCell
+                                        colspan={6}
+                                        class="text-center text-muted-foreground py-8"
+                                    >
+                                        Tidak ada data teknisi
+                                    </TableCell>
+                                </TableRow>
+                            {:else}
+                                <TableRow
+                                    class="bg-muted/50 font-medium hover:bg-muted/50"
+                                >
+                                    <TableCell class="text-right"
+                                        >TOTAL</TableCell
+                                    >
+                                    <TableCell class="text-center"
+                                        >{totalTechnicianServices}</TableCell
+                                    >
+                                    <TableCell class="text-center"
+                                        >{technicians.reduce(
+                                            (sum, t) => sum + t.completed,
+                                            0,
+                                        )}</TableCell
+                                    >
+                                    <TableCell class="text-center"
+                                        >{technicians.reduce(
+                                            (sum, t) => sum + t.inProgress,
+                                            0,
+                                        )}</TableCell
+                                    >
+                                    <TableCell class="text-center">-</TableCell>
+                                    <TableCell class="text-right text-green-600"
+                                        >{formatCurrency(
+                                            totalTechnicianRevenue,
+                                        )}</TableCell
+                                    >
+                                </TableRow>
+                            {/if}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </TabsContent>
+    </Tabs>
 </div>

@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { sales, saleItems, productBatches, services } from "../../db/schema";
+import { sales, saleItems, productBatches, services, purchases, users } from "../../db/schema";
 import { sql, eq, gte, lte, and, count, sum, desc } from "drizzle-orm";
 
 export interface ReportFilters {
@@ -180,6 +180,7 @@ export class ReportsService {
 
         const statusCounts: Record<string, number> = {};
         let totalRevenue = 0;
+        let completedCount = 0;
 
         for (const svc of servicesData) {
             const status = svc.status || 'antrian';
@@ -188,12 +189,311 @@ export class ReportsService {
             if (svc.actualCost) {
                 totalRevenue += svc.actualCost;
             }
+
+            if (status === 'selesai' || status === 'diambil') {
+                completedCount++;
+            }
         }
 
         return {
             total: servicesData.length,
+            completed: completedCount,
             byStatus: statusCounts,
             revenue: totalRevenue
         };
     }
+
+    /**
+     * Get service transactions list
+     */
+    async getServiceTransactions(filters: ReportFilters = {}): Promise<ServiceReport[]> {
+        let conditions = [];
+
+        if (filters.startDate) {
+            const start = new Date(filters.startDate);
+            conditions.push(gte(services.dateIn, start));
+        }
+        if (filters.endDate) {
+            const end = new Date(filters.endDate);
+            end.setHours(23, 59, 59, 999);
+            conditions.push(lte(services.dateIn, end));
+        }
+
+        const servicesData = conditions.length > 0
+            ? await db.query.services.findMany({
+                where: and(...conditions),
+                orderBy: [desc(services.dateIn)]
+            })
+            : await db.query.services.findMany({
+                orderBy: [desc(services.dateIn)]
+            });
+
+        return servicesData.map(svc => {
+            const customer = svc.customer as { name?: string } | null;
+            const device = svc.device as { brand?: string; model?: string } | null;
+
+            return {
+                id: svc.id,
+                no: svc.no,
+                date: svc.dateIn!,
+                customerName: customer?.name || '-',
+                deviceInfo: device ? `${device.brand || ''} ${device.model || ''}`.trim() : '-',
+                status: svc.status || 'antrian',
+                estimatedCost: svc.costEstimate || 0,
+                actualCost: svc.actualCost || 0
+            };
+        });
+    }
+
+    /**
+     * Get purchases summary
+     */
+    async getPurchasesSummary(filters: ReportFilters = {}): Promise<PurchasesSummary> {
+        let conditions = [];
+
+        if (filters.startDate) {
+            const start = new Date(filters.startDate);
+            conditions.push(gte(purchases.date, start));
+        }
+        if (filters.endDate) {
+            const end = new Date(filters.endDate);
+            end.setHours(23, 59, 59, 999);
+            conditions.push(lte(purchases.date, end));
+        }
+
+        const purchasesData = conditions.length > 0
+            ? await db.query.purchases.findMany({
+                where: and(...conditions),
+                with: {
+                    items: true
+                }
+            })
+            : await db.query.purchases.findMany({
+                with: {
+                    items: true
+                }
+            });
+
+        let totalAmount = 0;
+        let totalItems = 0;
+
+        for (const purchase of purchasesData) {
+            totalAmount += purchase.totalAmount;
+            for (const item of (purchase.items || [])) {
+                totalItems += item.qtyReceived;
+            }
+        }
+
+        return {
+            totalAmount,
+            totalTransactions: purchasesData.length,
+            totalItems
+        };
+    }
+
+    /**
+     * Get purchase transactions list
+     */
+    async getPurchaseTransactions(filters: ReportFilters = {}): Promise<PurchaseReport[]> {
+        let conditions = [];
+
+        if (filters.startDate) {
+            const start = new Date(filters.startDate);
+            conditions.push(gte(purchases.date, start));
+        }
+        if (filters.endDate) {
+            const end = new Date(filters.endDate);
+            end.setHours(23, 59, 59, 999);
+            conditions.push(lte(purchases.date, end));
+        }
+
+        const purchasesData = conditions.length > 0
+            ? await db.query.purchases.findMany({
+                where: and(...conditions),
+                orderBy: [desc(purchases.date)],
+                with: {
+                    supplier: true,
+                    items: true
+                }
+            })
+            : await db.query.purchases.findMany({
+                orderBy: [desc(purchases.date)],
+                with: {
+                    supplier: true,
+                    items: true
+                }
+            });
+
+        return purchasesData.map(purchase => {
+            let itemCount = 0;
+            for (const item of (purchase.items || [])) {
+                itemCount += item.qtyReceived;
+            }
+
+            return {
+                id: purchase.id,
+                date: purchase.date!,
+                supplierId: purchase.supplierId,
+                supplierName: purchase.supplier?.name || null,
+                items: itemCount,
+                totalAmount: purchase.totalAmount,
+                notes: purchase.notes || null
+            };
+        });
+    }
+
+    /**
+     * Get technician performance statistics
+     */
+    async getTechnicianStats(filters: ReportFilters = {}): Promise<TechnicianReport[]> {
+        let conditions = [];
+
+        if (filters.startDate) {
+            const start = new Date(filters.startDate);
+            conditions.push(gte(services.dateIn, start));
+        }
+        if (filters.endDate) {
+            const end = new Date(filters.endDate);
+            end.setHours(23, 59, 59, 999);
+            conditions.push(lte(services.dateIn, end));
+        }
+
+        // Get all technicians (users with role teknisi)
+        const technicians = await db.query.users.findMany({
+            where: eq(users.role, "teknisi")
+        });
+
+        // Get all services in date range
+        const servicesData = conditions.length > 0
+            ? await db.query.services.findMany({
+                where: and(...conditions),
+                with: {
+                    technician: true
+                }
+            })
+            : await db.query.services.findMany({
+                with: {
+                    technician: true
+                }
+            });
+
+        // Group services by technician
+        const technicianMap: Map<string, {
+            id: string;
+            name: string;
+            image: string | null;
+            totalServices: number;
+            completed: number;
+            inProgress: number;
+            cancelled: number;
+            revenue: number;
+        }> = new Map();
+
+        // Initialize with all technicians (even those with 0 services)
+        for (const tech of technicians) {
+            technicianMap.set(tech.id, {
+                id: tech.id,
+                name: tech.name,
+                image: tech.image || null,
+                totalServices: 0,
+                completed: 0,
+                inProgress: 0,
+                cancelled: 0,
+                revenue: 0
+            });
+        }
+
+        // Count services per technician
+        for (const svc of servicesData) {
+            if (!svc.technicianId) continue;
+
+            let techData = technicianMap.get(svc.technicianId);
+            if (!techData) {
+                // Technician exists but not in teknisi role, or user was deleted
+                const techUser = svc.technician;
+                techData = {
+                    id: svc.technicianId,
+                    name: techUser?.name || 'Unknown',
+                    image: techUser?.image || null,
+                    totalServices: 0,
+                    completed: 0,
+                    inProgress: 0,
+                    cancelled: 0,
+                    revenue: 0
+                };
+                technicianMap.set(svc.technicianId, techData);
+            }
+
+            techData.totalServices++;
+
+            if (svc.status === 'selesai' || svc.status === 'diambil') {
+                techData.completed++;
+                if (svc.actualCost) {
+                    techData.revenue += svc.actualCost;
+                }
+            } else if (svc.status === 'batal') {
+                techData.cancelled++;
+            } else {
+                techData.inProgress++;
+            }
+        }
+
+        // Convert to array and calculate completion rate
+        const result: TechnicianReport[] = [];
+        for (const [, data] of technicianMap) {
+            result.push({
+                ...data,
+                completionRate: data.totalServices > 0
+                    ? Math.round((data.completed / data.totalServices) * 100)
+                    : 0
+            });
+        }
+
+        // Sort by total services descending
+        result.sort((a, b) => b.totalServices - a.totalServices);
+
+        return result;
+    }
 }
+
+// Additional interfaces
+export interface PurchasesSummary {
+    totalAmount: number;
+    totalTransactions: number;
+    totalItems: number;
+}
+
+export interface PurchaseReport {
+    id: string;
+    date: Date;
+    supplierId: string;
+    supplierName: string | null;
+    items: number;
+    totalAmount: number;
+    notes: string | null;
+}
+
+export interface ServiceReport {
+    id: number;
+    no: string;
+    date: Date;
+    customerName: string;
+    deviceInfo: string;
+    status: string;
+    estimatedCost: number;
+    actualCost: number;
+}
+
+export interface TechnicianReport {
+    id: string;
+    name: string;
+    image: string | null;
+    totalServices: number;
+    completed: number;
+    inProgress: number;
+    cancelled: number;
+    revenue: number;
+    completionRate: number;
+}
+
+
