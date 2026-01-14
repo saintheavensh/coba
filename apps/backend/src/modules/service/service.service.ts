@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { services, activityLogs } from "../../db/schema";
+import { services, activityLogs, users } from "../../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { ServiceRepository } from "./service.repository";
 
@@ -18,25 +18,69 @@ export class ServiceService {
         const srv = await this.repo.findById(id);
         if (!srv) return null;
 
-        // Fetch Timeline from Activity Logs
-        const logs = await db.select().from(activityLogs)
+        // Fetch Timeline from Activity Logs with user info
+        const logs = await db.select({
+            log: activityLogs,
+            userName: users.name
+        })
+            .from(activityLogs)
+            .leftJoin(users, eq(activityLogs.userId, users.id))
             .where(eq(activityLogs.entityId, srv.no))
             .orderBy(desc(activityLogs.createdAt));
 
-        const timeline = logs.map(log => ({
-            event: log.action === 'CREATE' ? 'Service Created' :
-                log.action === 'STATUS_CHANGE' ? `Status: ${JSON.parse(log.newValue as string).status}` :
-                    log.description,
-            by: "System", // Join with users to get name if possible, or just System for now
-            time: log.createdAt?.toLocaleString() || "-"
-        }));
+        const timeline = logs.map(({ log, userName }) => {
+            let event = log.description || log.action;
+            let details: any = {};
+
+            // Parse action-specific details
+            if (log.action === 'CREATE') {
+                event = 'Service Dibuat';
+                try {
+                    const data = JSON.parse(log.newValue as string || '{}');
+                    details = {
+                        customer: data.customer?.name,
+                        phone: data.unit ? `${data.unit.brand} ${data.unit.model}` : null,
+                        complaint: data.complaint,
+                        technician: data.technicianId ? 'Assigned' : 'Belum ditugaskan',
+                        isWalkin: data.isWalkin ? 'Walk-in' : 'Regular'
+                    };
+                } catch { }
+            } else if (log.action === 'STATUS_CHANGE') {
+                try {
+                    const oldVal = JSON.parse(log.oldValue as string || '{}');
+                    const newVal = JSON.parse(log.newValue as string || '{}');
+                    event = `Status: ${oldVal.status || '-'} → ${newVal.status}`;
+                    details = { from: oldVal.status, to: newVal.status };
+                } catch {
+                    event = log.description || 'Status changed';
+                }
+            } else if (log.action === 'ASSIGN') {
+                event = 'Teknisi Ditugaskan';
+            } else if (log.action === 'UPDATE') {
+                event = 'Data Diperbarui';
+            }
+
+            return {
+                event,
+                by: userName || 'System',
+                time: log.createdAt?.toLocaleString('id-ID', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }) || "-",
+                action: log.action,
+                details
+            };
+        });
 
         // Flatten device for frontend compatibility if needed, or valid mapping
         return {
             ...srv,
             timeline,
             // Ensure photos are accessible at top level for frontend convenience
-            photos: (srv.device as any).photos || []
+            photos: (srv.device as any)?.photos || []
         };
     }
 

@@ -2,24 +2,10 @@
     import { page } from "$app/stores";
     import { goto } from "$app/navigation";
     import { Button } from "$lib/components/ui/button";
-    import {
-        Card,
-        CardContent,
-        CardDescription,
-        CardHeader,
-        CardTitle,
-    } from "$lib/components/ui/card";
-    import {
-        Table,
-        TableBody,
-        TableCell,
-        TableHead,
-        TableHeader,
-        TableRow,
-    } from "$lib/components/ui/table";
     import { Badge } from "$lib/components/ui/badge";
     import { Separator } from "$lib/components/ui/separator";
     import { toast } from "$lib/components/ui/sonner";
+    import PatternLock from "$lib/components/ui/pattern-lock.svelte";
     import {
         ArrowLeft,
         Save,
@@ -30,13 +16,26 @@
         Printer,
         MessageCircle,
         Trash2,
+        User,
+        Smartphone,
+        Wrench,
+        Calendar,
+        Clock,
+        CreditCard,
+        Shield,
+        Camera,
+        FileText,
+        Phone,
+        MapPin,
+        Hash,
+        AlertTriangle,
+        ChevronRight,
+        Loader2,
     } from "lucide-svelte";
-    import PatternLock from "$lib/components/ui/pattern-lock.svelte";
 
     import { onMount } from "svelte";
     import { ServiceService } from "$lib/services/service.service";
     import { api } from "$lib/api";
-    import { generateBarcodeSvg } from "$lib/utils";
 
     const serviceId = parseInt($page.params.id ?? "0");
     let serviceOrder = $state<any>(null);
@@ -46,7 +45,6 @@
         loading = true;
         try {
             serviceOrder = await ServiceService.getById(serviceId);
-            // Map 'device' to 'phone' for UI compatibility
             if (serviceOrder.device) serviceOrder.phone = serviceOrder.device;
             if (!serviceOrder.parts) serviceOrder.parts = [];
             if (!serviceOrder.timeline) serviceOrder.timeline = [];
@@ -62,27 +60,74 @@
         loadData();
     });
 
-    // Computed properties using $derived
+    // Computed properties
     let totalParts = $derived(
         serviceOrder?.parts?.reduce(
             (sum: number, p: any) => sum + (p.subtotal || p.price * p.qty),
             0,
         ) || 0,
     );
-    // Calculation logic for grandTotal might differ if backend provides it
-    let grandTotal = $derived(
-        (serviceOrder?.actualCost || serviceOrder?.costEstimate || 0) +
-            totalParts,
-    ); // Simplified logic, adjust as needed based on backend response structure.
-    // Actually backend `services` table has `actualCost`.
 
-    async function handleSave() {
-        // Implement Update Logic (e.g. notes, diagnosis update)
-        // For now just partial update status or similar?
-        // ServiceService.updateStatus is available.
-        toast.info("Update logic needs backend endpoint for full update");
+    let grandTotal = $derived((serviceOrder?.serviceFee || 0) + totalParts);
+
+    // Status colors and labels
+    const STATUS_CONFIG: Record<
+        string,
+        { color: string; bg: string; label: string }
+    > = {
+        antrian: {
+            color: "text-gray-700",
+            bg: "bg-gray-100",
+            label: "Antrian",
+        },
+        dicek: {
+            color: "text-blue-700",
+            bg: "bg-blue-100",
+            label: "Sedang Dicek",
+        },
+        konfirmasi: {
+            color: "text-amber-700",
+            bg: "bg-amber-100",
+            label: "Konfirmasi",
+        },
+        dikerjakan: {
+            color: "text-purple-700",
+            bg: "bg-purple-100",
+            label: "Dikerjakan",
+        },
+        selesai: {
+            color: "text-green-700",
+            bg: "bg-green-100",
+            label: "Selesai",
+        },
+        diambil: {
+            color: "text-teal-700",
+            bg: "bg-teal-100",
+            label: "Sudah Diambil",
+        },
+        batal: { color: "text-red-700", bg: "bg-red-100", label: "Dibatalkan" },
+    };
+
+    function getStatusConfig(status: string) {
+        return STATUS_CONFIG[status] || STATUS_CONFIG.antrian;
     }
 
+    // Timeline status order for progress indicator
+    const STATUS_ORDER = [
+        "antrian",
+        "dicek",
+        "konfirmasi",
+        "dikerjakan",
+        "selesai",
+        "diambil",
+    ];
+
+    function getStatusIndex(status: string) {
+        const idx = STATUS_ORDER.indexOf(status);
+        return idx >= 0 ? idx : 0;
+    }
+
+    // Action handlers
     async function handleComplete() {
         if (!confirm("Tandai service ini selesai?")) return;
         try {
@@ -117,39 +162,42 @@
         }
     }
 
-    function handleAddParts() {
-        toast.info("Fitur Tambah Parts akan segera hadir (Gunakan Edit Form)");
-    }
-
-    function handleReassignTechnician() {
-        toast.info("Gunakan menu di Service List untuk Reassign");
+    async function handlePickup() {
+        if (!confirm("Konfirmasi unit sudah diambil customer?")) return;
+        try {
+            const userId =
+                JSON.parse(localStorage.getItem("user") || "{}").id ||
+                "USR-ADMIN";
+            await ServiceService.updateStatus(serviceId, {
+                status: "diambil",
+                userId,
+            });
+            toast.success("Service telah diambil!");
+            loadData();
+        } catch (e) {
+            toast.error("Gagal update status");
+        }
     }
 
     function handleChatCustomer() {
         if (!serviceOrder) return;
         const phone =
             serviceOrder.customer?.phone?.replace(/[^0-9]/g, "") || "";
-        // Format +62
         const formattedPhone = phone.startsWith("0")
             ? "62" + phone.slice(1)
             : phone;
-
-        // Use serviceOrder.phone safely, fallback to empty string if missing
         const brand = serviceOrder.phone?.brand || "HP";
         const model = serviceOrder.phone?.model || "";
-
         const message = `Halo Kak ${serviceOrder.customer?.name || "Customer"}, mengenai service ${brand} ${model} (No: ${serviceOrder.no})...`;
         const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
         window.open(url, "_blank");
     }
 
-    let showPrintLabel = $state(false);
     async function handlePrintLabel() {
         try {
             await ServiceService.print(serviceId);
             toast.success("Perintah cetak dikirim ke server");
         } catch (e: any) {
-            console.error(e);
             const errMsg =
                 e.response?.data?.errors?.[0] ||
                 e.response?.data?.message ||
@@ -157,428 +205,860 @@
             toast.error("Gagal mencetak: " + errMsg);
         }
     }
+
+    async function handleDelete() {
+        if (!confirm("Hapus permanen history service ini?")) return;
+        try {
+            await api.delete(`/service/${serviceId}`);
+            toast.success("Service dihapus");
+            goto("/service");
+        } catch (e) {
+            toast.error("Gagal hapus");
+        }
+    }
+
+    // Helper functions
+    function formatDate(dateStr: string | null | undefined) {
+        if (!dateStr) return "-";
+        try {
+            return new Date(dateStr).toLocaleDateString("id-ID", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+        } catch {
+            return dateStr;
+        }
+    }
+
+    function getPhysicalLabel(v: string) {
+        const map: Record<string, string> = {
+            normal: "Normal (Mulus)",
+            lecet: "Lecet / Goresan",
+            retak: "Retak / Pecah",
+            bekas_air: "Bekas Air / Korosi",
+            bengkok: "Bengkok / Dent",
+        };
+        return map[v] || v;
+    }
+
+    function getCompletenessLabel(v: string) {
+        const map: Record<string, string> = {
+            charger: "Charger",
+            box: "Dus/Box",
+            simcard: "SIM Card",
+            memorycard: "Memory Card",
+            case: "Case/Casing",
+            earphone: "Earphone",
+        };
+        return map[v] || v;
+    }
+
+    let isReadOnly = $derived(
+        serviceOrder?.status === "selesai" ||
+            serviceOrder?.status === "batal" ||
+            serviceOrder?.status === "diambil",
+    );
+
+    let statusConfig = $derived(
+        getStatusConfig(serviceOrder?.status || "antrian"),
+    );
+
+    let progress = $derived(
+        ((getStatusIndex(serviceOrder?.status || "antrian") + 1) /
+            STATUS_ORDER.length) *
+            100,
+    );
 </script>
 
-<div class="space-y-6">
+<div
+    class="max-w-[1600px] mx-auto p-4 md:p-6 lg:p-8 animate-in fade-in duration-500"
+>
     {#if loading}
-        <div class="flex items-center justify-center h-64">Loading...</div>
+        <div class="flex items-center justify-center h-[600px]">
+            <Loader2 class="h-8 w-8 animate-spin text-primary" />
+        </div>
     {:else if !serviceOrder}
-        <div class="flex items-center justify-center h-64">
-            Service Order tidak ditemukan
+        <div class="flex flex-col items-center justify-center h-[600px] gap-4">
+            <AlertTriangle class="h-16 w-16 text-muted-foreground" />
+            <p class="text-lg text-muted-foreground">
+                Service Order tidak ditemukan
+            </p>
+            <Button variant="outline" onclick={() => goto("/service")}>
+                <ArrowLeft class="h-4 w-4 mr-2" /> Kembali
+            </Button>
         </div>
     {:else}
-        <!-- Header -->
-        <div
-            class="flex flex-col md:flex-row md:items-center justify-between gap-4"
-        >
-            <div class="flex items-start gap-4">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onclick={() => goto("/service")}
-                    class="mt-1 md:mt-0"
-                >
-                    <ArrowLeft class="h-5 w-5" />
-                </Button>
-                <div>
-                    <h3
-                        class="text-lg font-medium flex items-center gap-2 flex-wrap"
-                    >
-                        Detail Service: {serviceOrder.no}
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onclick={handlePrintLabel}
-                            title="Cetak Label"
-                        >
-                            <Printer class="h-4 w-4" />
-                        </Button>
-                    </h3>
-                    <p class="text-sm text-muted-foreground">
-                        {serviceOrder.customer?.name || "Unknown Customer"} - {serviceOrder
-                            .phone?.brand || "Unknown Brand"}
-                        {serviceOrder.phone?.model || ""}
-                    </p>
-                </div>
-            </div>
-            <Badge
-                class="bg-orange-100 text-orange-700 hover:bg-orange-100 self-start md:self-center ml-14 md:ml-0"
-            >
-                🔴 {serviceOrder.status}
-            </Badge>
-        </div>
-
-        <Separator />
-
-        <!-- Customer & Phone Info -->
-        <div class="grid gap-4 md:grid-cols-2">
-            <Card>
-                <CardHeader>
-                    <CardTitle class="text-base">Informasi Customer</CardTitle>
-                </CardHeader>
-                <CardContent class="space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Nama</span>
-                        <div class="flex items-center gap-2">
-                            <span class="font-medium"
-                                >{serviceOrder.customer?.name || "-"}</span
-                            >
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="h-4 w-4 text-green-600"
-                                onclick={handleChatCustomer}
-                                title="Chat WhatsApp"
-                            >
-                                <MessageCircle class="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Telepon</span>
-                        <span class="font-medium"
-                            >{serviceOrder.customer?.phone || "-"}</span
-                        >
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Alamat</span>
-                        <span class="font-medium text-right"
-                            >{serviceOrder.customer?.address || "-"}</span
-                        >
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Tipe</span>
-                        <Badge variant="outline"
-                            >{serviceOrder.isWalkin
-                                ? "Walk-in"
-                                : "Reguler"}</Badge
-                        >
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle class="text-base">Informasi Handphone</CardTitle>
-                </CardHeader>
-                <CardContent class="space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Merk/Model</span>
-                        <span class="font-medium"
-                            >{serviceOrder.phone?.brand || "-"}
-                            {serviceOrder.phone?.model || ""}</span
-                        >
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">IMEI</span>
-                        <span class="font-mono text-xs"
-                            >{serviceOrder.phone?.imei || "-"}</span
-                        >
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground">Tanggal Masuk</span>
-                        <span class="font-medium"
-                            >{serviceOrder.dateIn || "-"}</span
-                        >
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-
-        <!-- Photos -->
-        {#if serviceOrder.photos && serviceOrder.photos.length > 0}
-            <Card>
-                <CardHeader>
-                    <CardTitle class="text-base"
-                        >📸 Foto Kondisi Fisik</CardTitle
-                    >
-                </CardHeader>
-                <CardContent>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {#each serviceOrder.photos as photo, i}
-                            <button
-                                class="aspect-square rounded-md overflow-hidden border p-0 w-full hover:ring-2 hover:ring-primary focus:ring-2 focus:ring-primary focus:outline-none transition-all"
-                                onclick={() => {
-                                    const url = photo.startsWith("http")
-                                        ? photo
-                                        : photo;
-                                    window.open(url, "_blank");
-                                }}
-                                title="Lihat foto penuh"
-                            >
-                                <img
-                                    src={photo.startsWith("http")
-                                        ? photo
-                                        : photo}
-                                    alt={`Bukti kondisi fisik ${i + 1}`}
-                                    class="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
-                                />
-                            </button>
-                        {/each}
-                    </div>
-                </CardContent>
-            </Card>
-        {/if}
-
-        <!-- Timeline -->
-        <Card>
-            <CardHeader>
-                <CardTitle class="text-base">📅 Timeline Service</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div class="space-y-4">
-                    {#each serviceOrder.timeline || [] as item, i}
-                        <div class="flex gap-4">
-                            <div class="flex flex-col items-center">
-                                <div
-                                    class="h-3 w-3 rounded-full bg-primary"
-                                ></div>
-                                {#if i < (serviceOrder.timeline?.length || 0) - 1}
-                                    <div class="h-full w-0.5 bg-border"></div>
-                                {/if}
-                            </div>
-                            <div class="flex-1 pb-4">
-                                <p class="font-medium">{item.event}</p>
-                                <p class="text-sm text-muted-foreground">
-                                    {item.by}
-                                </p>
-                                <p class="text-xs text-muted-foreground">
-                                    {item.time}
-                                </p>
-                            </div>
-                        </div>
-                    {/each}
-                </div>
-            </CardContent>
-        </Card>
-
-        <!-- Complaint & Diagnosis -->
-        <div class="grid gap-4 md:grid-cols-2">
-            <Card>
-                <CardHeader>
-                    <CardTitle class="text-base">Keluhan Customer</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p class="text-sm">{serviceOrder.complaint || "-"}</p>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle class="text-base">Diagnosa Teknisi</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {#if serviceOrder.diagnosis}
-                        {#if typeof serviceOrder.diagnosis === "string" && serviceOrder.diagnosis.startsWith("{")}
-                            {@const diag = JSON.parse(serviceOrder.diagnosis)}
-                            <div class="space-y-4 text-sm">
-                                {#if diag.initial}
-                                    <div>
-                                        <h4
-                                            class="font-medium text-xs text-muted-foreground uppercase mb-1"
-                                        >
-                                            Diagnosa Awal
-                                        </h4>
-                                        <p>{diag.initial}</p>
-                                    </div>
-                                {/if}
-                                {#if diag.possibleCauses}
-                                    <div>
-                                        <h4
-                                            class="font-medium text-xs text-muted-foreground uppercase mb-1"
-                                        >
-                                            Kemungkinan Kerusakan
-                                        </h4>
-                                        <p>{diag.possibleCauses}</p>
-                                    </div>
-                                {/if}
-                                {#if diag.estimatedCost}
-                                    <div>
-                                        <h4
-                                            class="font-medium text-xs text-muted-foreground uppercase mb-1"
-                                        >
-                                            Estimasi Biaya
-                                        </h4>
-                                        <p>{diag.estimatedCost}</p>
-                                    </div>
-                                {/if}
-                            </div>
-                        {:else}
-                            <p class="text-sm">{serviceOrder.diagnosis}</p>
-                        {/if}
-                    {:else}
-                        <p class="text-sm text-muted-foreground italic">
-                            Belum ada diagnosa
-                        </p>
-                    {/if}
-                </CardContent>
-            </Card>
-        </div>
-
-        <!-- Technician -->
-        <Card>
-            <CardHeader class="flex flex-row items-center justify-between">
-                <CardTitle class="text-base"
-                    >👨‍🔧 Teknisi yang Mengerjakan</CardTitle
-                >
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onclick={handleReassignTechnician}
-                >
-                    <Repeat class="mr-2 h-4 w-4" />
-                    Ganti Teknisi
-                </Button>
-            </CardHeader>
-            <CardContent>
-                <div class="text-sm">
-                    <span class="font-medium"
-                        >{serviceOrder.technician?.name ||
-                            "Belum Ditentukan"}</span
-                    >
-                    <span class="text-muted-foreground">
-                        (Assigned: {serviceOrder.technician?.assignedAt ||
-                            "-"})</span
-                    >
-                </div>
-            </CardContent>
-        </Card>
-
-        <!-- Spare Parts -->
-        <Card>
-            <CardHeader class="flex flex-row items-center justify-between">
-                <CardTitle class="text-base"
-                    >📦 Spare Parts yang Digunakan</CardTitle
-                >
-                <Button variant="outline" size="sm" onclick={handleAddParts}>
-                    <Plus class="mr-2 h-4 w-4" />
-                    Tambah Parts
-                </Button>
-            </CardHeader>
-            <CardContent>
-                <div class="overflow-x-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nama Parts</TableHead>
-                                <TableHead>Sumber</TableHead>
-                                <TableHead class="text-right">Qty</TableHead>
-                                <TableHead class="text-right">Harga</TableHead>
-                                <TableHead class="text-right"
-                                    >Subtotal</TableHead
-                                >
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {#each serviceOrder.parts || [] as part}
-                                <TableRow>
-                                    <TableCell class="font-medium"
-                                        >{part.name}</TableCell
-                                    >
-                                    <TableCell>
-                                        <Badge variant="outline"
-                                            >{part.source}</Badge
-                                        >
-                                    </TableCell>
-                                    <TableCell class="text-right"
-                                        >{part.qty}</TableCell
-                                    >
-                                    <TableCell class="text-right"
-                                        >Rp {part.price.toLocaleString()}</TableCell
-                                    >
-                                    <TableCell class="text-right"
-                                        >Rp {part.subtotal.toLocaleString()}</TableCell
-                                    >
-                                </TableRow>
-                            {/each}
-                        </TableBody>
-                    </Table>
-                </div>
-            </CardContent>
-        </Card>
-
-        <!-- Cost Summary -->
-        <Card>
-            <CardHeader>
-                <CardTitle class="text-base">💰 Rincian Biaya</CardTitle>
-            </CardHeader>
-            <CardContent class="space-y-2">
-                <div class="flex justify-between text-sm">
-                    <span>Biaya Jasa</span>
-                    <span
-                        >Rp {(
-                            serviceOrder.serviceFee || 0
-                        ).toLocaleString()}</span
-                    >
-                </div>
-                <div class="flex justify-between text-sm">
-                    <span>Biaya Parts</span>
-                    <span>Rp {(totalParts || 0).toLocaleString()}</span>
-                </div>
-                <Separator />
-                <div class="flex justify-between font-bold text-lg">
-                    <span>TOTAL BIAYA</span>
-                    <span>Rp {(grandTotal || 0).toLocaleString()}</span>
-                </div>
-            </CardContent>
-        </Card>
-
-        <!-- Actions -->
-        <!-- Actions -->
-        <!-- Actions -->
-        {@const isReadOnly =
-            serviceOrder.status === "selesai" ||
-            serviceOrder.status === "batal" ||
-            serviceOrder.status === "diambil"}
-        {#if !isReadOnly}
-            <div class="flex flex-col-reverse md:flex-row gap-2 justify-end">
-                <Button
-                    variant="outline"
-                    onclick={handleCancel}
-                    class="w-full md:w-auto text-red-600 hover:text-red-700"
-                >
-                    <XCircle class="mr-2 h-4 w-4" />
-                    Batalkan Service
-                </Button>
-                <Button
-                    variant="secondary"
-                    onclick={handleSave}
-                    class="w-full md:w-auto"
-                >
-                    <Save class="mr-2 h-4 w-4" />
-                    Simpan Perubahan
-                </Button>
-                <Button onclick={handleComplete} class="w-full md:w-auto">
-                    <CheckCircle class="mr-2 h-4 w-4" />
-                    Tandai Selesai
-                </Button>
-            </div>
-        {:else}
+        <!-- Hero Header -->
+        <div class="bg-card rounded-3xl shadow-sm border p-6 mb-6">
             <div
-                class="flex justify-center p-4 bg-muted/50 rounded-lg text-muted-foreground text-sm italic"
+                class="flex flex-col lg:flex-row lg:items-center justify-between gap-4"
             >
-                Service status {serviceOrder.status} - Data terkunci.
+                <div class="flex items-start gap-4">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onclick={() => goto("/service")}
+                        class="shrink-0"
+                    >
+                        <ArrowLeft class="h-5 w-5" />
+                    </Button>
+                    <div>
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <h1 class="text-2xl font-bold">
+                                {serviceOrder.no}
+                            </h1>
+                            <Badge
+                                class="{statusConfig.bg} {statusConfig.color} hover:{statusConfig.bg} px-3 py-1 text-sm font-medium"
+                            >
+                                {statusConfig.label}
+                            </Badge>
+                            {#if serviceOrder.isWalkin}
+                                <Badge
+                                    class="bg-green-100 text-green-700 hover:bg-green-100"
+                                >
+                                    <Clock class="h-3 w-3 mr-1" /> Walk-in
+                                </Badge>
+                            {:else}
+                                <Badge variant="outline">
+                                    <Calendar class="h-3 w-3 mr-1" /> Regular
+                                </Badge>
+                            {/if}
+                        </div>
+                        <p class="text-muted-foreground mt-1">
+                            <span class="font-medium"
+                                >{serviceOrder.customer?.name ||
+                                    "Unknown"}</span
+                            >
+                            <span class="mx-2">•</span>
+                            {serviceOrder.phone?.brand || ""}
+                            {serviceOrder.phone?.model || ""}
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap ml-14 lg:ml-0">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onclick={handlePrintLabel}
+                    >
+                        <Printer class="h-4 w-4 mr-2" /> Cetak Label
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        class="text-green-600"
+                        onclick={handleChatCustomer}
+                    >
+                        <MessageCircle class="h-4 w-4 mr-2" /> WhatsApp
+                    </Button>
+                </div>
             </div>
-            <!-- Add Delete Here if needed, or keep in List only. Let's add it for consistency if user wants to delete closed ones too. -->
-            <div class="flex justify-end mt-2">
-                <Button
-                    variant="outline"
-                    class="text-red-500 border-red-200 hover:bg-red-50"
-                    onclick={async () => {
-                        if (!confirm("Hapus permanen history service ini?"))
-                            return;
-                        try {
-                            await api.delete(`/service/${serviceId}`);
-                            toast.success("Service dihapus");
-                            goto("/service");
-                        } catch (e) {
-                            toast.error("Gagal hapus");
-                        }
-                    }}
-                >
-                    <Trash2 class="mr-2 h-4 w-4" /> Hapus Data
-                </Button>
-            </div>
-        {/if}
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
+            <!-- Left Sidebar: Timeline -->
+            <aside class="space-y-6">
+                <!-- Timeline Card -->
+                <div class="bg-card rounded-2xl shadow-sm border p-5">
+                    <h3
+                        class="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2"
+                    >
+                        <Clock class="h-4 w-4" /> Timeline Service
+                    </h3>
+
+                    <!-- Status Progress -->
+                    <div class="mb-6">
+                        <div
+                            class="flex justify-between text-xs text-muted-foreground mb-2"
+                        >
+                            <span>Masuk</span>
+                            <span>Selesai</span>
+                        </div>
+                        <div class="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                                class="h-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-500"
+                                style="width: {Math.min(progress, 100)}%"
+                            ></div>
+                        </div>
+                    </div>
+
+                    <!-- Timeline Events -->
+                    <div class="space-y-1">
+                        {#each serviceOrder.timeline || [] as item, i}
+                            {@const isLast =
+                                i === (serviceOrder.timeline?.length || 0) - 1}
+                            <div
+                                class="relative pl-6 pb-4 {isLast
+                                    ? ''
+                                    : 'border-l-2 border-muted ml-2'}"
+                            >
+                                <div
+                                    class="absolute left-0 top-0 w-4 h-4 rounded-full {isLast
+                                        ? 'bg-primary ring-4 ring-primary/20'
+                                        : 'bg-muted-foreground/30'} -translate-x-[7px]"
+                                ></div>
+                                <div class="ml-2">
+                                    <p class="font-medium text-sm">
+                                        {item.event}
+                                    </p>
+                                    {#if item.details}
+                                        <div
+                                            class="text-xs text-muted-foreground mt-1 space-y-0.5 border-l-2 border-muted pl-2"
+                                        >
+                                            {#if item.details.customer}
+                                                <p>
+                                                    Customer: {item.details
+                                                        .customer}
+                                                </p>
+                                            {/if}
+                                            {#if item.details.phone}
+                                                <p>
+                                                    Unit: {item.details.phone}
+                                                </p>
+                                            {/if}
+                                            {#if item.details.technician}
+                                                <p>
+                                                    Status Teknisi: {item
+                                                        .details.technician}
+                                                </p>
+                                            {/if}
+                                            {#if item.details.isWalkin}
+                                                <p>
+                                                    Tipe: {item.details
+                                                        .isWalkin}
+                                                </p>
+                                            {/if}
+                                        </div>
+                                    {/if}
+                                    <div class="flex items-center gap-2 mt-1">
+                                        <p
+                                            class="text-xs text-muted-foreground flex items-center gap-1"
+                                        >
+                                            <User class="h-3 w-3" />
+                                            {item.by}
+                                        </p>
+                                        <span
+                                            class="text-xs text-muted-foreground"
+                                            >•</span
+                                        >
+                                        <p
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            {item.time}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        {/each}
+                        {#if !serviceOrder.timeline?.length}
+                            <p class="text-sm text-muted-foreground italic">
+                                Belum ada aktivitas
+                            </p>
+                        {/if}
+                    </div>
+                </div>
+
+                <!-- Dates Card -->
+                <div class="bg-card rounded-2xl shadow-sm border p-5 space-y-4">
+                    <h3
+                        class="font-semibold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2"
+                    >
+                        <Calendar class="h-4 w-4" /> Tanggal
+                    </h3>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">Masuk</span>
+                            <span class="font-medium"
+                                >{formatDate(serviceOrder.dateIn)}</span
+                            >
+                        </div>
+                        {#if serviceOrder.estimatedCompletionDate}
+                            <div class="flex justify-between">
+                                <span class="text-muted-foreground"
+                                    >Est. Selesai</span
+                                >
+                                <span class="font-medium"
+                                    >{formatDate(
+                                        serviceOrder.estimatedCompletionDate,
+                                    )}</span
+                                >
+                            </div>
+                        {/if}
+                        {#if serviceOrder.dateOut}
+                            <div class="flex justify-between">
+                                <span class="text-muted-foreground">Keluar</span
+                                >
+                                <span class="font-medium text-green-600"
+                                    >{formatDate(serviceOrder.dateOut)}</span
+                                >
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+
+                <!-- Technician Card -->
+                <div class="bg-card rounded-2xl shadow-sm border p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3
+                            class="font-semibold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2"
+                        >
+                            <Wrench class="h-4 w-4" /> Teknisi
+                        </h3>
+                        <Button variant="ghost" size="sm" class="h-7 text-xs">
+                            <Repeat class="h-3 w-3 mr-1" /> Ganti
+                        </Button>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"
+                        >
+                            <User class="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                            <p class="font-medium">
+                                {serviceOrder.technician?.name ||
+                                    "Belum Ditentukan"}
+                            </p>
+                            {#if serviceOrder.technician?.assignedAt}
+                                <p class="text-xs text-muted-foreground">
+                                    Assigned: {serviceOrder.technician
+                                        .assignedAt}
+                                </p>
+                            {/if}
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="space-y-6">
+                <!-- Customer & Device Info -->
+                <div class="grid gap-6 md:grid-cols-2">
+                    <!-- Customer Card -->
+                    <div class="bg-card rounded-2xl shadow-sm border p-5">
+                        <h3 class="font-semibold mb-4 flex items-center gap-2">
+                            <User class="h-5 w-5 text-primary" /> Informasi Customer
+                        </h3>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex items-start justify-between">
+                                <span class="text-muted-foreground">Nama</span>
+                                <span class="font-medium text-right"
+                                    >{serviceOrder.customer?.name || "-"}</span
+                                >
+                            </div>
+                            <div class="flex items-start justify-between">
+                                <span
+                                    class="text-muted-foreground flex items-center gap-1"
+                                >
+                                    <Phone class="h-3 w-3" /> Telepon
+                                </span>
+                                <span class="font-medium font-mono"
+                                    >{serviceOrder.customer?.phone || "-"}</span
+                                >
+                            </div>
+                            {#if serviceOrder.customer?.address}
+                                <div class="flex items-start justify-between">
+                                    <span
+                                        class="text-muted-foreground flex items-center gap-1"
+                                    >
+                                        <MapPin class="h-3 w-3" /> Alamat
+                                    </span>
+                                    <span
+                                        class="font-medium text-right max-w-[200px]"
+                                        >{serviceOrder.customer.address}</span
+                                    >
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+
+                    <!-- Device Card -->
+                    <div class="bg-card rounded-2xl shadow-sm border p-5">
+                        <h3 class="font-semibold mb-4 flex items-center gap-2">
+                            <Smartphone class="h-5 w-5 text-primary" /> Informasi
+                            Perangkat
+                        </h3>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-muted-foreground"
+                                    >Merk/Model</span
+                                >
+                                <span class="font-medium"
+                                    >{serviceOrder.phone?.brand || "-"}
+                                    {serviceOrder.phone?.model || ""}</span
+                                >
+                            </div>
+                            {#if serviceOrder.phone?.imei}
+                                <div class="flex justify-between">
+                                    <span
+                                        class="text-muted-foreground flex items-center gap-1"
+                                    >
+                                        <Hash class="h-3 w-3" /> IMEI
+                                    </span>
+                                    <span class="font-mono text-xs"
+                                        >{serviceOrder.phone.imei}</span
+                                    >
+                                </div>
+                            {/if}
+                            {#if serviceOrder.phone?.status}
+                                <div class="flex justify-between">
+                                    <span class="text-muted-foreground"
+                                        >Status HP</span
+                                    >
+                                    <Badge variant="outline"
+                                        >{serviceOrder.phone.status}</Badge
+                                    >
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Physical Condition & Completeness -->
+                {#if serviceOrder.phone?.physical?.length || serviceOrder.phone?.completeness?.length}
+                    <div class="bg-card rounded-2xl shadow-sm border p-5">
+                        <h3 class="font-semibold mb-4 flex items-center gap-2">
+                            <FileText class="h-5 w-5 text-primary" /> Kondisi & Kelengkapan
+                        </h3>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            {#if serviceOrder.phone?.physical?.length}
+                                <div>
+                                    <p
+                                        class="text-xs text-muted-foreground uppercase tracking-wider mb-2"
+                                    >
+                                        Kondisi Fisik
+                                    </p>
+                                    <div class="flex flex-wrap gap-2">
+                                        {#each serviceOrder.phone.physical as p}
+                                            <Badge variant="secondary"
+                                                >{getPhysicalLabel(p)}</Badge
+                                            >
+                                        {/each}
+                                    </div>
+                                </div>
+                            {/if}
+                            {#if serviceOrder.phone?.completeness?.length}
+                                <div>
+                                    <p
+                                        class="text-xs text-muted-foreground uppercase tracking-wider mb-2"
+                                    >
+                                        Kelengkapan
+                                    </p>
+                                    <div class="flex flex-wrap gap-2">
+                                        {#each serviceOrder.phone.completeness as c}
+                                            <Badge variant="outline"
+                                                >{getCompletenessLabel(
+                                                    c,
+                                                )}</Badge
+                                            >
+                                        {/each}
+                                    </div>
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+                {/if}
+
+                <!-- PIN/Pattern Display -->
+                {#if serviceOrder.phone?.pin || serviceOrder.phone?.pattern}
+                    <div class="bg-card rounded-2xl shadow-sm border p-5">
+                        <h3 class="font-semibold mb-4 flex items-center gap-2">
+                            🔐 PIN / Pattern
+                        </h3>
+                        <div class="flex items-center gap-6">
+                            {#if serviceOrder.phone?.pin}
+                                <div>
+                                    <p
+                                        class="text-xs text-muted-foreground mb-1"
+                                    >
+                                        PIN
+                                    </p>
+                                    <p
+                                        class="font-mono text-2xl font-bold tracking-widest"
+                                    >
+                                        {serviceOrder.phone.pin}
+                                    </p>
+                                </div>
+                            {/if}
+                            {#if serviceOrder.phone?.pattern && Array.isArray(serviceOrder.phone.pattern)}
+                                <div>
+                                    <p
+                                        class="text-xs text-muted-foreground mb-1"
+                                    >
+                                        Pattern
+                                    </p>
+                                    <PatternLock
+                                        value={serviceOrder.phone.pattern}
+                                        readonly
+                                        size={120}
+                                    />
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+                {/if}
+
+                <!-- Photos -->
+                {#if serviceOrder.photos?.length}
+                    <div class="bg-card rounded-2xl shadow-sm border p-5">
+                        <h3 class="font-semibold mb-4 flex items-center gap-2">
+                            <Camera class="h-5 w-5 text-primary" /> Foto Kondisi
+                            Fisik
+                        </h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {#each serviceOrder.photos as photo, i}
+                                <button
+                                    class="aspect-square rounded-xl overflow-hidden border hover:ring-2 hover:ring-primary focus:ring-2 focus:ring-primary transition-all"
+                                    onclick={() => window.open(photo, "_blank")}
+                                >
+                                    <img
+                                        src={photo}
+                                        alt="Kondisi {i + 1}"
+                                        class="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+                                    />
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+
+                <!-- Complaint & Diagnosis -->
+                <div class="grid gap-6 md:grid-cols-2">
+                    <div class="bg-card rounded-2xl shadow-sm border p-5">
+                        <h3 class="font-semibold mb-3 flex items-center gap-2">
+                            <AlertTriangle class="h-5 w-5 text-amber-500" /> Keluhan
+                            Customer
+                        </h3>
+                        <p class="text-sm">{serviceOrder.complaint || "-"}</p>
+                    </div>
+
+                    <div class="bg-card rounded-2xl shadow-sm border p-5">
+                        <h3 class="font-semibold mb-3 flex items-center gap-2">
+                            <Wrench class="h-5 w-5 text-blue-500" /> Diagnosa Teknisi
+                        </h3>
+                        {#if serviceOrder.diagnosis}
+                            {#if typeof serviceOrder.diagnosis === "string" && serviceOrder.diagnosis.startsWith("{")}
+                                {@const diag = JSON.parse(
+                                    serviceOrder.diagnosis,
+                                )}
+                                <div class="space-y-2 text-sm">
+                                    {#if diag.initial}<p>
+                                            <span class="text-muted-foreground"
+                                                >Diagnosa:</span
+                                            >
+                                            {diag.initial}
+                                        </p>{/if}
+                                    {#if diag.possibleCauses}<p>
+                                            <span class="text-muted-foreground"
+                                                >Kemungkinan:</span
+                                            >
+                                            {diag.possibleCauses}
+                                        </p>{/if}
+                                </div>
+                            {:else}
+                                <p class="text-sm">{serviceOrder.diagnosis}</p>
+                            {/if}
+                        {:else}
+                            <p class="text-sm text-muted-foreground italic">
+                                Belum ada diagnosa
+                            </p>
+                        {/if}
+                    </div>
+                </div>
+
+                <!-- QC Section (for walk-in with QC data) -->
+                {#if serviceOrder.phone?.initialQC || serviceOrder.phone?.qc}
+                    <div
+                        class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-sm border border-blue-200 p-5"
+                    >
+                        <h3
+                            class="font-semibold mb-4 flex items-center gap-2 text-blue-800"
+                        >
+                            <CheckCircle class="h-5 w-5" /> Quality Control
+                        </h3>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            {#if serviceOrder.phone?.initialQC}
+                                <div class="bg-white/70 rounded-xl p-4">
+                                    <p
+                                        class="text-xs text-muted-foreground uppercase tracking-wider mb-2"
+                                    >
+                                        QC Awal (Sebelum)
+                                    </p>
+                                    <div class="space-y-1">
+                                        {#each Object.entries(serviceOrder.phone.initialQC) as [key, value]}
+                                            <div
+                                                class="flex items-center justify-between text-sm"
+                                            >
+                                                <span>{key}</span>
+                                                {#if value}
+                                                    <CheckCircle
+                                                        class="h-4 w-4 text-green-500"
+                                                    />
+                                                {:else}
+                                                    <XCircle
+                                                        class="h-4 w-4 text-red-500"
+                                                    />
+                                                {/if}
+                                            </div>
+                                        {/each}
+                                    </div>
+                                </div>
+                            {/if}
+                            {#if serviceOrder.phone?.qc?.after}
+                                <div class="bg-white/70 rounded-xl p-4">
+                                    <p
+                                        class="text-xs text-muted-foreground uppercase tracking-wider mb-2"
+                                    >
+                                        QC Akhir (Sesudah)
+                                    </p>
+                                    <div class="space-y-1">
+                                        {#each Object.entries(serviceOrder.phone.qc.after) as [key, value]}
+                                            <div
+                                                class="flex items-center justify-between text-sm"
+                                            >
+                                                <span>{key}</span>
+                                                {#if value}
+                                                    <CheckCircle
+                                                        class="h-4 w-4 text-green-500"
+                                                    />
+                                                {:else}
+                                                    <XCircle
+                                                        class="h-4 w-4 text-red-500"
+                                                    />
+                                                {/if}
+                                            </div>
+                                        {/each}
+                                    </div>
+                                </div>
+                            {/if}
+                        </div>
+                        {#if serviceOrder.phone?.qc?.notes}
+                            <div class="mt-4 p-3 bg-white/70 rounded-lg">
+                                <p class="text-xs text-muted-foreground mb-1">
+                                    Catatan QC
+                                </p>
+                                <p class="text-sm">
+                                    {serviceOrder.phone.qc.notes}
+                                </p>
+                            </div>
+                        {/if}
+                    </div>
+                {/if}
+
+                <!-- Payment Section (for walk-in) -->
+                {#if serviceOrder.isWalkin && (serviceOrder.payments || serviceOrder.paymentMethod)}
+                    <div
+                        class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl shadow-sm border border-green-200 p-5"
+                    >
+                        <h3
+                            class="font-semibold mb-4 flex items-center gap-2 text-green-800"
+                        >
+                            <CreditCard class="h-5 w-5" /> Pembayaran
+                        </h3>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div class="space-y-3 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-muted-foreground"
+                                        >Metode</span
+                                    >
+                                    <Badge variant="outline" class="capitalize"
+                                        >{serviceOrder.paymentMethod ||
+                                            "cash"}</Badge
+                                    >
+                                </div>
+                                {#if serviceOrder.transferDetails}
+                                    <div
+                                        class="p-3 bg-white/70 rounded-lg space-y-1"
+                                    >
+                                        <p
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            Transfer ke:
+                                        </p>
+                                        <p class="font-medium">
+                                            {serviceOrder.transferDetails
+                                                .bankName}
+                                        </p>
+                                        <p class="font-mono text-sm">
+                                            {serviceOrder.transferDetails
+                                                .accountNumber}
+                                        </p>
+                                        <p class="text-muted-foreground">
+                                            a.n. {serviceOrder.transferDetails
+                                                .accountHolder}
+                                        </p>
+                                    </div>
+                                {/if}
+                            </div>
+                            <div class="space-y-3 text-sm">
+                                {#if serviceOrder.warranty && serviceOrder.warranty !== "none"}
+                                    <div class="flex justify-between">
+                                        <span
+                                            class="text-muted-foreground flex items-center gap-1"
+                                        >
+                                            <Shield class="h-3 w-3" /> Garansi
+                                        </span>
+                                        <Badge
+                                            class="bg-green-100 text-green-700"
+                                            >{serviceOrder.warranty}</Badge
+                                        >
+                                    </div>
+                                {/if}
+                                {#if serviceOrder.paymentNotes}
+                                    <div>
+                                        <p
+                                            class="text-muted-foreground text-xs mb-1"
+                                        >
+                                            Catatan Pembayaran
+                                        </p>
+                                        <p>{serviceOrder.paymentNotes}</p>
+                                    </div>
+                                {/if}
+                            </div>
+                        </div>
+                    </div>
+                {/if}
+
+                <!-- Parts Used -->
+                {#if serviceOrder.parts?.length}
+                    <div class="bg-card rounded-2xl shadow-sm border p-5">
+                        <h3 class="font-semibold mb-4 flex items-center gap-2">
+                            📦 Spare Parts yang Digunakan
+                        </h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b">
+                                        <th class="text-left py-2 font-medium"
+                                            >Nama Parts</th
+                                        >
+                                        <th class="text-left py-2 font-medium"
+                                            >Sumber</th
+                                        >
+                                        <th class="text-right py-2 font-medium"
+                                            >Qty</th
+                                        >
+                                        <th class="text-right py-2 font-medium"
+                                            >Harga</th
+                                        >
+                                        <th class="text-right py-2 font-medium"
+                                            >Subtotal</th
+                                        >
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {#each serviceOrder.parts as part}
+                                        <tr class="border-b last:border-0">
+                                            <td class="py-2 font-medium"
+                                                >{part.name}</td
+                                            >
+                                            <td class="py-2"
+                                                ><Badge variant="outline"
+                                                    >{part.source}</Badge
+                                                ></td
+                                            >
+                                            <td class="py-2 text-right"
+                                                >{part.qty}</td
+                                            >
+                                            <td class="py-2 text-right"
+                                                >Rp {part.price?.toLocaleString(
+                                                    "id-ID",
+                                                )}</td
+                                            >
+                                            <td
+                                                class="py-2 text-right font-medium"
+                                                >Rp {part.subtotal?.toLocaleString(
+                                                    "id-ID",
+                                                )}</td
+                                            >
+                                        </tr>
+                                    {/each}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {/if}
+
+                <!-- Cost Summary -->
+                <div class="bg-card rounded-2xl shadow-sm border p-5">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        💰 Rincian Biaya
+                    </h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-muted-foreground">Biaya Jasa</span
+                            >
+                            <span
+                                >Rp {(
+                                    serviceOrder.serviceFee || 0
+                                ).toLocaleString("id-ID")}</span
+                            >
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-muted-foreground"
+                                >Biaya Parts</span
+                            >
+                            <span>Rp {totalParts.toLocaleString("id-ID")}</span>
+                        </div>
+                        <Separator />
+                        <div class="flex justify-between text-lg font-bold">
+                            <span>TOTAL BIAYA</span>
+                            <span class="text-primary"
+                                >Rp {grandTotal.toLocaleString("id-ID")}</span
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                {#if !isReadOnly}
+                    <div
+                        class="flex flex-col-reverse md:flex-row gap-3 justify-end bg-card rounded-2xl shadow-sm border p-4"
+                    >
+                        <Button
+                            variant="outline"
+                            onclick={handleCancel}
+                            class="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                            <XCircle class="mr-2 h-4 w-4" /> Batalkan
+                        </Button>
+                        {#if serviceOrder.status === "selesai"}
+                            <Button
+                                onclick={handlePickup}
+                                class="bg-teal-600 hover:bg-teal-700"
+                            >
+                                <CheckCircle class="mr-2 h-4 w-4" /> Konfirmasi Diambil
+                            </Button>
+                        {:else}
+                            <Button
+                                onclick={handleComplete}
+                                class="bg-green-600 hover:bg-green-700"
+                            >
+                                <CheckCircle class="mr-2 h-4 w-4" /> Tandai Selesai
+                            </Button>
+                        {/if}
+                    </div>
+                {:else}
+                    <div class="bg-muted/50 rounded-2xl p-4 text-center">
+                        <p class="text-muted-foreground italic mb-4">
+                            Service status <span class="font-medium"
+                                >{serviceOrder.status}</span
+                            > - Data terkunci
+                        </p>
+                        <Button
+                            variant="outline"
+                            class="text-red-500 border-red-200 hover:bg-red-50"
+                            onclick={handleDelete}
+                        >
+                            <Trash2 class="mr-2 h-4 w-4" /> Hapus Data
+                        </Button>
+                    </div>
+                {/if}
+            </main>
+        </div>
     {/if}
 </div>
