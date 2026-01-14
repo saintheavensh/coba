@@ -2227,6 +2227,12 @@
                                                                     >{variant.accountNumber}</span
                                                                 >
                                                             {/if}
+                                                            {#if variant.accountHolder}
+                                                                <span
+                                                                    class="text-muted-foreground ml-2"
+                                                                    >a.n. {variant.accountHolder}</span
+                                                                >
+                                                            {/if}
                                                         </div>
                                                         <Button
                                                             variant="ghost"

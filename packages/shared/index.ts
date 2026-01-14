@@ -97,7 +97,24 @@ export const createServiceSchema = z.object({
         qty: z.number(),
         price: z.number()
     })).optional(),
-    photos: z.array(z.string()).optional()
+    photos: z.array(z.string()).optional(),
+
+    // Estimated completion date for regular services
+    estimatedCompletionDate: z.string().optional(),
+
+    // Initial QC for walk-in (nyala phones only)
+    initialQC: z.record(z.boolean()).optional(),
+
+    // Final QC for walk-in services
+    qc: z.object({
+        passed: z.boolean(),
+        before: z.record(z.boolean()).optional(), // From initialQC
+        after: z.record(z.boolean()),
+        notes: z.string().optional(),
+    }).optional(),
+
+    // Actual cost for walk-in (paid immediately)
+    actualCost: z.number().optional()
 });
 
 export type CreateServiceRequest = z.infer<typeof createServiceSchema>;

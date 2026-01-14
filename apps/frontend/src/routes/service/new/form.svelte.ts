@@ -59,6 +59,46 @@ export class ServiceFormStore {
     photos = $state<string[]>([]);
     isUploading = $state(false);
 
+    // QC Checklist Items
+    static QC_ITEMS = [
+        { key: "touchscreen", label: "Touchscreen" },
+        { key: "display", label: "Display" },
+        { key: "speaker", label: "Speaker" },
+        { key: "earpiece", label: "Earpiece" },
+        { key: "microphone", label: "Microphone" },
+        { key: "frontCamera", label: "Kamera Depan" },
+        { key: "rearCamera", label: "Kamera Belakang" },
+        { key: "wifi", label: "WiFi" },
+        { key: "bluetooth", label: "Bluetooth" },
+        { key: "chargingPort", label: "Port Charging" },
+        { key: "buttons", label: "Tombol (Vol/Power)" },
+        { key: "fingerprint", label: "Fingerprint" },
+    ];
+
+    // Initial QC (Step 2 for walk-in + nyala phones)
+    initialQC = $state<Record<string, boolean>>({});
+
+    // Final QC (after repair for walk-in)
+    qcAfter = $state<Record<string, boolean>>({});
+    qcNotes = $state("");
+
+    // Payment (for walk-in)
+    paymentMethod = $state<"cash" | "transfer" | "qris" | "mixed">("cash");
+    paymentNotes = $state("");
+    warranty = $state("none"); // from settings warrantyPresets
+    payments = $state<{ method: string; amount: number }[]>([{ method: "cash", amount: 0 }]);
+    cashReceived = $state(0);
+    selectedBank = $state<{ id: string; name: string; accountNumber: string; accountHolder: string } | null>(null);
+
+    // Derived: Check if phone can do initial QC
+    canDoInitialQC = $derived(this.phoneStatus === "nyala");
+
+    // Derived: QC passed (all checked items in after must be true)
+    qcPassed = $derived(
+        Object.keys(this.qcAfter).length > 0 &&
+        Object.values(this.qcAfter).every((v) => v === true)
+    );
+
     // Computed
     step1Valid = $derived(
         this.customerName.trim() !== "" && (this.isWalkin || this.customerPhone.trim() !== "")
@@ -78,9 +118,32 @@ export class ServiceFormStore {
     grandTotal = $derived((this.serviceFee || 0));
     walkinServiceFee = $derived(this.grandTotal - this.totalPartPrice);
 
+    // Computed: Total paid from payments array (must be after grandTotal)
+    totalPaid = $derived(
+        this.payments.reduce((sum, p) => sum + (p.amount || 0), 0)
+    );
+
+    // Computed: Remaining amount
+    remainingAmount = $derived(this.grandTotal - this.totalPaid);
+
+    // Computed: Change amount
+    changeAmount = $derived(
+        this.cashReceived > 0 ? this.cashReceived - this.grandTotal : 0
+    );
+
+    // Payment valid check
+    paymentValid = $derived(
+        !this.isWalkin || this.totalPaid >= this.grandTotal
+    );
+
     step3Valid = $derived(
         this.complaint.trim() !== "" &&
         (!this.isWalkin || (this.technician !== "" && !!this.serviceFee))
+    );
+
+    // Step 3.5 QC validation (for walk-in only)
+    qcValid = $derived(
+        !this.isWalkin || Object.keys(this.qcAfter).length >= 5
     );
 
     // Methods
@@ -215,12 +278,43 @@ export class ServiceFormStore {
             if (this.isWalkin) {
                 payload.serviceFee = this.walkinServiceFee;
                 payload.serviceDescription = this.serviceDescription || undefined;
+                payload.actualCost = this.serviceFee;
                 if (this.selectedParts.length > 0) {
                     payload.parts = this.selectedParts.map((p) => ({
                         productId: p.id,
                         qty: 1,
                         price: parseInt(p.price),
                     }));
+                }
+
+                // Add Initial QC if phone was "nyala"
+                if (this.canDoInitialQC && Object.keys(this.initialQC).length > 0) {
+                    payload.initialQC = this.initialQC;
+                }
+
+                // Add Final QC
+                if (Object.keys(this.qcAfter).length > 0) {
+                    payload.qc = {
+                        passed: this.qcPassed,
+                        before: this.canDoInitialQC ? this.initialQC : undefined,
+                        after: this.qcAfter,
+                        notes: this.qcNotes || undefined,
+                    };
+                }
+
+                // Add Payment data
+                payload.payments = this.payments;
+                payload.paymentMethod = this.paymentMethod;
+                payload.paymentNotes = this.paymentNotes || undefined;
+                payload.warranty = this.warranty !== "none" ? this.warranty : undefined;
+
+                // Add bank details for transfer/mixed payments
+                if ((this.paymentMethod === "transfer" || this.paymentMethod === "mixed") && this.selectedBank) {
+                    payload.transferDetails = {
+                        bankName: this.selectedBank.name,
+                        accountNumber: this.selectedBank.accountNumber,
+                        accountHolder: this.selectedBank.accountHolder,
+                    };
                 }
             }
 

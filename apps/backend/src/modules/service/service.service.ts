@@ -58,14 +58,18 @@ export class ServiceService {
             await tx.insert(services).values({
                 no,
                 customer: data.customer,
-                // Save photos inside device JSON to avoid schema migration
-                device: { ...data.unit, photos: data.photos },
+                // Save photos and initialQC inside device JSON to avoid schema migration
+                device: { ...data.unit, photos: data.photos, initialQC: data.initialQC },
                 complaint: data.complaint,
                 diagnosis: JSON.stringify(data.diagnosis || {}),
                 technicianId: data.technicianId || null,
-                status: "antrian" as any,
+                status: data.status || "antrian" as any,
                 createdBy: userId || null,
-                dateIn: new Date() // Fix for 1970 issue (SQLite default string mismatch)
+                dateIn: new Date(),
+                estimatedCompletionDate: data.estimatedCompletionDate
+                    ? new Date(data.estimatedCompletionDate)
+                    : null,
+                actualCost: data.actualCost || null,
             });
 
             // Log

@@ -23,8 +23,10 @@
     import Step1Customer from "./steps/Step1Customer.svelte";
     import Step2Device from "./steps/Step2Device.svelte";
     import Step3Service from "./steps/Step3Service.svelte";
+    import Step35QC from "./steps/Step35QC.svelte";
     import Step4Review from "./steps/Step4Review.svelte";
     import { fade, slide } from "svelte/transition";
+    import { ClipboardCheck } from "lucide-svelte";
 
     // Initialize Store
     const form = new ServiceFormStore();
@@ -51,11 +53,21 @@
         queryFn: () => ServiceService.getAll(),
     }));
 
+    const paymentMethodsQuery = createQuery(() => ({
+        queryKey: ["payment-methods"],
+        queryFn: async () => {
+            const res = await api.get("/payment-methods");
+            return res.data?.data || [];
+        },
+    }));
+
     let technicians = $derived(techniciansQuery.data || []);
     let inventoryItems = $derived(inventoryQuery.data || []);
     let services = $derived((servicesQuery.data || []) as any[]);
+    let paymentMethods = $derived((paymentMethodsQuery.data || []) as any[]);
 
-    const steps = [
+    // Steps for regular service (4 steps)
+    const regularSteps = [
         { step: 1, label: "Customer", icon: User, desc: "Data diri pelanggan" },
         {
             step: 2,
@@ -71,6 +83,29 @@
             desc: "Review data",
         },
     ];
+
+    // Steps for walk-in service (5 steps with QC)
+    const walkinSteps = [
+        { step: 1, label: "Customer", icon: User, desc: "Data diri pelanggan" },
+        {
+            step: 2,
+            label: "Perangkat",
+            icon: Smartphone,
+            desc: "Detail handphone",
+        },
+        { step: 3, label: "Service", icon: Wrench, desc: "Perbaikan & Biaya" },
+        { step: 4, label: "QC", icon: ClipboardCheck, desc: "Quality Control" },
+        {
+            step: 5,
+            label: "Konfirmasi",
+            icon: CheckCircle,
+            desc: "Review & Bayar",
+        },
+    ];
+
+    // Use appropriate steps based on service type
+    let steps = $derived(form.isWalkin ? walkinSteps : regularSteps);
+    let totalSteps = $derived(form.isWalkin ? 5 : 4);
 </script>
 
 <div
@@ -93,7 +128,7 @@
         <div class="h-1 w-full bg-muted rounded-full overflow-hidden">
             <div
                 class="h-full bg-primary transition-all duration-300"
-                style="width: {(form.currentStep / 4) * 100}%"
+                style="width: {(form.currentStep / totalSteps) * 100}%"
             ></div>
         </div>
     </div>
@@ -249,8 +284,14 @@
                                 {inventoryItems}
                                 {services}
                             />
-                        {:else if form.currentStep === 4}
-                            <Step4Review {form} {technicians} />
+                        {:else if form.currentStep === 4 && form.isWalkin}
+                            <Step35QC {form} />
+                        {:else if (form.currentStep === 4 && !form.isWalkin) || (form.currentStep === 5 && form.isWalkin)}
+                            <Step4Review
+                                {form}
+                                {technicians}
+                                {paymentMethods}
+                            />
                         {/if}
                     </div>
                 {/key}
@@ -271,7 +312,7 @@
                 </Button>
 
                 <div class="flex items-center gap-2">
-                    {#if form.currentStep < 4}
+                    {#if form.currentStep < totalSteps}
                         <Button
                             onclick={form.nextStep.bind(form)}
                             size="lg"
@@ -280,7 +321,24 @@
                             Selanjutnya
                             <ArrowRight class="h-4 w-4 ml-2" />
                         </Button>
-                    {:else}{/if}
+                    {:else}
+                        <Button
+                            onclick={form.handleSubmit.bind(form)}
+                            disabled={form.isSubmitting}
+                            size="lg"
+                            class="px-8 rounded-full shadow-lg shadow-green-500/20 bg-green-600 hover:bg-green-700"
+                        >
+                            {#if form.isSubmitting}
+                                <Loader2 class="h-4 w-4 mr-2 animate-spin" />
+                                Menyimpan...
+                            {:else}
+                                <CheckCircle class="h-4 w-4 mr-2" />
+                                {form.isWalkin
+                                    ? "Simpan & Selesai"
+                                    : "Buat Service"}
+                            {/if}
+                        </Button>
+                    {/if}
                 </div>
             </div>
         </main>
