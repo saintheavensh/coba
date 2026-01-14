@@ -63,7 +63,48 @@ export class AuthService {
         return users.map(u => ({
             id: u.id,
             name: u.name,
-            role: u.role
+            username: u.username,
+            role: u.role,
+            isActive: u.isActive ?? true,
         }));
+    }
+
+    async getAllUsers() {
+        const users = await this.repo.findAll();
+        // Return only safe fields, exclude password
+        return users.map(u => ({
+            id: u.id,
+            name: u.name,
+            username: u.username,
+            role: u.role,
+            isActive: u.isActive ?? true,
+        }));
+    }
+
+    async updateUser(id: string, data: { name?: string; role?: "admin" | "teknisi" | "kasir"; isActive?: boolean; password?: string }) {
+        const updateData: any = { ...data };
+        if (data.password) {
+            updateData.password = await Bun.password.hash(data.password);
+        }
+
+        const updated = await this.repo.update(id, updateData);
+        if (!updated.length) {
+            throw new Error("User not found");
+        }
+        return {
+            id: updated[0].id,
+            name: updated[0].name,
+            username: updated[0].username,
+            role: updated[0].role,
+            isActive: updated[0].isActive,
+        };
+    }
+
+    async deleteUser(id: string) {
+        const deleted = await this.repo.delete(id);
+        if (!deleted.length) {
+            throw new Error("User not found");
+        }
+        return true;
     }
 }

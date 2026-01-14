@@ -72,6 +72,7 @@ export interface ReceiptSettings {
     showSparepartDetails: boolean;
     showTechnicianName: boolean;
     showWarrantyInfo: boolean;
+    showBarcode: boolean;
     printerType: "thermal" | "inkjet" | "dotmatrix";
     paperSize: string;
     printCopies: number;

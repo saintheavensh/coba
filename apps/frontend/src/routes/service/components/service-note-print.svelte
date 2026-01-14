@@ -1,29 +1,48 @@
 <script lang="ts">
     import { generateQrCodeSvg } from "$lib/utils";
     import { browser } from "$app/environment";
+    import {
+        settingsStore,
+        initializeSettings,
+    } from "$lib/stores/settings-store.svelte";
 
-    export let serviceOrder: any = null;
-    export let open = false;
+    interface Props {
+        serviceOrder: any;
+        open: boolean;
+    }
+
+    let { serviceOrder = null, open = false }: Props = $props();
 
     // Reactive State for QR
-    let qrHtml = "";
+    let qrHtml = $state("");
+
+    // Ensure settings are loaded
+    $effect(() => {
+        if (browser) {
+            initializeSettings();
+        }
+    });
 
     // Generate QR when order changes
-    $: if (serviceOrder?.no) {
-        generateQrCodeSvg(serviceOrder.no).then((html) => {
-            qrHtml = html;
-        });
-    }
+    $effect(() => {
+        if (serviceOrder?.no) {
+            generateQrCodeSvg(serviceOrder.no).then((html) => {
+                qrHtml = html;
+            });
+        }
+    });
 
     // Auto print when opened
-    $: if (browser && open && serviceOrder) {
-        setTimeout(() => {
-            // window.print() REMOVED - using Server Side Printing
-            console.warn(
-                "ServiceNotePrint loaded but client-printing is disabled.",
-            );
-        }, 500);
-    }
+    $effect(() => {
+        if (browser && open && serviceOrder) {
+            setTimeout(() => {
+                // window.print() REMOVED - using Server Side Printing
+                console.warn(
+                    "ServiceNotePrint loaded but client-printing is disabled.",
+                );
+            }, 500);
+        }
+    });
 
     // Portal Action to move node to body
     function portal(node: HTMLElement) {
@@ -34,6 +53,24 @@
             },
         };
     }
+
+    // Derived settings from store
+    let storeName = $derived(settingsStore.storeInfo.name || "Toko Service");
+    let storeAddress = $derived(settingsStore.storeInfo.address || "");
+    let storePhone = $derived(settingsStore.storeInfo.phone || "");
+    let footerText = $derived(
+        settingsStore.receiptSettings.footerText ||
+            "Harap bawa struk ini saat pengambilan.",
+    );
+    let showTechnicianName = $derived(
+        settingsStore.receiptSettings.showTechnicianName,
+    );
+    let showWarrantyInfo = $derived(
+        settingsStore.receiptSettings.showWarrantyInfo,
+    );
+    let showCustomerPhone = $derived(
+        settingsStore.receiptSettings.showCustomerPhone,
+    );
 </script>
 
 {#if open && serviceOrder}
@@ -45,9 +82,14 @@
         <div class="w-[78mm] p-2 text-black font-mono text-sm bg-white">
             <!-- Header -->
             <div class="text-center mb-4">
-                <h2 class="font-bold text-lg">SAINT HEAVENS</h2>
+                <h2 class="font-bold text-lg">{storeName}</h2>
                 <p class="text-xs">Service & Sparepart Handphone</p>
-                <p class="text-xs">Jl. Raya No. 123 (0812-3456-7890)</p>
+                {#if storeAddress || storePhone}
+                    <p class="text-xs">
+                        {storeAddress}{#if storeAddress && storePhone}
+                            ({storePhone}){:else}{storePhone}{/if}
+                    </p>
+                {/if}
                 <hr class="border-t border-black border-dashed my-2" />
                 <h3 class="font-bold">SERVICE DOJO</h3>
             </div>
@@ -66,10 +108,12 @@
                     <span>Customer:</span>
                     <span class="font-bold">{serviceOrder.customer?.name}</span>
                 </div>
-                <div class="flex justify-between">
-                    <span>Telepon:</span>
-                    <span>{serviceOrder.customer?.phone}</span>
-                </div>
+                {#if showCustomerPhone && serviceOrder.customer?.phone}
+                    <div class="flex justify-between">
+                        <span>Telepon:</span>
+                        <span>{serviceOrder.customer?.phone}</span>
+                    </div>
+                {/if}
             </div>
 
             <hr class="border-t border-black border-dashed my-2" />
@@ -97,7 +141,7 @@
 
             <!-- Footer -->
             <div class="text-center text-[10px] mt-4">
-                <p>Harap bawa struk ini saat pengambilan.</p>
+                <p>{footerText}</p>
                 <p>Terima Kasih!</p>
             </div>
         </div>

@@ -11,10 +11,21 @@
     } from "$lib/components/ui/card";
     import { ArrowLeft, Printer } from "lucide-svelte";
     import { Skeleton } from "$lib/components/ui/skeleton";
-
     import { formatCurrency } from "$lib/utils";
+    import {
+        settingsStore,
+        initializeSettings,
+    } from "$lib/stores/settings-store.svelte";
+    import { browser } from "$app/environment";
 
     let id = $derived($page.params.id);
+
+    // Ensure settings are loaded
+    $effect(() => {
+        if (browser) {
+            initializeSettings();
+        }
+    });
 
     const query = createQuery(() => ({
         queryKey: ["purchase-return", id],
@@ -25,6 +36,11 @@
     }));
 
     let r = $derived(query.data);
+
+    // Derived settings from store
+    let storeName = $derived(settingsStore.storeInfo.name || "Toko Service");
+    let storeAddress = $derived(settingsStore.storeInfo.address || "");
+    let storePhone = $derived(settingsStore.storeInfo.phone || "");
 </script>
 
 <div class="space-y-6 print:hidden">
@@ -199,9 +215,13 @@
                         S
                     </div>
                     <div>
-                        <h1 class="text-2xl font-bold">Saint Heavens</h1>
-                        <p class="text-sm">Jalan Contoh No. 123, Kota Besar</p>
-                        <p class="text-sm">Tel: 0812-3456-7890</p>
+                        <h1 class="text-2xl font-bold">{storeName}</h1>
+                        {#if storeAddress}<p class="text-sm">
+                                {storeAddress}
+                            </p>{/if}
+                        {#if storePhone}<p class="text-sm">
+                                Tel: {storePhone}
+                            </p>{/if}
                     </div>
                 </div>
             </div>

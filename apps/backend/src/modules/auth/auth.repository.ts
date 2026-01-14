@@ -24,4 +24,16 @@ export class AuthRepository {
             where: eq(users.role, role)
         });
     }
+
+    async findAll() {
+        return await db.query.users.findMany();
+    }
+
+    async update(id: string, data: Partial<typeof users.$inferInsert>) {
+        return await db.update(users).set(data).where(eq(users.id, id)).returning();
+    }
+
+    async delete(id: string) {
+        return await db.delete(users).where(eq(users.id, id)).returning();
+    }
 }

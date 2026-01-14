@@ -17,5 +17,17 @@ export const AuthService = {
     getUser: () => {
         const u = localStorage.getItem("user");
         return u ? JSON.parse(u) : null;
+    },
+    register: async (data: any) => {
+        const res = await api.post("/auth/register", data);
+        return res.data;
+    },
+    updateUser: async (id: string, data: any) => {
+        const res = await api.put(`/auth/users/${id}`, data);
+        return res.data;
+    },
+    deleteUser: async (id: string) => {
+        const res = await api.delete(`/auth/users/${id}`);
+        return res.data;
     }
 };

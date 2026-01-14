@@ -12,6 +12,7 @@ export const users = sqliteTable("users", {
     role: text("role", { enum: ["admin", "teknisi", "kasir"] }).notNull().default("teknisi"),
     name: text("name").notNull(),
     image: text("image"), // Profile photo URL (optional)
+    isActive: integer("is_active", { mode: "boolean" }).default(true),
     createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
 });
 
