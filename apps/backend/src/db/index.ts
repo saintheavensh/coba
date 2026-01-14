@@ -1,6 +1,11 @@
-import { drizzle } from "drizzle-orm/bun-sqlite";
-import { Database } from "bun:sqlite";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import * as schema from "./schema";
 
-const sqlite = new Database("./data/store.db");
-export const db = drizzle(sqlite, { schema });
+const connectionString = process.env.DATABASE_URL || "postgresql://coba_user:coba_pass@localhost:5432/coba_db";
+
+const pool = new Pool({
+    connectionString,
+});
+
+export const db = drizzle(pool, { schema });
