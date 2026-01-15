@@ -103,13 +103,30 @@
         }
     }
 
+    import { page } from "$app/stores";
+
     onMount(() => {
+        const status = $page.url.searchParams.get("status");
+        if (status) {
+            filterStatus = status;
+        }
         loadData();
     });
 
     import { refreshServiceList } from "$lib/stores/events";
 
     // Reactive: Reload when filters change or refresh triggered
+    $effect(() => {
+        const status = $page.url.searchParams.get("status");
+        if (status && status !== filterStatus) {
+            filterStatus = status;
+        } else if (!status && filterStatus !== "all") {
+            // Optional: if URL has no status, reset to all?
+            // Or keep it? Providing Sidebar Link "Semua Service" is /service (no query), so reset to 'all' is correct.
+            filterStatus = "all";
+        }
+    });
+
     $effect(() => {
         if (filterStatus) loadData();
     });

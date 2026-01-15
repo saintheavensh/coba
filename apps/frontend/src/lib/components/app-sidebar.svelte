@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from "$app/stores";
+  import { onMount } from "svelte";
   import {
     LayoutDashboard,
     Package,
@@ -26,8 +27,21 @@
   import { cn } from "$lib/utils";
   import { slide } from "svelte/transition";
 
+  // Type definitions
+  type MenuItem = {
+    title: string;
+    href?: string;
+    icon?: any;
+    children?: MenuItem[];
+  };
+
+  type MenuGroup = {
+    label: string;
+    items: MenuItem[];
+  };
+
   // Grouped Menu Structure with Submenus
-  const menuGroups = [
+  const menuGroups: MenuGroup[] = [
     {
       label: "",
       items: [
@@ -95,9 +109,45 @@
           icon: Wrench,
           children: [
             { title: "Service Baru", href: "/service/new", icon: Plus },
-            { title: "Daftar Service", href: "/service", icon: List },
+            {
+              title: "Daftar Service",
+              icon: List,
+              // Start with expanded or allow toggle. It will need UI support.
+              children: [
+                { title: "Semua Data", href: "/service", icon: Circle },
+                {
+                  title: "Antrian",
+                  href: "/service?status=antrian",
+                  icon: Circle,
+                },
+                {
+                  title: "Sedang Dicek",
+                  href: "/service?status=dicek",
+                  icon: Circle,
+                },
+                {
+                  title: "Konfirmasi",
+                  href: "/service?status=konfirmasi",
+                  icon: Circle,
+                },
+                {
+                  title: "Dikerjakan",
+                  href: "/service?status=dikerjakan",
+                  icon: Circle,
+                },
+                {
+                  title: "Selesai / Siap",
+                  href: "/service?status=selesai",
+                  icon: Circle,
+                },
+                {
+                  title: "Sudah Diambil",
+                  href: "/service?status=diambil",
+                  icon: Circle,
+                },
+              ],
+            },
             { title: "Kalender", href: "/service/calendar", icon: Calendar },
-            { title: "Klaim Garansi", href: "/service/warranty", icon: Shield },
           ],
         },
       ],
@@ -124,21 +174,72 @@
     },
   ];
 
+  import { ServiceService } from "$lib/services/service.service";
+
   // State for expanded menus
   // Initialize based on current URL to auto-expand
   let expanded: Record<string, boolean> = $state({});
+  let userRole = $state<string | null>(null);
+  let statusCounts = $state<Record<string, number>>({});
+
+  onMount(async () => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      userRole = u.role;
+
+      // Fetch counts
+      const counts = await ServiceService.getCounts();
+      counts.forEach((c) => {
+        statusCounts[c.status] = c.count;
+      });
+    } catch {}
+  });
+
+  function getCount(href?: string) {
+    if (!href || !href.includes("status=")) return null;
+    const match = href.match(/status=([^&]*)/);
+    if (match && match[1]) {
+      return statusCounts[match[1]] || 0;
+    }
+    return null;
+  }
 
   // Effect to auto-expand parent if child is active
   $effect(() => {
-    const path = $page.url.pathname;
+    const path = $page.url.pathname + $page.url.search; // Include search for exact match if needed, but path usually enough for folders
+    const pathOnly = $page.url.pathname;
+
     for (const group of menuGroups) {
       for (const item of group.items) {
         if (item.children) {
-          if (
-            item.children.some(
-              (child) => path === child.href || path.startsWith(child.href!),
-            )
-          ) {
+          // Check deeper children
+          let hasActiveChild = false;
+
+          // Check level 2
+          for (const child of item.children) {
+            if (child.children) {
+              // Check level 3
+              if (
+                child.children.some(
+                  (c) =>
+                    pathOnly === c.href ||
+                    path === c.href ||
+                    (c.href && c.href !== "/" && path.startsWith(c.href)),
+                )
+              ) {
+                expanded[child.title] = true;
+                hasActiveChild = true;
+              }
+            } else if (
+              child.href &&
+              (pathOnly === child.href ||
+                (child.href !== "/" && pathOnly.startsWith(child.href)))
+            ) {
+              hasActiveChild = true;
+            }
+          }
+
+          if (hasActiveChild) {
             expanded[item.title] = true;
           }
         }
@@ -147,6 +248,7 @@
   });
 
   function toggle(title: string) {
+    if (title === "Daftar Service" && userRole === "kasir") return; // Should likely be handled in template by not showing toggle button
     expanded[title] = !expanded[title];
   }
 </script>
@@ -176,7 +278,7 @@
           {/if}
           {#each group.items as item}
             {#if item.children}
-              <!-- Collapsible Item -->
+              <!-- Level 1 Collapsible (e.g. Service) -->
               <div>
                 <button
                   onclick={() => toggle(item.title)}
@@ -196,23 +298,98 @@
                   {/if}
                 </button>
                 {#if expanded[item.title]}
-                  <div class="ml-4 mt-1 border-l pl-2 space-y-1">
+                  <div
+                    class="ml-4 mt-1 border-l pl-2 space-y-1"
+                    transition:slide|local
+                  >
                     {#each item.children as child}
-                      <a
-                        href={child.href}
-                        class={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:text-blue-600",
-                          $page.url.pathname === child.href ||
-                            ($page.url.pathname.startsWith(child.href!) &&
-                              child.href !== "/")
-                            ? "bg-blue-50 text-blue-600"
-                            : "text-muted-foreground hover:bg-muted",
-                        )}
-                      >
-                        <!-- Optional: Smaller Bullet Icon or just text padding -->
-                        <!-- <child.icon class="h-2 w-2" /> -->
-                        {child.title}
-                      </a>
+                      {#if child.children && (child.title !== "Daftar Service" || userRole !== "kasir")}
+                        <!-- Level 2 Collapsible (e.g. Daftar Service) -->
+                        <div>
+                          <button
+                            onclick={() => toggle(child.title)}
+                            class={cn(
+                              "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-all text-muted-foreground hover:bg-muted hover:text-foreground",
+                              expanded[child.title] && "text-foreground",
+                            )}
+                          >
+                            <div class="flex items-center gap-3">
+                              {#if child.icon}
+                                <child.icon class="h-4 w-4" />
+                              {/if}
+                              {child.title}
+                            </div>
+                            {#if expanded[child.title]}
+                              <ChevronDown class="h-4 w-4 opacity-50" />
+                            {:else}
+                              <ChevronRight class="h-4 w-4 opacity-50" />
+                            {/if}
+                          </button>
+                          {#if expanded[child.title]}
+                            <!-- sub-items -->
+                            <div
+                              class="ml-4 mt-1 border-l pl-2 space-y-1"
+                              transition:slide|local
+                            >
+                              {#each child.children as subChild}
+                                <a
+                                  href={subChild.href}
+                                  class={cn(
+                                    "flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:text-blue-600",
+                                    $page.url.pathname === subChild.href ||
+                                      $page.url.pathname + $page.url.search ===
+                                        subChild.href ||
+                                      ($page.url.pathname.startsWith(
+                                        subChild.href || "",
+                                      ) &&
+                                        subChild.href !== "/")
+                                      ? "bg-blue-50 text-blue-600"
+                                      : "text-muted-foreground hover:bg-muted",
+                                  )}
+                                >
+                                  <span class="truncate">{subChild.title}</span>
+                                  {#if getCount(subChild.href) !== null}
+                                    <span
+                                      class="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-100 px-1.5 text-[10px] font-bold text-blue-700"
+                                    >
+                                      {getCount(subChild.href)}
+                                    </span>
+                                  {/if}
+                                </a>
+                              {/each}
+                            </div>
+                          {/if}
+                        </div>
+                      {:else}
+                        <!-- Level 2 Link (Fallback if no children OR if Cashier restricted) -->
+                        <a
+                          href={child.children
+                            ? child.children[0].href
+                            : child.href}
+                          class={cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:text-blue-600",
+                            $page.url.pathname ===
+                              (child.children
+                                ? child.children[0].href
+                                : child.href) ||
+                              ($page.url.pathname.startsWith(
+                                (child.children
+                                  ? child.children[0].href
+                                  : child.href) || "",
+                              ) &&
+                                (child.children
+                                  ? child.children[0].href
+                                  : child.href) !== "/")
+                              ? "bg-blue-50 text-blue-600"
+                              : "text-muted-foreground hover:bg-muted",
+                          )}
+                        >
+                          {#if child.icon}
+                            <child.icon class="h-4 w-4" />
+                          {/if}
+                          {child.title}
+                        </a>
+                      {/if}
                     {/each}
                   </div>
                 {/if}
@@ -224,7 +401,7 @@
                 class={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:text-blue-600",
                   $page.url.pathname === item.href ||
-                    ($page.url.pathname.startsWith(item.href!) &&
+                    ($page.url.pathname.startsWith(item.href || "") &&
                       item.href !== "/")
                     ? "bg-blue-50 text-blue-600"
                     : "text-muted-foreground hover:bg-muted",

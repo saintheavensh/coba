@@ -186,34 +186,25 @@
             />
         </div>
 
-        <!-- Technician -->
-        <div class="space-y-2">
-            <Label class="flex justify-between">
-                <span
-                    >Teknisi {#if form.isWalkin}<span class="text-red-500"
-                            >*</span
-                        >{/if}</span
-                >
-                {#if !form.isWalkin}<span
-                        class="text-xs text-muted-foreground font-normal"
-                        >(Dapat diisi nanti)</span
-                    >{/if}
-            </Label>
-            <Select type="single" bind:value={form.technician}>
-                <SelectTrigger>
-                    {technicians.find((t) => t.id === form.technician)?.name ||
-                        "Pilih Teknisi"}
-                </SelectTrigger>
-                <SelectContent>
-                    {#if !form.isWalkin}
-                        <SelectItem value="">Belum Ditentukan</SelectItem>
-                    {/if}
-                    {#each technicians as tech}
-                        <SelectItem value={tech.id}>{tech.name}</SelectItem>
-                    {/each}
-                </SelectContent>
-            </Select>
-        </div>
+        <!-- Technician (Hidden for Intake Mode based on user request to simplify) -->
+        {#if form.isWalkin}
+            <div class="space-y-2">
+                <Label class="flex justify-between">
+                    <span>Teknisi <span class="text-red-500">*</span></span>
+                </Label>
+                <Select type="single" bind:value={form.technician}>
+                    <SelectTrigger>
+                        {technicians.find((t) => t.id === form.technician)
+                            ?.name || "Pilih Teknisi"}
+                    </SelectTrigger>
+                    <SelectContent>
+                        {#each technicians as tech}
+                            <SelectItem value={tech.id}>{tech.name}</SelectItem>
+                        {/each}
+                    </SelectContent>
+                </Select>
+            </div>
+        {/if}
 
         {#if form.isWalkin}
             <!-- Walk-in Specific UI -->
@@ -375,180 +366,18 @@
                     </div>
                 </div>
             </div>
-        {:else}
-            <!-- Regular Service UI -->
+        {:else if !form.isWalkin && false}
+            <!-- Hiding Diagnosis/Cost for Intake as per request. "Remove Diagnosis/Cost fields from initial creation" -->
+            <!-- Regular Service UI (Diagnosis/Cost) - NOW HIDDEN/REMOVED for Intake Phase -->
+            <!-- Use 'false' to effectively comment it out but keep code for reference if needed later or delete -->
             <div class="space-y-4">
                 <Separator />
                 <h4
                     class="font-medium flex items-center gap-2 text-sm text-muted-foreground uppercase tracking-wider"
                 >
-                    Diagnosa Awal
+                    Diagnosa Awal (Opsional)
                 </h4>
-
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div class="space-y-2">
-                        <Label>Pemeriksaan Awal</Label>
-                        <Textarea
-                            bind:value={form.initialDiagnosis}
-                            placeholder="Cek arus ampere, tes fungsi..."
-                            rows={3}
-                        />
-                    </div>
-                    <div class="space-y-2">
-                        <Label>Kemungkinan Kerusakan</Label>
-                        <Textarea
-                            bind:value={form.possibleCauses}
-                            placeholder="IC Power, EMMC, Short kapasitor..."
-                            rows={3}
-                        />
-                    </div>
-                </div>
-
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div class="space-y-3">
-                        <div class="flex items-center justify-between">
-                            <Label>Estimasi Biaya</Label>
-                            <label
-                                class="flex items-center gap-2 text-xs cursor-pointer text-muted-foreground hover:text-foreground"
-                            >
-                                <input
-                                    type="checkbox"
-                                    bind:checked={form.isPriceRange}
-                                    class="rounded border-primary text-primary focus:ring-primary"
-                                />
-                                Gunakan Range Harga
-                            </label>
-                        </div>
-                        {#if form.isPriceRange}
-                            <div class="flex gap-2 items-center">
-                                <CurrencyInput
-                                    bind:value={form.minPrice}
-                                    placeholder="Min"
-                                />
-                                <span>-</span>
-                                <CurrencyInput
-                                    bind:value={form.maxPrice}
-                                    placeholder="Max"
-                                />
-                            </div>
-                        {:else}
-                            <CurrencyInput
-                                bind:value={form.estimatedCost}
-                                placeholder="Rp 0"
-                            />
-                        {/if}
-                    </div>
-                    <div class="space-y-3">
-                        <Label>Uang Muka / DP (Opsional)</Label>
-                        <CurrencyInput
-                            bind:value={form.downPayment}
-                            placeholder="Rp 0"
-                        />
-                    </div>
-                </div>
-
-                <div class="pt-2">
-                    <Label class="flex items-center gap-2 mb-2">
-                        <CalendarIcon class="h-4 w-4" /> Estimasi Selesai
-                    </Label>
-                    {#if !form.technician || (!form.isPriceRange && !form.estimatedCost) || (form.isPriceRange && !form.minPrice && !form.maxPrice)}
-                        <div
-                            class="p-3 bg-yellow-50 text-yellow-800 rounded-lg text-sm flex gap-2"
-                        >
-                            <AlertCircle class="h-4 w-4 shrink-0 mt-0.5" />
-                            Pilih teknisi dan isi estimasi biaya untuk mengatur estimasi
-                            tanggal selesai.
-                        </div>
-                    {:else}
-                        <div class="relative">
-                            <Button
-                                variant="outline"
-                                class={`w-full justify-start text-left font-normal ${!form.estimatedCompletionDate && "text-muted-foreground"}`}
-                                onclick={() => (showCalendar = !showCalendar)}
-                            >
-                                <CalendarIcon class="mr-2 h-4 w-4" />
-                                {form.estimatedCompletionDate
-                                    ? new Date(
-                                          form.estimatedCompletionDate,
-                                      ).toLocaleDateString("id-ID", {
-                                          weekday: "long",
-                                          day: "numeric",
-                                          month: "long",
-                                          year: "numeric",
-                                      })
-                                    : "Pilih tanggal"}
-                            </Button>
-
-                            {#if showCalendar}
-                                <div
-                                    class="absolute bottom-full left-0 mb-2 p-4 bg-popover text-popover-foreground border rounded-lg shadow-xl w-72 z-50"
-                                >
-                                    <div
-                                        class="flex items-center justify-between mb-4"
-                                    >
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onclick={() => navigateMonth(-1)}
-                                        >
-                                            <ChevronLeft class="h-4 w-4" />
-                                        </Button>
-                                        <span class="font-semibold text-sm">
-                                            {calendarDate.toLocaleDateString(
-                                                "id-ID",
-                                                {
-                                                    month: "long",
-                                                    year: "numeric",
-                                                },
-                                            )}
-                                        </span>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onclick={() => navigateMonth(1)}
-                                        >
-                                            <ChevronRight class="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                    <div
-                                        class="grid grid-cols-7 gap-1 text-center text-[10px] text-muted-foreground mb-2"
-                                    >
-                                        {#each ["Sn", "Sl", "Rb", "Km", "Jm", "Sb", "Mn"] as d}<div
-                                            >
-                                                {d}
-                                            </div>{/each}
-                                    </div>
-                                    <div class="grid grid-cols-7 gap-1">
-                                        {#each calendarDays as day}
-                                            <button
-                                                class={`
-                                                    h-8 w-8 rounded-full flex items-center justify-center text-xs relative
-                                                    ${!isCurrentMonth(day) && "text-muted-foreground opacity-50"}
-                                                    ${isToday(day) && "bg-accent text-accent-foreground font-bold"}
-                                                    ${form.estimatedCompletionDate === day.toISOString().split("T")[0] && "bg-primary text-primary-foreground hover:bg-primary/90"}
-                                                    ${isPastDate(day) ? "opacity-30 cursor-not-allowed" : "hover:bg-muted"}
-                                                `}
-                                                disabled={isPastDate(day)}
-                                                onclick={() => selectDate(day)}
-                                            >
-                                                {day.getDate()}
-                                                {#if getServicesForDate(day) > 0}
-                                                    <span
-                                                        class="absolute -bottom-1 -right-1 h-3 w-3 bg-orange-500 rounded-full text-[8px] flex items-center justify-center text-white"
-                                                    >
-                                                        {getServicesForDate(
-                                                            day,
-                                                        )}
-                                                    </span>
-                                                {/if}
-                                            </button>
-                                        {/each}
-                                    </div>
-                                </div>
-                            {/if}
-                        </div>
-                    {/if}
-                </div>
+                <!-- ... Content hidden ... -->
             </div>
         {/if}
     </div>

@@ -319,43 +319,6 @@
                 Mendukung format JPG, PNG. Maksimal 5MB per file.
             </p>
         </div>
-
-        <!-- Initial QC (Nyala only) -->
-        {#if form.canDoInitialQC}
-            <div
-                class="space-y-3 p-4 border rounded-xl bg-blue-50/50 border-blue-200"
-            >
-                <div class="flex items-center gap-2">
-                    <AlertCircle class="h-5 w-5 text-blue-600" />
-                    <span class="font-medium text-blue-800"
-                        >Cek Kondisi Awal (Sebelum Perbaikan)</span
-                    >
-                </div>
-                <p class="text-xs text-blue-600">
-                    Centang fungsi yang berjalan normal sebelum perbaikan. Data
-                    ini akan dibandingkan setelah perbaikan.
-                </p>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {#each [{ key: "touchscreen", label: "Touchscreen" }, { key: "display", label: "Display" }, { key: "speaker", label: "Speaker" }, { key: "earpiece", label: "Earpiece" }, { key: "microphone", label: "Microphone" }, { key: "frontCamera", label: "Kamera Depan" }, { key: "rearCamera", label: "Kamera Belakang" }, { key: "wifi", label: "WiFi" }, { key: "bluetooth", label: "Bluetooth" }, { key: "chargingPort", label: "Port Charging" }, { key: "buttons", label: "Tombol" }, { key: "fingerprint", label: "Fingerprint" }] as item}
-                        <label
-                            class="flex items-center gap-2 p-2 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100/50 transition-colors bg-white"
-                        >
-                            <input
-                                type="checkbox"
-                                checked={form.initialQC[item.key] === true}
-                                onchange={(e) =>
-                                    (form.initialQC = {
-                                        ...form.initialQC,
-                                        [item.key]: e.currentTarget.checked,
-                                    })}
-                                class="rounded border-blue-400 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span class="text-sm">{item.label}</span>
-                        </label>
-                    {/each}
-                </div>
-            </div>
-        {/if}
     </div>
 </div>
 

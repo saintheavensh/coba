@@ -7,6 +7,18 @@
     import { toast } from "$lib/components/ui/sonner";
     import PatternLock from "$lib/components/ui/pattern-lock.svelte";
     import {
+        Dialog,
+        DialogContent,
+        DialogHeader,
+        DialogTitle,
+        DialogDescription,
+        DialogFooter,
+    } from "$lib/components/ui/dialog";
+    import { Input } from "$lib/components/ui/input";
+    import { Label } from "$lib/components/ui/label";
+    import { Textarea } from "$lib/components/ui/textarea";
+
+    import {
         ArrowLeft,
         Save,
         CheckCircle,
@@ -31,6 +43,7 @@
         AlertTriangle,
         ChevronRight,
         Loader2,
+        AlertCircle, // Added
     } from "lucide-svelte";
 
     import { onMount } from "svelte";
@@ -41,6 +54,28 @@
     let serviceOrder = $state<any>(null);
     let loading = $state(true);
 
+    // Modal States
+    let showDiagnosisModal = $state(false);
+    let showCompletionModal = $state(false);
+    let showAssignModal = $state(false); // Added
+
+    // Data States
+    let technicians = $state<{ id: string; name: string }[]>([]);
+    let selectedTechnicianId = $state("");
+    let currentUser = $state<any>(null); // Added
+
+    // Input States
+    let diagnosisInput = $state({
+        initial: "",
+        possibleCauses: "",
+        costEstimate: 0,
+    });
+
+    let completionInput = $state({
+        actualCost: 0,
+        notes: "",
+    });
+
     async function loadData() {
         loading = true;
         try {
@@ -48,6 +83,22 @@
             if (serviceOrder.device) serviceOrder.phone = serviceOrder.device;
             if (!serviceOrder.parts) serviceOrder.parts = [];
             if (!serviceOrder.timeline) serviceOrder.timeline = [];
+
+            // Pre-fill inputs if data exists
+            if (serviceOrder.diagnosis) {
+                try {
+                    const d = JSON.parse(serviceOrder.diagnosis);
+                    if (d.initial) diagnosisInput.initial = d.initial;
+                    if (d.possibleCauses)
+                        diagnosisInput.possibleCauses = d.possibleCauses;
+                } catch {}
+            }
+            if (serviceOrder.costEstimate)
+                diagnosisInput.costEstimate = serviceOrder.costEstimate;
+            if (serviceOrder.actualCost)
+                completionInput.actualCost = serviceOrder.actualCost;
+            if (serviceOrder.costEstimate && !serviceOrder.actualCost)
+                completionInput.actualCost = serviceOrder.costEstimate; // Default completion cost to estimate
         } catch (e) {
             console.error(e);
             toast.error("Gagal memuat detail service");
@@ -56,11 +107,107 @@
         }
     }
 
+    async function loadTechnicians() {
+        try {
+            technicians = await ServiceService.getTechnicians();
+        } catch (e) {
+            console.error("Failed to load technicians", e);
+        }
+    }
+
+    async function updateStatus(newStatus: string, extraData: any = {}) {
+        try {
+            const userId =
+                JSON.parse(localStorage.getItem("user") || "{}").id ||
+                "USR-ADMIN";
+            await ServiceService.updateStatus(serviceId, {
+                status: newStatus,
+                userId,
+                ...extraData,
+            });
+            toast.success(`Status updated: ${newStatus}`);
+            await loadData();
+        } catch (e) {
+            console.error(e);
+            toast.error("Gagal update status");
+        }
+    }
+
+    async function handleAssignTechnician() {
+        if (!selectedTechnicianId) return;
+        try {
+            await ServiceService.assignTechnician(
+                serviceId,
+                selectedTechnicianId,
+            );
+            toast.success("Teknisi berhasil ditugaskan");
+            showAssignModal = false;
+            // If status is still 'antrian', auto-move to 'dicek' ? Or just let admin/tech do it?
+            // User requested: "Antrian -> Assign -> Tech starts" (status update is manual usually)
+            // But usually assigning implies work starts or is ready to start.
+            // For now just refresh data.
+            await loadData();
+        } catch (e) {
+            toast.error("Gagal menugaskan teknisi");
+        }
+    }
+
+    async function submitDiagnosis() {
+        try {
+            const userId =
+                JSON.parse(localStorage.getItem("user") || "{}").id ||
+                "USR-ADMIN";
+            // Update details first
+            await api.put(`/service/${serviceId}/details`, {
+                diagnosis: {
+                    initial: diagnosisInput.initial,
+                    possibleCauses: diagnosisInput.possibleCauses,
+                },
+                costEstimate: parseInt(String(diagnosisInput.costEstimate)),
+            });
+
+            // Then update status
+            await updateStatus("konfirmasi");
+            showDiagnosisModal = false;
+        } catch (e) {
+            toast.error("Gagal menyimpan diagnosa");
+        }
+    }
+
+    async function submitCompletion() {
+        await updateStatus("selesai", {
+            actualCost: parseInt(String(completionInput.actualCost)),
+            notes: completionInput.notes,
+        });
+        showCompletionModal = false;
+    }
+
     onMount(() => {
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+            try {
+                currentUser = JSON.parse(userStr);
+            } catch {}
+        }
         loadData();
+        loadTechnicians();
     });
 
     // Computed properties
+    let canViewFinancials = $derived(
+        currentUser?.role === "admin" || currentUser?.role === "kasir",
+    );
+    let canViewContact = $derived(
+        currentUser?.role === "admin" || currentUser?.role === "kasir",
+    );
+    let canEditWorkflow = $derived(
+        currentUser?.role === "admin" || currentUser?.role === "teknisi",
+    );
+    let canAssignTechnician = $derived(currentUser?.role === "admin");
+    let canProcessPayment = $derived(
+        currentUser?.role === "admin" || currentUser?.role === "kasir",
+    );
+
     let totalParts = $derived(
         serviceOrder?.parts?.reduce(
             (sum: number, p: any) => sum + (p.subtotal || p.price * p.qty),
@@ -346,14 +493,16 @@
                     >
                         <Printer class="h-4 w-4 mr-2" /> Cetak Label
                     </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        class="text-green-600"
-                        onclick={handleChatCustomer}
-                    >
-                        <MessageCircle class="h-4 w-4 mr-2" /> WhatsApp
-                    </Button>
+                    {#if canViewContact}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="text-green-600"
+                            onclick={handleChatCustomer}
+                        >
+                            <MessageCircle class="h-4 w-4 mr-2" /> WhatsApp
+                        </Button>
+                    {/if}
                 </div>
             </div>
         </div>
@@ -508,9 +657,16 @@
                         >
                             <Wrench class="h-4 w-4" /> Teknisi
                         </h3>
-                        <Button variant="ghost" size="sm" class="h-7 text-xs">
-                            <Repeat class="h-3 w-3 mr-1" /> Ganti
-                        </Button>
+                        {#if canAssignTechnician}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                class="h-7 text-xs"
+                                onclick={() => (showAssignModal = true)}
+                            >
+                                <Repeat class="h-3 w-3 mr-1" /> Ganti
+                            </Button>
+                        {/if}
                     </div>
                     <div class="flex items-center gap-3">
                         <div
@@ -556,9 +712,22 @@
                                 >
                                     <Phone class="h-3 w-3" /> Telepon
                                 </span>
-                                <span class="font-medium font-mono"
-                                    >{serviceOrder.customer?.phone || "-"}</span
-                                >
+                                <span class="font-medium font-mono">
+                                    {#if canViewContact}
+                                        {serviceOrder.customer?.phone || "-"}
+                                    {:else}
+                                        {serviceOrder.customer?.phone
+                                            ? serviceOrder.customer.phone.slice(
+                                                  0,
+                                                  4,
+                                              ) +
+                                              "****" +
+                                              serviceOrder.customer.phone.slice(
+                                                  -3,
+                                              )
+                                            : "-"}
+                                    {/if}
+                                </span>
                             </div>
                             {#if serviceOrder.customer?.address}
                                 <div class="flex items-start justify-between">
@@ -569,8 +738,16 @@
                                     </span>
                                     <span
                                         class="font-medium text-right max-w-[200px]"
-                                        >{serviceOrder.customer.address}</span
                                     >
+                                        {#if canViewContact}
+                                            {serviceOrder.customer.address}
+                                        {:else}
+                                            <span
+                                                class="text-muted-foreground italic"
+                                                >Hidden</span
+                                            >
+                                        {/if}
+                                    </span>
                                 </div>
                             {/if}
                         </div>
@@ -771,7 +948,7 @@
                 </div>
 
                 <!-- QC Section (for walk-in with QC data) -->
-                {#if serviceOrder.phone?.initialQC || serviceOrder.phone?.qc}
+                {#if serviceOrder.phone?.initialQC || serviceOrder.phone?.qc || (serviceOrder.phone?.status && ["mati_total", "blank", "restart", "bootloop"].includes(serviceOrder.phone.status))}
                     <div
                         class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-sm border border-blue-200 p-5"
                     >
@@ -781,19 +958,26 @@
                             <CheckCircle class="h-5 w-5" /> Quality Control
                         </h3>
                         <div class="grid gap-4 md:grid-cols-2">
-                            {#if serviceOrder.phone?.initialQC}
-                                <div class="bg-white/70 rounded-xl p-4">
-                                    <p
-                                        class="text-xs text-muted-foreground uppercase tracking-wider mb-2"
-                                    >
-                                        QC Awal (Sebelum)
-                                    </p>
+                            <div class="bg-white/70 rounded-xl p-4">
+                                <p
+                                    class="text-xs text-muted-foreground uppercase tracking-wider mb-2"
+                                >
+                                    QC Awal (Sebelum)
+                                </p>
+                                {#if serviceOrder.phone?.initialQC && Object.keys(serviceOrder.phone.initialQC).length > 0}
                                     <div class="space-y-1">
                                         {#each Object.entries(serviceOrder.phone.initialQC) as [key, value]}
                                             <div
                                                 class="flex items-center justify-between text-sm"
                                             >
-                                                <span>{key}</span>
+                                                <span
+                                                    >{key
+                                                        .replace(
+                                                            /([A-Z])/g,
+                                                            " $1",
+                                                        )
+                                                        .trim()}</span
+                                                >
                                                 {#if value}
                                                     <CheckCircle
                                                         class="h-4 w-4 text-green-500"
@@ -806,8 +990,25 @@
                                             </div>
                                         {/each}
                                     </div>
-                                </div>
-                            {/if}
+                                {:else if serviceOrder.phone?.status && ["mati_total", "blank", "restart", "bootloop"].includes(serviceOrder.phone.status)}
+                                    <div
+                                        class="flex items-center gap-2 text-sm text-orange-700 p-2 bg-orange-50 rounded border border-orange-100 border-dashed"
+                                    >
+                                        <AlertCircle class="h-4 w-4 shrink-0" />
+                                        <span
+                                            >Skipped ({serviceOrder.phone.status
+                                                .replace(/_/g, " ")
+                                                .toUpperCase()})</span
+                                        >
+                                    </div>
+                                {:else}
+                                    <p
+                                        class="text-sm text-muted-foreground italic"
+                                    >
+                                        Tidak ada data
+                                    </p>
+                                {/if}
+                            </div>
                             {#if serviceOrder.phone?.qc?.after}
                                 <div class="bg-white/70 rounded-xl p-4">
                                     <p
@@ -1015,10 +1216,12 @@
                 </div>
 
                 <!-- Action Buttons -->
+                <!-- Action Buttons -->
                 {#if !isReadOnly}
                     <div
-                        class="flex flex-col-reverse md:flex-row gap-3 justify-end bg-card rounded-2xl shadow-sm border p-4"
+                        class="flex flex-col-reverse md:flex-row gap-3 justify-end bg-card rounded-2xl shadow-sm border p-4 sticky bottom-4 z-10"
                     >
+                        <!-- Common Cancel Button -->
                         <Button
                             variant="outline"
                             onclick={handleCancel}
@@ -1026,20 +1229,57 @@
                         >
                             <XCircle class="mr-2 h-4 w-4" /> Batalkan
                         </Button>
-                        {#if serviceOrder.status === "selesai"}
+
+                        <!-- Workflow Buttons -->
+                        {#if serviceOrder.status === "antrian"}
                             <Button
-                                onclick={handlePickup}
-                                class="bg-teal-600 hover:bg-teal-700"
+                                onclick={() => updateStatus("dicek")}
+                                class="bg-blue-600 hover:bg-blue-700"
                             >
-                                <CheckCircle class="mr-2 h-4 w-4" /> Konfirmasi Diambil
+                                <CheckCircle class="mr-2 h-4 w-4" /> Mulai Pengecekan
                             </Button>
-                        {:else}
-                            <Button
-                                onclick={handleComplete}
-                                class="bg-green-600 hover:bg-green-700"
-                            >
-                                <CheckCircle class="mr-2 h-4 w-4" /> Tandai Selesai
-                            </Button>
+                        {/if}
+
+                        {#if serviceOrder.status === "antrian" || serviceOrder.status === "dicek"}
+                            {#if canEditWorkflow}
+                                <Button
+                                    onclick={() => (showDiagnosisModal = true)}
+                                    class="bg-blue-600 hover:bg-blue-700"
+                                >
+                                    <FileText class="mr-2 h-4 w-4" /> Simpan Diagnosa
+                                    & Konfirmasi
+                                </Button>
+                            {/if}
+                        {:else if serviceOrder.status === "konfirmasi"}
+                            {#if canEditWorkflow}
+                                <Button
+                                    onclick={() => updateStatus("dikerjakan")}
+                                    class="bg-purple-600 hover:bg-purple-700"
+                                >
+                                    <Wrench class="mr-2 h-4 w-4" /> Mulai Pengerjaan
+                                    (Customer Setuju)
+                                </Button>
+                            {/if}
+                        {:else if serviceOrder.status === "dikerjakan"}
+                            {#if canEditWorkflow}
+                                <Button
+                                    onclick={() => (showCompletionModal = true)}
+                                    class="bg-green-600 hover:bg-green-700"
+                                >
+                                    <CheckCircle class="mr-2 h-4 w-4" /> Selesai
+                                    Pengerjaan
+                                </Button>
+                            {/if}
+                        {:else if serviceOrder.status === "selesai"}
+                            {#if canProcessPayment}
+                                <Button
+                                    onclick={handlePickup}
+                                    class="bg-teal-600 hover:bg-teal-700"
+                                >
+                                    <CheckCircle class="mr-2 h-4 w-4" /> Konfirmasi
+                                    Diambil
+                                </Button>
+                            {/if}
                         {/if}
                     </div>
                 {:else}
@@ -1049,16 +1289,82 @@
                                 >{serviceOrder.status}</span
                             > - Data terkunci
                         </p>
-                        <Button
-                            variant="outline"
-                            class="text-red-500 border-red-200 hover:bg-red-50"
-                            onclick={handleDelete}
-                        >
-                            <Trash2 class="mr-2 h-4 w-4" /> Hapus Data
-                        </Button>
+                        {#if canAssignTechnician}
+                            <Button
+                                variant="outline"
+                                class="text-red-500 border-red-200 hover:bg-red-50"
+                                onclick={handleDelete}
+                            >
+                                <Trash2 class="mr-2 h-4 w-4" /> Hapus Data
+                            </Button>
+                        {/if}
                     </div>
                 {/if}
             </main>
         </div>
     {/if}
+
+    <!-- Assign Technician Modal -->
+    <Dialog bind:open={showAssignModal}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Pilih Teknisi</DialogTitle>
+                <DialogDescription>
+                    Pilih teknisi yang akan menangani service ini.
+                </DialogDescription>
+            </DialogHeader>
+            <div class="py-4 space-y-4">
+                <div class="space-y-2">
+                    <Label>Daftar Teknisi</Label>
+                    <div class="grid gap-2 max-h-[300px] overflow-y-auto">
+                        {#each technicians as tech}
+                            <button
+                                class="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted text-left transition-colors {selectedTechnicianId ===
+                                tech.id
+                                    ? 'border-primary ring-1 ring-primary bg-primary/5'
+                                    : ''}"
+                                onclick={() => (selectedTechnicianId = tech.id)}
+                            >
+                                <div
+                                    class="w-8 h-8 rounded-full bg-muted flex items-center justify-center"
+                                >
+                                    <User class="h-4 w-4" />
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-medium text-sm">
+                                        {tech.name}
+                                    </p>
+                                    <p
+                                        class="text-xs text-muted-foreground capitalize"
+                                    >
+                                        Teknisi
+                                    </p>
+                                </div>
+                                {#if selectedTechnicianId === tech.id}
+                                    <CheckCircle class="h-4 w-4 text-primary" />
+                                {/if}
+                            </button>
+                        {/each}
+                        {#if technicians.length === 0}
+                            <p
+                                class="text-sm text-muted-foreground text-center py-4"
+                            >
+                                Belum ada data teknisi.
+                            </p>
+                        {/if}
+                    </div>
+                </div>
+            </div>
+            <DialogFooter>
+                <Button
+                    variant="outline"
+                    onclick={() => (showAssignModal = false)}>Batal</Button
+                >
+                <Button
+                    onclick={handleAssignTechnician}
+                    disabled={!selectedTechnicianId}>Simpan Perubahan</Button
+                >
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 </div>

@@ -30,6 +30,10 @@ export const ServiceService = {
         const res = await api.get<ApiResponse<Service[]>>(`/service?${query}`);
         return res.data?.data ?? [];
     },
+    getCounts: async (): Promise<{ status: string; count: number }[]> => {
+        const res = await api.get<ApiResponse<{ status: string; count: number }[]>>("/service/counts");
+        return res.data?.data ?? [];
+    },
     create: async (data: CreateServiceInput): Promise<Service> => {
         const res = await api.post<ApiResponse<Service>>("/service", data);
         return res.data.data!;
@@ -48,5 +52,12 @@ export const ServiceService = {
     update: async (id: number | string, data: Partial<{ estimatedCompletionDate: string }>): Promise<Service> => {
         const res = await api.patch<ApiResponse<Service>>(`/service/${id}`, data);
         return res.data.data!;
+    },
+    getTechnicians: async (): Promise<{ id: string, name: string }[]> => {
+        const res = await api.get<ApiResponse<{ id: string, name: string }[]>>("/users?role=teknisi");
+        return res.data?.data ?? [];
+    },
+    assignTechnician: async (id: number | string, technicianId: string): Promise<void> => {
+        await api.patch(`/service/${id}/assign`, { technicianId });
     }
 };

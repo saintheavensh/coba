@@ -9,9 +9,11 @@
         User,
         Smartphone,
         Wrench,
-        Clock, // Replaced CheckCircle for Walk-in icon to differentiate
-        Loader2, // Loading spinner
+        Clock,
+        Loader2,
+        Plus, // Added
     } from "lucide-svelte";
+    import { goto } from "$app/navigation"; // Added
     import { createQuery } from "@tanstack/svelte-query";
     import { api } from "$lib/api";
     import { ServiceService } from "$lib/services/service.service";
@@ -24,9 +26,10 @@
     import Step2Device from "./steps/Step2Device.svelte";
     import Step3Service from "./steps/Step3Service.svelte";
     import Step35QC from "./steps/Step35QC.svelte";
-    import Step4Review from "./steps/Step4Review.svelte";
+    import Step4Review from "./steps/Step4Review.svelte"; // Wait, I created Step5Review
+    import Step5Review from "./steps/Step5Review.svelte";
     import { fade, slide } from "svelte/transition";
-    import { ClipboardCheck } from "lucide-svelte";
+    import { ClipboardCheck, FileCheck } from "lucide-svelte";
 
     // Initialize Store
     const form = new ServiceFormStore();
@@ -66,46 +69,38 @@
     let services = $derived((servicesQuery.data || []) as any[]);
     let paymentMethods = $derived((paymentMethodsQuery.data || []) as any[]);
 
-    // Steps for regular service (4 steps)
-    const regularSteps = [
-        { step: 1, label: "Customer", icon: User, desc: "Data diri pelanggan" },
+    // Unified Steps for Intake
+    const steps = [
+        { step: 1, label: "Customer", icon: User, desc: "Data Pelanggan" },
         {
             step: 2,
-            label: "Perangkat",
+            label: "Unit",
             icon: Smartphone,
-            desc: "Detail handphone",
+            desc: "Fisik & Kelengkapan",
         },
-        { step: 3, label: "Service", icon: Wrench, desc: "Keluhan & Biaya" },
         {
-            step: 4,
-            label: "Konfirmasi",
-            icon: CheckCircle,
-            desc: "Review data",
+            step: 3,
+            label: "Checklist",
+            icon: ClipboardCheck,
+            desc: "Fungsi Awal (QC)",
         },
-    ];
-
-    // Steps for walk-in service (5 steps with QC)
-    const walkinSteps = [
-        { step: 1, label: "Customer", icon: User, desc: "Data diri pelanggan" },
-        {
-            step: 2,
-            label: "Perangkat",
-            icon: Smartphone,
-            desc: "Detail handphone",
-        },
-        { step: 3, label: "Service", icon: Wrench, desc: "Perbaikan & Biaya" },
-        { step: 4, label: "QC", icon: ClipboardCheck, desc: "Quality Control" },
+        { step: 4, label: "Keluhan", icon: Wrench, desc: "Detail Masalah" },
         {
             step: 5,
             label: "Konfirmasi",
-            icon: CheckCircle,
-            desc: "Review & Bayar",
+            icon: FileCheck,
+            desc: "Review & Simpan",
         },
     ];
 
-    // Use appropriate steps based on service type
-    let steps = $derived(form.isWalkin ? walkinSteps : regularSteps);
-    let totalSteps = $derived(form.isWalkin ? 5 : 4);
+    let totalSteps = 5;
+
+    // Skip QC step if unit is dead - LOGIC MOVED TO form.nextStep/prevStep to avoid navigation loop
+    // $effect(() => {
+    //    if (form.isDead && form.currentStep === 3) {
+    //        form.currentStep = 4;
+    //    }
+    // });
 </script>
 
 <div
@@ -162,56 +157,18 @@
             <Separator />
 
             <!-- Service Type Selector -->
-            <div class="space-y-3">
-                <h3
-                    class="font-semibold text-sm uppercase tracking-wider text-muted-foreground"
-                >
-                    Tipe Layanan
-                </h3>
-                <div class="grid gap-2">
-                    <button
-                        onclick={() => (form.isWalkin = false)}
-                        class={`
-                            flex items-center gap-3 p-3 rounded-xl transition-all border-2 text-left
-                            ${!form.isWalkin ? "border-primary bg-primary/5 shadow-sm" : "border-transparent hover:bg-muted"}
-                        `}
+            <!-- Simplified Intake Mode -->
+            <div class="bg-primary/5 p-4 rounded-xl border border-primary/20">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="p-2 rounded-full bg-primary text-primary-foreground"
                     >
-                        <div
-                            class={`p-2 rounded-full ${!form.isWalkin ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-                        >
-                            <Clock class="h-4 w-4" />
-                        </div>
-                        <div>
-                            <span class="font-medium block text-sm"
-                                >Regular Service</span
-                            >
-                            <span class="text-xs text-muted-foreground"
-                                >Ditinggal (Antrian)</span
-                            >
-                        </div>
-                    </button>
-
-                    <button
-                        onclick={() => (form.isWalkin = true)}
-                        class={`
-                            flex items-center gap-3 p-3 rounded-xl transition-all border-2 text-left
-                            ${form.isWalkin ? "border-green-500 bg-green-50 shadow-sm" : "border-transparent hover:bg-muted"}
-                        `}
-                    >
-                        <div
-                            class={`p-2 rounded-full ${form.isWalkin ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"}`}
-                        >
-                            <CheckCircle class="h-4 w-4" />
-                        </div>
-                        <div>
-                            <span class="font-medium block text-sm"
-                                >Walk-in Service</span
-                            >
-                            <span class="text-xs text-muted-foreground"
-                                >Ditunggu (Langsung)</span
-                            >
-                        </div>
-                    </button>
+                        <Clock class="h-4 w-4" />
+                    </div>
+                    <div>
+                        <p class="font-medium text-sm">Mode Penerimaan</p>
+                        <p class="text-xs text-muted-foreground">Admin / CS</p>
+                    </div>
                 </div>
             </div>
 
@@ -278,20 +235,19 @@
                         {:else if form.currentStep === 2}
                             <Step2Device {form} />
                         {:else if form.currentStep === 3}
+                            <!-- QC Step (Using Step35QC component but mapped to step 3) -->
+                            <Step35QC {form} />
+                        {:else if form.currentStep === 4}
+                            <!-- Complaint Step (Using Step3Service component but needs adaptation or Refactor) -->
+                            <!-- Note: Step3Service currently has Cost Estimate etc. We should check if we can reuse or need new component -->
                             <Step3Service
                                 {form}
                                 {technicians}
                                 {inventoryItems}
                                 {services}
                             />
-                        {:else if form.currentStep === 4 && form.isWalkin}
-                            <Step35QC {form} />
-                        {:else if (form.currentStep === 4 && !form.isWalkin) || (form.currentStep === 5 && form.isWalkin)}
-                            <Step4Review
-                                {form}
-                                {technicians}
-                                {paymentMethods}
-                            />
+                        {:else if form.currentStep === 5}
+                            <Step5Review {form} />
                         {/if}
                     </div>
                 {/key}
@@ -314,7 +270,13 @@
                 <div class="flex items-center gap-2">
                     {#if form.currentStep < totalSteps}
                         <Button
-                            onclick={form.nextStep.bind(form)}
+                            onclick={() => {
+                                if (form.currentStep === 2 && form.isDead) {
+                                    form.currentStep = 4; // Skip QC
+                                } else {
+                                    form.nextStep();
+                                }
+                            }}
                             size="lg"
                             class="px-8 rounded-full shadow-lg shadow-primary/20"
                         >
@@ -322,22 +284,42 @@
                             <ArrowRight class="h-4 w-4 ml-2" />
                         </Button>
                     {:else}
-                        <Button
-                            onclick={form.handleSubmit.bind(form)}
-                            disabled={form.isSubmitting}
-                            size="lg"
-                            class="px-8 rounded-full shadow-lg shadow-green-500/20 bg-green-600 hover:bg-green-700"
-                        >
-                            {#if form.isSubmitting}
-                                <Loader2 class="h-4 w-4 mr-2 animate-spin" />
-                                Menyimpan...
-                            {:else}
-                                <CheckCircle class="h-4 w-4 mr-2" />
-                                {form.isWalkin
-                                    ? "Simpan & Selesai"
-                                    : "Buat Service"}
-                            {/if}
-                        </Button>
+                        <!-- Finish Buttons -->
+                        <div class="flex gap-2">
+                            <Button
+                                onclick={async () => {
+                                    const res = await form.handleSubmit();
+                                    if (res?.success) form.resetForNextUnit();
+                                }}
+                                disabled={form.isSubmitting}
+                                size="lg"
+                                variant="outline"
+                                class="px-6 rounded-full border-green-600 text-green-600 hover:bg-green-50"
+                            >
+                                <Plus class="h-4 w-4 mr-2" />
+                                Simpan & Tambah Unit
+                            </Button>
+
+                            <Button
+                                onclick={async () => {
+                                    const res = await form.handleSubmit();
+                                    if (res?.success) goto("/service");
+                                }}
+                                disabled={form.isSubmitting}
+                                size="lg"
+                                class="px-8 rounded-full shadow-lg shadow-green-500/20 bg-green-600 hover:bg-green-700"
+                            >
+                                {#if form.isSubmitting}
+                                    <Loader2
+                                        class="h-4 w-4 mr-2 animate-spin"
+                                    />
+                                    Menyimpan...
+                                {:else}
+                                    <CheckCircle class="h-4 w-4 mr-2" />
+                                    Simpan & Selesai
+                                {/if}
+                            </Button>
+                        </div>
                     {/if}
                 </div>
             </div>

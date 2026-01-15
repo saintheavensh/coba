@@ -1,4 +1,10 @@
 <script lang="ts">
+    import { onMount } from "svelte";
+    import ScrollableCardList from "$lib/components/dashboard/ScrollableCardList.svelte";
+    import RevenueChart from "$lib/components/dashboard/RevenueChart.svelte";
+    import TopProductsChart from "$lib/components/dashboard/TopProductsChart.svelte";
+    import ActivityLog from "$lib/components/dashboard/ActivityLog.svelte";
+    import ServiceListCompact from "$lib/components/dashboard/ServiceListCompact.svelte";
     import {
         Card,
         CardContent,
@@ -6,348 +12,205 @@
         CardTitle,
         CardDescription,
     } from "$lib/components/ui/card";
-    import { Button } from "$lib/components/ui/button";
-    import { Badge } from "$lib/components/ui/badge";
-    import { Separator } from "$lib/components/ui/separator";
     import {
-        Package,
-        ShoppingBag,
         DollarSign,
-        ArrowUpRight,
-        ArrowRight,
-        MousePointer2,
-        Cable,
-        Keyboard,
-        Smartphone,
         Wrench,
         CheckCircle2,
-        Clock,
         AlertCircle,
+        Package,
+        Loader2,
     } from "lucide-svelte";
-    import {
-        Table,
-        TableBody,
-        TableCell,
-        TableHead,
-        TableHeader,
-        TableRow,
-    } from "$lib/components/ui/table";
+    import { api } from "$lib/api";
 
-    // Mock Service Stats
-    const serviceStats = {
-        active: 12,
-        completedToday: 5,
-        totalIncomeToday: 2500000,
-        pendingQC: 3,
-    };
+    let loading = $state(true);
+    let dashboardData = $state<any>(null);
+    let activities = $state<any[]>([]);
+    let recentServices = $state<any[]>([]);
+    let urgentServices = $state<any[]>([]);
+    let error = $state<string | null>(null);
 
-    const recentServices = [
-        {
-            id: 1,
-            no: "SRV-2026-005",
-            device: "iPhone 13",
-            status: "Proses",
-            tech: "Agus",
-        },
-        {
-            id: 2,
-            no: "SRV-2026-004",
-            device: "Samsung A52",
-            status: "Menunggu",
-            tech: "-",
-        },
-        {
-            id: 3,
-            no: "SRV-2026-003",
-            device: "Xiaomi Poco F3",
-            status: "Selesai",
-            tech: "Rudi",
-        },
-    ];
+    async function fetchData() {
+        try {
+            loading = true;
+            error = null;
+            // Use api.get which adds Authorization header automatically
+            const [dashRes, actRes, recentRes, urgentRes] = await Promise.all([
+                api.get("/dashboard"),
+                api.get("/dashboard/activities", { params: { limit: 10 } }),
+                api.get("/dashboard/recent-services", { params: { limit: 5 } }),
+                api.get("/dashboard/urgent-services", { params: { limit: 5 } }),
+            ]);
+
+            dashboardData = dashRes.data.data;
+            activities = actRes.data.data;
+            recentServices = recentRes.data.data;
+            urgentServices = urgentRes.data.data;
+        } catch (e: any) {
+            console.error("Failed to fetch dashboard data", e);
+            error =
+                e.response?.data?.message ||
+                e.message ||
+                "Failed to load dashboard data";
+        } finally {
+            loading = false;
+        }
+    }
+
+    onMount(() => {
+        fetchData();
+        // Optional: Set up interval for refreshing data every 5 minutes
+        const interval = setInterval(fetchData, 300000);
+        return () => clearInterval(interval);
+    });
+
+    let stats = $derived(
+        dashboardData
+            ? [
+                  {
+                      label: "Omset Hari Ini",
+                      value: `Rp ${(dashboardData.cards.revenueToday || 0).toLocaleString("id-ID")}`,
+                      subtext: "Total pendapatan hari ini",
+                      icon: DollarSign,
+                      color: "border-l-green-500 text-green-600",
+                  },
+                  {
+                      label: "Service Aktif",
+                      value: dashboardData.cards.activeServices || 0,
+                      subtext: "Unit sedang dikerjakan",
+                      icon: Wrench,
+                      color: "border-l-blue-500 text-blue-600",
+                  },
+                  {
+                      label: "Siap Diambil",
+                      value: dashboardData.cards.readyPickup || 0,
+                      subtext: "Menunggu pengambilan",
+                      icon: CheckCircle2,
+                      color: "border-l-indigo-500 text-indigo-600",
+                  },
+                  {
+                      label: "Stok Menipis",
+                      value: dashboardData.cards.lowStock || 0,
+                      subtext: "Perlu restock segera",
+                      icon: Package,
+                      color: "border-l-orange-500 text-orange-600",
+                  },
+              ]
+            : [],
+    );
 </script>
 
-<div class="flex flex-col gap-8">
-    <!-- SERVICE SECTION -->
-    <div class="space-y-4">
-        <h2 class="text-xl font-bold tracking-tight">Service Overview</h2>
-        <div class="grid gap-6 md:grid-cols-4">
-            <Card class="border-l-4 border-l-blue-500 shadow-sm">
-                <CardContent class="p-6">
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-muted-foreground"
-                            >Active Services</span
-                        >
-                        <Wrench class="h-4 w-4 text-blue-500" />
-                    </div>
-                    <div class="mt-2 text-2xl font-bold">
-                        {serviceStats.active}
-                    </div>
-                    <p class="text-xs text-muted-foreground mt-1">
-                        Unit dalam pengerjaan
-                    </p>
-                </CardContent>
-            </Card>
-
-            <Card class="border-l-4 border-l-green-500 shadow-sm">
-                <CardContent class="p-6">
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-muted-foreground"
-                            >Completed Today</span
-                        >
-                        <CheckCircle2 class="h-4 w-4 text-green-500" />
-                    </div>
-                    <div class="mt-2 text-2xl font-bold">
-                        {serviceStats.completedToday}
-                    </div>
-                    <p class="text-xs text-muted-foreground mt-1">
-                        +2 dari kemarin
-                    </p>
-                </CardContent>
-            </Card>
-
-            <Card class="border-l-4 border-l-orange-500 shadow-sm">
-                <CardContent class="p-6">
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-muted-foreground"
-                            >Pendapatan Service</span
-                        >
-                        <DollarSign class="h-4 w-4 text-orange-500" />
-                    </div>
-                    <div class="mt-2 text-2xl font-bold">
-                        Rp {serviceStats.totalIncomeToday.toLocaleString()}
-                    </div>
-                    <p class="text-xs text-muted-foreground mt-1">Hari ini</p>
-                </CardContent>
-            </Card>
-
-            <Card class="border-l-4 border-l-yellow-500 shadow-sm">
-                <CardContent class="p-6">
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-muted-foreground"
-                            >Pending QC</span
-                        >
-                        <AlertCircle class="h-4 w-4 text-yellow-500" />
-                    </div>
-                    <div class="mt-2 text-2xl font-bold">
-                        {serviceStats.pendingQC}
-                    </div>
-                    <p class="text-xs text-muted-foreground mt-1">
-                        Butuh pengecekan
-                    </p>
-                </CardContent>
-            </Card>
-        </div>
-    </div>
-
-    <Separator />
-
-    <!-- INVENTORY SECTION (Existing) -->
-    <div class="space-y-4">
-        <h2 class="text-xl font-bold tracking-tight">Inventory Overview</h2>
-        <div class="grid gap-6 md:grid-cols-3">
-            <!-- Card 1: Total Products -->
-            <Card
-                class="border-border/5 shadow-sm hover:shadow-md transition-shadow"
-            >
-                <CardContent class="p-6">
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-muted-foreground"
-                            >Total Products</span
-                        >
-                        <div
-                            class="flex h-8 w-8 items-center justify-center rounded-md bg-blue-100 text-blue-600"
-                        >
-                            <Package class="h-4 w-4" />
-                        </div>
-                    </div>
-                    <div class="mt-4 flex items-baseline gap-2">
-                        <span class="text-3xl font-bold">1,240</span>
-                    </div>
-                    <div
-                        class="mt-1 flex items-center text-xs text-green-600 font-medium"
-                    >
-                        <ArrowUpRight class="mr-1 h-3 w-3" />
-                        12% from last month
-                    </div>
-                </CardContent>
-            </Card>
-
-            <!-- Card 2: Total Purchases -->
-            <Card
-                class="border-border/5 shadow-sm hover:shadow-md transition-shadow"
-            >
-                <CardContent class="p-6">
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-muted-foreground"
-                            >Total Purchases (Oct)</span
-                        >
-                        <div
-                            class="flex h-8 w-8 items-center justify-center rounded-md bg-indigo-100 text-indigo-600"
-                        >
-                            <ShoppingBag class="h-4 w-4" />
-                        </div>
-                    </div>
-                    <div class="mt-4 flex items-baseline gap-2">
-                        <span class="text-3xl font-bold">$12,450</span>
-                    </div>
-                    <div
-                        class="mt-1 flex items-center text-xs text-muted-foreground"
-                    >
-                        +2 orders pending
-                    </div>
-                </CardContent>
-            </Card>
-
-            <!-- Card 3: Total Sales -->
-            <Card
-                class="border-border/5 shadow-sm hover:shadow-md transition-shadow"
-            >
-                <CardContent class="p-6">
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-muted-foreground"
-                            >Total Sales (Oct)</span
-                        >
-                        <div
-                            class="flex h-8 w-8 items-center justify-center rounded-md bg-green-100 text-green-600"
-                        >
-                            <DollarSign class="h-4 w-4" />
-                        </div>
-                    </div>
-                    <div class="mt-4 flex items-baseline gap-2">
-                        <span class="text-3xl font-bold">$34,200</span>
-                    </div>
-                    <div
-                        class="mt-1 flex items-center text-xs text-green-600 font-medium"
-                    >
-                        <ArrowUpRight class="mr-1 h-3 w-3" />
-                        8% from last month
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-    </div>
-
-    <div class="grid md:grid-cols-2 gap-8">
-        <!-- Low Stock Alerts -->
-        <div class="flex flex-col gap-4">
-            <div class="flex items-center justify-between">
-                <h2 class="text-lg font-semibold tracking-tight">
-                    Low Stock Alerts
-                </h2>
-                <a
-                    href="/products"
-                    class="flex items-center text-sm font-medium text-blue-600 hover:underline"
-                >
-                    View Full <ArrowRight class="ml-1 h-4 w-4" />
-                </a>
+<div class="flex flex-col gap-6 p-2 md:p-0 animate-in fade-in duration-500">
+    <div class="flex items-center justify-between">
+        <h1 class="text-3xl font-bold tracking-tight">Dashboard</h1>
+        {#if loading}
+            <div class="flex items-center text-sm text-muted-foreground">
+                <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+                Updating...
             </div>
+        {/if}
+    </div>
 
-            <Card class="border-border/5 shadow-sm">
-                <Table>
-                    <TableHeader class="bg-muted/30">
-                        <TableRow>
-                            <TableHead>PRODUCT</TableHead>
-                            <TableHead>STOCK</TableHead>
-                            <TableHead>STATUS</TableHead>
-                            <TableHead class="text-right">ACTION</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <!-- Row 1 -->
-                        <TableRow>
-                            <TableCell>
-                                <div class="font-medium">Wireless Mouse</div>
-                                <div class="text-xs text-muted-foreground">
-                                    WM-001
-                                </div>
-                            </TableCell>
-                            <TableCell class="font-bold text-red-600"
-                                >4</TableCell
-                            >
-                            <TableCell
-                                ><Badge
-                                    variant="outline"
-                                    class="text-red-600 border-red-200"
-                                    >Critical</Badge
-                                ></TableCell
-                            >
-                            <TableCell class="text-right"
-                                ><Button size="sm" variant="ghost"
-                                    >Restock</Button
-                                ></TableCell
-                            >
-                        </TableRow>
-                        <!-- Row 2 -->
-                        <TableRow>
-                            <TableCell>
-                                <div class="font-medium">USB-C Cable</div>
-                                <div class="text-xs text-muted-foreground">
-                                    US-099
-                                </div>
-                            </TableCell>
-                            <TableCell class="font-bold text-orange-600"
-                                >2</TableCell
-                            >
-                            <TableCell
-                                ><Badge
-                                    variant="outline"
-                                    class="text-orange-600 border-orange-200"
-                                    >Low</Badge
-                                ></TableCell
-                            >
-                            <TableCell class="text-right"
-                                ><Button size="sm" variant="ghost"
-                                    >Restock</Button
-                                ></TableCell
-                            >
-                        </TableRow>
-                    </TableBody>
-                </Table>
-            </Card>
+    {#if error}
+        <div
+            class="p-4 rounded-lg bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20"
+        >
+            Error: {error}
         </div>
+    {/if}
 
+    <!-- 1. Summary Cards -->
+    <section>
+        {#if dashboardData}
+            <ScrollableCardList {stats} />
+        {:else if loading}
+            <div class="h-32 w-full bg-muted/20 animate-pulse rounded-lg"></div>
+        {/if}
+    </section>
+
+    <!-- 2. Charts Section -->
+    <div class="grid gap-6 md:grid-cols-7">
+        <!-- Revenue Trend (Main) -->
+        <Card class="col-span-1 md:col-span-4 shadow-sm">
+            <CardHeader>
+                <CardTitle>Revenue Trend</CardTitle>
+                <CardDescription
+                    >Last 7 days income from Sales & Services</CardDescription
+                >
+            </CardHeader>
+            <CardContent class="pl-2">
+                {#if dashboardData && dashboardData.charts.revenueTrend}
+                    <RevenueChart data={dashboardData.charts.revenueTrend} />
+                {:else if loading}
+                    <div
+                        class="h-[300px] w-full bg-muted/20 animate-pulse rounded-lg bg-gray-100"
+                    ></div>
+                {/if}
+            </CardContent>
+        </Card>
+
+        <!-- Top Products (Side) -->
+        <Card class="col-span-1 md:col-span-3 shadow-sm">
+            <CardHeader>
+                <CardTitle>Top Best Selling</CardTitle>
+                <CardDescription
+                    >Highest quantity items sold all time</CardDescription
+                >
+            </CardHeader>
+            <CardContent>
+                {#if dashboardData && dashboardData.charts.topProducts}
+                    <TopProductsChart data={dashboardData.charts.topProducts} />
+                {:else if loading}
+                    <div
+                        class="h-[300px] w-full bg-muted/20 animate-pulse rounded-lg bg-gray-100"
+                    ></div>
+                {/if}
+            </CardContent>
+        </Card>
+    </div>
+
+    <!-- 3. Lists Section -->
+    <div class="grid gap-6 md:grid-cols-3">
         <!-- Recent Services -->
-        <div class="flex flex-col gap-4">
-            <div class="flex items-center justify-between">
-                <h2 class="text-lg font-semibold tracking-tight">
-                    Recent Services
-                </h2>
-                <a
-                    href="/service"
-                    class="flex items-center text-sm font-medium text-blue-600 hover:underline"
-                >
-                    View All <ArrowRight class="ml-1 h-4 w-4" />
-                </a>
-            </div>
+        <Card class="shadow-sm">
+            <CardHeader>
+                <CardTitle>Recent Services</CardTitle>
+                <CardDescription>Newest service entries</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ServiceListCompact
+                    services={recentServices}
+                    title="Recent"
+                    emptyMessage="No recent services"
+                />
+            </CardContent>
+        </Card>
 
-            <Card class="border-border/5 shadow-sm">
-                <Table>
-                    <TableHeader class="bg-muted/30">
-                        <TableRow>
-                            <TableHead>DEVICE</TableHead>
-                            <TableHead>STATUS</TableHead>
-                            <TableHead>TEKNISI</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {#each recentServices as s}
-                            <TableRow>
-                                <TableCell>
-                                    <div class="font-medium">{s.device}</div>
-                                    <div class="text-xs text-muted-foreground">
-                                        {s.no}
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge variant="secondary">{s.status}</Badge
-                                    >
-                                </TableCell>
-                                <TableCell>{s.tech}</TableCell>
-                            </TableRow>
-                        {/each}
-                    </TableBody>
-                </Table>
-            </Card>
-        </div>
+        <!-- Urgent Services -->
+        <Card class="shadow-sm border-orange-200 bg-orange-50/30">
+            <CardHeader>
+                <CardTitle class="text-orange-700">Urgent Services</CardTitle>
+                <CardDescription
+                    >Approaching deadline or overdue</CardDescription
+                >
+            </CardHeader>
+            <CardContent>
+                <ServiceListCompact
+                    services={urgentServices}
+                    title="Urgent"
+                    emptyMessage="No urgent services found"
+                />
+            </CardContent>
+        </Card>
+
+        <!-- Activity Log -->
+        <Card class="shadow-sm">
+            <CardHeader>
+                <CardTitle>Activity Log</CardTitle>
+                <CardDescription>Recent system events</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ActivityLog {activities} />
+            </CardContent>
+        </Card>
     </div>
 </div>

@@ -10,8 +10,12 @@ export class ServiceService {
         this.repo = new ServiceRepository();
     }
 
-    async getAll() {
-        return await this.repo.findAll();
+    async getAll(params?: { status?: string }) {
+        return await this.repo.findAll(params);
+    }
+
+    async getCounts() {
+        return await this.repo.getCountsByStatus();
     }
 
     async getById(id: number) {
@@ -80,7 +84,10 @@ export class ServiceService {
             ...srv,
             timeline,
             // Ensure photos are accessible at top level for frontend convenience
-            photos: (srv.device as any)?.photos || []
+            photos: (srv.device as any)?.photos || [],
+            // Map backend cost fields to frontend expected fields
+            serviceFee: srv.actualCost ?? srv.costEstimate ?? 0,
+            parts: [] // TODO: Implement parts/items schema in future
         };
     }
 
@@ -159,6 +166,31 @@ export class ServiceService {
         return { message: "Status updated" };
     }
 
+    async updateDetails(id: number, data: { diagnosis?: any; costEstimate?: number; complaint?: string }, userId?: string) {
+        const srv = await this.repo.findById(id);
+        if (!srv) throw new Error("Service not found");
+
+        await db.transaction(async (tx) => {
+            await tx.update(services).set({
+                diagnosis: data.diagnosis ? JSON.stringify(data.diagnosis) : undefined,
+                costEstimate: data.costEstimate,
+                complaint: data.complaint
+            }).where(eq(services.id, id));
+
+            await tx.insert(activityLogs).values({
+                userId: userId || "USR-000",
+                action: "UPDATE",
+                entityType: "service",
+                entityId: srv.no,
+                description: `Service details updated`,
+                newValue: JSON.stringify(data),
+                createdAt: new Date()
+            });
+        });
+
+        return { message: "Details updated" };
+    }
+
     async delete(id: number) {
         // Optional: Check if can delete (e.g. only if not finished?)
         // For now allow delete all, maybe restricted by role in controller
@@ -189,5 +221,33 @@ export class ServiceService {
         }).where(eq(services.id, id));
 
         return await this.repo.findById(id);
+    }
+
+    async assignTechnician(id: number, technicianId: string, userId?: string) {
+        const srv = await this.repo.findById(id);
+        if (!srv) throw new Error("Service not found");
+
+        const technician = await db.query.users.findFirst({
+            where: eq(users.id, technicianId)
+        });
+        if (!technician) throw new Error("Technician not found");
+
+        await db.transaction(async (tx) => {
+            await tx.update(services).set({
+                technicianId: technicianId
+            }).where(eq(services.id, id));
+
+            await tx.insert(activityLogs).values({
+                userId: userId || "USR-000",
+                action: "ASSIGN",
+                entityType: "service",
+                entityId: srv.no,
+                description: `Assigned to technician ${technician.name}`,
+                newValue: JSON.stringify({ technicianId, technicianName: technician.name }),
+                createdAt: new Date()
+            });
+        });
+
+        return { message: "Technician assigned", technician };
     }
 }

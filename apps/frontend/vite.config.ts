@@ -18,5 +18,8 @@ export default defineConfig({
 				changeOrigin: true
 			}
 		}
+	},
+	ssr: {
+		noExternal: ['chart.js']
 	}
 });

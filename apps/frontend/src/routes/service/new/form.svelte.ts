@@ -18,6 +18,8 @@ export class ServiceFormStore {
     phoneBrand = $state("");
     phoneModel = $state("");
     phoneStatus = $state("nyala");
+    // isDead is derived now
+    isDead = $derived(this.phoneStatus === "mati_total");
     imei = $state("");
     pinPattern = $state("");
     physicalConditions = $state<string[]>([]);
@@ -91,7 +93,8 @@ export class ServiceFormStore {
     selectedBank = $state<{ id: string; name: string; accountNumber: string; accountHolder: string } | null>(null);
 
     // Derived: Check if phone can do initial QC
-    canDoInitialQC = $derived(this.phoneStatus === "nyala");
+    // Derived: Check if phone can do initial QC
+    canDoInitialQC = $derived(this.phoneStatus === "nyala" && !this.isDead);
 
     // Derived: QC passed (all checked items in after must be true)
     qcPassed = $derived(
@@ -137,14 +140,18 @@ export class ServiceFormStore {
     );
 
     step3Valid = $derived(
+        // QC Validation: If walkin, maybe require some checks? For now, allow empty or just warning.
+        // If regular intake, it's optional.
+        true
+    );
+
+    step4Valid = $derived(
         this.complaint.trim() !== "" &&
         (!this.isWalkin || (this.technician !== "" && !!this.serviceFee))
     );
 
-    // Step 3.5 QC validation (for walk-in only)
-    qcValid = $derived(
-        !this.isWalkin || Object.keys(this.qcAfter).length >= 5
-    );
+    // Step 3.5 QC validation (for walk-in only - Step 5/Final Check?)
+    // Actually we keep qcValid for internal check, but step3 is the wizard step.
 
     // Methods
     nextStep() {
@@ -160,7 +167,21 @@ export class ServiceFormStore {
             toast.error("Harap isi brand dan model handphone");
             return;
         }
+
+        // Step 3: QC
+        // Logic to skip QC if device is dead or cannot do initial QC
+        if (this.currentStep === 2 && !this.canDoInitialQC) {
+            this.currentStep = 4; // Skip to Step 4 (Complaint)
+            return;
+        }
+
         if (this.currentStep === 3 && !this.step3Valid) {
+            // QC validation specific logic if needed
+            return;
+        }
+
+        // Step 4: Complaint
+        if (this.currentStep === 4 && !this.step4Valid) {
             if (this.isWalkin) {
                 if (this.technician === "") {
                     toast.error("Teknisi wajib dipilih untuk Walk-in Service");
@@ -176,11 +197,17 @@ export class ServiceFormStore {
             }
             return;
         }
+
+        // Proceed to next step (Review is Step 5)
         this.currentStep++;
     }
 
     prevStep() {
         this.currentStep--;
+        // If we landed on QC (Step 3) and cannot do QC (e.g. Dead Unit), skip back to Step 2
+        if (this.currentStep === 3 && !this.canDoInitialQC) {
+            this.currentStep = 2;
+        }
     }
 
     async handleFileUpload(e: Event) {
@@ -231,8 +258,8 @@ export class ServiceFormStore {
     }
 
     async handleSubmit() {
-        if (!this.step3Valid) {
-            toast.error("Harap lengkapi semua field yang wajib");
+        if (!this.step4Valid) {
+            toast.error("Harap lengkapi data keluhan"); // Should fail if step 4 is invalid
             return;
         }
 
@@ -338,15 +365,57 @@ export class ServiceFormStore {
                     ? "Service Walk-in Selesai!"
                     : "Service order berhasil dibuat!"
             );
-            goto("/service");
+
+            // Return success to allow handling navigation in the UI (for Print/Loop)
+            return { success: true, serviceId: null }; // We might need service ID from backend response
         } catch (e: any) {
             toast.error(
                 "Gagal membuat service: " +
                 (e.response?.data?.message || e.message)
             );
+            return { success: false };
         } finally {
             this.isSubmitting = false;
         }
+    }
+
+    resetForNextUnit() {
+        // Keep Step 1 (Customer)
+
+        // Reset Step 2 (Device)
+        this.phoneBrand = "";
+        this.phoneModel = "";
+        this.phoneStatus = "nyala";
+        // this.isDead is derived, auto updates
+        this.imei = "";
+        this.pinPattern = "";
+        this.physicalConditions = [];
+        this.completeness = [];
+        this.physicalNotes = "";
+        this.isPatternOpen = false;
+        this.patternPoints = [];
+
+        // Reset Step 3 (QC)
+        this.initialQC = {};
+
+        // Reset Step 4 (Service/Complaint)
+        this.complaint = "";
+        this.initialDiagnosis = "";
+        this.possibleCauses = "";
+        this.estimatedCost = 0;
+        this.minPrice = 0;
+        this.maxPrice = 0;
+        this.downPayment = 0;
+        this.technician = "";
+
+        // Reset Photos
+        this.photos = [];
+
+        // Go back to Step 2
+        this.currentStep = 2;
+
+        // Indicate we are in "Multi-Unit Mode" if needed, or just standard reset
+        toast.info("Silakan isi data untuk unit berikutnya");
     }
 }
 

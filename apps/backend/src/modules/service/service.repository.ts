@@ -1,12 +1,18 @@
 import { db } from "../../db";
 import { services, activityLogs } from "../../db/schema";
-import { eq, desc, like } from "drizzle-orm";
+import { eq, desc, like, count } from "drizzle-orm";
 
 export class ServiceRepository {
-    async findAll(filters: any[] = []) {
-        // Implement complex filter logic in Service or Repo
-        // For simplicity returning all sorted
+    async findAll(params: { status?: string } = {}) {
+        const conditions = [];
+        if (params.status) {
+            conditions.push(eq(services.status, params.status as any));
+        }
+
         return await db.query.services.findMany({
+            where: conditions.length > 0 ? (
+                conditions.length === 1 ? conditions[0] : undefined // Simple for now, import 'and' if multiple
+            ) : undefined,
             orderBy: [desc(services.dateIn)],
             with: {
                 technician: true
@@ -28,5 +34,13 @@ export class ServiceRepository {
             where: like(services.no, `${prefix}%`),
             orderBy: [desc(services.id)]
         });
+    }
+    async getCountsByStatus() {
+        return await db.select({
+            status: services.status,
+            count: count()
+        })
+            .from(services)
+            .groupBy(services.status);
     }
 }

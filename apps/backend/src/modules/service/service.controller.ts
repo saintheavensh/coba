@@ -12,8 +12,18 @@ app.use("*", authMiddleware);
 
 app.get("/", async (c) => {
     try {
-        const list = await service.getAll();
+        const status = c.req.query("status");
+        const list = await service.getAll({ status });
         return apiSuccess(c, list, "Services retrieved successfully");
+    } catch (e) {
+        return apiError(c, String(e));
+    }
+});
+
+app.get("/counts", async (c) => {
+    try {
+        const counts = await service.getCounts();
+        return apiSuccess(c, counts, "Service counts retrieved");
     } catch (e) {
         return apiError(c, String(e));
     }
@@ -64,6 +74,18 @@ app.put("/:id/status", zValidator("json", updateStatusSchema), async (c) => {
     }
 });
 
+app.put("/:id/details", async (c) => {
+    const id = parseInt(c.req.param("id"));
+    try {
+        const body = await c.req.json();
+        const user = (c.get as (key: string) => any)("user");
+        await service.updateDetails(id, body, user?.id);
+        return apiSuccess(c, null, "Details updated successfully");
+    } catch (e) {
+        return apiError(c, e, "Failed to update details", 400);
+    }
+});
+
 app.delete("/:id", async (c) => {
     const id = parseInt(c.req.param("id"));
     try {
@@ -109,6 +131,21 @@ app.patch("/:id", async (c) => {
         return apiSuccess(c, result, "Service rescheduled successfully");
     } catch (e) {
         return apiError(c, e, "Failed to reschedule service", 400);
+    }
+});
+
+app.patch("/:id/assign", async (c) => {
+    const id = parseInt(c.req.param("id"));
+    try {
+        const body = await c.req.json();
+        const user = (c.get as (key: string) => any)("user");
+
+        if (!body.technicianId) return apiError(c, "Technician ID required", "Validation Error", 400);
+
+        const result = await service.assignTechnician(id, body.technicianId, user?.id);
+        return apiSuccess(c, result, "Technician assigned successfully");
+    } catch (e) {
+        return apiError(c, e, "Failed to assign technician", 400);
     }
 });
 
