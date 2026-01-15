@@ -114,7 +114,29 @@
             toast.error("Teknisi harus ditugaskan terlebih dahulu");
             return;
         }
-        form.estimatedCompletionDate = date.toISOString().split("T")[0];
+        // Validation: Must ensure price is entered
+        if (!form.isWalkin && !form.isPriceRange && !form.estimatedCost) {
+            toast.error("Estimasi biaya harus diisi terlebih dahulu");
+            return;
+        }
+        if (
+            !form.isWalkin &&
+            form.isPriceRange &&
+            !form.minPrice &&
+            !form.maxPrice
+        ) {
+            toast.error("Range biaya harus diisi terlebih dahulu");
+            return;
+        }
+
+        // Fix: Use local date string construction to avoid UTC shift
+        // date is already a Date object at 00:00 local time (from getMonthDays)
+        // We just need YYYY-MM-DD
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        form.estimatedCompletionDate = `${year}-${month}-${day}`;
+
         showCalendar = false;
     }
 
@@ -429,12 +451,12 @@
                     <Label class="flex items-center gap-2 mb-2">
                         <CalendarIcon class="h-4 w-4" /> Estimasi Selesai
                     </Label>
-                    {#if !form.technician}
+                    {#if !form.technician || (!form.isPriceRange && !form.estimatedCost) || (form.isPriceRange && !form.minPrice && !form.maxPrice)}
                         <div
                             class="p-3 bg-yellow-50 text-yellow-800 rounded-lg text-sm flex gap-2"
                         >
                             <AlertCircle class="h-4 w-4 shrink-0 mt-0.5" />
-                            Pilih teknisi terlebih dahulu untuk mengatur estimasi
+                            Pilih teknisi dan isi estimasi biaya untuk mengatur estimasi
                             tanggal selesai.
                         </div>
                     {:else}

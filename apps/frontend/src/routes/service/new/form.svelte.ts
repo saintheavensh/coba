@@ -270,9 +270,23 @@ export class ServiceFormStore {
                     possibleCauses: this.possibleCauses || undefined,
                     estimatedCost: this.isPriceRange
                         ? `${this.minPrice}-${this.maxPrice}`
-                        : this.estimatedCost || undefined,
-                    downPayment: this.downPayment || undefined,
+                        : (this.estimatedCost ? String(this.estimatedCost) : undefined),
+                    downPayment: this.downPayment ? String(this.downPayment) : undefined,
                 };
+
+                // Add Initial QC if phone was "nyala" (Now enabled for Regular too)
+                if (this.canDoInitialQC && Object.keys(this.initialQC).length > 0) {
+                    payload.initialQC = this.initialQC;
+                    // Also save to 'qc' field as 'before' state for consistency
+                    payload.qc = {
+                        before: this.initialQC
+                    };
+                }
+
+                // Ensure date is passed correctly (it's already YYYY-MM-DD from Step3)
+                if (this.estimatedCompletionDate) {
+                    payload.estimatedCompletionDate = this.estimatedCompletionDate;
+                }
             }
 
             if (this.isWalkin) {

@@ -320,8 +320,8 @@
             </p>
         </div>
 
-        <!-- Initial QC (Walk-in + Nyala only) -->
-        {#if form.isWalkin && form.canDoInitialQC}
+        <!-- Initial QC (Nyala only) -->
+        {#if form.canDoInitialQC}
             <div
                 class="space-y-3 p-4 border rounded-xl bg-blue-50/50 border-blue-200"
             >

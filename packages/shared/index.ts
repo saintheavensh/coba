@@ -107,9 +107,9 @@ export const createServiceSchema = z.object({
 
     // Final QC for walk-in services
     qc: z.object({
-        passed: z.boolean(),
-        before: z.record(z.boolean()).optional(), // From initialQC
-        after: z.record(z.boolean()),
+        passed: z.boolean().optional(), // Optional for initial creation
+        before: z.record(z.boolean()).optional(),
+        after: z.record(z.boolean()).optional(), // Optional for initial creation
         notes: z.string().optional(),
     }).optional(),
 

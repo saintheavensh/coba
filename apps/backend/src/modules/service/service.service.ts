@@ -114,6 +114,7 @@ export class ServiceService {
                     ? new Date(data.estimatedCompletionDate)
                     : null,
                 actualCost: data.actualCost || null,
+                qc: data.qc || null,
             });
 
             // Log

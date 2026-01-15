@@ -32,11 +32,19 @@ app.get("/:id", async (c) => {
     }
 });
 
-app.post("/", zValidator("json", createServiceSchema), async (c) => {
-    const data = c.req.valid("json");
-    const user = (c.get as (key: string) => any)("user");
-
+app.post("/", async (c) => {
     try {
+        const body = await c.req.json();
+        const parseResult = createServiceSchema.safeParse(body);
+
+        if (!parseResult.success) {
+            console.log("Validation Failed:", JSON.stringify(parseResult.error, null, 2));
+            return apiError(c, parseResult.error, "Validation Error Details", 400);
+        }
+
+        const data = parseResult.data;
+        const user = (c.get as (key: string) => any)("user");
+
         const result = await service.createService(data, user?.id || "USR-000");
         return apiSuccess(c, result, "Service created successfully", 201);
     } catch (e) {

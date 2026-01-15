@@ -161,6 +161,7 @@ export const services = pgTable("services", {
     dateIn: timestamp("date_in").defaultNow(),
     dateOut: timestamp("date_out"),
     estimatedCompletionDate: timestamp("estimated_completion_date"),
+    qc: json("qc"), // Stores final QC data: { passed, before, after, notes }
 });
 
 // ============================================
