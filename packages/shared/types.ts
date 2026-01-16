@@ -191,6 +191,7 @@ export type ServiceStatus =
     | "dicek"
     | "konfirmasi"
     | "dikerjakan"
+    | "re-konfirmasi"
     | "selesai"
     | "diambil"
     | "batal";

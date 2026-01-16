@@ -43,7 +43,8 @@
         AlertTriangle,
         ChevronRight,
         Loader2,
-        AlertCircle, // Added
+        AlertCircle,
+        RefreshCw,
     } from "lucide-svelte";
 
     import { onMount } from "svelte";
@@ -152,6 +153,17 @@
         }
     }
 
+    async function handleSelfAssign() {
+        if (!currentUser?.id) return;
+        try {
+            await ServiceService.assignTechnician(serviceId, currentUser.id);
+            toast.success("Anda berhasil mengambil job ini");
+            await loadData();
+        } catch (e) {
+            toast.error("Gagal mengambil job");
+        }
+    }
+
     async function submitDiagnosis() {
         try {
             const userId =
@@ -252,6 +264,11 @@
             bg: "bg-teal-100",
             label: "Sudah Diambil",
         },
+        "re-konfirmasi": {
+            color: "text-orange-700",
+            bg: "bg-orange-100",
+            label: "Re-konfirmasi",
+        },
         batal: { color: "text-red-700", bg: "bg-red-100", label: "Dibatalkan" },
     };
 
@@ -265,6 +282,7 @@
         "dicek",
         "konfirmasi",
         "dikerjakan",
+        "re-konfirmasi",
         "selesai",
         "diambil",
     ];
@@ -1184,36 +1202,45 @@
                     </div>
                 {/if}
 
-                <!-- Cost Summary -->
-                <div class="bg-card rounded-2xl shadow-sm border p-5">
-                    <h3 class="font-semibold mb-4 flex items-center gap-2">
-                        💰 Rincian Biaya
-                    </h3>
-                    <div class="space-y-3">
-                        <div class="flex justify-between text-sm">
-                            <span class="text-muted-foreground">Biaya Jasa</span
-                            >
-                            <span
-                                >Rp {(
-                                    serviceOrder.serviceFee || 0
-                                ).toLocaleString("id-ID")}</span
-                            >
-                        </div>
-                        <div class="flex justify-between text-sm">
-                            <span class="text-muted-foreground"
-                                >Biaya Parts</span
-                            >
-                            <span>Rp {totalParts.toLocaleString("id-ID")}</span>
-                        </div>
-                        <Separator />
-                        <div class="flex justify-between text-lg font-bold">
-                            <span>TOTAL BIAYA</span>
-                            <span class="text-primary"
-                                >Rp {grandTotal.toLocaleString("id-ID")}</span
-                            >
+                <!-- Cost Summary (Admin/Cashier only) -->
+                {#if canViewFinancials}
+                    <div class="bg-card rounded-2xl shadow-sm border p-5">
+                        <h3 class="font-semibold mb-4 flex items-center gap-2">
+                            💰 Rincian Biaya
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-muted-foreground"
+                                    >Biaya Jasa</span
+                                >
+                                <span
+                                    >Rp {(
+                                        serviceOrder.serviceFee || 0
+                                    ).toLocaleString("id-ID")}</span
+                                >
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-muted-foreground"
+                                    >Biaya Parts</span
+                                >
+                                <span
+                                    >Rp {totalParts.toLocaleString(
+                                        "id-ID",
+                                    )}</span
+                                >
+                            </div>
+                            <Separator />
+                            <div class="flex justify-between text-lg font-bold">
+                                <span>TOTAL BIAYA</span>
+                                <span class="text-primary"
+                                    >Rp {grandTotal.toLocaleString(
+                                        "id-ID",
+                                    )}</span
+                                >
+                            </div>
                         </div>
                     </div>
-                </div>
+                {/if}
 
                 <!-- Action Buttons -->
                 <!-- Action Buttons -->
@@ -1232,12 +1259,22 @@
 
                         <!-- Workflow Buttons -->
                         {#if serviceOrder.status === "antrian"}
-                            <Button
-                                onclick={() => updateStatus("dicek")}
-                                class="bg-blue-600 hover:bg-blue-700"
-                            >
-                                <CheckCircle class="mr-2 h-4 w-4" /> Mulai Pengecekan
-                            </Button>
+                            {#if currentUser?.role === "teknisi" && !serviceOrder.technicianId}
+                                <Button
+                                    onclick={handleSelfAssign}
+                                    class="bg-green-600 hover:bg-green-700"
+                                >
+                                    <User class="mr-2 h-4 w-4" /> Ambil Job Ini
+                                </Button>
+                            {/if}
+                            {#if serviceOrder.technicianId || currentUser?.role === "admin"}
+                                <Button
+                                    onclick={() => updateStatus("dicek")}
+                                    class="bg-blue-600 hover:bg-blue-700"
+                                >
+                                    <CheckCircle class="mr-2 h-4 w-4" /> Mulai Pengecekan
+                                </Button>
+                            {/if}
                         {/if}
 
                         {#if serviceOrder.status === "antrian" || serviceOrder.status === "dicek"}
@@ -1268,6 +1305,24 @@
                                 >
                                     <CheckCircle class="mr-2 h-4 w-4" /> Selesai
                                     Pengerjaan
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onclick={() =>
+                                        updateStatus("re-konfirmasi")}
+                                    class="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                >
+                                    <RefreshCw class="mr-2 h-4 w-4" /> Minta Re-konfirmasi
+                                </Button>
+                            {/if}
+                        {:else if serviceOrder.status === "re-konfirmasi"}
+                            {#if canProcessPayment}
+                                <Button
+                                    onclick={() => updateStatus("dikerjakan")}
+                                    class="bg-purple-600 hover:bg-purple-700"
+                                >
+                                    <CheckCircle class="mr-2 h-4 w-4" /> Setuju &
+                                    Lanjutkan
                                 </Button>
                             {/if}
                         {:else if serviceOrder.status === "selesai"}

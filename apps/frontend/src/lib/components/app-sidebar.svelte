@@ -136,6 +136,11 @@
                   icon: Circle,
                 },
                 {
+                  title: "Re-konfirmasi",
+                  href: "/service?status=re-konfirmasi",
+                  icon: Circle,
+                },
+                {
                   title: "Selesai / Siap",
                   href: "/service?status=selesai",
                   icon: Circle,
