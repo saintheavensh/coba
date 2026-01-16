@@ -209,6 +209,65 @@
     return null;
   }
 
+  // Role-based menu filtering
+  let filteredMenuGroups = $derived(() => {
+    if (userRole === "teknisi") {
+      // Technicians only see Service (without "Service Baru") and Settings
+      const serviceMenu = menuGroups
+        .find((g) => g.label === "Transaksi")
+        ?.items.find((i) => i.title === "Service");
+
+      // Filter out "Service Baru" from children
+      const filteredServiceMenu = serviceMenu
+        ? {
+            ...serviceMenu,
+            children: serviceMenu.children?.filter(
+              (c) => c.title !== "Service Baru",
+            ),
+          }
+        : null;
+
+      return [
+        {
+          label: "Utama",
+          items: [{ title: "Dashboard", href: "/", icon: LayoutDashboard }],
+        },
+        {
+          label: "Transaksi",
+          items: filteredServiceMenu ? [filteredServiceMenu] : [],
+        },
+        {
+          label: "Pengaturan",
+          items: menuGroups.find((g) => g.label === "Pengaturan")?.items || [],
+        },
+      ].filter((g) => g.items.length > 0);
+    }
+    if (userRole === "kasir") {
+      // Cashiers see Sales, Service (limited), and Settings
+      return [
+        {
+          label: "Utama",
+          items: [{ title: "Dashboard", href: "/", icon: LayoutDashboard }],
+        },
+        {
+          label: "Transaksi",
+          items:
+            menuGroups
+              .find((g) => g.label === "Transaksi")
+              ?.items.filter(
+                (i) => i.title === "Penjualan" || i.title === "Service",
+              ) || [],
+        },
+        {
+          label: "Pengaturan",
+          items: menuGroups.find((g) => g.label === "Pengaturan")?.items || [],
+        },
+      ].filter((g) => g.items.length > 0);
+    }
+    // Admin sees everything
+    return menuGroups;
+  });
+
   // Effect to auto-expand parent if child is active
   $effect(() => {
     const path = $page.url.pathname + $page.url.search; // Include search for exact match if needed, but path usually enough for folders
@@ -272,7 +331,7 @@
 
   <div class="flex-1 overflow-y-auto py-6">
     <nav class="grid gap-6 px-4">
-      {#each menuGroups as group}
+      {#each filteredMenuGroups() as group}
         <div class="grid gap-1">
           {#if group.label}
             <h4

@@ -48,4 +48,25 @@ app.get("/urgent-services", async (c) => {
     }
 });
 
+// Technician Dashboard
+app.get("/technician", async (c) => {
+    try {
+        const user = (c.get as (key: string) => any)("user");
+        const data = await dashboard.getTechnicianDashboard(user.id);
+        return apiSuccess(c, data, "Technician dashboard data retrieved");
+    } catch (e) {
+        return apiError(c, String(e));
+    }
+});
+
+// Cashier Dashboard
+app.get("/cashier", async (c) => {
+    try {
+        const data = await dashboard.getCashierDashboard();
+        return apiSuccess(c, data, "Cashier dashboard data retrieved");
+    } catch (e) {
+        return apiError(c, String(e));
+    }
+});
+
 export default app;

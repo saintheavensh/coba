@@ -163,4 +163,101 @@ export class DashboardService {
             limit: limit
         });
     }
+
+    // Technician Dashboard
+    async getTechnicianDashboard(technicianId: string) {
+        // My assigned jobs
+        const myJobs = await db.query.services.findMany({
+            where: and(
+                eq(services.technicianId, technicianId),
+                sql`${services.status} NOT IN ('selesai', 'diambil', 'batal')`
+            ),
+            orderBy: [desc(services.dateIn)]
+        });
+
+        // Queue (unassigned antrian)
+        const queue = await db.query.services.findMany({
+            where: and(
+                eq(services.status, 'antrian'),
+                sql`${services.technicianId} IS NULL`
+            ),
+            orderBy: [desc(services.dateIn)],
+            limit: 10
+        });
+
+        // Stats
+        const today = new Date();
+        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        const completedToday = await db.select({ count: sql<number>`count(*)` })
+            .from(services)
+            .where(and(
+                eq(services.technicianId, technicianId),
+                eq(services.status, 'selesai'),
+                gte(services.dateOut, startOfDay)
+            ));
+
+        const inProgress = await db.select({ count: sql<number>`count(*)` })
+            .from(services)
+            .where(and(
+                eq(services.technicianId, technicianId),
+                sql`${services.status} IN ('dicek', 'dikerjakan', 're-konfirmasi')`
+            ));
+
+        return {
+            myJobs,
+            queue,
+            stats: {
+                completedToday: completedToday[0]?.count || 0,
+                inProgress: inProgress[0]?.count || 0,
+                totalQueue: queue.length
+            }
+        };
+    }
+
+    // Cashier Dashboard
+    async getCashierDashboard() {
+        // Ready for pickup (selesai)
+        const readyPickup = await db.query.services.findMany({
+            where: eq(services.status, 'selesai'),
+            orderBy: [desc(services.dateIn)],
+            limit: 20
+        });
+
+        // Today's pickups
+        const today = new Date();
+        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        const pickedUpToday = await db.select({ count: sql<number>`count(*)` })
+            .from(services)
+            .where(and(
+                eq(services.status, 'diambil'),
+                gte(services.dateOut, startOfDay)
+            ));
+
+        // Today's revenue from services
+        const revenueToday = await db.select({
+            total: sql<number>`COALESCE(SUM(${services.actualCost}), 0)`
+        })
+            .from(services)
+            .where(and(
+                eq(services.status, 'diambil'),
+                gte(services.dateOut, startOfDay)
+            ));
+
+        // Pending confirmation
+        const pendingConfirm = await db.select({ count: sql<number>`count(*)` })
+            .from(services)
+            .where(sql`${services.status} IN ('konfirmasi', 're-konfirmasi')`);
+
+        return {
+            readyPickup,
+            stats: {
+                readyCount: readyPickup.length,
+                pickedUpToday: pickedUpToday[0]?.count || 0,
+                revenueToday: revenueToday[0]?.total || 0,
+                pendingConfirm: pendingConfirm[0]?.count || 0
+            }
+        };
+    }
 }
