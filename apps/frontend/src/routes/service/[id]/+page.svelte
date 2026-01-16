@@ -77,6 +77,14 @@
         notes: "",
     });
 
+    let showPartsModal = $state(false);
+    let newPart = $state({
+        name: "",
+        source: "stok",
+        qty: 1,
+        price: 0,
+    });
+
     async function loadData() {
         loading = true;
         try {
@@ -192,6 +200,30 @@
             notes: completionInput.notes,
         });
         showCompletionModal = false;
+    }
+
+    async function addPart() {
+        if (!newPart.name || newPart.qty <= 0) {
+            toast.error("Nama dan qty harus diisi");
+            return;
+        }
+        try {
+            const part = {
+                name: newPart.name,
+                source: newPart.source,
+                qty: newPart.qty,
+                price: newPart.price,
+                subtotal: newPart.qty * newPart.price,
+            };
+            const updatedParts = [...(serviceOrder.parts || []), part];
+            await api.patch(`/service/${serviceId}`, { parts: updatedParts });
+            toast.success("Part ditambahkan");
+            newPart = { name: "", source: "stok", qty: 1, price: 0 };
+            showPartsModal = false;
+            await loadData();
+        } catch (e) {
+            toast.error("Gagal menambah part");
+        }
     }
 
     onMount(() => {
@@ -931,38 +963,55 @@
                         <p class="text-sm">{serviceOrder.complaint || "-"}</p>
                     </div>
 
-                    <div class="bg-card rounded-2xl shadow-sm border p-5">
-                        <h3 class="font-semibold mb-3 flex items-center gap-2">
-                            <Wrench class="h-5 w-5 text-blue-500" /> Diagnosa Teknisi
-                        </h3>
-                        {#if serviceOrder.diagnosis}
-                            {#if typeof serviceOrder.diagnosis === "string" && serviceOrder.diagnosis.startsWith("{")}
-                                {@const diag = JSON.parse(
-                                    serviceOrder.diagnosis,
-                                )}
-                                <div class="space-y-2 text-sm">
-                                    {#if diag.initial}<p>
-                                            <span class="text-muted-foreground"
-                                                >Diagnosa:</span
-                                            >
-                                            {diag.initial}
-                                        </p>{/if}
-                                    {#if diag.possibleCauses}<p>
-                                            <span class="text-muted-foreground"
-                                                >Kemungkinan:</span
-                                            >
-                                            {diag.possibleCauses}
-                                        </p>{/if}
-                                </div>
+                    {#if serviceOrder.status !== "antrian"}
+                        <div class="bg-card rounded-2xl shadow-sm border p-5">
+                            <h3
+                                class="font-semibold mb-3 flex items-center gap-2"
+                            >
+                                <Wrench class="h-5 w-5 text-blue-500" /> Diagnosa
+                                Teknisi
+                            </h3>
+                            {#if serviceOrder.diagnosis}
+                                {#if typeof serviceOrder.diagnosis === "string" && serviceOrder.diagnosis.startsWith("{")}
+                                    {@const diag = JSON.parse(
+                                        serviceOrder.diagnosis,
+                                    )}
+                                    <div class="space-y-2 text-sm">
+                                        {#if diag.initial}<p>
+                                                <span
+                                                    class="text-muted-foreground"
+                                                    >Diagnosa:</span
+                                                >
+                                                {diag.initial}
+                                            </p>{/if}
+                                        {#if diag.possibleCauses}<p>
+                                                <span
+                                                    class="text-muted-foreground"
+                                                    >Kemungkinan:</span
+                                                >
+                                                {diag.possibleCauses}
+                                            </p>{/if}
+                                    </div>
+                                {:else}
+                                    <p class="text-sm">
+                                        {serviceOrder.diagnosis}
+                                    </p>
+                                {/if}
                             {:else}
-                                <p class="text-sm">{serviceOrder.diagnosis}</p>
+                                <p class="text-sm text-muted-foreground italic">
+                                    Belum ada diagnosa
+                                </p>
                             {/if}
-                        {:else}
+                        </div>
+                    {:else}
+                        <div
+                            class="bg-muted/30 rounded-2xl border border-dashed p-5 flex items-center justify-center"
+                        >
                             <p class="text-sm text-muted-foreground italic">
-                                Belum ada diagnosa
+                                Diagnosa tersedia setelah pengecekan
                             </p>
-                        {/if}
-                    </div>
+                        </div>
+                    {/if}
                 </div>
 
                 <!-- QC Section (for walk-in with QC data) -->
@@ -1202,8 +1251,8 @@
                     </div>
                 {/if}
 
-                <!-- Cost Summary (Admin/Cashier only) -->
-                {#if canViewFinancials}
+                <!-- Cost Summary (Admin/Cashier only, after confirmation) -->
+                {#if canViewFinancials && serviceOrder.status !== "antrian" && serviceOrder.status !== "dicek"}
                     <div class="bg-card rounded-2xl shadow-sm border p-5">
                         <h3 class="font-semibold mb-4 flex items-center gap-2">
                             💰 Rincian Biaya
@@ -1267,17 +1316,21 @@
                                     <User class="mr-2 h-4 w-4" /> Ambil Job Ini
                                 </Button>
                             {/if}
-                            {#if serviceOrder.technicianId || currentUser?.role === "admin"}
+                            {#if serviceOrder.technicianId}
                                 <Button
                                     onclick={() => updateStatus("dicek")}
                                     class="bg-blue-600 hover:bg-blue-700"
                                 >
                                     <CheckCircle class="mr-2 h-4 w-4" /> Mulai Pengecekan
                                 </Button>
+                            {:else if currentUser?.role === "admin"}
+                                <p class="text-sm text-amber-600 italic">
+                                    Assign teknisi terlebih dahulu
+                                </p>
                             {/if}
                         {/if}
 
-                        {#if serviceOrder.status === "antrian" || serviceOrder.status === "dicek"}
+                        {#if serviceOrder.status === "dicek"}
                             {#if canEditWorkflow}
                                 <Button
                                     onclick={() => (showDiagnosisModal = true)}
@@ -1299,6 +1352,13 @@
                             {/if}
                         {:else if serviceOrder.status === "dikerjakan"}
                             {#if canEditWorkflow}
+                                <Button
+                                    variant="outline"
+                                    onclick={() => (showPartsModal = true)}
+                                    class="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                >
+                                    <Plus class="mr-2 h-4 w-4" /> Tambah Sparepart
+                                </Button>
                                 <Button
                                     onclick={() => (showCompletionModal = true)}
                                     class="bg-green-600 hover:bg-green-700"
@@ -1419,6 +1479,174 @@
                     onclick={handleAssignTechnician}
                     disabled={!selectedTechnicianId}>Simpan Perubahan</Button
                 >
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+
+    <!-- Diagnosis Modal -->
+    <Dialog bind:open={showDiagnosisModal}>
+        <DialogContent class="sm:max-w-[500px]">
+            <DialogHeader>
+                <DialogTitle>Simpan Diagnosa & Konfirmasi</DialogTitle>
+                <DialogDescription>
+                    Input hasil diagnosa dan estimasi biaya untuk dikonfirmasi
+                    ke customer.
+                </DialogDescription>
+            </DialogHeader>
+            <div class="py-4 space-y-4">
+                <div class="space-y-2">
+                    <Label for="initial">Diagnosa Awal</Label>
+                    <Textarea
+                        id="initial"
+                        placeholder="Masukkan hasil diagnosa..."
+                        bind:value={diagnosisInput.initial}
+                    />
+                </div>
+                <div class="space-y-2">
+                    <Label for="causes">Kemungkinan Penyebab</Label>
+                    <Textarea
+                        id="causes"
+                        placeholder="Kemungkinan penyebab kerusakan..."
+                        bind:value={diagnosisInput.possibleCauses}
+                    />
+                </div>
+                <div class="space-y-2">
+                    <Label for="cost">Estimasi Biaya (Rp)</Label>
+                    <Input
+                        id="cost"
+                        type="number"
+                        placeholder="0"
+                        bind:value={diagnosisInput.costEstimate}
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button
+                    variant="outline"
+                    onclick={() => (showDiagnosisModal = false)}>Batal</Button
+                >
+                <Button
+                    onclick={submitDiagnosis}
+                    class="bg-blue-600 hover:bg-blue-700"
+                >
+                    Simpan & Konfirmasi
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+
+    <!-- Completion Modal -->
+    <Dialog bind:open={showCompletionModal}>
+        <DialogContent class="sm:max-w-[500px]">
+            <DialogHeader>
+                <DialogTitle>Selesai Pengerjaan</DialogTitle>
+                <DialogDescription>
+                    Konfirmasi biaya akhir dan catatan penyelesaian.
+                </DialogDescription>
+            </DialogHeader>
+            <div class="py-4 space-y-4">
+                <div class="space-y-2">
+                    <Label for="actualCost">Biaya Akhir (Rp)</Label>
+                    <Input
+                        id="actualCost"
+                        type="number"
+                        placeholder="0"
+                        bind:value={completionInput.actualCost}
+                    />
+                </div>
+                <div class="space-y-2">
+                    <Label for="notes">Catatan (Opsional)</Label>
+                    <Textarea
+                        id="notes"
+                        placeholder="Catatan penyelesaian..."
+                        bind:value={completionInput.notes}
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button
+                    variant="outline"
+                    onclick={() => (showCompletionModal = false)}>Batal</Button
+                >
+                <Button
+                    onclick={submitCompletion}
+                    class="bg-green-600 hover:bg-green-700"
+                >
+                    Selesai
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+
+    <!-- Parts Modal -->
+    <Dialog bind:open={showPartsModal}>
+        <DialogContent class="sm:max-w-[500px]">
+            <DialogHeader>
+                <DialogTitle>Tambah Sparepart</DialogTitle>
+                <DialogDescription>
+                    Input sparepart yang digunakan untuk perbaikan.
+                </DialogDescription>
+            </DialogHeader>
+            <div class="py-4 space-y-4">
+                <div class="space-y-2">
+                    <Label for="partName">Nama Sparepart</Label>
+                    <Input
+                        id="partName"
+                        placeholder="Contoh: LCD iPhone 12"
+                        bind:value={newPart.name}
+                    />
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <Label for="partSource">Sumber</Label>
+                        <select
+                            id="partSource"
+                            bind:value={newPart.source}
+                            class="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                        >
+                            <option value="stok">Dari Stok</option>
+                            <option value="beli">Beli Baru</option>
+                            <option value="customer">Customer</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <Label for="partQty">Qty</Label>
+                        <Input
+                            id="partQty"
+                            type="number"
+                            min="1"
+                            bind:value={newPart.qty}
+                        />
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <Label for="partPrice">Harga Satuan (Rp)</Label>
+                    <Input
+                        id="partPrice"
+                        type="number"
+                        placeholder="0"
+                        bind:value={newPart.price}
+                    />
+                </div>
+                {#if newPart.qty > 0 && newPart.price > 0}
+                    <div class="p-3 bg-muted rounded-lg">
+                        <p class="text-sm text-muted-foreground">Subtotal</p>
+                        <p class="text-lg font-bold text-primary">
+                            Rp {(newPart.qty * newPart.price).toLocaleString(
+                                "id-ID",
+                            )}
+                        </p>
+                    </div>
+                {/if}
+            </div>
+            <DialogFooter>
+                <Button
+                    variant="outline"
+                    onclick={() => (showPartsModal = false)}>Batal</Button
+                >
+                <Button onclick={addPart} class="bg-blue-600 hover:bg-blue-700">
+                    Tambah Part
+                </Button>
             </DialogFooter>
         </DialogContent>
     </Dialog>
