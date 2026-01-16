@@ -143,6 +143,18 @@ export const ReportsService = {
 
         const res = await api.get<ApiResponse<TechnicianReport[]>>(`/reports/technicians?${params.toString()}`);
         return res.data.data || [];
+    },
+
+    /**
+     * Get parts usage report
+     */
+    getPartsUsageReport: async (filters: ReportFilters = {}): Promise<PartsUsageReport[]> => {
+        const params = new URLSearchParams();
+        if (filters.startDate) params.set("startDate", filters.startDate);
+        if (filters.endDate) params.set("endDate", filters.endDate);
+
+        const res = await api.get<ApiResponse<PartsUsageReport[]>>(`/reports/parts?${params.toString()}`);
+        return res.data.data || [];
     }
 };
 
@@ -156,6 +168,18 @@ export interface TechnicianReport {
     cancelled: number;
     revenue: number;
     completionRate: number;
+}
+
+export interface PartsUsageReport {
+    serviceId: number;
+    serviceNo: string;
+    date: string;
+    partName: string;
+    source: string;
+    variant?: string;
+    qty: number;
+    price: number;
+    subtotal: number;
 }
 
 

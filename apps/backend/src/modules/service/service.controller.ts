@@ -127,8 +127,8 @@ app.patch("/:id", async (c) => {
 
     try {
         const body = await c.req.json();
-        const result = await service.reschedule(id, body.estimatedCompletionDate);
-        return apiSuccess(c, result, "Service rescheduled successfully");
+        const result = await service.patchService(id, body);
+        return apiSuccess(c, result, "Service updated successfully");
     } catch (e) {
         return apiError(c, e, "Failed to reschedule service", 400);
     }

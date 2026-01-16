@@ -48,6 +48,7 @@
         type ServiceStats,
         type ServiceReport,
         type TechnicianReport,
+        type PartsUsageReport,
     } from "$lib/services/reports.service";
 
     // State Filter
@@ -96,6 +97,13 @@
         queryKey: ["reports", "technicians", startDate, endDate],
         queryFn: () =>
             ReportsService.getTechnicianStats({ startDate, endDate }),
+    }));
+
+    // Parts Usage Query
+    const partsUsageQuery = createQuery(() => ({
+        queryKey: ["reports", "parts", startDate, endDate],
+        queryFn: () =>
+            ReportsService.getPartsUsageReport({ startDate, endDate }),
     }));
 
     // Derived from queries - Sales
@@ -147,12 +155,20 @@
         technicians.reduce((sum, t) => sum + t.totalServices, 0),
     );
 
+    // Derived from queries - Parts
+    let partsUsage = $derived<PartsUsageReport[]>(partsUsageQuery.data || []);
+    let totalPartsCost = $derived(
+        partsUsage.reduce((sum, p) => sum + p.subtotal, 0),
+    );
+
     // Loading state
     let isLoading = $derived(
         salesSummaryQuery.isPending ||
             purchasesSummaryQuery.isPending ||
+            purchasesSummaryQuery.isPending ||
             servicesStatsQuery.isPending ||
-            techniciansQuery.isPending,
+            techniciansQuery.isPending ||
+            partsUsageQuery.isPending,
     );
 
     // Helper functions
@@ -259,7 +275,7 @@
 
     <!-- Tabbed Reports -->
     <Tabs bind:value={activeTab} class="space-y-4">
-        <TabsList class="grid w-full grid-cols-4">
+        <TabsList class="grid w-full grid-cols-5">
             <TabsTrigger value="sales" class="flex items-center gap-2">
                 <TrendingUp class="h-4 w-4" />
                 <span class="hidden sm:inline">Penjualan</span>
@@ -277,6 +293,10 @@
             <TabsTrigger value="technicians" class="flex items-center gap-2">
                 <Users class="h-4 w-4" />
                 <span>Teknisi</span>
+            </TabsTrigger>
+            <TabsTrigger value="parts" class="flex items-center gap-2">
+                <ClipboardList class="h-4 w-4" />
+                <span>Sparepart</span>
             </TabsTrigger>
         </TabsList>
 
@@ -952,6 +972,128 @@
                                             totalTechnicianRevenue,
                                         )}</TableCell
                                     >
+                                </TableRow>
+                            {/if}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <!-- Parts Usage Tab -->
+        <TabsContent value="parts" class="space-y-4">
+            <div class="grid gap-4 md:grid-cols-2">
+                <Card>
+                    <CardHeader
+                        class="flex flex-row items-center justify-between space-y-0 pb-2"
+                    >
+                        <CardTitle class="text-sm font-medium"
+                            >Total Penggunaan</CardTitle
+                        >
+                        <Package class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">
+                            {partsUsage.length} Item
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Sparepart terpakai
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader
+                        class="flex flex-row items-center justify-between space-y-0 pb-2"
+                    >
+                        <CardTitle class="text-sm font-medium"
+                            >Total Nilai</CardTitle
+                        >
+                        <DollarSign class="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-2xl font-bold">
+                            {formatCurrency(totalPartsCost)}
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Nilai jual sparepart
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Riwayat Penggunaan Sparepart</CardTitle>
+                    <CardDescription>
+                        Daftar sparepart yang digunakan dalam service.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Tanggal</TableHead>
+                                <TableHead>No. Service</TableHead>
+                                <TableHead>Sparepart</TableHead>
+                                <TableHead>Sumber</TableHead>
+                                <TableHead class="text-right">Qty</TableHead>
+                                <TableHead class="text-right">Harga</TableHead>
+                                <TableHead class="text-right"
+                                    >Subtotal</TableHead
+                                >
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {#each partsUsage as p}
+                                <TableRow>
+                                    <TableCell>{formatDate(p.date)}</TableCell>
+                                    <TableCell class="font-medium text-primary"
+                                        >{p.serviceNo}</TableCell
+                                    >
+                                    <TableCell>
+                                        <div class="flex flex-col">
+                                            <span class="font-medium"
+                                                >{p.partName}</span
+                                            >
+                                            {#if p.variant}
+                                                <span
+                                                    class="text-xs text-muted-foreground"
+                                                    >{p.variant}</span
+                                                >
+                                            {/if}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge
+                                            variant={p.source === "inventory"
+                                                ? "default"
+                                                : "outline"}
+                                        >
+                                            {p.source === "inventory"
+                                                ? "Inventori"
+                                                : "Beli Luar"}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell class="text-right"
+                                        >{p.qty}</TableCell
+                                    >
+                                    <TableCell class="text-right"
+                                        >{formatCurrency(p.price)}</TableCell
+                                    >
+                                    <TableCell class="text-right font-medium"
+                                        >{formatCurrency(p.subtotal)}</TableCell
+                                    >
+                                </TableRow>
+                            {/each}
+                            {#if partsUsage.length === 0}
+                                <TableRow>
+                                    <TableCell
+                                        colspan={7}
+                                        class="text-center text-muted-foreground py-8"
+                                    >
+                                        Tidak ada penggunaan sparepart dalam
+                                        periode ini
+                                    </TableCell>
                                 </TableRow>
                             {/if}
                         </TableBody>

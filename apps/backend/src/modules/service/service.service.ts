@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { services, activityLogs, users } from "../../db/schema";
+import { services, activityLogs, users, productBatches } from "../../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { ServiceRepository } from "./service.repository";
 
@@ -86,8 +86,7 @@ export class ServiceService {
             // Ensure photos are accessible at top level for frontend convenience
             photos: (srv.device as any)?.photos || [],
             // Map backend cost fields to frontend expected fields
-            serviceFee: srv.actualCost ?? srv.costEstimate ?? 0,
-            parts: [] // TODO: Implement parts/items schema in future
+            serviceFee: srv.actualCost ?? srv.costEstimate ?? 0
         };
     }
 
@@ -144,12 +143,18 @@ export class ServiceService {
         if (!srv) throw new Error("Service not found");
 
         await db.transaction(async (tx) => {
-            await tx.update(services).set({
-                status: data.status as any,
+            const updateValues: any = {
+                status: data.status,
                 notes: data.notes,
                 actualCost: data.actualCost,
                 dateOut: (data.status === "selesai" || data.status === "diambil") ? new Date() : undefined
-            }).where(eq(services.id, id));
+            };
+
+            if (data.status === 're-konfirmasi') {
+                updateValues.reconfirmationCount = (srv.reconfirmationCount || 0) + 1;
+            }
+
+            await tx.update(services).set(updateValues).where(eq(services.id, id));
 
             await tx.insert(activityLogs).values({
                 userId: userId || "USR-000",
@@ -161,6 +166,40 @@ export class ServiceService {
                 newValue: JSON.stringify({ status: data.status }),
                 createdAt: new Date()
             });
+
+            // Auto-deduct stock if status is 'selesai'
+            if (data.status === "selesai" && srv.status !== "selesai") {
+                const parts = (srv.parts as any[]) || [];
+                for (const part of parts) {
+                    if (part.source === "inventory" && part.batchId) {
+                        // Check if batch exists
+                        const batch = await tx.query.productBatches.findFirst({
+                            where: eq(productBatches.id, part.batchId)
+                        });
+
+                        if (batch) {
+                            // Decrement stock
+                            await tx.update(productBatches).set({
+                                currentStock: batch.currentStock - part.qty,
+                                updatedAt: new Date()
+                            }).where(eq(productBatches.id, part.batchId));
+
+                            // Log usage
+                            await tx.insert(activityLogs).values({
+                                userId: userId || "USR-SYSTEM",
+                                action: "UPDATE",
+                                entityType: "product_batch",
+                                entityId: part.batchId,
+                                description: `Stock deducted for Service ${srv.no}`,
+                                oldValue: JSON.stringify({ stock: batch.currentStock }),
+                                newValue: JSON.stringify({ stock: batch.currentStock - part.qty }),
+                                createdAt: new Date()
+                            });
+                        }
+                    }
+                }
+            }
+
         });
 
         return { message: "Status updated" };
@@ -210,15 +249,24 @@ export class ServiceService {
     /**
      * Reschedule a service by updating its estimated completion date
      */
-    async reschedule(id: number, estimatedCompletionDate: string) {
+    /**
+     * Patch service fields (reschedule, parts, qc, etc)
+     */
+    async patchService(id: number, data: { estimatedCompletionDate?: string; parts?: any; qc?: any; diagnosis?: any; costEstimate?: number; complaint?: string }) {
         const srv = await this.repo.findById(id);
         if (!srv) throw new Error("Service not found");
 
-        const newDate = estimatedCompletionDate ? new Date(estimatedCompletionDate) : null;
+        const updateData: any = {};
+        if (data.estimatedCompletionDate) updateData.estimatedCompletionDate = new Date(data.estimatedCompletionDate);
+        if (data.parts) updateData.parts = data.parts;
+        if (data.qc) updateData.qc = data.qc;
+        if (data.diagnosis) updateData.diagnosis = typeof data.diagnosis === 'string' ? data.diagnosis : JSON.stringify(data.diagnosis);
+        if (data.costEstimate !== undefined) updateData.costEstimate = data.costEstimate;
+        if (data.complaint) updateData.complaint = data.complaint;
 
-        await db.update(services).set({
-            estimatedCompletionDate: newDate
-        }).where(eq(services.id, id));
+        if (Object.keys(updateData).length === 0) return srv;
+
+        await db.update(services).set(updateData).where(eq(services.id, id));
 
         return await this.repo.findById(id);
     }

@@ -150,7 +150,7 @@ export const services = pgTable("services", {
     diagnosis: text("diagnosis"),
     notes: text("notes"),
 
-    status: text("status", { enum: ["antrian", "dicek", "konfirmasi", "dikerjakan", "selesai", "diambil", "batal"] }).default("antrian"),
+    status: text("status", { enum: ["antrian", "dicek", "konfirmasi", "dikerjakan", "re-konfirmasi", "selesai", "diambil", "batal"] }).default("antrian"),
 
     technicianId: text("technician_id").references(() => users.id),
     createdBy: text("created_by").references(() => users.id), // Who created ticket
@@ -161,7 +161,9 @@ export const services = pgTable("services", {
     dateIn: timestamp("date_in").defaultNow(),
     dateOut: timestamp("date_out"),
     estimatedCompletionDate: timestamp("estimated_completion_date"),
+    parts: json("parts"), // Stores spare parts used
     qc: json("qc"), // Stores final QC data: { passed, before, after, notes }
+    reconfirmationCount: integer("reconfirmation_count").default(0)
 });
 
 // ============================================

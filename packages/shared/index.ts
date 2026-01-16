@@ -81,7 +81,7 @@ export const createServiceSchema = z.object({
     // Frontend sent parseInt(technician).
     // I need to check backend schema again.
 
-    status: z.enum(["antrian", "dicek", "konfirmasi", "dikerjakan", "selesai", "diambil", "batal"]).default("antrian"),
+    status: z.enum(["antrian", "dicek", "konfirmasi", "dikerjakan", "re-konfirmasi", "selesai", "diambil", "batal"]).default("antrian"),
 
     // Regular specific
     diagnosis: z.object({
@@ -121,7 +121,7 @@ export type CreateServiceRequest = z.infer<typeof createServiceSchema>;
 
 // Update Status Schema
 export const updateStatusSchema = z.object({
-    status: z.enum(["antrian", "dicek", "konfirmasi", "dikerjakan", "selesai", "diambil", "batal"]),
+    status: z.enum(["antrian", "dicek", "konfirmasi", "dikerjakan", "re-konfirmasi", "selesai", "diambil", "batal"]),
     notes: z.string().optional(),
     actualCost: z.number().optional(),
     userId: z.string() // Who performed the action

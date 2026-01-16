@@ -106,6 +106,20 @@ app.get("/technicians", async (c) => {
     }
 });
 
+/**
+ * GET /reports/parts
+ * Get parts usage report
+ */
+app.get("/parts", async (c) => {
+    try {
+        const { startDate, endDate } = c.req.query();
+        const report = await reportsService.getPartsUsageReport({ startDate, endDate });
+        return apiSuccess(c, report, "Parts usage report retrieved successfully");
+    } catch (e) {
+        return apiError(c, e, "Failed to get parts usage report");
+    }
+});
+
 export default app;
 
 

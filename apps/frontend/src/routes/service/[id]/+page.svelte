@@ -50,6 +50,9 @@
     import { onMount } from "svelte";
     import { ServiceService } from "$lib/services/service.service";
     import { api } from "$lib/api";
+    import ServiceCompletionWizard from "../components/service-completion-wizard.svelte";
+    import CurrencyInput from "$lib/components/custom/currency-input.svelte";
+    import DateTimePicker from "$lib/components/custom/date-time-picker.svelte";
 
     const serviceId = parseInt($page.params.id ?? "0");
     let serviceOrder = $state<any>(null);
@@ -70,6 +73,7 @@
         initial: "",
         possibleCauses: "",
         costEstimate: 0,
+        estimatedCompletion: "", // Added
     });
 
     let completionInput = $state({
@@ -83,6 +87,13 @@
         source: "stok",
         qty: 1,
         price: 0,
+    });
+
+    let showReconfirmModal = $state(false);
+    let reconfirmInput = $state({
+        notes: "",
+        replacedComponent: "", // Added
+        cost: 0,
     });
 
     async function loadData() {
@@ -100,10 +111,20 @@
                     if (d.initial) diagnosisInput.initial = d.initial;
                     if (d.possibleCauses)
                         diagnosisInput.possibleCauses = d.possibleCauses;
+                    if (d.costEstimate)
+                        diagnosisInput.costEstimate = d.costEstimate;
                 } catch {}
             }
             if (serviceOrder.costEstimate)
                 diagnosisInput.costEstimate = serviceOrder.costEstimate;
+            if (serviceOrder.estimatedCompletionDate) {
+                try {
+                    const date = new Date(serviceOrder.estimatedCompletionDate);
+                    diagnosisInput.estimatedCompletion = date
+                        .toISOString()
+                        .slice(0, 16);
+                } catch {}
+            }
             if (serviceOrder.actualCost)
                 completionInput.actualCost = serviceOrder.actualCost;
             if (serviceOrder.costEstimate && !serviceOrder.actualCost)
@@ -173,18 +194,31 @@
     }
 
     async function submitDiagnosis() {
+        if (!diagnosisInput.initial || !diagnosisInput.possibleCauses) {
+            toast.error("Mohon isi diagnosa awal dan kemungkinan kerusakan");
+            return;
+        }
+        if (diagnosisInput.costEstimate <= 0) {
+            toast.error("Estimasi biaya tidak boleh 0");
+            return;
+        }
         try {
             const userId =
                 JSON.parse(localStorage.getItem("user") || "{}").id ||
                 "USR-ADMIN";
             // Update details first
-            await api.put(`/service/${serviceId}/details`, {
+            const payload = {
                 diagnosis: {
                     initial: diagnosisInput.initial,
                     possibleCauses: diagnosisInput.possibleCauses,
                 },
-                costEstimate: parseInt(String(diagnosisInput.costEstimate)),
-            });
+                costEstimate: diagnosisInput.costEstimate,
+                estimatedCompletionDate: diagnosisInput.estimatedCompletion
+                    ? new Date(diagnosisInput.estimatedCompletion)
+                    : undefined,
+            };
+
+            await ServiceService.patchService(serviceId, payload);
 
             // Then update status
             await updateStatus("konfirmasi");
@@ -200,6 +234,59 @@
             notes: completionInput.notes,
         });
         showCompletionModal = false;
+    }
+
+    async function submitReconfirm() {
+        const cost = parseInt(String(reconfirmInput.cost));
+        if (isNaN(cost)) {
+            toast.error("Format harga salah");
+            return;
+        }
+        if (cost <= 0) {
+            toast.error("Biaya re-konfirmasi tidak boleh 0");
+            return;
+        }
+
+        try {
+            const userId =
+                JSON.parse(localStorage.getItem("user") || "{}").id ||
+                "USR-ADMIN";
+
+            // Update details (diagnosis = notes, cost = estimate/actual)
+            // Strategy: We update 'diagnosis.initial' or 'notes' with the actual diagnosis info
+            // and update 'estimatedCost' or 'actualCost'.
+            // Re-confirmation usually means "New estimate". So update costEstimate.
+            // And append notes to diagnosis or replace it?
+            // The user asked for "Actual Diagnosis". Let's put it in `description` or `notes` of status change?
+            // Or update the main diagnosis field?
+            // Let's safe update `notes` (which maps to Diagnosa Aktual) and `actualCost` (as new agreed price).
+
+            const finalNotes = reconfirmInput.replacedComponent
+                ? `${reconfirmInput.notes}\n\nSparepart Perlu Diganti: ${reconfirmInput.replacedComponent}`
+                : reconfirmInput.notes;
+
+            // Smart Re-confirmation:
+            // If new cost is <= initial estimate, auto-approve and move to 'dikerjakan'
+            const initialEstimate = serviceOrder.costEstimate || 0;
+            if (cost <= initialEstimate) {
+                await updateStatus("dikerjakan", {
+                    notes: finalNotes,
+                    actualCost: cost,
+                });
+                toast.success(
+                    "Biaya tidak naik, status langsung lanjut dikerjakan",
+                );
+            } else {
+                await updateStatus("re-konfirmasi", {
+                    notes: finalNotes,
+                    actualCost: cost,
+                });
+                toast.success("Re-konfirmasi terkirim ke customer");
+            }
+            showReconfirmModal = false;
+        } catch (e) {
+            toast.error("Gagal mengirim re-konfirmasi");
+        }
     }
 
     async function addPart() {
@@ -259,7 +346,13 @@
         ) || 0,
     );
 
-    let grandTotal = $derived((serviceOrder?.serviceFee || 0) + totalParts);
+    // Grand total is the actual cost (agreed total) or the estimate
+    let grandTotal = $derived(
+        serviceOrder?.actualCost || serviceOrder?.costEstimate || 0,
+    );
+
+    // Service fee is the remaining amount after deducting parts
+    let derivedServiceFee = $derived(Math.max(0, grandTotal - totalParts));
 
     // Status colors and labels
     const STATUS_CONFIG: Record<
@@ -963,34 +1056,40 @@
                         <p class="text-sm">{serviceOrder.complaint || "-"}</p>
                     </div>
 
-                    {#if serviceOrder.status !== "antrian"}
+                    {#if serviceOrder.diagnosis && serviceOrder.diagnosis !== "null" && serviceOrder.diagnosis !== "{}"}
                         <div class="bg-card rounded-2xl shadow-sm border p-5">
                             <h3
                                 class="font-semibold mb-3 flex items-center gap-2"
                             >
                                 <Wrench class="h-5 w-5 text-blue-500" /> Diagnosa
-                                Teknisi
+                                Awal
                             </h3>
+
                             {#if serviceOrder.diagnosis}
-                                {#if typeof serviceOrder.diagnosis === "string" && serviceOrder.diagnosis.startsWith("{")}
-                                    {@const diag = JSON.parse(
-                                        serviceOrder.diagnosis,
-                                    )}
-                                    <div class="space-y-2 text-sm">
-                                        {#if diag.initial}<p>
-                                                <span
-                                                    class="text-muted-foreground"
-                                                    >Diagnosa:</span
+                                {@const diag =
+                                    typeof serviceOrder.diagnosis === "string"
+                                        ? serviceOrder.diagnosis.startsWith("{")
+                                            ? JSON.parse(serviceOrder.diagnosis)
+                                            : null
+                                        : serviceOrder.diagnosis}
+
+                                {#if diag && typeof diag === "object"}
+                                    <div class="space-y-3 text-sm">
+                                        {#if diag.initial}
+                                            <div>
+                                                <p>{diag.initial}</p>
+                                            </div>
+                                        {/if}
+                                        {#if diag.possibleCauses}
+                                            <div>
+                                                <h4
+                                                    class="font-medium text-muted-foreground text-xs uppercase tracking-wider mb-1"
                                                 >
-                                                {diag.initial}
-                                            </p>{/if}
-                                        {#if diag.possibleCauses}<p>
-                                                <span
-                                                    class="text-muted-foreground"
-                                                    >Kemungkinan:</span
-                                                >
-                                                {diag.possibleCauses}
-                                            </p>{/if}
+                                                    Kemungkinan Kerusakan
+                                                </h4>
+                                                <p>{diag.possibleCauses}</p>
+                                            </div>
+                                        {/if}
                                     </div>
                                 {:else}
                                     <p class="text-sm">
@@ -1001,6 +1100,34 @@
                                 <p class="text-sm text-muted-foreground italic">
                                     Belum ada diagnosa
                                 </p>
+                            {/if}
+
+                            {#if serviceOrder.notes}
+                                {@const noteParts = serviceOrder.notes.split(
+                                    "\n\nSparepart Perlu Diganti: ",
+                                )}
+                                <div class="mt-4 pt-4 border-t border-dashed">
+                                    <h4
+                                        class="font-medium text-sm mb-2 flex items-center gap-2"
+                                    >
+                                        <CheckCircle
+                                            class="h-4 w-4 text-green-600"
+                                        /> Diagnosa Aktual / Pengerjaan
+                                    </h4>
+
+                                    <div class="text-sm space-y-2">
+                                        <p>{noteParts[0]?.trim() || ""}</p>
+                                        {#if noteParts[1]}
+                                            <div>
+                                                <span
+                                                    class="font-medium text-xs text-muted-foreground uppercase tracking-wider block"
+                                                    >Solusi:</span
+                                                >
+                                                <p>{noteParts[1].trim()}</p>
+                                            </div>
+                                        {/if}
+                                    </div>
+                                </div>
                             {/if}
                         </div>
                     {:else}
@@ -1263,9 +1390,9 @@
                                     >Biaya Jasa</span
                                 >
                                 <span
-                                    >Rp {(
-                                        serviceOrder.serviceFee || 0
-                                    ).toLocaleString("id-ID")}</span
+                                    >Rp {derivedServiceFee.toLocaleString(
+                                        "id-ID",
+                                    )}</span
                                 >
                             </div>
                             <div class="flex justify-between text-sm">
@@ -1353,27 +1480,29 @@
                         {:else if serviceOrder.status === "dikerjakan"}
                             {#if canEditWorkflow}
                                 <Button
-                                    variant="outline"
-                                    onclick={() => (showPartsModal = true)}
-                                    class="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                >
-                                    <Plus class="mr-2 h-4 w-4" /> Tambah Sparepart
-                                </Button>
-                                <Button
                                     onclick={() => (showCompletionModal = true)}
                                     class="bg-green-600 hover:bg-green-700"
                                 >
                                     <CheckCircle class="mr-2 h-4 w-4" /> Selesai
                                     Pengerjaan
                                 </Button>
-                                <Button
-                                    variant="outline"
-                                    onclick={() =>
-                                        updateStatus("re-konfirmasi")}
-                                    class="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                                >
-                                    <RefreshCw class="mr-2 h-4 w-4" /> Minta Re-konfirmasi
-                                </Button>
+                                <!-- Only show if reconfirmation hasn't happened yet -->
+                                {#if (serviceOrder.reconfirmationCount || 0) === 0}
+                                    <Button
+                                        variant="outline"
+                                        onclick={() => {
+                                            reconfirmInput.cost =
+                                                serviceOrder.costEstimate || 0;
+                                            reconfirmInput.notes =
+                                                serviceOrder.notes || "";
+                                            showReconfirmModal = true;
+                                        }}
+                                        class="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                    >
+                                        <RefreshCw class="mr-2 h-4 w-4" /> Minta
+                                        Re-konfirmasi
+                                    </Button>
+                                {/if}
                             {/if}
                         {:else if serviceOrder.status === "re-konfirmasi"}
                             {#if canProcessPayment}
@@ -1495,28 +1624,34 @@
             </DialogHeader>
             <div class="py-4 space-y-4">
                 <div class="space-y-2">
-                    <Label for="initial">Diagnosa Awal</Label>
+                    <Label for="initial"
+                        >Kondisi Fisik / Teknis (Ampere Meter, dll)</Label
+                    >
                     <Textarea
                         id="initial"
-                        placeholder="Masukkan hasil diagnosa..."
+                        placeholder="Contoh: Konsumsi arus 1A, tidak ada arus, fisik mulus..."
                         bind:value={diagnosisInput.initial}
                     />
                 </div>
                 <div class="space-y-2">
-                    <Label for="causes">Kemungkinan Penyebab</Label>
+                    <Label for="causes">Kemungkinan Kerusakan</Label>
                     <Textarea
                         id="causes"
-                        placeholder="Kemungkinan penyebab kerusakan..."
+                        placeholder="Contoh: IC Power, CPU, Baterai..."
                         bind:value={diagnosisInput.possibleCauses}
                     />
                 </div>
                 <div class="space-y-2">
                     <Label for="cost">Estimasi Biaya (Rp)</Label>
-                    <Input
-                        id="cost"
-                        type="number"
-                        placeholder="0"
+                    <CurrencyInput
                         bind:value={diagnosisInput.costEstimate}
+                        class="w-full"
+                    />
+                </div>
+                <div class="space-y-2">
+                    <Label for="time">Estimasi Waktu Pengerjaan Selesai</Label>
+                    <DateTimePicker
+                        bind:value={diagnosisInput.estimatedCompletion}
                     />
                 </div>
             </div>
@@ -1535,48 +1670,25 @@
         </DialogContent>
     </Dialog>
 
-    <!-- Completion Modal -->
-    <Dialog bind:open={showCompletionModal}>
-        <DialogContent class="sm:max-w-[500px]">
-            <DialogHeader>
-                <DialogTitle>Selesai Pengerjaan</DialogTitle>
-                <DialogDescription>
-                    Konfirmasi biaya akhir dan catatan penyelesaian.
-                </DialogDescription>
-            </DialogHeader>
-            <div class="py-4 space-y-4">
-                <div class="space-y-2">
-                    <Label for="actualCost">Biaya Akhir (Rp)</Label>
-                    <Input
-                        id="actualCost"
-                        type="number"
-                        placeholder="0"
-                        bind:value={completionInput.actualCost}
-                    />
-                </div>
-                <div class="space-y-2">
-                    <Label for="notes">Catatan (Opsional)</Label>
-                    <Textarea
-                        id="notes"
-                        placeholder="Catatan penyelesaian..."
-                        bind:value={completionInput.notes}
-                    />
-                </div>
-            </div>
-            <DialogFooter>
-                <Button
-                    variant="outline"
-                    onclick={() => (showCompletionModal = false)}>Batal</Button
-                >
-                <Button
-                    onclick={submitCompletion}
-                    class="bg-green-600 hover:bg-green-700"
-                >
-                    Selesai
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-    </Dialog>
+    <!-- Completion Wizard -->
+    <!-- Completion Wizard -->
+    <ServiceCompletionWizard
+        bind:open={showCompletionModal}
+        {serviceId}
+        serviceNo={serviceOrder?.no || ""}
+        initialQC={serviceOrder?.phone?.initialQC}
+        costEstimate={serviceOrder?.actualCost || serviceOrder?.costEstimate}
+        customer={serviceOrder?.customer}
+        device={serviceOrder?.device}
+        complaint={serviceOrder?.complaint}
+        diagnosis={serviceOrder?.diagnosis}
+        onComplete={() => {
+            loadData();
+        }}
+        onClose={() => {
+            showCompletionModal = false;
+        }}
+    />
 
     <!-- Parts Modal -->
     <Dialog bind:open={showPartsModal}>
@@ -1651,3 +1763,49 @@
         </DialogContent>
     </Dialog>
 </div>
+
+<!-- Re-confirm Modal -->
+<Dialog
+    open={showReconfirmModal}
+    onOpenChange={(v) => (showReconfirmModal = v)}
+>
+    <DialogContent>
+        <DialogHeader>
+            <DialogTitle>Re-konfirmasi ke Customer</DialogTitle>
+            <DialogDescription>
+                Masukkan diagnosa aktual dan perubahan harga yang perlu
+                disetujui customer.
+            </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4 py-4">
+            <div class="space-y-2">
+                <Label>Diagnosa Aktual / Penjelasan</Label>
+                <Textarea
+                    placeholder="Jelaskan kerusakan yang ditemukan..."
+                    bind:value={reconfirmInput.notes}
+                />
+            </div>
+            <div class="space-y-2">
+                <Label>Sparepart Perlu Diganti (Jika ada)</Label>
+                <Input
+                    placeholder="Contoh: LCD, Baterai, IC Power..."
+                    bind:value={reconfirmInput.replacedComponent}
+                />
+            </div>
+            <div class="space-y-2">
+                <Label>Biaya Baru (Total)</Label>
+                <CurrencyInput
+                    bind:value={reconfirmInput.cost}
+                    class="w-full"
+                />
+            </div>
+        </div>
+        <DialogFooter>
+            <Button
+                variant="outline"
+                onclick={() => (showReconfirmModal = false)}>Batal</Button
+            >
+            <Button onclick={submitReconfirm}>Kirim Re-konfirmasi</Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>

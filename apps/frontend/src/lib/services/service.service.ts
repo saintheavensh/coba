@@ -53,6 +53,10 @@ export const ServiceService = {
         const res = await api.patch<ApiResponse<Service>>(`/service/${id}`, data);
         return res.data.data!;
     },
+    patchService: async (id: number | string, data: any): Promise<Service> => {
+        const res = await api.patch<ApiResponse<Service>>(`/service/${id}`, data);
+        return res.data.data!;
+    },
     getTechnicians: async (): Promise<{ id: string, name: string }[]> => {
         const res = await api.get<ApiResponse<{ id: string, name: string }[]>>("/users?role=teknisi");
         return res.data?.data ?? [];

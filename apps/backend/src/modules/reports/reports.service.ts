@@ -454,6 +454,74 @@ export class ReportsService {
 
         return result;
     }
+
+    /**
+     * Get parts usage report
+     */
+    async getPartsUsageReport(filters: ReportFilters = {}): Promise<PartsUsageReport[]> {
+        let conditions = [];
+
+        // We only care about services that are completed/picked up OR have parts used
+        // Usually parts are consumed when status is selesai/diambil, but we can list all usage.
+
+        if (filters.startDate) {
+            const start = new Date(filters.startDate);
+            conditions.push(gte(services.dateIn, start));
+        }
+        if (filters.endDate) {
+            const end = new Date(filters.endDate);
+            end.setHours(23, 59, 59, 999);
+            conditions.push(lte(services.dateIn, end));
+        }
+
+        // We need to fetch services and process the JSON parts
+        // In SQL we could use jsonb_array_elements but Drizzle support is tricky.
+        // We will fetch services and process in application layer.
+
+        const servicesData = conditions.length > 0
+            ? await db.query.services.findMany({
+                where: and(...conditions),
+                orderBy: [desc(services.dateIn)]
+            })
+            : await db.query.services.findMany({
+                orderBy: [desc(services.dateIn)]
+            });
+
+        const report: PartsUsageReport[] = [];
+
+        for (const svc of servicesData) {
+            const parts = (svc.parts as any[]) || [];
+            if (parts.length === 0) continue;
+
+            for (const part of parts) {
+                report.push({
+                    serviceId: svc.id,
+                    serviceNo: svc.no,
+                    date: svc.dateOut || svc.dateIn || new Date(),
+                    partName: part.name,
+                    source: part.source,
+                    qty: part.qty,
+                    price: part.price,
+                    subtotal: (part.subtotal || (part.price * part.qty)),
+                    variant: part.variant
+                });
+            }
+        }
+
+        return report;
+    }
+}
+
+export interface PartsUsageReport {
+    serviceId: number;
+    serviceNo: string;
+    date: Date;
+    partName: string;
+    source: string;
+    variant?: string;
+    qty: number;
+    price: number;
+    subtotal: number;
 }
 
 // Additional interfaces
