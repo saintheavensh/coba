@@ -163,7 +163,10 @@ export const services = pgTable("services", {
     estimatedCompletionDate: timestamp("estimated_completion_date"),
     parts: json("parts"), // Stores spare parts used
     qc: json("qc"), // Stores final QC data: { passed, before, after, notes }
-    reconfirmationCount: integer("reconfirmation_count").default(0)
+    reconfirmationCount: integer("reconfirmation_count").default(0),
+
+    warranty: text("warranty"),
+    warrantyExpiryDate: timestamp("warranty_expiry_date"),
 });
 
 // ============================================

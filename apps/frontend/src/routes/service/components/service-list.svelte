@@ -25,7 +25,16 @@
         SelectTrigger,
     } from "$lib/components/ui/select";
     import { Badge } from "$lib/components/ui/badge";
-    import { Search, Eye } from "lucide-svelte";
+    import {
+        Search,
+        Eye,
+        Play,
+        UserPlus,
+        CheckCircle,
+        Package,
+        ChevronRight,
+        MessageSquare,
+    } from "lucide-svelte";
     import { goto } from "$app/navigation";
     import { Separator } from "$lib/components/ui/separator";
 
@@ -37,33 +46,95 @@
     let searchQuery = $state("");
     let filterStatus = $state("all");
     let filterTechnician = $state("all");
+    let technicians = $state<{ id: string; name: string }[]>([]);
 
     import { ServiceService } from "$lib/services/service.service";
     import ReassignTechnicianModal from "./reassign-technician-modal.svelte";
     import BarcodeScannerModal from "./barcode-scanner-modal.svelte";
+    import ServiceCompletionWizard from "./service-completion-wizard.svelte";
+    import ServicePickupWizard from "./service-pickup-wizard.svelte";
     import { Trash2, ScanBarcode } from "lucide-svelte";
     import { toast } from "svelte-sonner";
+    import {
+        Dialog,
+        DialogContent,
+        DialogHeader,
+        DialogTitle,
+        DialogDescription,
+        DialogFooter,
+    } from "$lib/components/ui/dialog";
+    import * as AlertDialog from "$lib/components/ui/alert-dialog";
+    import { Label } from "$lib/components/ui/label";
+    import { Textarea } from "$lib/components/ui/textarea";
+    import CurrencyInput from "$lib/components/custom/currency-input.svelte";
+    import { Camera, Upload } from "lucide-svelte";
 
     let showReassignModal = $state(false);
     let showScanner = $state(false);
     let selectedServiceForReassign = $state<any>(null);
     let searchInput = $state<HTMLInputElement | null>(null);
 
+    // Quick Action Modal States
+    let showAssignModal = $state(false);
+    let showPickupModal = $state(false);
+    let showDiagnosisModal = $state(false);
+    let showCompletionModal = $state(false);
+    let selectedOrderForAction = $state<any>(null);
+    let selectedTechnicianId = $state("");
+
+    // Diagnosis Modal Data (dicek → konfirmasi) - matches detail page
+    let diagnosisNotes = $state("");
+    let diagnosisPossibleCauses = $state("");
+    let diagnosisCostEstimate = $state(0);
+
+    // Completion Modal Data (dikerjakan → selesai)
+    let completionNotes = $state("");
+    let completionActualCost = $state(0);
+
+    // Pickup/Payment State managed by ServicePickupWizard now
+
+    // Rekonfirmasi Modal Data (dikerjakan → rekonfirmasi)
+    let showReconfirmModal = $state(false);
+    let reconfirmInput = $state({
+        notes: "",
+        replacedComponent: "",
+        cost: 0,
+    });
+
+    // Confirmation State for simple transitions (antrian->dicek, konfirmasi->dikerjakan)
+    let showConfirmDialog = $state(false);
+    let confirmDialogConfig = $state({
+        title: "",
+        description: "",
+        action: async () => {},
+        actionLabel: "",
+        variant: "default" as
+            | "default"
+            | "destructive"
+            | "outline"
+            | "secondary"
+            | "ghost"
+            | "link"
+            | null
+            | undefined,
+    });
+    let isProcessingAction = $state(false);
+
     async function handleDelete(id: number) {
-        if (
-            !confirm(
+        confirmDialogConfig = {
+            title: "Hapus Permanen?",
+            description:
                 "Apakah anda yakin ingin menghapus data service ini? Data tidak dapat dikembalikan.",
-            )
-        )
-            return;
-        try {
-            await api.delete(`/service/${id}`);
-            toast.success("Data service berhasil dihapus");
-            loadData();
-        } catch (e) {
-            console.error(e);
-            toast.error("Gagal menghapus data service");
-        }
+            action: async () => {
+                await api.delete(`/service/${id}`);
+                serviceOrders = serviceOrders.filter((o) => o.id !== id);
+                toast.success("Data service berhasil dihapus");
+                loadData();
+            },
+            actionLabel: "Hapus Data",
+            variant: "destructive",
+        };
+        showConfirmDialog = true;
     }
 
     function handleReassignConfirm() {
@@ -105,26 +176,39 @@
 
     import { page } from "$app/stores";
 
+    // Check if we're viewing "Semua Data" (no status filter from URL)
+    let isAllDataView = $derived(!$page.url.searchParams.get("status"));
+
+    async function loadTechnicians() {
+        try {
+            technicians = await ServiceService.getTechnicians();
+        } catch (e) {
+            console.error("Failed to load technicians", e);
+        }
+    }
+
     onMount(() => {
         const status = $page.url.searchParams.get("status");
         if (status) {
             filterStatus = status;
         }
         loadData();
+        loadTechnicians();
     });
 
     import { refreshServiceList } from "$lib/stores/events";
 
-    // Reactive: Reload when filters change or refresh triggered
+    // Track if the filter is driven by URL (sidebar navigation) or by user dropdown selection
+    let urlStatus = $derived($page.url.searchParams.get("status"));
+
+    // Only sync from URL to filterStatus when URL changes, not when filterStatus changes
     $effect(() => {
-        const status = $page.url.searchParams.get("status");
-        if (status && status !== filterStatus) {
-            filterStatus = status;
-        } else if (!status && filterStatus !== "all") {
-            // Optional: if URL has no status, reset to all?
-            // Or keep it? Providing Sidebar Link "Semua Service" is /service (no query), so reset to 'all' is correct.
-            filterStatus = "all";
+        if (urlStatus) {
+            // URL has status param - sync to filterStatus
+            filterStatus = urlStatus;
         }
+        // When URL has no status (Semua Data view), don't reset filterStatus
+        // Let user change dropdown freely
     });
 
     $effect(() => {
@@ -137,16 +221,28 @@
         loadData();
     });
 
-    // Client-side Search Filter
+    // Client-side Search and Technician Filter
     let filteredOrders = $derived(
         serviceOrders.filter((order) => {
             const term = searchQuery.toLowerCase();
-            return (
+            const matchesSearch =
                 order.no.toLowerCase().includes(term) ||
                 order.customer.name.toLowerCase().includes(term) ||
                 order.device.brand.toLowerCase().includes(term) ||
-                (order.technician?.name || "").toLowerCase().includes(term)
-            );
+                (order.technician?.name || "").toLowerCase().includes(term);
+
+            // Apply technician filter only when viewing all data
+            let matchesTechnician = true;
+            if (isAllDataView && filterTechnician !== "all") {
+                if (filterTechnician === "unassigned") {
+                    matchesTechnician = !order.technician;
+                } else {
+                    matchesTechnician =
+                        order.technician?.id === filterTechnician;
+                }
+            }
+
+            return matchesSearch && matchesTechnician;
         }),
     );
 
@@ -216,6 +312,237 @@
     function viewServiceDetail(id: number) {
         goto(`/service/${id}`);
     }
+
+    // Get next action button configuration based on current status
+    function getNextAction(status: string, hasTechnician: boolean) {
+        switch (status) {
+            case "antrian":
+                return {
+                    label: hasTechnician ? "Mulai Cek" : "Assign & Cek",
+                    icon: hasTechnician ? Play : UserPlus,
+                    color: "bg-blue-600 hover:bg-blue-700 text-white",
+                    needsModal: !hasTechnician,
+                };
+            case "dicek":
+                return {
+                    label: "Konfirmasi",
+                    icon: ChevronRight,
+                    color: "bg-yellow-600 hover:bg-yellow-700 text-white",
+                    needsModal: false,
+                };
+            case "konfirmasi":
+                return {
+                    label: "Kerjakan",
+                    icon: Play,
+                    color: "bg-purple-600 hover:bg-purple-700 text-white",
+                    needsModal: false,
+                };
+            case "dikerjakan":
+                return {
+                    label: "Selesai",
+                    icon: CheckCircle,
+                    color: "bg-green-600 hover:bg-green-700 text-white",
+                    needsModal: false,
+                };
+            case "selesai":
+            case "batal":
+                return {
+                    label: "Diambil",
+                    icon: Package,
+                    color: "bg-teal-600 hover:bg-teal-700 text-white",
+                    needsModal: true,
+                };
+            default:
+                return null;
+        }
+    }
+
+    // Handle quick action button click - now opens modals for all transitions
+    async function handleQuickAction(order: any) {
+        const hasTechnician = !!order.technician;
+        selectedOrderForAction = order;
+
+        switch (order.status) {
+            case "antrian":
+                if (hasTechnician) {
+                    // Start checking confirmation
+                    selectedOrderForAction = order;
+                    confirmDialogConfig = {
+                        title: "Mulai Pengecekan?",
+                        description:
+                            "Pastikan unit sudah siap dimeja service untuk dilakukan analisa awal.",
+                        action: async () =>
+                            await updateOrderStatus(order.id, "dicek"),
+                        actionLabel: "Mulai Cek",
+                        variant: "default",
+                    };
+                    showConfirmDialog = true;
+                } else {
+                    selectedTechnicianId = "";
+                    showAssignModal = true;
+                }
+                break;
+            case "dicek":
+                // Open diagnosis modal - matches detail page pattern
+                diagnosisNotes = "";
+                diagnosisPossibleCauses = "";
+                diagnosisCostEstimate = order.costEstimate || 0;
+                showDiagnosisModal = true;
+                break;
+            case "konfirmasi":
+                // Start work confirmation
+                selectedOrderForAction = order;
+                confirmDialogConfig = {
+                    title: "Mulai Pengerjaan?",
+                    description:
+                        "Pastikan customer sudah konfirmasi dan setuju dengan biaya/estimasi.",
+                    action: async () =>
+                        await updateOrderStatus(order.id, "dikerjakan"),
+                    actionLabel: "Mulai Pengerjaan",
+                    variant: "default",
+                };
+                showConfirmDialog = true;
+                break;
+            case "dikerjakan":
+                // Open completion modal
+                completionNotes = "";
+                completionActualCost =
+                    order.costEstimate || order.actualCost || 0;
+                showCompletionModal = true;
+                break;
+            case "selesai":
+            case "batal":
+                // Open pickup/payment modal - handled by ServicePickupWizard now
+                showPickupModal = true;
+                break;
+        }
+    }
+
+    async function updateOrderStatus(
+        id: number,
+        newStatus: string,
+        extraData?: any,
+    ) {
+        try {
+            const userId =
+                JSON.parse(localStorage.getItem("user") || "{}").id ||
+                "USR-ADMIN";
+            await ServiceService.updateStatus(id, {
+                status: newStatus as any,
+                userId,
+                notes: extraData?.notes,
+                actualCost: extraData?.actualCost,
+            });
+            toast.success(`Status berhasil diubah ke ${newStatus}`);
+            refreshServiceList.update((n) => n + 1);
+            loadData();
+        } catch (e) {
+            console.error(e);
+            toast.error("Gagal mengubah status");
+        }
+    }
+
+    async function handleAssignAndStart() {
+        if (!selectedTechnicianId || !selectedOrderForAction) {
+            toast.error("Pilih teknisi terlebih dahulu");
+            return;
+        }
+        try {
+            await ServiceService.assignTechnician(
+                selectedOrderForAction.id,
+                selectedTechnicianId,
+            );
+            await updateOrderStatus(selectedOrderForAction.id, "dicek");
+            showAssignModal = false;
+            selectedOrderForAction = null;
+        } catch (e) {
+            toast.error("Gagal assign teknisi");
+        }
+    }
+
+    async function handleSubmitDiagnosis() {
+        if (!selectedOrderForAction) return;
+        if (!diagnosisNotes.trim()) {
+            toast.error("Mohon isi catatan diagnosa");
+            return;
+        }
+        if (diagnosisCostEstimate <= 0) {
+            toast.error("Mohon isi estimasi biaya");
+            return;
+        }
+        try {
+            // Update diagnosis and cost estimate first - matches detail page structure
+            await ServiceService.patchService(selectedOrderForAction.id, {
+                diagnosis: {
+                    initial: diagnosisNotes,
+                    possibleCauses: diagnosisPossibleCauses,
+                },
+                costEstimate: diagnosisCostEstimate,
+            });
+            // Then update status
+            await updateOrderStatus(selectedOrderForAction.id, "konfirmasi", {
+                notes: diagnosisNotes,
+            });
+            showDiagnosisModal = false;
+            selectedOrderForAction = null;
+        } catch (e) {
+            toast.error("Gagal menyimpan diagnosa");
+        }
+    }
+
+    async function handleSubmitCompletion() {
+        if (!selectedOrderForAction) return;
+        if (completionActualCost <= 0) {
+            toast.error("Mohon isi biaya aktual");
+            return;
+        }
+        try {
+            await updateOrderStatus(selectedOrderForAction.id, "selesai", {
+                notes: completionNotes,
+                actualCost: completionActualCost,
+            });
+            showCompletionModal = false;
+            selectedOrderForAction = null;
+        } catch (e) {
+            toast.error("Gagal menyelesaikan service");
+        }
+    }
+
+    function openReconfirmModal(order: any) {
+        selectedOrderForAction = order;
+        reconfirmInput = {
+            notes: "",
+            replacedComponent: "",
+            cost: order.actualCost || order.costEstimate || 0,
+        };
+        showReconfirmModal = true;
+    }
+
+    async function handleSubmitReconfirm() {
+        if (!selectedOrderForAction) return;
+        if (!reconfirmInput.notes.trim()) {
+            toast.error("Mohon isi catatan rekonfirmasi");
+            return;
+        }
+        try {
+            // Update service with reconfirm data
+            await ServiceService.patchService(selectedOrderForAction.id, {
+                reconfirmation: {
+                    notes: reconfirmInput.notes,
+                    replacedComponent: reconfirmInput.replacedComponent,
+                    newCost: reconfirmInput.cost,
+                },
+            });
+            // Update status to rekonfirmasi
+            await updateOrderStatus(selectedOrderForAction.id, "rekonfirmasi", {
+                notes: reconfirmInput.notes,
+            });
+            showReconfirmModal = false;
+            selectedOrderForAction = null;
+        } catch (e) {
+            toast.error("Gagal mengirim rekonfirmasi");
+        }
+    }
 </script>
 
 <Card>
@@ -263,36 +590,48 @@
                     <ScanBarcode class="h-4 w-4" />
                 </Button>
             </div>
-            <Select type="single" name="status" bind:value={filterStatus}>
-                <SelectTrigger class="w-full sm:w-[180px]">
-                    {filterStatus === "all" ? "Semua Status" : filterStatus}
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Semua Status</SelectItem>
-                    <SelectItem value="menunggu">Menunggu</SelectItem>
-                    <SelectItem value="proses">Dalam Proses</SelectItem>
-                    <SelectItem value="selesai">Selesai</SelectItem>
-                    <SelectItem value="diambil">Diambil</SelectItem>
-                    <SelectItem value="batal">Batal</SelectItem>
-                </SelectContent>
-            </Select>
-            <Select
-                type="single"
-                name="technician"
-                bind:value={filterTechnician}
-            >
-                <SelectTrigger class="w-full sm:w-[180px]">
-                    {filterTechnician === "all"
-                        ? "Semua Teknisi"
-                        : filterTechnician}
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Semua Teknisi</SelectItem>
-                    <SelectItem value="agus">Agus</SelectItem>
-                    <SelectItem value="rudi">Rudi</SelectItem>
-                    <SelectItem value="unassigned">Belum Assign</SelectItem>
-                </SelectContent>
-            </Select>
+            {#if isAllDataView}
+                <Select type="single" name="status" bind:value={filterStatus}>
+                    <SelectTrigger class="w-full sm:w-[180px]">
+                        {filterStatus === "all" ? "Semua Status" : filterStatus}
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Status</SelectItem>
+                        <SelectItem value="antrian">Antrian</SelectItem>
+                        <SelectItem value="dicek">Sedang Dicek</SelectItem>
+                        <SelectItem value="konfirmasi">Konfirmasi</SelectItem>
+                        <SelectItem value="dikerjakan">Dikerjakan</SelectItem>
+                        <SelectItem value="re-konfirmasi"
+                            >Re-konfirmasi</SelectItem
+                        >
+                        <SelectItem value="selesai">Selesai</SelectItem>
+                        <SelectItem value="diambil">Sudah Diambil</SelectItem>
+                        <SelectItem value="batal">Dibatalkan</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Select
+                    type="single"
+                    name="technician"
+                    bind:value={filterTechnician}
+                >
+                    <SelectTrigger class="w-full sm:w-[180px]">
+                        {filterTechnician === "all"
+                            ? "Semua Teknisi"
+                            : filterTechnician === "unassigned"
+                              ? "Belum Assign"
+                              : technicians.find(
+                                    (t) => t.id === filterTechnician,
+                                )?.name || filterTechnician}
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Teknisi</SelectItem>
+                        <SelectItem value="unassigned">Belum Assign</SelectItem>
+                        {#each technicians as tech}
+                            <SelectItem value={tech.id}>{tech.name}</SelectItem>
+                        {/each}
+                    </SelectContent>
+                </Select>
+            {/if}
         </div>
 
         <!-- Mobile Card List -->
@@ -480,6 +819,41 @@
                                     </Badge>
                                 </TableCell>
                                 <TableCell class="text-right">
+                                    {@const nextAction = getNextAction(
+                                        order.status,
+                                        !!order.technician,
+                                    )}
+                                    {#if nextAction}
+                                        <Button
+                                            size="sm"
+                                            class="{nextAction.color} h-7 px-2 text-xs"
+                                            onclick={() =>
+                                                handleQuickAction(order)}
+                                            title={nextAction.label}
+                                        >
+                                            {@const IconComponent =
+                                                nextAction.icon}
+                                            <IconComponent
+                                                class="h-3 w-3 mr-1"
+                                            />
+                                            {nextAction.label}
+                                        </Button>
+                                    {/if}
+                                    {#if order.status === "dikerjakan"}
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            class="h-7 px-2 text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
+                                            onclick={() =>
+                                                openReconfirmModal(order)}
+                                            title="Rekonfirmasi ke Customer"
+                                        >
+                                            <MessageSquare
+                                                class="h-3 w-3 mr-1"
+                                            />
+                                            Rekon
+                                        </Button>
+                                    {/if}
                                     <Button
                                         variant="ghost"
                                         size="icon"
@@ -534,6 +908,342 @@
         }, 100);
     }}
 />
+<!-- Assign Technician & Start Modal -->
+<Dialog open={showAssignModal} onOpenChange={(v) => (showAssignModal = v)}>
+    <DialogContent>
+        <DialogHeader>
+            <DialogTitle>Assign Teknisi & Mulai Pengecekan</DialogTitle>
+            <DialogDescription>
+                {#if selectedOrderForAction}
+                    Pilih teknisi untuk service <strong
+                        >{selectedOrderForAction.no}</strong
+                    >
+                {:else}
+                    Pilih teknisi yang akan mengerjakan service ini
+                {/if}
+            </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4 py-4">
+            <div class="space-y-2">
+                <Label>Teknisi <span class="text-red-500">*</span></Label>
+                <Select type="single" bind:value={selectedTechnicianId}>
+                    <SelectTrigger class="w-full">
+                        {technicians.find((t) => t.id === selectedTechnicianId)
+                            ?.name || "Pilih Teknisi"}
+                    </SelectTrigger>
+                    <SelectContent>
+                        {#each technicians as tech}
+                            <SelectItem value={tech.id}>{tech.name}</SelectItem>
+                        {/each}
+                    </SelectContent>
+                </Select>
+            </div>
+            {#if selectedOrderForAction}
+                <div class="p-3 bg-muted rounded-lg text-sm">
+                    <p class="text-muted-foreground">
+                        Customer: <strong
+                            >{selectedOrderForAction.customer?.name}</strong
+                        >
+                    </p>
+                    <p class="text-muted-foreground">
+                        Device: <strong
+                            >{selectedOrderForAction.device?.brand}
+                            {selectedOrderForAction.device?.model}</strong
+                        >
+                    </p>
+                </div>
+            {/if}
+        </div>
+        <DialogFooter>
+            <Button
+                variant="outline"
+                onclick={() => {
+                    showAssignModal = false;
+                    selectedOrderForAction = null;
+                }}>Batal</Button
+            >
+            <Button
+                onclick={handleAssignAndStart}
+                class="bg-blue-600 hover:bg-blue-700"
+            >
+                <Play class="mr-2 h-4 w-4" />
+                Assign & Mulai Cek
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>
+
+<!-- Pickup/Payment Wizard (selesai -> diambil) -->
+{#if selectedOrderForAction}
+    <ServicePickupWizard
+        bind:open={showPickupModal}
+        serviceId={selectedOrderForAction.id}
+        serviceNo={selectedOrderForAction.no || ""}
+        customer={selectedOrderForAction.customer}
+        device={selectedOrderForAction.device}
+        cost={selectedOrderForAction.actualCost ||
+            selectedOrderForAction.costEstimate ||
+            0}
+        serviceStatus={selectedOrderForAction.status}
+        onComplete={() => {
+            refreshServiceList.update((n) => n + 1);
+            loadData();
+            selectedOrderForAction = null;
+        }}
+        onClose={() => {
+            showPickupModal = false;
+            selectedOrderForAction = null;
+        }}
+    />
+{/if}
+
+<!-- Diagnosis Modal (dicek -> konfirmasi) - Matches detail page pattern -->
+<Dialog
+    open={showDiagnosisModal}
+    onOpenChange={(v) => (showDiagnosisModal = v)}
+>
+    <DialogContent class="sm:max-w-[500px]">
+        <DialogHeader>
+            <DialogTitle>Input Hasil Diagnosa</DialogTitle>
+            <DialogDescription>
+                Input hasil pengecekan dan estimasi biaya untuk dikonfirmasi ke
+                customer.
+            </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4 py-4">
+            {#if selectedOrderForAction}
+                <!-- Unit Verification Info -->
+                <div
+                    class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm space-y-1"
+                >
+                    <div class="flex justify-between">
+                        <span class="font-semibold text-blue-800"
+                            >Service #{selectedOrderForAction.no}</span
+                        >
+                        <Badge variant="outline"
+                            >{selectedOrderForAction.status}</Badge
+                        >
+                    </div>
+                    <div class="text-blue-700">
+                        <p>
+                            <strong>Device:</strong>
+                            {selectedOrderForAction.device?.brand}
+                            {selectedOrderForAction.device?.model}
+                        </p>
+                        <p>
+                            <strong>IMEI:</strong>
+                            {selectedOrderForAction.device?.imei || "-"}
+                        </p>
+                        <p>
+                            <strong>Keluhan:</strong>
+                            {selectedOrderForAction.complaint}
+                        </p>
+                        <p>
+                            <strong>Customer:</strong>
+                            {selectedOrderForAction.customer?.name}
+                        </p>
+                    </div>
+                </div>
+            {/if}
+            <div class="space-y-2">
+                <Label
+                    >Kondisi Fisik / Teknis (Ampere Meter, dll) <span
+                        class="text-red-500">*</span
+                    ></Label
+                >
+                <Textarea
+                    bind:value={diagnosisNotes}
+                    placeholder="Contoh: Konsumsi arus 1A, tidak ada arus, fisik mulus..."
+                    rows={2}
+                />
+            </div>
+            <div class="space-y-2">
+                <Label>Kemungkinan Kerusakan</Label>
+                <Textarea
+                    bind:value={diagnosisPossibleCauses}
+                    placeholder="Contoh: IC Power, CPU, Baterai..."
+                    rows={2}
+                />
+            </div>
+            <div class="space-y-2">
+                <Label
+                    >Estimasi Biaya (Rp) <span class="text-red-500">*</span
+                    ></Label
+                >
+                <CurrencyInput
+                    bind:value={diagnosisCostEstimate}
+                    class="w-full"
+                />
+            </div>
+        </div>
+        <DialogFooter>
+            <Button
+                variant="outline"
+                onclick={() => {
+                    showDiagnosisModal = false;
+                    selectedOrderForAction = null;
+                }}>Batal</Button
+            >
+            <Button
+                onclick={handleSubmitDiagnosis}
+                class="bg-yellow-600 hover:bg-yellow-700"
+            >
+                <ChevronRight class="mr-2 h-4 w-4" />
+                Simpan & Konfirmasi
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>
+
+<!-- Completion Wizard (dikerjakan -> selesai) - Reuses detail page component -->
+{#if selectedOrderForAction}
+    <ServiceCompletionWizard
+        bind:open={showCompletionModal}
+        serviceId={selectedOrderForAction.id}
+        serviceNo={selectedOrderForAction.no || ""}
+        initialQC={selectedOrderForAction.phone?.initialQC}
+        costEstimate={selectedOrderForAction.actualCost ||
+            selectedOrderForAction.costEstimate}
+        customer={selectedOrderForAction.customer}
+        device={selectedOrderForAction.device}
+        complaint={selectedOrderForAction.complaint}
+        diagnosis={selectedOrderForAction.diagnosis}
+        onComplete={() => {
+            refreshServiceList.update((n) => n + 1);
+            loadData();
+            selectedOrderForAction = null;
+        }}
+        onClose={() => {
+            showCompletionModal = false;
+            selectedOrderForAction = null;
+        }}
+    />
+{/if}
+
+<!-- Rekonfirmasi Modal (dikerjakan -> rekonfirmasi) -->
+<Dialog
+    open={showReconfirmModal}
+    onOpenChange={(v) => (showReconfirmModal = v)}
+>
+    <DialogContent class="sm:max-w-[500px]">
+        <DialogHeader>
+            <DialogTitle>Rekonfirmasi ke Customer</DialogTitle>
+            <DialogDescription>
+                Kirim ulang konfirmasi ke customer jika ada perubahan atau
+                masalah baru.
+            </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4 py-4">
+            {#if selectedOrderForAction}
+                <!-- Unit Verification Info -->
+                <div
+                    class="p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm space-y-1"
+                >
+                    <div class="flex justify-between">
+                        <span class="font-semibold text-orange-800"
+                            >Service #{selectedOrderForAction.no}</span
+                        >
+                        <Badge variant="outline"
+                            >{selectedOrderForAction.status}</Badge
+                        >
+                    </div>
+                    <div class="text-orange-700">
+                        <p>
+                            <strong>Device:</strong>
+                            {selectedOrderForAction.device?.brand}
+                            {selectedOrderForAction.device?.model}
+                        </p>
+                        <p>
+                            <strong>IMEI:</strong>
+                            {selectedOrderForAction.device?.imei || "-"}
+                        </p>
+                        <p>
+                            <strong>Keluhan:</strong>
+                            {selectedOrderForAction.complaint}
+                        </p>
+                        <p>
+                            <strong>Customer:</strong>
+                            {selectedOrderForAction.customer?.name}
+                        </p>
+                    </div>
+                </div>
+            {/if}
+            <div class="space-y-2">
+                <Label
+                    >Alasan Rekonfirmasi <span class="text-red-500">*</span
+                    ></Label
+                >
+                <Textarea
+                    bind:value={reconfirmInput.notes}
+                    placeholder="Jelaskan alasan perlu rekonfirmasi ulang ke customer..."
+                    rows={2}
+                />
+            </div>
+            <div class="space-y-2">
+                <Label>Komponen yang Diganti (Opsional)</Label>
+                <Input
+                    bind:value={reconfirmInput.replacedComponent}
+                    placeholder="Contoh: IC Power, Baterai, dll"
+                />
+            </div>
+            <div class="space-y-2">
+                <Label>Estimasi Biaya Baru</Label>
+                <CurrencyInput
+                    bind:value={reconfirmInput.cost}
+                    class="w-full"
+                />
+            </div>
+        </div>
+        <DialogFooter>
+            <Button
+                variant="outline"
+                onclick={() => {
+                    showReconfirmModal = false;
+                    selectedOrderForAction = null;
+                }}>Batal</Button
+            >
+            <Button
+                onclick={handleSubmitReconfirm}
+                class="bg-orange-600 hover:bg-orange-700"
+            >
+                <MessageSquare class="mr-2 h-4 w-4" />
+                Kirim Rekonfirmasi
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>
+
+<!-- Generic Confirmation Dialog -->
+<AlertDialog.Root bind:open={showConfirmDialog}>
+    <AlertDialog.Content>
+        <AlertDialog.Header>
+            <AlertDialog.Title>{confirmDialogConfig.title}</AlertDialog.Title>
+            <AlertDialog.Description>
+                {confirmDialogConfig.description}
+            </AlertDialog.Description>
+        </AlertDialog.Header>
+        <AlertDialog.Footer>
+            <AlertDialog.Cancel>Batal</AlertDialog.Cancel>
+            <AlertDialog.Action
+                class={confirmDialogConfig.variant === "destructive"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-primary hover:bg-primary/90"}
+                onclick={async () => {
+                    isProcessingAction = true;
+                    try {
+                        await confirmDialogConfig.action();
+                    } finally {
+                        isProcessingAction = false;
+                        showConfirmDialog = false;
+                    }
+                }}
+                disabled={isProcessingAction}
+            >
+                {#if isProcessingAction}Processing...{:else}{confirmDialogConfig.actionLabel}{/if}
+            </AlertDialog.Action>
+        </AlertDialog.Footer>
+    </AlertDialog.Content>
+</AlertDialog.Root>
 
 <style>
     /* ... */

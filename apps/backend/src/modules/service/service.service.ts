@@ -2,12 +2,15 @@ import { db } from "../../db";
 import { services, activityLogs, users, productBatches } from "../../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { ServiceRepository } from "./service.repository";
+import { SettingsService } from "../settings/settings.service";
 
 export class ServiceService {
     private repo: ServiceRepository;
+    private settingsService: SettingsService;
 
     constructor() {
         this.repo = new ServiceRepository();
+        this.settingsService = new SettingsService();
     }
 
     async getAll(params?: { status?: string }) {
@@ -263,6 +266,66 @@ export class ServiceService {
         if (data.diagnosis) updateData.diagnosis = typeof data.diagnosis === 'string' ? data.diagnosis : JSON.stringify(data.diagnosis);
         if (data.costEstimate !== undefined) updateData.costEstimate = data.costEstimate;
         if (data.complaint) updateData.complaint = data.complaint;
+
+        // Warranty Logic
+        // Expecting data.warranty string (e.g., "1 Bulan") or check in payment payload if passed here
+        // Ideally the controller should extract `warranty` from payload and pass it here, 
+        // OR if `patchService` receives the raw body, we handle it.
+        // Based on usage in `ServicePickupWizard`, we call `patchService` with `{ payment: ... }`.
+
+        // Let's assume the controller or caller might pass `warranty` directly if we update the interface.
+        // Checking `sales.controller.ts` or `service.controller.ts` would confirm, but for now let's support `warranty` field update.
+        // Helper to calculate expiry
+        const getWarrantyDays = async (label: string): Promise<number> => {
+            try {
+                const settings = await this.settingsService.getServiceSettings();
+                const preset = settings.warrantyPresets.find(p => p.label === label);
+                if (preset) return preset.days;
+
+                // Keep minimal fallback mapping for transition/safety
+                if (label === "1 Minggu") return 7;
+                if (label === "2 Minggu") return 14;
+                if (label === "1 Bulan") return 30;
+                if (label === "3 Bulan") return 90;
+                if (label === "6 Bulan") return 180;
+                if (label === "1 Tahun") return 365;
+                if (label === "Tanpa Garansi") return 0;
+            } catch (e) {
+                console.error("Error fetching warranty settings", e);
+            }
+            return 0;
+        };
+
+        // Handle warranty update
+        if ((data as any).warranty) {
+            updateData.warranty = (data as any).warranty;
+            const daysToAdd = await getWarrantyDays(updateData.warranty);
+
+            if (daysToAdd > 0) {
+                const expiry = new Date();
+                expiry.setDate(expiry.getDate() + daysToAdd);
+                updateData.warrantyExpiryDate = expiry;
+            } else {
+                // If 0 days (e.g. Tanpa Garansi), maybe clear expiry? 
+                // For now, let's leave it null/undefined if it was null, or update if we need to clear.
+                // If previous had date, and now 0, strictly speaking we should probably null it.
+                // But typically expiry date won't be cleared dynamically for historical reasons unless explicitly requested.
+                // Let's assume new service/pickup -> sets date.
+            }
+        }
+
+        // Handle payment payload if it comes through here
+        if ((data as any).payment && (data as any).payment.warranty) {
+            const warrantyStr = (data as any).payment.warranty;
+            updateData.warranty = warrantyStr;
+            const daysToAdd = await getWarrantyDays(warrantyStr);
+
+            if (daysToAdd > 0) {
+                const expiry = new Date();
+                expiry.setDate(expiry.getDate() + daysToAdd);
+                updateData.warrantyExpiryDate = expiry;
+            }
+        }
 
         if (Object.keys(updateData).length === 0) return srv;
 

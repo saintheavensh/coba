@@ -18,7 +18,10 @@ const saleItemSchema = z.object({
 });
 
 const paymentSchema = z.object({
-    method: z.enum(["cash", "transfer", "qris", "tempo"]),
+    method: z.string(), // Snapshot name (e.g. "Transfer Bank", "BCA")
+    methodId: z.string().optional(), // ID (e.g. "PM-TRANSFER")
+    variantId: z.string().optional(), // Variant ID (e.g. "VAR-BCA")
+    variantName: z.string().optional(), // Snapshot Variant Name
     amount: z.number().min(0),
     reference: z.string().optional()
 });

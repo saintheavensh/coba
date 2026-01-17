@@ -359,7 +359,7 @@ export class ServiceFormStore {
                 }
             }
 
-            await ServiceService.create(payload);
+            const newService = await ServiceService.create(payload);
             toast.success(
                 this.isWalkin
                     ? "Service Walk-in Selesai!"
@@ -367,7 +367,7 @@ export class ServiceFormStore {
             );
 
             // Return success to allow handling navigation in the UI (for Print/Loop)
-            return { success: true, serviceId: null }; // We might need service ID from backend response
+            return { success: true, serviceId: newService.id }; // We might need serviceId from backend response
         } catch (e: any) {
             toast.error(
                 "Gagal membuat service: " +

@@ -15,7 +15,10 @@ interface CreateSaleInput {
         price: number;
     }[];
     payments: {
-        method: PaymentMethod | "tempo";
+        method: string;
+        methodId?: string;
+        variantId?: string;
+        variantName?: string;
         amount: number;
         reference?: string;
     }[];

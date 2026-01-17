@@ -150,9 +150,19 @@
                   href: "/service?status=diambil",
                   icon: Circle,
                 },
+                {
+                  title: "Dibatalkan",
+                  href: "/service?status=batal",
+                  icon: Circle,
+                },
               ],
             },
             { title: "Kalender", href: "/service/calendar", icon: Calendar },
+            {
+              title: "Garansi",
+              href: "/warranty",
+              icon: Shield,
+            },
           ],
         },
       ],
@@ -180,6 +190,7 @@
   ];
 
   import { ServiceService } from "$lib/services/service.service";
+  import { refreshServiceList } from "$lib/stores/events";
 
   // State for expanded menus
   // Initialize based on current URL to auto-expand
@@ -187,17 +198,32 @@
   let userRole = $state<string | null>(null);
   let statusCounts = $state<Record<string, number>>({});
 
+  async function fetchStatusCounts() {
+    try {
+      const counts = await ServiceService.getCounts();
+      // Reassign entire object for proper Svelte 5 reactivity
+      const newCounts: Record<string, number> = {};
+      counts.forEach((c) => {
+        newCounts[c.status] = c.count;
+      });
+      statusCounts = newCounts;
+    } catch {}
+  }
+
   onMount(async () => {
     try {
       const u = JSON.parse(localStorage.getItem("user") || "{}");
       userRole = u.role;
 
-      // Fetch counts
-      const counts = await ServiceService.getCounts();
-      counts.forEach((c) => {
-        statusCounts[c.status] = c.count;
-      });
+      // Fetch counts on mount
+      await fetchStatusCounts();
     } catch {}
+  });
+
+  // Re-fetch counts when service list is refreshed
+  $effect(() => {
+    const _ = $refreshServiceList; // Subscribe to refresh trigger
+    fetchStatusCounts();
   });
 
   function getCount(href?: string) {

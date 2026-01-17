@@ -12,7 +12,9 @@ import {
     saleItems,
     salePayments,
     services,
-    activityLogs
+    activityLogs,
+    paymentMethods,
+    paymentVariants
 } from "./schema";
 import { eq, sql } from "drizzle-orm";
 
@@ -272,7 +274,38 @@ async function main() {
     ]);
 
     // ============================================
-    // 7. ACTIVITY LOGS
+    // 7. PAYMENT METHODS (NEW)
+    // ============================================
+    console.log("Creating payment methods & variants...");
+
+    // Clear old payment methods/variants if any (handled in cleanup step?)
+    // Need to clear variants first due to FK
+    await db.delete(paymentVariants);
+    await db.delete(paymentMethods);
+
+    // Methods
+    const pmCash = "PM-CASH";
+    const pmTransfer = "PM-TRANSFER";
+    const pmQris = "PM-QRIS";
+    const pmTempo = "PM-TEMPO";
+
+    await db.insert(paymentMethods).values([
+        { id: pmCash, name: "Tunai (Cash)", type: "cash", icon: "💵", enabled: true },
+        { id: pmTransfer, name: "Transfer Bank", type: "transfer", icon: "🏦", enabled: true },
+        { id: pmQris, name: "QRIS", type: "qris", icon: "📱", enabled: true },
+        { id: pmTempo, name: "Tempo / Utang", type: "custom", icon: "⏳", enabled: true }
+    ]);
+
+    // Variants (Banks for Transfer)
+    await db.insert(paymentVariants).values([
+        { id: "VAR-BCA", methodId: pmTransfer, name: "BCA", accountNumber: "1234567890", accountHolder: "Saint Heavens", enabled: true },
+        { id: "VAR-MANDIRI", methodId: pmTransfer, name: "Mandiri", accountNumber: "1230009876543", accountHolder: "Saint Heavens", enabled: true },
+        { id: "VAR-BRI", methodId: pmTransfer, name: "BRI", accountNumber: "0111-01-000111-30-1", accountHolder: "Saint Heavens", enabled: true },
+        { id: "VAR-BSI", methodId: pmTransfer, name: "BSI", accountNumber: "7778889990", accountHolder: "Saint Heavens", enabled: true }
+    ]);
+
+    // ============================================
+    // 8. ACTIVITY LOGS
     // ============================================
     console.log("Creating activity logs...");
     await db.insert(activityLogs).values([

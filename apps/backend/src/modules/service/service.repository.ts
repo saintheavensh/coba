@@ -24,7 +24,8 @@ export class ServiceRepository {
         return await db.query.services.findFirst({
             where: eq(services.id, id),
             with: {
-                technician: true
+                technician: true,
+                creator: true,
             }
         });
     }

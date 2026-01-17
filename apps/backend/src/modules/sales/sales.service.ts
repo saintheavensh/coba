@@ -32,7 +32,10 @@ export class SalesService {
         memberId?: string;
         customerName?: string;
         payments: {
-            method: "cash" | "transfer" | "qris" | "tempo";
+            method: string;
+            methodId?: string;
+            variantId?: string;
+            variantName?: string;
             amount: number;
             reference?: string;
         }[];
@@ -62,11 +65,27 @@ export class SalesService {
 
         // Determine Payment Status & Method String
         const methodTypes = new Set(data.payments.map(p => p.method));
-        const paymentMethodStr: "cash" | "transfer" | "qris" | "mixed" =
-            methodTypes.size > 1 ? "mixed" : data.payments[0].method as "cash" | "transfer" | "qris";
+        // Simplistic determination. If multiple, mixed. If one, usage that one.
+        // We cast to specific union for TS satisfaction but store whatever string in DB technically (schema has enum but Drizzle might enforce it on insert if using typed schema object, but 'sales' table 'paymentMethod' column IS enum.
+        // We should map new methods to 'cash' | 'transfer' | 'qris' | 'mixed' as best effort?
+        // Or update schema enum. Schema enum for `sales.paymentMethod` is ["cash", "transfer", "qris", "mixed"].
+        // If "Tempo", we can map to "mixed" or add "tempo"?
+        // Let's rely on "mixed" if complex, or map based on type.
+
+        // Better: Map known IDs/Names to the legacy enum
+        let paymentMethodStr: "cash" | "transfer" | "qris" | "mixed" = "mixed";
+        if (data.payments.length === 1) {
+            const m = data.payments[0].method.toLowerCase();
+            if (m.includes("cash") || m.includes("tunai")) paymentMethodStr = "cash";
+            else if (m.includes("transfer")) paymentMethodStr = "transfer";
+            else if (m.includes("qris")) paymentMethodStr = "qris";
+            else paymentMethodStr = "mixed"; // Fallback for Tempo/Other
+        } else {
+            paymentMethodStr = "mixed";
+        }
 
         const nonTempoAmount = data.payments
-            .filter(p => p.method !== "tempo")
+            .filter(p => !p.method.toLowerCase().includes("tempo") && p.methodId !== "PM-TEMPO")
             .reduce((sum, p) => sum + p.amount, 0);
 
         let paymentStatus: "paid" | "partial" | "unpaid" = "paid";
@@ -80,7 +99,7 @@ export class SalesService {
 
         await db.transaction(async (tx) => {
             // Handle Tempo (Debt)
-            const tempoPayment = data.payments.find(p => p.method === "tempo");
+            const tempoPayment = data.payments.find(p => p.methodId === "PM-TEMPO" || p.method.toLowerCase().includes("tempo"));
             if (tempoPayment) {
                 if (!data.memberId) {
                     throw new Error("Customer memberId is required for Tempo payments.");
@@ -124,6 +143,9 @@ export class SalesService {
                 await tx.insert(salePayments).values({
                     saleId: saleId,
                     method: p.method,
+                    methodId: p.methodId,
+                    variantName: p.variantName,
+                    variantId: p.variantId,
                     amount: p.amount,
                     reference: p.reference
                 });
@@ -209,7 +231,7 @@ export class SalesService {
         // Only if not using Tempo (Strict logic: Tempo implies exact amount for correct debt tracking)
         // If Mixed (Cash 100k for 50k bill) -> Return 50k.
         let change = 0;
-        if (!data.payments.some(p => p.method === "tempo")) {
+        if (!data.payments.some(p => p.methodId === "PM-TEMPO" || p.method.toLowerCase().includes("tempo"))) {
             change = totalPaid - finalAmount;
         }
 

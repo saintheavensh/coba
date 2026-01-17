@@ -14,6 +14,7 @@
         DialogDescription,
         DialogFooter,
     } from "$lib/components/ui/dialog";
+    import * as AlertDialog from "$lib/components/ui/alert-dialog";
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
     import { Textarea } from "$lib/components/ui/textarea";
@@ -45,12 +46,16 @@
         Loader2,
         AlertCircle,
         RefreshCw,
+        ShieldCheck,
     } from "lucide-svelte";
 
     import { onMount } from "svelte";
     import { ServiceService } from "$lib/services/service.service";
+    import { refreshServiceList } from "$lib/stores/events";
     import { api } from "$lib/api";
     import ServiceCompletionWizard from "../components/service-completion-wizard.svelte";
+    import ServicePickupWizard from "../components/service-pickup-wizard.svelte";
+    import ServiceNotePrint from "../components/service-note-print.svelte";
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import DateTimePicker from "$lib/components/custom/date-time-picker.svelte";
 
@@ -95,6 +100,20 @@
         replacedComponent: "", // Added
         cost: 0,
     });
+
+    let showCancelModal = $state(false);
+    let cancelReason = $state("");
+
+    // Confirmation Dialog States
+    let showCompleteConfirm = $state(false);
+    // let showPickupConfirm = $state(false); // Replaced by Wizard
+    let showDeleteConfirm = $state(false);
+    let showStartWorkConfirm = $state(false);
+    let isProcessingAction = $state(false);
+
+    let showPickupWizard = $state(false); // Added for Wizard
+
+    let showPrintPreview = $state(false);
 
     async function loadData() {
         loading = true;
@@ -156,6 +175,8 @@
                 ...extraData,
             });
             toast.success(`Status updated: ${newStatus}`);
+            // Trigger refresh for sidebar notification counts
+            refreshServiceList.update((n) => n + 1);
             await loadData();
         } catch (e) {
             console.error(e);
@@ -419,7 +440,11 @@
 
     // Action handlers
     async function handleComplete() {
-        if (!confirm("Tandai service ini selesai?")) return;
+        showCompleteConfirm = true;
+    }
+
+    async function processComplete() {
+        isProcessingAction = true;
         try {
             const userId =
                 JSON.parse(localStorage.getItem("user") || "{}").id ||
@@ -429,14 +454,26 @@
                 userId,
             });
             toast.success("Service selesai!");
+            refreshServiceList.update((n) => n + 1);
             loadData();
         } catch (e) {
             toast.error("Gagal update status");
+        } finally {
+            isProcessingAction = false;
+            showCompleteConfirm = false;
         }
     }
 
+    function openCancelModal() {
+        cancelReason = "";
+        showCancelModal = true;
+    }
+
     async function handleCancel() {
-        if (!confirm("Batalkan service ini?")) return;
+        if (!cancelReason.trim()) {
+            toast.error("Mohon isi alasan pembatalan");
+            return;
+        }
         try {
             const userId =
                 JSON.parse(localStorage.getItem("user") || "{}").id ||
@@ -444,8 +481,11 @@
             await ServiceService.updateStatus(serviceId, {
                 status: "batal",
                 userId,
+                notes: cancelReason,
             });
             toast.success("Service dibatalkan");
+            showCancelModal = false;
+            refreshServiceList.update((n) => n + 1);
             loadData();
         } catch (e) {
             toast.error("Gagal membatalkan");
@@ -453,21 +493,15 @@
     }
 
     async function handlePickup() {
-        if (!confirm("Konfirmasi unit sudah diambil customer?")) return;
-        try {
-            const userId =
-                JSON.parse(localStorage.getItem("user") || "{}").id ||
-                "USR-ADMIN";
-            await ServiceService.updateStatus(serviceId, {
-                status: "diambil",
-                userId,
-            });
-            toast.success("Service telah diambil!");
-            loadData();
-        } catch (e) {
-            toast.error("Gagal update status");
-        }
+        // Old logic: showPickupConfirm = true;
+        // New logic: Open Wizard
+        showPickupWizard = true;
     }
+
+    // processPickup is now handled by the Wizard's onComplete callback
+    /*
+    async function processPickup() { ... } 
+    */
 
     function handleChatCustomer() {
         if (!serviceOrder) return;
@@ -483,27 +517,45 @@
         window.open(url, "_blank");
     }
 
-    async function handlePrintLabel() {
-        try {
-            await ServiceService.print(serviceId);
-            toast.success("Perintah cetak dikirim ke server");
-        } catch (e: any) {
-            const errMsg =
-                e.response?.data?.errors?.[0] ||
-                e.response?.data?.message ||
-                e.message;
-            toast.error("Gagal mencetak: " + errMsg);
-        }
+    let printMode = $state<"receipt" | "sticker">("receipt");
+
+    function handlePrint(mode: "receipt" | "sticker" = "receipt") {
+        printMode = mode;
+        showPrintPreview = true;
     }
 
     async function handleDelete() {
-        if (!confirm("Hapus permanen history service ini?")) return;
+        showDeleteConfirm = true;
+    }
+
+    async function processDelete() {
+        isProcessingAction = true;
         try {
             await api.delete(`/service/${serviceId}`);
             toast.success("Service dihapus");
+            refreshServiceList.update((n) => n + 1);
             goto("/service");
         } catch (e) {
             toast.error("Gagal hapus");
+        } finally {
+            isProcessingAction = false;
+            showDeleteConfirm = false;
+        }
+    }
+
+    async function handleStartWork() {
+        showStartWorkConfirm = true;
+    }
+
+    async function processStartWork() {
+        isProcessingAction = true;
+        try {
+            await updateStatus("dikerjakan");
+        } catch (e) {
+            toast.error("Gagal memulai pengerjaan");
+        } finally {
+            isProcessingAction = false;
+            showStartWorkConfirm = false;
         }
     }
 
@@ -632,9 +684,16 @@
                     <Button
                         variant="outline"
                         size="sm"
-                        onclick={handlePrintLabel}
+                        onclick={() => handlePrint("sticker")}
                     >
-                        <Printer class="h-4 w-4 mr-2" /> Cetak Label
+                        <Printer class="h-4 w-4 mr-2" /> Cetak Label Unit
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onclick={() => handlePrint("receipt")}
+                    >
+                        <FileText class="h-4 w-4 mr-2" /> Cetak Nota
                     </Button>
                     {#if canViewContact}
                         <Button
@@ -679,6 +738,55 @@
                     </div>
 
                     <!-- Timeline Events -->
+                    <!-- Warranty Card Integration -->
+                    {#if serviceOrder.warranty && serviceOrder.warranty !== "Tanpa Garansi"}
+                        <div
+                            class="mb-6 p-4 bg-primary/5 rounded-xl border border-primary/10"
+                        >
+                            <h4
+                                class="text-sm font-semibold flex items-center gap-2 mb-3 text-primary"
+                            >
+                                <ShieldCheck class="h-4 w-4" /> Garansi Toko
+                            </h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-muted-foreground"
+                                        >Durasi</span
+                                    >
+                                    <span class="font-medium"
+                                        >{serviceOrder.warranty}</span
+                                    >
+                                </div>
+                                {#if serviceOrder.warrantyExpiryDate}
+                                    <div class="flex justify-between">
+                                        <span class="text-muted-foreground"
+                                            >Berakhir</span
+                                        >
+                                        <span class="font-medium"
+                                            >{formatDate(
+                                                serviceOrder.warrantyExpiryDate,
+                                            )}</span
+                                        >
+                                    </div>
+                                    <div class="pt-2 mt-2 border-t">
+                                        {#if new Date(serviceOrder.warrantyExpiryDate) < new Date()}
+                                            <Badge
+                                                variant="destructive"
+                                                class="w-full justify-center"
+                                                >Expired</Badge
+                                            >
+                                        {:else}
+                                            <Badge
+                                                class="w-full justify-center bg-green-600 hover:bg-green-700"
+                                                >Active</Badge
+                                            >
+                                        {/if}
+                                    </div>
+                                {/if}
+                            </div>
+                        </div>
+                    {/if}
+
                     <div class="space-y-1">
                         {#each serviceOrder.timeline || [] as item, i}
                             {@const isLast =
@@ -1427,7 +1535,7 @@
                         <!-- Common Cancel Button -->
                         <Button
                             variant="outline"
-                            onclick={handleCancel}
+                            onclick={openCancelModal}
                             class="text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                             <XCircle class="mr-2 h-4 w-4" /> Batalkan
@@ -1470,7 +1578,7 @@
                         {:else if serviceOrder.status === "konfirmasi"}
                             {#if canEditWorkflow}
                                 <Button
-                                    onclick={() => updateStatus("dikerjakan")}
+                                    onclick={handleStartWork}
                                     class="bg-purple-600 hover:bg-purple-700"
                                 >
                                     <Wrench class="mr-2 h-4 w-4" /> Mulai Pengerjaan
@@ -1809,3 +1917,142 @@
         </DialogFooter>
     </DialogContent>
 </Dialog>
+
+<!-- Cancel Service Modal -->
+<Dialog open={showCancelModal} onOpenChange={(v) => (showCancelModal = v)}>
+    <DialogContent>
+        <DialogHeader>
+            <DialogTitle>Batalkan Service</DialogTitle>
+            <DialogDescription>
+                Mohon berikan alasan pembatalan service ini.
+            </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4 py-4">
+            <div class="space-y-2">
+                <Label
+                    >Alasan Pembatalan <span class="text-red-500">*</span
+                    ></Label
+                >
+                <Textarea
+                    placeholder="Contoh: Customer tidak setuju dengan biaya, unit sudah diperbaiki di tempat lain, dll..."
+                    bind:value={cancelReason}
+                    rows={4}
+                />
+            </div>
+            <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p class="text-sm text-amber-700">
+                    <AlertTriangle class="inline h-4 w-4 mr-1" />
+                    Pembatalan tidak dapat dibatalkan. Pastikan alasan sudah benar.
+                </p>
+            </div>
+        </div>
+        <DialogFooter>
+            <Button variant="outline" onclick={() => (showCancelModal = false)}
+                >Kembali</Button
+            >
+            <Button onclick={handleCancel} class="bg-red-600 hover:bg-red-700">
+                <XCircle class="mr-2 h-4 w-4" />
+                Konfirmasi Batalkan
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>
+
+<!-- Confirmation Dialogs -->
+
+<!-- Complete Confirm -->
+<AlertDialog.Root bind:open={showCompleteConfirm}>
+    <AlertDialog.Content>
+        <AlertDialog.Header>
+            <AlertDialog.Title>Konfirmasi Selesai</AlertDialog.Title>
+            <AlertDialog.Description>
+                Apakah Anda yakin ingin menandai service ini sebagai <strong
+                    >Selesai</strong
+                >? Pastikan semua proses perbaikan dan checking sudah tuntas.
+            </AlertDialog.Description>
+        </AlertDialog.Header>
+        <AlertDialog.Footer>
+            <AlertDialog.Cancel>Batal</AlertDialog.Cancel>
+            <AlertDialog.Action
+                onclick={processComplete}
+                disabled={isProcessingAction}
+                class="bg-green-600 hover:bg-green-700"
+            >
+                {#if isProcessingAction}Memproses...{:else}Ya, Selesai{/if}
+            </AlertDialog.Action>
+        </AlertDialog.Footer>
+    </AlertDialog.Content>
+</AlertDialog.Root>
+
+<!-- Pickup Confirm -->
+<!-- Pickup/Payment Wizard (selesai -> diambil) -->
+<ServicePickupWizard
+    bind:open={showPickupWizard}
+    {serviceId}
+    serviceNo={serviceOrder?.no || ""}
+    customer={serviceOrder?.customer}
+    device={serviceOrder?.device}
+    cost={serviceOrder?.actualCost || serviceOrder?.costEstimate || 0}
+    serviceStatus={serviceOrder?.status || ""}
+    onComplete={() => {
+        refreshServiceList.update((n) => n + 1);
+        loadData();
+    }}
+    onClose={() => {
+        showPickupWizard = false;
+    }}
+/>
+
+<!-- Delete Confirm -->
+<AlertDialog.Root bind:open={showDeleteConfirm}>
+    <AlertDialog.Content>
+        <AlertDialog.Header>
+            <AlertDialog.Title>Hapus Permanen?</AlertDialog.Title>
+            <AlertDialog.Description>
+                Tindakan ini tidak bisa dibatalkan. Riwayat service ini akan
+                hilang selamanya.
+            </AlertDialog.Description>
+        </AlertDialog.Header>
+        <AlertDialog.Footer>
+            <AlertDialog.Cancel>Batal</AlertDialog.Cancel>
+            <AlertDialog.Action
+                onclick={processDelete}
+                disabled={isProcessingAction}
+                class="bg-red-600 hover:bg-red-700"
+            >
+                {#if isProcessingAction}Menghapus...{:else}Ya, Hapus{/if}
+            </AlertDialog.Action>
+        </AlertDialog.Footer>
+    </AlertDialog.Content>
+</AlertDialog.Root>
+
+<!-- Start Work Confirm -->
+<AlertDialog.Root bind:open={showStartWorkConfirm}>
+    <AlertDialog.Content>
+        <AlertDialog.Header>
+            <AlertDialog.Title>Mulai Pengerjaan?</AlertDialog.Title>
+            <AlertDialog.Description>
+                Pastikan customer sudah menyetujui diagnosa dan estimasi biaya.
+                Status akan berubah menjadi <strong>Dikerjakan</strong>.
+            </AlertDialog.Description>
+        </AlertDialog.Header>
+        <AlertDialog.Footer>
+            <AlertDialog.Cancel>Batal</AlertDialog.Cancel>
+            <AlertDialog.Action
+                onclick={processStartWork}
+                disabled={isProcessingAction}
+                class="bg-purple-600 hover:bg-purple-700"
+            >
+                {#if isProcessingAction}Memproses...{:else}Ya, Mulai Pengerjaan{/if}
+            </AlertDialog.Action>
+        </AlertDialog.Footer>
+    </AlertDialog.Content>
+</AlertDialog.Root>
+
+<ServiceNotePrint
+    bind:open={showPrintPreview}
+    {serviceId}
+    {serviceOrder}
+    mode={printMode}
+    onClose={() => (showPrintPreview = false)}
+/>

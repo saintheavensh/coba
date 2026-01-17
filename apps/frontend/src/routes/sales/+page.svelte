@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
     import { Button } from "$lib/components/ui/button";
@@ -17,7 +17,6 @@
     import { Badge } from "$lib/components/ui/badge";
     import { Separator } from "$lib/components/ui/separator";
     import * as Tabs from "$lib/components/ui/tabs";
-    // import { ScrollArea } from "$lib/components/ui/scroll-area"; // Not installed
     import {
         Select,
         SelectContent,
@@ -35,6 +34,10 @@
     import { InventoryService } from "$lib/services/inventory.service";
     import { SalesService } from "$lib/services/sales.service";
     import { CustomersService } from "$lib/services/customers.service";
+    import {
+        PaymentService,
+        type PaymentMethod,
+    } from "$lib/services/payment.service";
     import { toast } from "svelte-sonner";
     import {
         Dialog,
@@ -66,7 +69,8 @@
     };
 
     type PaymentItem = {
-        method: "cash" | "transfer" | "qris" | "tempo";
+        methodId: string;
+        variantId?: string;
         amount: number;
         reference?: string;
     };
@@ -186,7 +190,21 @@
     let customerNameManual = $state("Walk-in Consumen"); // Default
     let notes = $state("");
 
-    let payments = $state<PaymentItem[]>([{ method: "cash", amount: 0 }]);
+    let availableMethods = $state<PaymentMethod[]>([]);
+    let payments = $state<PaymentItem[]>([]);
+
+    onMount(async () => {
+        try {
+            availableMethods = await PaymentService.getEnabledMethods();
+        } catch (e) {
+            console.error("Failed to fetch payment methods", e);
+            toast.error("Gagal memuat metode pembayaran");
+        }
+    });
+
+    function getSelectedMethod(methodId: string) {
+        return availableMethods.find((m) => m.id === methodId);
+    }
 
     function addToCart(product: any, variant: any) {
         if (variant.stock <= 0) {
@@ -240,16 +258,28 @@
         selectedCustomerId = "";
         customerNameManual = "Walk-in Consumen";
         notes = "";
-        payments = [{ method: "cash", amount: 0 }];
+        const defaultMethod =
+            availableMethods.find((m) => m.type === "cash") ||
+            availableMethods[0];
+        payments = [{ methodId: defaultMethod?.id || "", amount: 0 }];
     }
 
     function openCheckout() {
-        payments = [{ method: "cash", amount: totalAmount }]; // Default full cash
+        const defaultMethod =
+            availableMethods.find((m) => m.type === "cash") ||
+            availableMethods[0];
+        payments = [{ methodId: defaultMethod?.id || "", amount: totalAmount }]; // Default full cash
         paymentOpen = true;
     }
 
     function addPaymentRow() {
-        payments = [...payments, { method: "cash", amount: 0 }];
+        const defaultMethod =
+            availableMethods.find((m) => m.type === "cash") ||
+            availableMethods[0];
+        payments = [
+            ...payments,
+            { methodId: defaultMethod?.id || "", amount: 0 },
+        ];
     }
 
     function removePaymentRow(index: number) {
@@ -258,14 +288,23 @@
         }
     }
 
-    function handleMethodChange(index: number, newMethod: string) {
+    function handleMethodChange(index: number, newMethodId: string) {
+        const method = getSelectedMethod(newMethodId);
+
         // Strict Rule: If 1st Payment is Cash -> It must be single payment.
-        if (index === 0 && newMethod === "cash") {
-            payments = [{ method: "cash", amount: payments[0].amount }];
+        // Wait, with dynamic ID, "cash" check needs type check
+        if (index === 0 && method?.type === "cash") {
+            payments = [{ methodId: newMethodId, amount: payments[0].amount }];
             return;
         }
-        // Update method normally
-        payments[index].method = newMethod as any;
+
+        // Update method
+        payments[index].methodId = newMethodId;
+        payments[index].variantId = undefined; // Reset variant
+    }
+
+    function handleVariantChange(index: number, newVariantId: string) {
+        payments[index].variantId = newVariantId;
     }
 
     let totalAmount = $derived(
@@ -282,13 +321,30 @@
 
         // Validation
         if (remaining > 0) {
-            // Check if strict payment logic is needed. backend throws if underpaid.
-            // But allow "Tempo" to cover logic?
-            // If totalPaid < totalAmount, user must confirm "Partial" or "Unpaid"?
-            // For now, enforce Total Paid >= Amount UNLESS implicit Tempo logic (but we track tempo explicitly)
-            // So if remaining > 0, it means user hasn't allocated enough funds (even via Tempo).
-            toast.error(`Pembayaran kurang ${formatCurrency(remaining)}`);
-            return;
+            // Check if any payment is tempo (Debt)
+            // Need to check mapped methods
+            const hasTempo = payments.some((p) => {
+                const m = getSelectedMethod(p.methodId);
+                return (
+                    m?.type === "custom" &&
+                    (m.name.toLowerCase().includes("tempo") ||
+                        m.id === "PM-TEMPO")
+                );
+            });
+
+            if (!hasTempo) {
+                toast.error(`Pembayaran kurang ${formatCurrency(remaining)}`);
+                return;
+            }
+        }
+
+        // Validate Banks
+        for (const p of payments) {
+            const method = getSelectedMethod(p.methodId);
+            if (method?.type === "transfer" && !p.variantId) {
+                toast.error("Mohon pilih Bank untuk metode Transfer");
+                return;
+            }
         }
 
         const selectedCustomer = customers.find(
@@ -301,7 +357,20 @@
         const payload = {
             memberId: selectedCustomerId || undefined,
             customerName: name,
-            payments: payments,
+            payments: payments.map((p) => {
+                const method = getSelectedMethod(p.methodId);
+                const variant = method?.variants.find(
+                    (v) => v.id === p.variantId,
+                );
+                return {
+                    methodId: p.methodId,
+                    method: method?.name || "Unknown",
+                    variantId: p.variantId,
+                    variantName: variant?.name,
+                    amount: p.amount,
+                    reference: p.reference,
+                };
+            }),
             userId: "USR-ADMIN", // Should come from session
             notes: notes,
             items: cart.map((c) => ({
@@ -703,7 +772,10 @@
                                 size="sm"
                                 onclick={addPaymentRow}
                                 disabled={payments.length >= 2 ||
-                                    payments[0].method === "cash"}
+                                    (payments[0] &&
+                                        getSelectedMethod(payments[0].methodId)
+                                            ?.type === "cash") ||
+                                    availableMethods.length === 0}
                                 class="h-8 text-xs"
                             >
                                 <Plus class="h-3 w-3 mr-1" /> Tambah Split
@@ -711,84 +783,127 @@
                         </div>
 
                         <div class="space-y-3">
-                            {#each payments as payment, i}
+                            {#if availableMethods.length === 0}
                                 <div
-                                    class="p-3 border rounded-lg bg-card space-y-3"
+                                    class="text-center p-4 text-muted-foreground text-sm"
                                 >
+                                    Memuat metode pembayaran...
+                                </div>
+                            {:else}
+                                {#each payments as payment, i}
+                                    {@const selectedMethod = getSelectedMethod(
+                                        payment.methodId,
+                                    )}
                                     <div
-                                        class="flex justify-between items-center"
+                                        class="p-3 border rounded-lg bg-card space-y-3"
                                     >
-                                        <span
-                                            class="text-xs font-semibold text-muted-foreground uppercase"
-                                            >Pembayaran #{i + 1}</span
+                                        <div
+                                            class="flex justify-between items-center"
                                         >
-                                        {#if payments.length > 1}
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                class="h-6 w-6 -mr-2 text-muted-foreground hover:text-red-500"
-                                                onclick={() =>
-                                                    removePaymentRow(i)}
-                                            >
-                                                <X class="h-3 w-3" />
-                                            </Button>
-                                        {/if}
-                                    </div>
-
-                                    <div class="grid gap-2">
-                                        <Select
-                                            type="single"
-                                            value={payment.method}
-                                            onValueChange={(val) =>
-                                                handleMethodChange(i, val)}
-                                        >
-                                            <SelectTrigger>
-                                                <span>
-                                                    {#if payment.method === "cash"}
-                                                        Tunai (Cash)
-                                                    {:else if payment.method === "transfer"}
-                                                        Transfer Bank
-                                                    {:else if payment.method === "qris"}
-                                                        QRIS
-                                                    {:else if payment.method === "tempo"}
-                                                        Tempo / Kredit
-                                                    {:else}
-                                                        Pilih Metode
-                                                    {/if}
-                                                </span>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="cash"
-                                                    >Tunai (Cash)</SelectItem
-                                                >
-                                                <SelectItem value="transfer"
-                                                    >Transfer Bank</SelectItem
-                                                >
-                                                <SelectItem value="qris"
-                                                    >QRIS</SelectItem
-                                                >
-                                                {#if selectedCustomerId}
-                                                    <SelectItem value="tempo"
-                                                        >Tempo / Kredit</SelectItem
-                                                    >
-                                                {/if}
-                                            </SelectContent>
-                                        </Select>
-
-                                        <div class="relative">
                                             <span
-                                                class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium"
-                                                >Rp</span
+                                                class="text-xs font-semibold text-muted-foreground uppercase"
+                                                >Pembayaran #{i + 1}</span
                                             >
-                                            <CurrencyInput
-                                                class="pl-9 font-semibold text-right"
-                                                bind:value={payment.amount}
-                                                placeholder="0"
-                                            />
+                                            {#if payments.length > 1}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    class="h-6 w-6 -mr-2 text-muted-foreground hover:text-red-500"
+                                                    onclick={() =>
+                                                        removePaymentRow(i)}
+                                                >
+                                                    <X class="h-3 w-3" />
+                                                </Button>
+                                            {/if}
+                                        </div>
+
+                                        <div class="grid gap-2">
+                                            <Select
+                                                type="single"
+                                                value={payment.methodId}
+                                                onValueChange={(val) =>
+                                                    handleMethodChange(i, val)}
+                                            >
+                                                <SelectTrigger>
+                                                    <span>
+                                                        {getSelectedMethod(
+                                                            payment.methodId,
+                                                        )?.name ||
+                                                            "Pilih Metode"}
+                                                    </span>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {#each availableMethods as method}
+                                                        <!-- Hide Tempo if no customer selected -->
+                                                        {#if (method.type !== "custom" && method.id !== "PM-TEMPO") || selectedCustomerId}
+                                                            <SelectItem
+                                                                value={method.id}
+                                                            >
+                                                                <span
+                                                                    class="mr-2"
+                                                                    >{method.icon}</span
+                                                                >
+                                                                {method.name}
+                                                            </SelectItem>
+                                                        {/if}
+                                                    {/each}
+                                                </SelectContent>
+                                            </Select>
+
+                                            <!-- Sub-method / Variant Selector -->
+                                            <!-- Sub-method / Variant Selector -->
+                                            {#if selectedMethod?.variants && selectedMethod.variants.length > 0}
+                                                <Select
+                                                    type="single"
+                                                    value={payment.variantId}
+                                                    onValueChange={(val) =>
+                                                        handleVariantChange(
+                                                            i,
+                                                            val,
+                                                        )}
+                                                >
+                                                    <SelectTrigger
+                                                        class="bg-muted/50"
+                                                    >
+                                                        <span>
+                                                            {selectedMethod.variants.find(
+                                                                (v) =>
+                                                                    v.id ===
+                                                                    payment.variantId,
+                                                            )?.name ||
+                                                                "Pilih Bank / Opsi"}
+                                                        </span>
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {#each selectedMethod.variants as variant}
+                                                            <SelectItem
+                                                                value={variant.id}
+                                                            >
+                                                                {variant.name}
+                                                                {variant.accountNumber
+                                                                    ? `(${variant.accountNumber})`
+                                                                    : ""}
+                                                            </SelectItem>
+                                                        {/each}
+                                                    </SelectContent>
+                                                </Select>
+                                            {/if}
+
+                                            <div class="relative">
+                                                <span
+                                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium"
+                                                    >Rp</span
+                                                >
+                                                <CurrencyInput
+                                                    class="pl-9 font-semibold text-right"
+                                                    bind:value={payment.amount}
+                                                    placeholder="0"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            {/each}
+                                {/each}
+                            {/if}
                         </div>
 
                         <!-- Payment Summary Box -->

@@ -17,6 +17,16 @@
     import { createQuery } from "@tanstack/svelte-query";
     import { api } from "$lib/api";
     import { ServiceService } from "$lib/services/service.service";
+    import {
+        Dialog,
+        DialogContent,
+        DialogDescription,
+        DialogFooter,
+        DialogHeader,
+        DialogTitle,
+    } from "$lib/components/ui/dialog";
+    import { Printer, FileText } from "lucide-svelte";
+    import ServiceNotePrint from "../components/service-note-print.svelte";
 
     // Logic & State
     import { ServiceFormStore } from "./form.svelte";
@@ -101,6 +111,21 @@
     //        form.currentStep = 4;
     //    }
     // });
+
+    let showPrintSuccessModal = $state(false);
+    let createdServiceId = $state<number | string | null>(null);
+    let showPrintPreview = $state(false);
+    let printMode = $state<"receipt" | "sticker">("receipt");
+
+    function openPrintPreview(mode: "receipt" | "sticker") {
+        printMode = mode;
+        showPrintPreview = true;
+    }
+
+    function closeAllAndRedirect() {
+        showPrintSuccessModal = false;
+        goto("/service");
+    }
 </script>
 
 <div
@@ -303,7 +328,16 @@
                             <Button
                                 onclick={async () => {
                                     const res = await form.handleSubmit();
-                                    if (res?.success) goto("/service");
+                                    if (res?.success) {
+                                        // goto("/service");
+                                        // New logic: Check if we have ID to print
+                                        if (res.serviceId) {
+                                            createdServiceId = res.serviceId;
+                                            showPrintSuccessModal = true;
+                                        } else {
+                                            goto("/service");
+                                        }
+                                    }
                                 }}
                                 disabled={form.isSubmitting}
                                 size="lg"
@@ -325,4 +359,70 @@
             </div>
         </main>
     </div>
+
+    <!-- Print Success Modal -->
+    <Dialog open={showPrintSuccessModal} onOpenChange={closeAllAndRedirect}>
+        <DialogContent class="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Service Berhasil Dibuat!</DialogTitle>
+                <DialogDescription>
+                    Apakah Anda ingin mencetak dokumen untuk service ini?
+                </DialogDescription>
+            </DialogHeader>
+            <div class="grid grid-cols-2 gap-4 py-4">
+                <Button
+                    variant="outline"
+                    class="h-auto py-4 flex flex-col gap-2"
+                    onclick={() => openPrintPreview("sticker")}
+                >
+                    <Printer class="h-8 w-8 text-primary" />
+                    <span class="font-semibold">Cetak Label Unit</span>
+                    <span class="text-xs text-muted-foreground text-center"
+                        >Stiker Tempel</span
+                    >
+                </Button>
+                <Button
+                    variant="outline"
+                    class="h-auto py-4 flex flex-col gap-2"
+                    onclick={() => openPrintPreview("receipt")}
+                >
+                    <FileText class="h-8 w-8 text-primary" />
+                    <span class="font-semibold">Cetak Nota</span>
+                    <span class="text-xs text-muted-foreground text-center"
+                        >Struk Customer</span
+                    >
+                </Button>
+            </div>
+            <DialogFooter class="sm:justify-between">
+                <Button variant="ghost" onclick={closeAllAndRedirect}
+                    >Tutup & Ke Daftar</Button
+                >
+                <Button variant="default" onclick={() => goto("/service")}
+                    >Ke Detail Service</Button
+                >
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+
+    {#if createdServiceId}
+        <ServiceNotePrint
+            bind:open={showPrintPreview}
+            serviceId={createdServiceId}
+            serviceOrder={{
+                no: "LOADING...",
+                dateIn: new Date(),
+                customer: { name: form.customerName },
+                phone: { brand: form.phoneBrand, model: form.phoneModel },
+            }}
+            mode={printMode}
+            onClose={() => {
+                showPrintPreview = false;
+            }}
+        />
+        <!-- Note: We mock serviceOrder partially because create API returns ID but we have form data here. 
+             If ServiceNotePrint fetches by ID internally, that's better. 
+             Currently ServiceNotePrint accepts `serviceOrder` prop.
+             We can pass the form data as a temporary object so it renders immediately. 
+        -->
+    {/if}
 </div>
