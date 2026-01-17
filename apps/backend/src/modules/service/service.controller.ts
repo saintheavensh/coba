@@ -13,7 +13,8 @@ app.use("*", authMiddleware);
 app.get("/", async (c) => {
     try {
         const status = c.req.query("status");
-        const list = await service.getAll({ status });
+        const technicianId = c.req.query("technicianId");
+        const list = await service.getAll({ status, technicianId });
         return apiSuccess(c, list, "Services retrieved successfully");
     } catch (e) {
         return apiError(c, String(e));
@@ -24,6 +25,16 @@ app.get("/counts", async (c) => {
     try {
         const counts = await service.getCounts();
         return apiSuccess(c, counts, "Service counts retrieved");
+    } catch (e) {
+        return apiError(c, String(e));
+    }
+});
+
+app.get("/stats", async (c) => {
+    try {
+        const user = (c.get as (key: string) => any)("user");
+        const stats = await service.getDashboardStats(user?.role || 'guest', user?.id);
+        return apiSuccess(c, stats, "Dashboard stats retrieved");
     } catch (e) {
         return apiError(c, String(e));
     }

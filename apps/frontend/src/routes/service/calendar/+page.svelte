@@ -31,7 +31,7 @@
     import { toast } from "svelte-sonner";
 
     // Types
-    interface Service {
+    interface CalendarService {
         id: number;
         no: string;
         customer: { name: string; phone: string };
@@ -48,7 +48,7 @@
     let currentDate = $state(new Date());
     let selectedTechnician = $state<string>("all");
     let selectedStatus = $state<string>("all");
-    let draggedService = $state<Service | null>(null);
+    let draggedService = $state<CalendarService | null>(null);
 
     const queryClient = useQueryClient();
 
@@ -88,7 +88,8 @@
 
     // Filter services based on role and filters
     let filteredServices = $derived(() => {
-        let services = (servicesQuery.data || []) as Service[];
+        let services = (servicesQuery.data ||
+            []) as unknown as CalendarService[];
 
         // Role-based filtering: technician only sees their own services
         if (userRole === "teknisi" && userId) {
@@ -105,6 +106,20 @@
         // Apply status filter
         if (selectedStatus !== "all") {
             services = services.filter((s) => s.status === selectedStatus);
+        } else {
+            // Default: Hide non-working statuses
+            // User requested to hide: selesai, diambil, batal, antrian, konfirmasi
+            // Remaining: dicek, dikerjakan, re-konfirmasi
+            services = services.filter(
+                (s) =>
+                    ![
+                        "selesai",
+                        "diambil",
+                        "batal",
+                        "antrian",
+                        "konfirmasi",
+                    ].includes(s.status),
+            );
         }
 
         return services;
@@ -122,7 +137,8 @@
 
     // Get unique technicians for filter
     let technicians = $derived(() => {
-        const services = (servicesQuery.data || []) as Service[];
+        const services = (servicesQuery.data ||
+            []) as unknown as CalendarService[];
         const techMap = new Map<string, string>();
         services.forEach((s) => {
             if (s.technicianId && s.technicianName) {
@@ -189,7 +205,7 @@
             : getMonthDays(currentDate),
     );
 
-    function getServicesForDate(date: Date): Service[] {
+    function getServicesForDate(date: Date): CalendarService[] {
         return scheduledServices.filter((s) => {
             if (!s.estimatedCompletionDate) return false;
             const sDate = new Date(s.estimatedCompletionDate);
@@ -242,7 +258,7 @@
     }
 
     // Drag and drop handlers
-    function handleDragStart(e: DragEvent, service: Service) {
+    function handleDragStart(e: DragEvent, service: CalendarService) {
         draggedService = service;
         if (e.dataTransfer) {
             e.dataTransfer.effectAllowed = "move";
@@ -437,7 +453,10 @@
                     {#if userRole === "admin"}
                         <div class="flex items-center gap-2">
                             <Filter class="h-4 w-4 text-muted-foreground" />
-                            <Select bind:value={selectedTechnician}>
+                            <Select
+                                type="single"
+                                bind:value={selectedTechnician}
+                            >
                                 <SelectTrigger class="w-40 h-8">
                                     <span
                                         >{selectedTechnician === "all"
@@ -460,7 +479,7 @@
                                     {/each}
                                 </SelectContent>
                             </Select>
-                            <Select bind:value={selectedStatus}>
+                            <Select type="single" bind:value={selectedStatus}>
                                 <SelectTrigger class="w-32 h-8">
                                     <span
                                         >{selectedStatus === "all"

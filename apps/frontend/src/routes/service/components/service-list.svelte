@@ -1,6 +1,7 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
     import { api } from "$lib/api";
+    import { ServiceService } from "$lib/services/service.service";
     import { Button } from "$lib/components/ui/button";
     import {
         Card,
@@ -34,27 +35,22 @@
         Package,
         ChevronRight,
         MessageSquare,
+        Trash2,
+        ScanBarcode,
+        Camera, // Keep if used, though not seen in use in logic, maybe in modal
+        Upload, // Keep if used
     } from "lucide-svelte";
     import { goto } from "$app/navigation";
     import { Separator } from "$lib/components/ui/separator";
+    import { page } from "$app/stores";
+    import { refreshServiceList } from "$lib/stores/events";
+    import { toast } from "svelte-sonner";
 
-    // Data State
-    let serviceOrders = $state<any[]>([]);
-    let loading = $state(false);
-
-    // Filters
-    let searchQuery = $state("");
-    let filterStatus = $state("all");
-    let filterTechnician = $state("all");
-    let technicians = $state<{ id: string; name: string }[]>([]);
-
-    import { ServiceService } from "$lib/services/service.service";
+    // Modals
     import ReassignTechnicianModal from "./reassign-technician-modal.svelte";
     import BarcodeScannerModal from "./barcode-scanner-modal.svelte";
     import ServiceCompletionWizard from "./service-completion-wizard.svelte";
     import ServicePickupWizard from "./service-pickup-wizard.svelte";
-    import { Trash2, ScanBarcode } from "lucide-svelte";
-    import { toast } from "svelte-sonner";
     import {
         Dialog,
         DialogContent,
@@ -67,8 +63,22 @@
     import { Label } from "$lib/components/ui/label";
     import { Textarea } from "$lib/components/ui/textarea";
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
-    import { Camera, Upload } from "lucide-svelte";
 
+    // Data State
+    let serviceOrders = $state<any[]>([]);
+    let loading = $state(false);
+
+    // User State for RBAC
+    let userRole = $state("admin");
+    let userId = $state("");
+
+    // Filters
+    let searchQuery = $state("");
+    let filterStatus = $state("all");
+    let filterTechnician = $state("all");
+    let technicians = $state<{ id: string; name: string }[]>([]);
+
+    // Component States
     let showReassignModal = $state(false);
     let showScanner = $state(false);
     let selectedServiceForReassign = $state<any>(null);
@@ -82,18 +92,16 @@
     let selectedOrderForAction = $state<any>(null);
     let selectedTechnicianId = $state("");
 
-    // Diagnosis Modal Data (dicek → konfirmasi) - matches detail page
+    // Diagnosis Modal Data
     let diagnosisNotes = $state("");
     let diagnosisPossibleCauses = $state("");
     let diagnosisCostEstimate = $state(0);
 
-    // Completion Modal Data (dikerjakan → selesai)
+    // Completion Modal Data
     let completionNotes = $state("");
     let completionActualCost = $state(0);
 
-    // Pickup/Payment State managed by ServicePickupWizard now
-
-    // Rekonfirmasi Modal Data (dikerjakan → rekonfirmasi)
+    // Rekonfirmasi Modal Data
     let showReconfirmModal = $state(false);
     let reconfirmInput = $state({
         notes: "",
@@ -101,83 +109,45 @@
         cost: 0,
     });
 
-    // Confirmation State for simple transitions (antrian->dicek, konfirmasi->dikerjakan)
+    // Confirmation Dialog
     let showConfirmDialog = $state(false);
     let confirmDialogConfig = $state({
         title: "",
         description: "",
         action: async () => {},
         actionLabel: "",
-        variant: "default" as
-            | "default"
-            | "destructive"
-            | "outline"
-            | "secondary"
-            | "ghost"
-            | "link"
-            | null
-            | undefined,
+        variant: "default" as "default" | "destructive" | undefined,
     });
     let isProcessingAction = $state(false);
 
-    async function handleDelete(id: number) {
-        confirmDialogConfig = {
-            title: "Hapus Permanen?",
-            description:
-                "Apakah anda yakin ingin menghapus data service ini? Data tidak dapat dikembalikan.",
-            action: async () => {
-                await api.delete(`/service/${id}`);
-                serviceOrders = serviceOrders.filter((o) => o.id !== id);
-                toast.success("Data service berhasil dihapus");
-                loadData();
-            },
-            actionLabel: "Hapus Data",
-            variant: "destructive",
-        };
-        showConfirmDialog = true;
-    }
-
-    function handleReassignConfirm() {
-        showReassignModal = false;
-        selectedServiceForReassign = null;
-        loadData();
-    }
+    // Check if we're viewing "Semua Data" (no status filter from URL)
+    let isAllDataView = $derived(!$page.url.searchParams.get("status"));
+    let urlStatus = $derived($page.url.searchParams.get("status"));
 
     async function loadData() {
         loading = true;
         try {
-            // Build Query Params handled in ServiceService or manually here
-            // ServiceService.getAll returns all list, filtering might be needing params in getAll
-            // Let's check ServiceService definition. It was: getAll: async () => ...
-            // I should update ServiceService to accept params or just do it here for now if I don't want to change ServiceService signature yet.
-            // Actually, ServiceService.getAll() call in 3231 didn't take args.
-            // I will update ServiceService later to take args, for now let's just use it as is or modify it.
-            // Wait, previous file content showed `api('/service?${params.toString()}')`.
-            // I'll stick to `api` call directly here or update ServiceService?
-            // Better update ServiceService to be cleaner.
-
-            // For now, let's just use api directly inside here for query params, or update ServiceService?
-            // "Use services/hooks... Avoid calling APIs directly from pages". User Rule.
-            // So I MUST use ServiceService.
-
             const params: any = {};
-            if (filterStatus && filterStatus !== "all")
+            if (filterStatus && filterStatus !== "all") {
                 params.status = filterStatus;
+            }
 
-            // I need to update ServiceService first to accept params.
-            // But let's assume I will update it.
+            // Enforce Technician Isolation
+            if (userRole === "teknisi" && userId) {
+                params.technicianId = userId;
+            } else if (filterTechnician && filterTechnician !== "all") {
+                // Allow admin filtering
+                params.technicianId = filterTechnician;
+            }
+
             serviceOrders = await ServiceService.getAll(params);
         } catch (e) {
             console.error(e);
+            toast.error("Gagal memuat data service");
         } finally {
             loading = false;
         }
     }
-
-    import { page } from "$app/stores";
-
-    // Check if we're viewing "Semua Data" (no status filter from URL)
-    let isAllDataView = $derived(!$page.url.searchParams.get("status"));
 
     async function loadTechnicians() {
         try {
@@ -188,27 +158,26 @@
     }
 
     onMount(() => {
-        const status = $page.url.searchParams.get("status");
-        if (status) {
-            filterStatus = status;
-        }
-        loadData();
-        loadTechnicians();
-    });
+        try {
+            const u = JSON.parse(localStorage.getItem("user") || "{}");
+            userRole = u.role || "guest";
+            userId = u.id || "";
+            if (userRole === "teknisi") {
+                filterTechnician = userId;
+            }
+        } catch {}
 
-    import { refreshServiceList } from "$lib/stores/events";
-
-    // Track if the filter is driven by URL (sidebar navigation) or by user dropdown selection
-    let urlStatus = $derived($page.url.searchParams.get("status"));
-
-    // Only sync from URL to filterStatus when URL changes, not when filterStatus changes
-    $effect(() => {
         if (urlStatus) {
-            // URL has status param - sync to filterStatus
             filterStatus = urlStatus;
         }
-        // When URL has no status (Semua Data view), don't reset filterStatus
-        // Let user change dropdown freely
+        loadTechnicians();
+        loadData();
+    });
+
+    $effect(() => {
+        if (urlStatus) {
+            filterStatus = urlStatus;
+        }
     });
 
     $effect(() => {
@@ -216,12 +185,11 @@
     });
 
     $effect(() => {
-        // Subscribe to refresh trigger
-        const _ = $refreshServiceList; // Dependency
+        const _ = $refreshServiceList;
         loadData();
     });
 
-    // Client-side Search and Technician Filter
+    // Filtering logic (Client-side fallback)
     let filteredOrders = $derived(
         serviceOrders.filter((order) => {
             const term = searchQuery.toLowerCase();
@@ -231,9 +199,11 @@
                 order.device.brand.toLowerCase().includes(term) ||
                 (order.technician?.name || "").toLowerCase().includes(term);
 
-            // Apply technician filter only when viewing all data
+            // Technician isolation
             let matchesTechnician = true;
-            if (isAllDataView && filterTechnician !== "all") {
+            if (userRole === "teknisi") {
+                if (order.technician?.id !== userId) matchesTechnician = false;
+            } else if (isAllDataView && filterTechnician !== "all") {
                 if (filterTechnician === "unassigned") {
                     matchesTechnician = !order.technician;
                 } else {
@@ -267,7 +237,7 @@
                     label: "Tunggu Konfirmasi",
                     variant: "secondary",
                     className:
-                        "bg-yellow-100 text-yellow-700 hover:bg-yellow-100", // Custom warning style
+                        "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
                     icon: "💬",
                 };
             case "dikerjakan":
@@ -313,8 +283,15 @@
         goto(`/service/${id}`);
     }
 
-    // Get next action button configuration based on current status
     function getNextAction(status: string, hasTechnician: boolean) {
+        // RBAC: Technicians cannot Pickup (Diambil)
+        if (
+            userRole === "teknisi" &&
+            (status === "selesai" || status === "batal")
+        ) {
+            return null;
+        }
+
         switch (status) {
             case "antrian":
                 return {
@@ -357,7 +334,6 @@
         }
     }
 
-    // Handle quick action button click - now opens modals for all transitions
     async function handleQuickAction(order: any) {
         const hasTechnician = !!order.technician;
         selectedOrderForAction = order;
@@ -365,8 +341,6 @@
         switch (order.status) {
             case "antrian":
                 if (hasTechnician) {
-                    // Start checking confirmation
-                    selectedOrderForAction = order;
                     confirmDialogConfig = {
                         title: "Mulai Pengecekan?",
                         description:
@@ -383,15 +357,12 @@
                 }
                 break;
             case "dicek":
-                // Open diagnosis modal - matches detail page pattern
                 diagnosisNotes = "";
                 diagnosisPossibleCauses = "";
                 diagnosisCostEstimate = order.costEstimate || 0;
                 showDiagnosisModal = true;
                 break;
             case "konfirmasi":
-                // Start work confirmation
-                selectedOrderForAction = order;
                 confirmDialogConfig = {
                     title: "Mulai Pengerjaan?",
                     description:
@@ -404,7 +375,6 @@
                 showConfirmDialog = true;
                 break;
             case "dikerjakan":
-                // Open completion modal
                 completionNotes = "";
                 completionActualCost =
                     order.costEstimate || order.actualCost || 0;
@@ -412,7 +382,6 @@
                 break;
             case "selesai":
             case "batal":
-                // Open pickup/payment modal - handled by ServicePickupWizard now
                 showPickupModal = true;
                 break;
         }
@@ -424,12 +393,12 @@
         extraData?: any,
     ) {
         try {
-            const userId =
+            const uId =
                 JSON.parse(localStorage.getItem("user") || "{}").id ||
                 "USR-ADMIN";
             await ServiceService.updateStatus(id, {
                 status: newStatus as any,
-                userId,
+                userId: uId,
                 notes: extraData?.notes,
                 actualCost: extraData?.actualCost,
             });
@@ -471,7 +440,6 @@
             return;
         }
         try {
-            // Update diagnosis and cost estimate first - matches detail page structure
             await ServiceService.patchService(selectedOrderForAction.id, {
                 diagnosis: {
                     initial: diagnosisNotes,
@@ -479,7 +447,6 @@
                 },
                 costEstimate: diagnosisCostEstimate,
             });
-            // Then update status
             await updateOrderStatus(selectedOrderForAction.id, "konfirmasi", {
                 notes: diagnosisNotes,
             });
@@ -525,7 +492,6 @@
             return;
         }
         try {
-            // Update service with reconfirm data
             await ServiceService.patchService(selectedOrderForAction.id, {
                 reconfirmation: {
                     notes: reconfirmInput.notes,
@@ -533,7 +499,6 @@
                     newCost: reconfirmInput.cost,
                 },
             });
-            // Update status to rekonfirmasi
             await updateOrderStatus(selectedOrderForAction.id, "rekonfirmasi", {
                 notes: reconfirmInput.notes,
             });
@@ -542,6 +507,29 @@
         } catch (e) {
             toast.error("Gagal mengirim rekonfirmasi");
         }
+    }
+
+    async function handleDelete(id: number) {
+        confirmDialogConfig = {
+            title: "Hapus Permanen?",
+            description:
+                "Apakah anda yakin ingin menghapus data service ini? Data tidak dapat dikembalikan.",
+            action: async () => {
+                await api.delete(`/service/${id}`);
+                serviceOrders = serviceOrders.filter((o) => o.id !== id);
+                toast.success("Data service berhasil dihapus");
+                loadData();
+            },
+            actionLabel: "Hapus Data",
+            variant: "destructive",
+        };
+        showConfirmDialog = true;
+    }
+
+    function handleReassignConfirm() {
+        showReassignModal = false;
+        selectedServiceForReassign = null;
+        loadData();
     }
 </script>
 
@@ -609,28 +597,34 @@
                         <SelectItem value="batal">Dibatalkan</SelectItem>
                     </SelectContent>
                 </Select>
-                <Select
-                    type="single"
-                    name="technician"
-                    bind:value={filterTechnician}
-                >
-                    <SelectTrigger class="w-full sm:w-[180px]">
-                        {filterTechnician === "all"
-                            ? "Semua Teknisi"
-                            : filterTechnician === "unassigned"
-                              ? "Belum Assign"
-                              : technicians.find(
-                                    (t) => t.id === filterTechnician,
-                                )?.name || filterTechnician}
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Teknisi</SelectItem>
-                        <SelectItem value="unassigned">Belum Assign</SelectItem>
-                        {#each technicians as tech}
-                            <SelectItem value={tech.id}>{tech.name}</SelectItem>
-                        {/each}
-                    </SelectContent>
-                </Select>
+                {#if userRole !== "teknisi"}
+                    <Select
+                        type="single"
+                        name="technician"
+                        bind:value={filterTechnician}
+                    >
+                        <SelectTrigger class="w-full sm:w-[180px]">
+                            {filterTechnician === "all"
+                                ? "Semua Teknisi"
+                                : filterTechnician === "unassigned"
+                                  ? "Belum Assign"
+                                  : technicians.find(
+                                        (t) => t.id === filterTechnician,
+                                    )?.name || filterTechnician}
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Semua Teknisi</SelectItem>
+                            <SelectItem value="unassigned"
+                                >Belum Assign</SelectItem
+                            >
+                            {#each technicians as tech}
+                                <SelectItem value={tech.id}
+                                    >{tech.name}</SelectItem
+                                >
+                            {/each}
+                        </SelectContent>
+                    </Select>
+                {/if}
             {/if}
         </div>
 
@@ -667,9 +661,7 @@
                                 {statusInfo.label}
                             </Badge>
                         </div>
-
                         <Separator />
-
                         <div class="grid grid-cols-2 gap-2 text-sm">
                             <div>
                                 <div class="text-muted-foreground text-xs">
@@ -698,7 +690,6 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="flex justify-between items-center pt-2">
                             <div class="text-sm">
                                 <span
@@ -850,19 +841,21 @@
                                         >
                                             <MessageSquare
                                                 class="h-3 w-3 mr-1"
-                                            />
-                                            Rekon
+                                            /> Rekon
                                         </Button>
                                     {/if}
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                        onclick={() => handleDelete(order.id)}
-                                        title="Hapus"
-                                    >
-                                        <Trash2 class="h-4 w-4" />
-                                    </Button>
+                                    {#if userRole !== "teknisi"}
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            class="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                            onclick={() =>
+                                                handleDelete(order.id)}
+                                            title="Hapus"
+                                        >
+                                            <Trash2 class="h-4 w-4" />
+                                        </Button>
+                                    {/if}
                                     <Button
                                         variant="ghost"
                                         size="icon"
@@ -898,17 +891,14 @@
     onScan={(code) => {
         searchQuery = code;
         showScanner = false;
-        // Optional: Auto-trigger search/open logic similar to Enter key
-        // Need to wait for reactivity if using filteredOrders
         setTimeout(() => {
             if (filteredOrders.length === 1) {
                 viewServiceDetail(filteredOrders[0].id);
-                // searchQuery = '';
             }
         }, 100);
     }}
 />
-<!-- Assign Technician & Start Modal -->
+
 <Dialog open={showAssignModal} onOpenChange={(v) => (showAssignModal = v)}>
     <DialogContent>
         <DialogHeader>
@@ -966,14 +956,12 @@
                 onclick={handleAssignAndStart}
                 class="bg-blue-600 hover:bg-blue-700"
             >
-                <Play class="mr-2 h-4 w-4" />
-                Assign & Mulai Cek
+                <Play class="mr-2 h-4 w-4" /> Assign & Mulai Cek
             </Button>
         </DialogFooter>
     </DialogContent>
 </Dialog>
 
-<!-- Pickup/Payment Wizard (selesai -> diambil) -->
 {#if selectedOrderForAction}
     <ServicePickupWizard
         bind:open={showPickupModal}
@@ -997,7 +985,6 @@
     />
 {/if}
 
-<!-- Diagnosis Modal (dicek -> konfirmasi) - Matches detail page pattern -->
 <Dialog
     open={showDiagnosisModal}
     onOpenChange={(v) => (showDiagnosisModal = v)}
@@ -1005,14 +992,13 @@
     <DialogContent class="sm:max-w-[500px]">
         <DialogHeader>
             <DialogTitle>Input Hasil Diagnosa</DialogTitle>
-            <DialogDescription>
-                Input hasil pengecekan dan estimasi biaya untuk dikonfirmasi ke
-                customer.
-            </DialogDescription>
+            <DialogDescription
+                >Input hasil pengecekan dan estimasi biaya untuk dikonfirmasi ke
+                customer.</DialogDescription
+            >
         </DialogHeader>
         <div class="space-y-4 py-4">
             {#if selectedOrderForAction}
-                <!-- Unit Verification Info -->
                 <div
                     class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm space-y-1"
                 >
@@ -1088,14 +1074,12 @@
                 onclick={handleSubmitDiagnosis}
                 class="bg-yellow-600 hover:bg-yellow-700"
             >
-                <ChevronRight class="mr-2 h-4 w-4" />
-                Simpan & Konfirmasi
+                <ChevronRight class="mr-2 h-4 w-4" /> Simpan & Konfirmasi
             </Button>
         </DialogFooter>
     </DialogContent>
 </Dialog>
 
-<!-- Completion Wizard (dikerjakan -> selesai) - Reuses detail page component -->
 {#if selectedOrderForAction}
     <ServiceCompletionWizard
         bind:open={showCompletionModal}
@@ -1120,7 +1104,6 @@
     />
 {/if}
 
-<!-- Rekonfirmasi Modal (dikerjakan -> rekonfirmasi) -->
 <Dialog
     open={showReconfirmModal}
     onOpenChange={(v) => (showReconfirmModal = v)}
@@ -1128,14 +1111,13 @@
     <DialogContent class="sm:max-w-[500px]">
         <DialogHeader>
             <DialogTitle>Rekonfirmasi ke Customer</DialogTitle>
-            <DialogDescription>
-                Kirim ulang konfirmasi ke customer jika ada perubahan atau
-                masalah baru.
-            </DialogDescription>
+            <DialogDescription
+                >Kirim ulang konfirmasi ke customer jika ada perubahan atau
+                masalah baru.</DialogDescription
+            >
         </DialogHeader>
         <div class="space-y-4 py-4">
             {#if selectedOrderForAction}
-                <!-- Unit Verification Info -->
                 <div
                     class="p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm space-y-1"
                 >
@@ -1206,21 +1188,19 @@
                 onclick={handleSubmitReconfirm}
                 class="bg-orange-600 hover:bg-orange-700"
             >
-                <MessageSquare class="mr-2 h-4 w-4" />
-                Kirim Rekonfirmasi
+                <MessageSquare class="mr-2 h-4 w-4" /> Kirim Rekonfirmasi
             </Button>
         </DialogFooter>
     </DialogContent>
 </Dialog>
 
-<!-- Generic Confirmation Dialog -->
 <AlertDialog.Root bind:open={showConfirmDialog}>
     <AlertDialog.Content>
         <AlertDialog.Header>
             <AlertDialog.Title>{confirmDialogConfig.title}</AlertDialog.Title>
-            <AlertDialog.Description>
-                {confirmDialogConfig.description}
-            </AlertDialog.Description>
+            <AlertDialog.Description
+                >{confirmDialogConfig.description}</AlertDialog.Description
+            >
         </AlertDialog.Header>
         <AlertDialog.Footer>
             <AlertDialog.Cancel>Batal</AlertDialog.Cancel>
@@ -1246,5 +1226,5 @@
 </AlertDialog.Root>
 
 <style>
-    /* ... */
+    /* Styling for the component */
 </style>
