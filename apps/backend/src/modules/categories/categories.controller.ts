@@ -9,7 +9,8 @@ const service = new CategoriesService();
 
 const categorySchema = z.object({
     name: z.string().min(1),
-    description: z.string().optional()
+    description: z.string().optional(),
+    parentId: z.string().optional() // New field
 });
 
 app.get("/", async (c) => {

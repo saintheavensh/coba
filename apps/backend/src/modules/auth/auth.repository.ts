@@ -5,7 +5,10 @@ import { eq } from "drizzle-orm";
 export class AuthRepository {
     async findByUsername(username: string) {
         return await db.query.users.findFirst({
-            where: eq(users.username, username)
+            where: eq(users.username, username),
+            with: {
+                role: true
+            }
         });
     }
 

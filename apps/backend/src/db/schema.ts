@@ -1,15 +1,22 @@
 import { sql, relations } from "drizzle-orm";
-import { text, integer, boolean, timestamp, serial, pgTable, json } from "drizzle-orm/pg-core";
+import { text, integer, boolean, timestamp, serial, pgTable, json, foreignKey } from "drizzle-orm/pg-core";
 
 // ============================================
 // USERS & AUTH
 // ============================================
 
+export const roles = pgTable("roles", {
+    id: text("id").primaryKey(), // "admin", "teknisi", "kasir"
+    name: text("name").notNull(), // "Administrator", "Technician", "Cashier"
+    permissions: json("permissions").$type<string[]>().notNull().default([]), // ["service.create", "service.read"]
+    createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const users = pgTable("users", {
     id: text("id").primaryKey(), // UUID
     username: text("username").notNull().unique(),
     password: text("password").notNull(), // Hashed
-    role: text("role", { enum: ["admin", "teknisi", "kasir"] }).notNull().default("teknisi"),
+    role: text("role").notNull().references(() => roles.id).default("teknisi"),
     name: text("name").notNull(),
     image: text("image"), // Profile photo URL (optional)
     isActive: boolean("is_active").default(true),
@@ -24,8 +31,15 @@ export const categories = pgTable("categories", {
     id: text("id").primaryKey(), // UUID
     name: text("name").notNull(),
     description: text("description"),
+    parentId: text("parent_id"), // Self-reference added in relations, or here if using AnyPgColumn trick
     createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+    parentReference: foreignKey({
+        columns: [table.parentId],
+        foreignColumns: [table.id],
+        name: "categories_parent_id_fkey"
+    })
+}));
 
 export const suppliers = pgTable("suppliers", {
     id: text("id").primaryKey(), // SUP-XXX
@@ -210,8 +224,16 @@ export const settings = pgTable("settings", {
 // RELATIONS
 // ============================================
 
-export const categoriesRelations = relations(categories, ({ many }) => ({
+export const categoriesRelations = relations(categories, ({ one, many }) => ({
     products: many(products),
+    parent: one(categories, {
+        fields: [categories.parentId],
+        references: [categories.id],
+        relationName: "category_hierarchy"
+    }),
+    children: many(categories, {
+        relationName: "category_hierarchy"
+    })
 }));
 
 export const productsRelations = relations(products, ({ one, many }) => ({
@@ -379,7 +401,15 @@ export const servicesRelations = relations(services, ({ one }) => ({
     }),
 }));
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const rolesRelations = relations(roles, ({ many }) => ({
+    users: many(users),
+}));
+
+export const usersRelations = relations(users, ({ many, one }) => ({
+    role: one(roles, {
+        fields: [users.role],
+        references: [roles.id],
+    }),
     services: many(services),
     sales: many(sales),
     purchases: many(purchases),

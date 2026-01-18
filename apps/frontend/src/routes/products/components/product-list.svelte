@@ -131,6 +131,32 @@
     );
 
     let categories = $derived(categoriesQuery.data || []);
+
+    // Recursive helper to flatten tree with indentation
+    function buildCategoryHierarchy(
+        cats: any[],
+        parentId: string | null = null,
+        level = 0,
+    ): { id: string; name: string; level: number }[] {
+        const result: { id: string; name: string; level: number }[] = [];
+        const children = cats
+            .filter((c) => (c.parentId || null) === parentId) // Handle undefined/null/empty string
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        for (const child of children) {
+            result.push({
+                id: child.id,
+                name: child.name, // Original name
+                level: level,
+            });
+            const subResult = buildCategoryHierarchy(cats, child.id, level + 1);
+            result.push(...subResult);
+        }
+        return result;
+    }
+
+    let hierarchicalCategories = $derived(buildCategoryHierarchy(categories));
+
     let loading = $derived(
         productsQuery.isLoading || categoriesQuery.isLoading,
     );
@@ -180,7 +206,12 @@
         }
 
         const cat = categories.find((c: any) => c.id === selectedCategory);
-        const prefix = cat ? cat.name.substring(0, 3).toUpperCase() : "GEN";
+        const prefix = cat
+            ? cat.name
+                  .replace(/[^a-zA-Z]/g, "")
+                  .substring(0, 3)
+                  .toUpperCase()
+            : "GEN";
         const random = Math.floor(1000 + Math.random() * 9000); // 4 digit random
         newCode = `${prefix}${random}`;
     }
@@ -386,10 +417,15 @@
                                     <option value=""
                                         >-- Pilih Kategori --</option
                                     >
-                                    {#each categories as cat}
-                                        <option value={cat.id}
-                                            >{cat.name}</option
-                                        >
+                                    {#each hierarchicalCategories as cat}
+                                        <option value={cat.id}>
+                                            {@html "&nbsp;".repeat(
+                                                cat.level * 4,
+                                            )}
+                                            {cat.level > 0
+                                                ? "↳ "
+                                                : ""}{cat.name}
+                                        </option>
                                     {/each}
                                 </select>
                             {/if}

@@ -56,6 +56,12 @@ export function apiError(
         errorDetails = error;
     }
 
+    if (status === 500) {
+        const timestamp = new Date().toISOString();
+        console.error(`[API_ERROR] ${timestamp} - ${message}`, error);
+        // Here you could also stream to a log file or external service (Sentry, etc.)
+    }
+
     return c.json({
         success: false,
         message,

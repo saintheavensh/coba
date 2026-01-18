@@ -343,14 +343,11 @@ export class ServiceService {
                 const preset = settings.warrantyPresets.find(p => p.label === label);
                 if (preset) return preset.days;
 
-                // Keep minimal fallback mapping for transition/safety
-                if (label === "1 Minggu") return 7;
-                if (label === "2 Minggu") return 14;
-                if (label === "1 Bulan") return 30;
-                if (label === "3 Bulan") return 90;
-                if (label === "6 Bulan") return 180;
-                if (label === "1 Tahun") return 365;
-                if (label === "Tanpa Garansi") return 0;
+                // Fallback: Try to parse if it's "X Hari/Minggu/Bulan" format?
+                // Or just default to 0 to encourage using presets.
+                // Re-using default warranty days from settings as fallback might be safer than 0?
+                // No, consistency implies if label not match, 0 is safer than random days.
+                console.warn(`Warranty label '${label}' not found in presets.`);
             } catch (e) {
                 console.error("Error fetching warranty settings", e);
             }

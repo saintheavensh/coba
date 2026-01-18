@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { sales, saleItems, productBatches, services, purchases, users } from "../../db/schema";
+import { sales, saleItems, productBatches, services, purchases, users, activityLogs } from "../../db/schema";
 import { sql, eq, gte, lte, and, count, sum, desc } from "drizzle-orm";
 
 export interface ReportFilters {
@@ -510,6 +510,62 @@ export class ReportsService {
 
         return report;
     }
+    /**
+     * Get system activity logs
+     */
+    async getActivityLogs(filters: ReportFilters & { userId?: string; action?: string; entityType?: string; limit?: number } = {}) {
+        let conditions = [];
+
+        if (filters.startDate) {
+            const start = new Date(filters.startDate);
+            conditions.push(gte(activityLogs.createdAt, start));
+        }
+        if (filters.endDate) {
+            const end = new Date(filters.endDate);
+            end.setHours(23, 59, 59, 999);
+            conditions.push(lte(activityLogs.createdAt, end));
+        }
+        if (filters.userId && filters.userId !== 'all') {
+            conditions.push(eq(activityLogs.userId, filters.userId));
+        }
+        if (filters.action && filters.action !== 'all') {
+            conditions.push(eq(activityLogs.action, filters.action as any));
+        }
+        if (filters.entityType && filters.entityType !== 'all') {
+            conditions.push(eq(activityLogs.entityType, filters.entityType));
+        }
+
+        const logs = conditions.length > 0
+            ? await db.query.activityLogs.findMany({
+                where: and(...conditions),
+                with: {
+                    user: true
+                },
+                orderBy: [desc(activityLogs.createdAt)],
+                limit: filters.limit || 100
+            })
+            : await db.query.activityLogs.findMany({
+                with: {
+                    user: true
+                },
+                orderBy: [desc(activityLogs.createdAt)],
+                limit: filters.limit || 100
+            });
+
+        return logs.map(log => ({
+            id: log.id,
+            timestamp: log.createdAt,
+            user: log.user ? { id: log.user.id, name: log.user.name, role: log.user.role } : { id: 'SYSTEM', name: 'System', role: 'system' },
+            action: log.action,
+            entityType: log.entityType,
+            entityId: log.entityId,
+            description: log.description,
+            details: {
+                oldValue: log.oldValue ? JSON.parse(log.oldValue as string) : null,
+                newValue: log.newValue ? JSON.parse(log.newValue as string) : null
+            }
+        }));
+    }
 }
 
 export interface PartsUsageReport {
@@ -522,6 +578,20 @@ export interface PartsUsageReport {
     qty: number;
     price: number;
     subtotal: number;
+}
+
+export interface ActivityLogReport {
+    id: number;
+    timestamp: Date | null;
+    user: { id: string; name: string; role: string };
+    action: string;
+    entityType: string;
+    entityId: string;
+    description: string | null;
+    details: {
+        oldValue: any;
+        newValue: any;
+    };
 }
 
 // Additional interfaces

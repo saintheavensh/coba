@@ -120,6 +120,27 @@ app.get("/parts", async (c) => {
     }
 });
 
+/**
+ * GET /reports/logs
+ * Get activity logs
+ */
+app.get("/logs", async (c) => {
+    try {
+        const { startDate, endDate, userId, action, entityType, limit } = c.req.query();
+        const logs = await reportsService.getActivityLogs({
+            startDate,
+            endDate,
+            userId,
+            action,
+            entityType,
+            limit: limit ? parseInt(limit) : undefined
+        });
+        return apiSuccess(c, logs, "Activity logs retrieved successfully");
+    } catch (e) {
+        return apiError(c, e, "Failed to get activity logs");
+    }
+});
+
 export default app;
 
 

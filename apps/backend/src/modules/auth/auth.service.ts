@@ -26,10 +26,20 @@ export class AuthService {
         }
 
         // Generate Token
+        // Since we fetch with relation, user.role is now an object { id, name, permissions }
+        // BUT Typescript might infer it as string if schema definition is strict.
+        // Drizzle relational queries return the object if 'with' is used.
+        // We cast as any to access permissions safely or rely on drizzle inference.
+
+        const roleData = user.role as any;
+        // Fallback permissions just in case
+        const permissions = roleData?.permissions || [];
+
         const token = await sign({
             id: user.id,
             username: user.username,
-            role: user.role,
+            role: typeof user.role === 'string' ? user.role : (user.role as any).id, // Keep role ID as string in token for compat
+            permissions: permissions, // Add permissions array
             exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 // 24 hours
         }, JWT_SECRET);
 
@@ -38,7 +48,8 @@ export class AuthService {
             user: {
                 id: user.id,
                 name: user.name,
-                role: user.role
+                role: typeof user.role === 'string' ? user.role : (user.role as any).id,
+                permissions: permissions
             }
         };
     }
