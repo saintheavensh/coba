@@ -17,6 +17,7 @@ export class ServiceFormStore {
     // Step 2: Device Data
     phoneBrand = $state("");
     phoneModel = $state("");
+    selectedDeviceId = $state<string | null>(null);
     phoneStatus = $state("nyala");
     // isDead is derived now
     isDead = $derived(this.phoneStatus === "mati_total");
@@ -385,6 +386,7 @@ export class ServiceFormStore {
         // Reset Step 2 (Device)
         this.phoneBrand = "";
         this.phoneModel = "";
+        this.selectedDeviceId = null;
         this.phoneStatus = "nyala";
         // this.isDead is derived, auto updates
         this.imei = "";

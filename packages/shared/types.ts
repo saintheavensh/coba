@@ -39,6 +39,15 @@ export interface Category {
     createdAt?: Date | null;
 }
 
+export interface Device {
+    id: string;
+    brand: string;
+    model: string;
+    code?: string | null;
+    image?: string | null;
+    createdAt?: Date | null;
+}
+
 export interface Supplier {
     id: string;
     name: string;
@@ -79,6 +88,7 @@ export interface Product {
     // Relations (optional, populated by queries)
     category?: Category | null;
     batches?: ProductBatch[];
+    price?: number; // Calculated price (e.g. from batch)
 }
 
 export interface ProductBatch {

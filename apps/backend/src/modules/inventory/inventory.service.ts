@@ -11,8 +11,8 @@ export class InventoryService {
         this.repo = new InventoryRepository();
     }
 
-    async getAllProducts() {
-        return await this.repo.findAll();
+    async getAllProducts(deviceId?: string) {
+        return await this.repo.findAll(deviceId);
     }
 
     async getProductById(id: string) {

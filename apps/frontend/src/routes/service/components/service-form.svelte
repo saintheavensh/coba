@@ -56,6 +56,12 @@
     import { api, API_URL } from "$lib/api";
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import { Plus, Minus, Trash2 } from "lucide-svelte";
+    import { createQuery } from "@tanstack/svelte-query";
+    import * as Command from "$lib/components/ui/command";
+    import * as Popover from "$lib/components/ui/popover";
+    import { Switch } from "$lib/components/ui/switch";
+    import { Check, ChevronsUpDown } from "lucide-svelte";
+    import { cn } from "$lib/utils";
 
     // Form state
     let currentStep = $state(1);
@@ -105,14 +111,35 @@
     // Walk-in Sparepart Logic
     let sparepartSource = $state("none");
     let selectedParts = $state<any[]>([]);
-    const mockInventory = [
-        { id: 1, name: "LCD Samsung A50 Original", stock: 5, price: 450000 },
-        { id: 2, name: "Baterai Xiaomi BN45", stock: 10, price: 120000 },
-        { id: 3, name: "Connector Cas Type-C", stock: 50, price: 15000 },
-        { id: 4, name: "Tempered Glass Universal", stock: 100, price: 10000 },
-    ];
+
+    // Inventory & Device Compatibility
+    let selectedDeviceId = $state<string | null>(null);
+    let deviceSearchOpen = $state(false);
+
     let showInventoryModal = $state(false);
     let searchTerm = $state("");
+    let filterCompatible = $state(true); // Default active if device selected
+
+    // Queries
+    const devicesQuery = createQuery(() => ({
+        queryKey: ["devices"],
+        queryFn: () => InventoryService.getDevices(),
+    }));
+
+    const inventoryQuery = createQuery(() => ({
+        queryKey: [
+            "products",
+            searchTerm,
+            filterCompatible && selectedDeviceId ? selectedDeviceId : null,
+        ],
+        queryFn: () =>
+            InventoryService.getProducts(
+                filterCompatible && selectedDeviceId
+                    ? selectedDeviceId
+                    : undefined,
+            ),
+        enabled: showInventoryModal,
+    }));
 
     // External Part Data
     let extPartName = $state("");
@@ -229,6 +256,7 @@
         customerAddress = "";
         phoneBrand = "";
         phoneModel = "";
+        selectedDeviceId = null;
         phoneStatus = "nyala";
         imei = "";
         physicalConditions = [];
@@ -256,6 +284,8 @@
         isPriceRange = false;
         minPrice = "";
         maxPrice = "";
+        searchTerm = "";
+        filterCompatible = true;
     }
 
     // Local CreateServiceInput type (matches ServiceService.create signature)
@@ -587,31 +617,97 @@
                                         >*</span
                                     ></Label
                                 >
-                                <Select type="single" bind:value={phoneBrand}>
-                                    <SelectTrigger
-                                        >{phoneBrand ||
-                                            "Pilih Brand"}</SelectTrigger
-                                    >
-                                    <SelectContent>
-                                        {#each ["Samsung", "Apple / iPhone", "Xiaomi", "Oppo", "Vivo", "Realme", "Infinix", "Asus", "Google", "Lainnya"] as brand}
-                                            <SelectItem value={brand}
-                                                >{brand}</SelectItem
-                                            >
-                                        {/each}
-                                    </SelectContent>
-                                </Select>
+                                <Input
+                                    bind:value={phoneBrand}
+                                    placeholder="Samsung"
+                                />
                             </div>
-                            <div class="space-y-2">
-                                <Label for="model"
+                            <div class="space-y-2 flex flex-col">
+                                <Label
                                     >Model/Tipe <span class="text-red-500"
                                         >*</span
                                     ></Label
                                 >
-                                <Input
-                                    id="model"
-                                    bind:value={phoneModel}
-                                    placeholder="Galaxy S24"
-                                />
+                                <div class="flex gap-2">
+                                    <Input
+                                        bind:value={phoneModel}
+                                        placeholder="Galaxy S24"
+                                        class="flex-1"
+                                    />
+
+                                    <Popover.Root bind:open={deviceSearchOpen}>
+                                        <Popover.Trigger
+                                            class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3 ml-2"
+                                            title="Cari di Database"
+                                        >
+                                            <Search class="mr-2 h-4 w-4" /> Cari
+                                        </Popover.Trigger>
+                                        <Popover.Content
+                                            class="p-0 w-[300px]"
+                                            align="end"
+                                        >
+                                            <Command.Root>
+                                                <Command.Input
+                                                    placeholder="Cari model..."
+                                                />
+                                                <Command.List>
+                                                    <Command.Empty
+                                                        >Tidak ditemukan.</Command.Empty
+                                                    >
+                                                    <Command.Group
+                                                        heading="Devices"
+                                                        class="max-h-[200px] overflow-auto"
+                                                    >
+                                                        {#each devicesQuery.data || [] as device}
+                                                            <Command.Item
+                                                                value={`${device.brand} ${device.model}`}
+                                                                onSelect={() => {
+                                                                    phoneBrand =
+                                                                        device.brand;
+                                                                    phoneModel =
+                                                                        device.model;
+                                                                    selectedDeviceId =
+                                                                        device.id;
+                                                                    deviceSearchOpen = false;
+                                                                    toast.success(
+                                                                        `Device dipilih: ${device.brand} ${device.model}`,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <Check
+                                                                    class={cn(
+                                                                        "mr-2 h-4 w-4",
+                                                                        selectedDeviceId ===
+                                                                            device.id
+                                                                            ? "opacity-100"
+                                                                            : "opacity-0",
+                                                                    )}
+                                                                />
+                                                                {device.brand}
+                                                                {device.model}
+                                                            </Command.Item>
+                                                        {/each}
+                                                    </Command.Group>
+                                                </Command.List>
+                                            </Command.Root>
+                                        </Popover.Content>
+                                    </Popover.Root>
+                                </div>
+                                {#if selectedDeviceId}
+                                    <p
+                                        class="text-xs text-green-600 flex items-center"
+                                    >
+                                        <CheckCircle class="h-3 w-3 mr-1" /> Terhubung
+                                        dengan database
+                                        <Button
+                                            variant="link"
+                                            class="h-auto p-0 ml-2 text-xs text-muted-foreground"
+                                            onclick={() =>
+                                                (selectedDeviceId = null)}
+                                            >(Reset)</Button
+                                        >
+                                    </p>
+                                {/if}
                             </div>
                         </div>
 
@@ -1312,26 +1408,90 @@
     </CardFooter>
 </Card>
 
-<!-- Inventory Search Modal (Mock) -->
+<!-- Inventory Search Modal (Real) -->
 <Dialog bind:open={showInventoryModal}>
-    <DialogContent class="sm:max-w-[425px]">
-        <DialogHeader><DialogTitle>Pilih Sparepart</DialogTitle></DialogHeader>
+    <DialogContent class="sm:max-w-[500px]">
+        <DialogHeader>
+            <DialogTitle>Pilih Sparepart / Produk</DialogTitle>
+            <DialogDescription>
+                Pilih sparepart dari inventory.
+            </DialogDescription>
+        </DialogHeader>
         <div class="py-4 space-y-4">
-            <Input placeholder="Cari nama barang..." bind:value={searchTerm} />
-            <div class="border rounded-md max-h-[200px] overflow-y-auto">
-                {#each mockInventory.filter((i) => i.name
-                        .toLowerCase()
-                        .includes(searchTerm.toLowerCase())) as item}
-                    <button
-                        class="w-full text-left p-3 hover:bg-muted text-sm flex justify-between border-b"
-                        onclick={() => addInventoryPart(item)}
-                    >
-                        <span>{item.name}</span>
-                        <span class="font-bold"
-                            >Rp {item.price.toLocaleString()}</span
+            <div class="flex items-center gap-2">
+                <Input
+                    placeholder="Cari nama barang..."
+                    bind:value={searchTerm}
+                    class="flex-1"
+                />
+            </div>
+
+            {#if selectedDeviceId}
+                <div
+                    class="flex items-center space-x-2 border p-2 rounded bg-muted/20"
+                >
+                    <Switch
+                        id="filter-compat"
+                        bind:checked={filterCompatible}
+                    />
+                    <Label for="filter-compat" class="text-xs cursor-pointer">
+                        Hanya tampilkan yang kompatibel dengan <b
+                            >{phoneBrand} {phoneModel}</b
                         >
-                    </button>
-                {/each}
+                    </Label>
+                </div>
+            {/if}
+
+            <div class="border rounded-md h-[300px] overflow-y-auto">
+                {#if inventoryQuery.isLoading}
+                    <div
+                        class="flex items-center justify-center h-full text-muted-foreground"
+                    >
+                        Memuat data...
+                    </div>
+                {:else if (inventoryQuery.data || []).length === 0}
+                    <div
+                        class="flex flex-col items-center justify-center h-full text-muted-foreground p-4 text-center"
+                    >
+                        <Package class="h-8 w-8 mb-2 opacity-50" />
+                        <p>Tidak ada produk ditemukan.</p>
+                        {#if filterCompatible && selectedDeviceId}
+                            <p class="text-xs mt-1 text-orange-600">
+                                Coba matikan filter kompatibilitas.
+                            </p>
+                        {/if}
+                    </div>
+                {:else}
+                    {#each (inventoryQuery.data || []).filter((i) => !searchTerm || i.name
+                                .toLowerCase()
+                                .includes(searchTerm.toLowerCase())) as item}
+                        <button
+                            class="w-full text-left p-3 hover:bg-muted text-sm flex justify-between border-b items-center group transition-colors"
+                            onclick={() => addInventoryPart(item)}
+                        >
+                            <div class="flex flex-col">
+                                <span class="font-medium">{item.name}</span>
+                                <span class="text-xs text-muted-foreground"
+                                    >Stok: {item.stock}</span
+                                >
+                            </div>
+                            <div class="text-right">
+                                <div class="font-bold text-primary">
+                                    Rp {item.price
+                                        ? item.price.toLocaleString()
+                                        : "0"}
+                                </div>
+                                <!-- Assuming product has price/HPP, usually 'sellPrice' or just 'price' need to serve. Inventory returns Product. Product usually has 'sellPrice' -->
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    class="h-6 text-xs opacity-0 group-hover:opacity-100"
+                                    >Pilih</Button
+                                >
+                            </div>
+                        </button>
+                    {/each}
+                {/if}
             </div>
         </div>
     </DialogContent>

@@ -23,6 +23,7 @@
     Plus,
     Shield,
     List,
+    Smartphone,
   } from "lucide-svelte";
   import { cn } from "$lib/utils";
   import { slide } from "svelte/transition";
@@ -59,6 +60,11 @@
           title: "Produk",
           href: "/products",
           icon: Store,
+        },
+        {
+          title: "Devices",
+          href: "/devices",
+          icon: Smartphone,
         },
         {
           title: "Kategori",

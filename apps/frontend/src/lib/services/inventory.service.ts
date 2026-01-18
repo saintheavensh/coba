@@ -1,5 +1,13 @@
 import { api } from "../api";
-import type { Product, Category, Supplier, ApiResponse } from "@repo/shared";
+import type { Product, Category, Supplier, ApiResponse, Device } from "@repo/shared";
+
+/** Input type for creating a device */
+export interface CreateDeviceInput {
+    brand: string;
+    model: string;
+    code?: string;
+    image?: string;
+}
 
 /** Input type for creating a product */
 interface CreateProductInput {
@@ -8,6 +16,7 @@ interface CreateProductInput {
     categoryId?: string;
     image?: string;
     minStock?: number;
+    compatibility?: string[];
 }
 
 /** Input type for creating a category */
@@ -27,8 +36,8 @@ interface CreateSupplierInput {
 
 export const InventoryService = {
     // Products
-    getProducts: async (): Promise<Product[]> => {
-        const res = await api.get<ApiResponse<Product[]>>("/inventory");
+    getProducts: async (deviceId?: string): Promise<Product[]> => {
+        const res = await api.get<ApiResponse<Product[]>>("/inventory", { params: { deviceId } });
         return res.data?.data ?? [];
     },
     getProduct: async (id: string): Promise<Product> => {
@@ -66,6 +75,23 @@ export const InventoryService = {
     },
     deleteCategory: async (id: string): Promise<void> => {
         await api.delete(`/categories/${id}`);
+    },
+
+    // Devices
+    getDevices: async (search?: string): Promise<Device[]> => {
+        const res = await api.get<ApiResponse<Device[]>>("/devices", { params: { search } });
+        return res.data?.data ?? [];
+    },
+    createDevice: async (data: CreateDeviceInput): Promise<Device> => {
+        const res = await api.post<ApiResponse<Device>>("/devices", data);
+        return res.data?.data!;
+    },
+    updateDevice: async (id: string, data: Partial<CreateDeviceInput>): Promise<Device> => {
+        const res = await api.patch<ApiResponse<Device>>(`/devices/${id}`, data);
+        return res.data?.data!;
+    },
+    deleteDevice: async (id: string): Promise<void> => {
+        await api.delete(`/devices/${id}`);
     },
 
     // Suppliers

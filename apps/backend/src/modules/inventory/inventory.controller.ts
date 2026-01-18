@@ -16,7 +16,8 @@ app.get("/suppliers/:id/variants", async (c) => {
 
 app.get("/", async (c) => {
     try {
-        const list = await service.getAllProducts();
+        const deviceId = c.req.query("deviceId");
+        const list = await service.getAllProducts(deviceId);
         return apiSuccess(c, list, "Products retrieved successfully");
     } catch (e) {
         return apiError(c, e, "Failed to retrieve products", 500);

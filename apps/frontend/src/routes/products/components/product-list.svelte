@@ -78,6 +78,11 @@
         queryFn: InventoryService.getCategories,
     }));
 
+    const devicesQuery = createQuery(() => ({
+        queryKey: ["devices"],
+        queryFn: () => InventoryService.getDevices(),
+    }));
+
     // Mutations (v6: options function)
     const createProductMutation = createMutation(() => ({
         mutationFn: InventoryService.createProduct,
@@ -171,6 +176,7 @@
     let newCode = $state(""); // Universal Code
     let selectedCategory = $state(""); // ID
     let newMinStock = $state(5);
+    let selectedCompatibility = $state<string[]>([]); // Device IDs
 
     let editingId = $state<string | null>(null);
     let newImage = $state("");
@@ -196,6 +202,7 @@
         selectedCategory = "";
         newMinStock = 5;
         newImage = "";
+        selectedCompatibility = [];
         editingId = null;
     }
 
@@ -223,6 +230,15 @@
         selectedCategory = product.categoryId || "";
         newMinStock = product.minStock || 5;
         newImage = product.image || "";
+        // Fetch full product for compatibility or assume it's in list (it's not in list by default usually unless we updated controller)
+        // Ideally we should call getProduct here to get compat list, but for now we might need to rely on what's available or fetch it.
+        // Let's lazy fetch detail or update logic to fetch detail for edit.
+        InventoryService.getProduct(product.id).then((detail) => {
+            // map detail.compatibility objects to IDs
+            selectedCompatibility = (detail.compatibility || []).map(
+                (d: any) => d.id,
+            );
+        });
         open = true;
     }
 
@@ -257,6 +273,7 @@
             categoryId: selectedCategory || undefined,
             minStock: parseInt(newMinStock.toString()) || 5,
             image: newImage || undefined,
+            compatibility: selectedCompatibility,
         };
 
         if (editingId) {
@@ -476,6 +493,62 @@
                             class="col-span-1 md:col-span-3"
                             bind:value={newMinStock}
                         />
+                    </div>
+
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-4 items-start gap-2 md:gap-4"
+                    >
+                        <Label class="text-left md:text-right pt-2"
+                            >Kompatibilitas</Label
+                        >
+                        <div
+                            class="col-span-1 md:col-span-3 border rounded-md p-2 h-40 overflow-y-auto space-y-2"
+                        >
+                            {#if devicesQuery.isLoading}
+                                <div class="text-sm text-muted-foreground">
+                                    Memuat devices...
+                                </div>
+                            {:else}
+                                {#each devicesQuery.data || [] as device}
+                                    <label
+                                        class="flex items-center space-x-2 text-sm cursor-pointer hover:bg-muted/50 p-1 rounded"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            class="rounded border-gray-300"
+                                            value={device.id}
+                                            checked={selectedCompatibility.includes(
+                                                device.id,
+                                            )}
+                                            onchange={(e) => {
+                                                const checked =
+                                                    e.currentTarget.checked;
+                                                if (checked)
+                                                    selectedCompatibility = [
+                                                        ...selectedCompatibility,
+                                                        device.id,
+                                                    ];
+                                                else
+                                                    selectedCompatibility =
+                                                        selectedCompatibility.filter(
+                                                            (id) =>
+                                                                id !==
+                                                                device.id,
+                                                        );
+                                            }}
+                                        />
+                                        <span
+                                            >{device.brand}
+                                            {device.model}
+                                            <span
+                                                class="text-muted-foreground text-xs"
+                                                >({device.code})</span
+                                            ></span
+                                        >
+                                    </label>
+                                {/each}
+                            {/if}
+                        </div>
                     </div>
 
                     <div

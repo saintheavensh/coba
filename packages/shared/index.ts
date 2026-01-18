@@ -28,7 +28,8 @@ export const productSchema = z.object({
     code: z.string().optional(), // Universal Code
     categoryId: z.string().optional(), // Link to category
     image: z.string().optional(),
-    minStock: z.number().default(5)
+    minStock: z.number().default(5),
+    compatibility: z.array(z.string()).optional() // Array of Device IDs
 });
 export type CreateProductRequest = z.infer<typeof productSchema>;
 
@@ -42,6 +43,15 @@ export const batchSchema = z.object({
 });
 export type AddBatchRequest = z.infer<typeof batchSchema>;
 
+// Device Type
+export type Device = {
+    id: string;
+    brand: string;
+    model: string;
+    code: string | null;
+    image: string | null;
+};
+
 export type Product = {
     id: string;
     code?: string | null;
@@ -54,6 +64,8 @@ export type Product = {
     status?: "Normal" | "Critical" | "Empty";
     categoryName?: string; // Joined name
     min?: number; // legacy alias
+    compatibility?: Device[]; // Array of compatible devices
+    price?: number; // Computed price (e.g. from lowest batch)
 };
 
 // --- Service Schemas ---

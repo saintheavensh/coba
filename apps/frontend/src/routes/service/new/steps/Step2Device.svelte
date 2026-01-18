@@ -9,14 +9,6 @@
         SelectTrigger,
     } from "$lib/components/ui/select";
     import { Separator } from "$lib/components/ui/separator";
-    import {
-        Smartphone,
-        Grid3X3,
-        Camera,
-        X,
-        Upload,
-        AlertCircle,
-    } from "lucide-svelte";
 
     import type { ServiceFormStore } from "../form.svelte";
     import { API_URL } from "$lib/api";
@@ -30,7 +22,33 @@
     } from "$lib/components/ui/dialog";
     import PatternLock from "$lib/components/ui/pattern-lock.svelte";
 
+    // New Imports for Device Search
+    import { InventoryService } from "$lib/services/inventory.service";
+    import { createQuery } from "@tanstack/svelte-query";
+    import * as Popover from "$lib/components/ui/popover";
+    import * as Command from "$lib/components/ui/command";
+    import {
+        Search,
+        Check,
+        CheckCircle,
+        Smartphone,
+        Grid3X3,
+        Camera,
+        X,
+        Upload,
+        AlertCircle,
+    } from "lucide-svelte";
+    import { cn } from "$lib/utils";
+    import { toast } from "svelte-sonner";
+
     let { form }: { form: ServiceFormStore } = $props();
+
+    let deviceSearchOpen = $state(false);
+
+    const devicesQuery = createQuery(() => ({
+        queryKey: ["devices"],
+        queryFn: () => InventoryService.getDevices(),
+    }));
 
     const brands = [
         "Samsung",
@@ -130,15 +148,91 @@
                     </SelectContent>
                 </Select>
             </div>
-            <div class="space-y-2">
+            <div class="space-y-2 flex flex-col">
                 <Label for="model"
                     >Model/Tipe <span class="text-red-500">*</span></Label
                 >
-                <Input
-                    id="model"
-                    bind:value={form.phoneModel}
-                    placeholder="Contoh: Galaxy S24 Ultra"
-                />
+                <div class="flex gap-2">
+                    <Input
+                        id="model"
+                        bind:value={form.phoneModel}
+                        placeholder="Contoh: Galaxy S24 Ultra"
+                        class="flex-1"
+                    />
+
+                    <Popover.Root bind:open={deviceSearchOpen}>
+                        <Popover.Trigger
+                            class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3"
+                            title="Cari di Database"
+                        >
+                            <Search class="mr-2 h-4 w-4" /> Cari
+                        </Popover.Trigger>
+                        <Popover.Content class="p-0 w-[400px]" align="end">
+                            <Command.Root>
+                                <Command.Input placeholder="Cari model..." />
+                                <Command.List>
+                                    <Command.Empty
+                                        >Tidak ditemukan.</Command.Empty
+                                    >
+                                    <Command.Group
+                                        heading="Devices"
+                                        class="max-h-[200px] overflow-auto"
+                                    >
+                                        {#each devicesQuery.data || [] as device}
+                                            <Command.Item
+                                                value={`${device.brand} ${device.model}`}
+                                                onSelect={() => {
+                                                    form.phoneBrand =
+                                                        device.brand;
+                                                    form.phoneModel =
+                                                        device.model;
+                                                    form.selectedDeviceId =
+                                                        device.id;
+                                                    deviceSearchOpen = false;
+                                                    toast.success(
+                                                        `Device dipilih: ${device.brand} ${device.model}`,
+                                                    );
+                                                }}
+                                            >
+                                                <Check
+                                                    class={cn(
+                                                        "mr-2 h-4 w-4",
+                                                        form.selectedDeviceId ===
+                                                            device.id
+                                                            ? "opacity-100"
+                                                            : "opacity-0",
+                                                    )}
+                                                />
+                                                <div class="flex flex-col">
+                                                    <span
+                                                        >{device.brand}
+                                                        {device.model}</span
+                                                    >
+                                                    <span
+                                                        class="text-xs text-muted-foreground"
+                                                        >{device.code ||
+                                                            "-"}</span
+                                                    >
+                                                </div>
+                                            </Command.Item>
+                                        {/each}
+                                    </Command.Group>
+                                </Command.List>
+                            </Command.Root>
+                        </Popover.Content>
+                    </Popover.Root>
+                </div>
+                {#if form.selectedDeviceId}
+                    <p class="text-xs text-green-600 flex items-center">
+                        <CheckCircle class="h-3 w-3 mr-1" /> Terhubung dengan database
+                        <Button
+                            variant="link"
+                            class="h-auto p-0 ml-2 text-xs text-muted-foreground"
+                            onclick={() => (form.selectedDeviceId = null)}
+                            >(Reset)</Button
+                        >
+                    </p>
+                {/if}
             </div>
         </div>
 

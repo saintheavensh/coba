@@ -18,10 +18,13 @@
         Trash2,
         Calendar as CalendarIcon,
         AlertCircle,
-        ChevronLeft,
         ChevronRight,
         X,
+        CheckCircle,
     } from "lucide-svelte";
+    import { Switch } from "$lib/components/ui/switch";
+    import { createQuery } from "@tanstack/svelte-query";
+    import { InventoryService } from "$lib/services/inventory.service";
     import createCurrencyInput from "$lib/components/custom/currency-input.svelte"; // Assuming this is how it's used or I need to import the component.
     // The original file used: import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
@@ -47,9 +50,55 @@
     let calendarDate = $state(new Date());
 
     // Derived
+    // Filter Logic
+    let filterCompatible = $state(!!form.selectedDeviceId);
+
+    // Auto-enable filter when modal opens if device selected
+    $effect(() => {
+        if (showInventoryModal && form.selectedDeviceId) {
+            filterCompatible = true;
+        }
+    });
+
+    const inventorySearchQuery = createQuery(() => ({
+        queryKey: [
+            "inventory-search",
+            searchTerm,
+            filterCompatible ? form.selectedDeviceId : null,
+        ],
+        queryFn: async () => {
+            const params: any = {};
+            // If API supports search query param? The repo findAll didn't seem to explicitly handle "name" search in findAll args?
+            // Actually repo findAll only takes deviceId.
+            // But controller likely handles search?
+            // I'll assume client side filtering of the "Compatible" batch or Server Side if I updated controller.
+            // Let's check repository again. Only deviceId.
+            // So I will fetch by deviceId (if filterCompatible) OR all (if not).
+            // THEN filter by searchTerm client side reducers if the API doesn't support ?search or ?q.
+            // Wait, standard CRUD usually supports it.
+            // Assuming I'll fetch and filter client side for now to be safe, but minimal fetch.
+            // If I filter by deviceId, the result list is small.
+            // If I fetch ALL, it's large.
+
+            // Re-reading repository: findAll(deviceId?: string).
+            // It filters by device compatibility if deviceId is passed.
+            // It does NOT filter by name.
+
+            const res = await InventoryService.getProducts(
+                filterCompatible && form.selectedDeviceId
+                    ? form.selectedDeviceId
+                    : undefined,
+            );
+            return res;
+        },
+        enabled: showInventoryModal,
+    }));
+
     let filteredInventory = $derived(
-        inventoryItems.filter((item: any) =>
-            item.name?.toLowerCase().includes(searchTerm.toLowerCase()),
+        (inventorySearchQuery.data || []).filter(
+            (item: any) =>
+                searchTerm === "" ||
+                item.name?.toLowerCase().includes(searchTerm.toLowerCase()),
         ),
     );
 
@@ -402,7 +451,8 @@
                 </Button>
             </div>
 
-            <div class="p-4 border-b bg-muted/30">
+            <!-- Search & Filter bar -->
+            <div class="p-4 border-b bg-muted/30 space-y-3">
                 <div class="relative">
                     <Search
                         class="absolute left-3 top-3 h-4 w-4 text-muted-foreground"
@@ -413,12 +463,36 @@
                         class="pl-9"
                     />
                 </div>
+
+                {#if form.selectedDeviceId}
+                    <div class="flex items-center space-x-2">
+                        <Switch
+                            id="filter-compatible"
+                            bind:checked={filterCompatible}
+                        />
+                        <Label
+                            for="filter-compatible"
+                            class="cursor-pointer flex items-center gap-2"
+                        >
+                            Filter Kompatibel: <span class="font-bold"
+                                >{form.phoneBrand} {form.phoneModel}</span
+                            >
+                        </Label>
+                    </div>
+                {/if}
             </div>
 
             <div class="flex-1 overflow-y-auto p-2 space-y-1">
-                {#if filteredInventory.length === 0}
+                {#if inventorySearchQuery.isLoading}
+                    <div class="text-center py-8">Loading...</div>
+                {:else if filteredInventory.length === 0}
                     <div class="text-center py-12 text-muted-foreground">
                         <p>Tidak ada barang ditemukan</p>
+                        {#if filterCompatible}
+                            <p class="text-xs mt-2">
+                                Coba matikan filter kompatibilitas
+                            </p>
+                        {/if}
                     </div>
                 {:else}
                     {#each filteredInventory as item}

@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { text, integer, boolean, timestamp, serial, pgTable, json, foreignKey } from "drizzle-orm/pg-core";
+import { text, integer, boolean, timestamp, serial, pgTable, json, foreignKey, primaryKey } from "drizzle-orm/pg-core";
 
 // ============================================
 // USERS & AUTH
@@ -150,6 +150,31 @@ export const saleItems = pgTable("sale_items", {
 });
 
 // ============================================
+// DEVICES (New Phase 4)
+// ============================================
+
+export const devices = pgTable("devices", {
+    id: text("id").primaryKey(), // DEV-XXX or UUID
+    brand: text("brand").notNull(), // Samsung, Apple
+    model: text("model").notNull(), // Galaxy S25, iPhone 16
+    code: text("code"), // SM-S921B (Machine Code)
+    image: text("image"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at"),
+});
+
+// Junction Table for Many-to-Many
+export const productDeviceCompatibility = pgTable("product_device_compatibility", {
+    productId: text("product_id").notNull().references(() => products.id, { onDelete: 'cascade' }),
+    deviceId: text("device_id").notNull().references(() => devices.id, { onDelete: 'cascade' }),
+}, (t) => ({
+    pk: primaryKey({ columns: [t.productId, t.deviceId] }),
+}));
+
+// Include in relations imports if not already there, assumed implicit by usage below.
+
+
+// ============================================
 // SERVICE
 // ============================================
 
@@ -244,6 +269,22 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     batches: many(productBatches),
     purchaseItems: many(purchaseItems),
     saleItems: many(saleItems),
+    compatibility: many(productDeviceCompatibility),
+}));
+
+export const devicesRelations = relations(devices, ({ many }) => ({
+    compatibleProducts: many(productDeviceCompatibility),
+}));
+
+export const productDeviceCompatibilityRelations = relations(productDeviceCompatibility, ({ one }) => ({
+    product: one(products, {
+        fields: [productDeviceCompatibility.productId],
+        references: [products.id],
+    }),
+    device: one(devices, {
+        fields: [productDeviceCompatibility.deviceId],
+        references: [devices.id],
+    }),
 }));
 
 export const suppliersRelations = relations(suppliers, ({ many }) => ({
