@@ -25,7 +25,8 @@
     import { Switch } from "$lib/components/ui/switch";
     import { createQuery } from "@tanstack/svelte-query";
     import { InventoryService } from "$lib/services/inventory.service";
-    import createCurrencyInput from "$lib/components/custom/currency-input.svelte"; // Assuming this is how it's used or I need to import the component.
+    import { SPAREPART_SOURCES } from "@repo/shared";
+
     // The original file used: import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import type { ServiceFormStore } from "../form.svelte";
@@ -51,7 +52,7 @@
 
     // Derived
     // Filter Logic
-    let filterCompatible = $state(!!form.selectedDeviceId);
+    let filterCompatible = $state(false);
 
     // Auto-enable filter when modal opens if device selected
     $effect(() => {
@@ -283,7 +284,7 @@
                 <div class="space-y-3">
                     <Label>Sumber Sparepart</Label>
                     <div class="grid grid-cols-3 gap-2">
-                        {#each [{ v: "none", l: "Tanpa Part" }, { v: "inventory", l: "Inventory" }, { v: "external", l: "Beli Luar" }] as src}
+                        {#each SPAREPART_SOURCES as src}
                             <label
                                 class={`
                                 flex items-center justify-center p-3 rounded-lg border cursor-pointer transition-all text-sm font-medium
@@ -520,7 +521,8 @@
                             <div class="text-right">
                                 <p class="font-medium text-sm">
                                     Rp {parseInt(
-                                        item.batches?.[0]?.sellPrice || 0,
+                                        (item as any).batches?.[0]?.sellPrice ||
+                                            0,
                                     ).toLocaleString("id-ID")}
                                 </p>
                                 <span

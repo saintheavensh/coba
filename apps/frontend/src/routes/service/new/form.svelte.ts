@@ -2,6 +2,7 @@ import { api } from "$lib/api";
 import { ServiceService } from "$lib/services/service.service";
 import { toast } from "svelte-sonner";
 import { goto } from "$app/navigation";
+import { QC_ITEMS } from "@repo/shared";
 
 export class ServiceFormStore {
     // Service Type
@@ -63,20 +64,8 @@ export class ServiceFormStore {
     isUploading = $state(false);
 
     // QC Checklist Items
-    static QC_ITEMS = [
-        { key: "touchscreen", label: "Touchscreen" },
-        { key: "display", label: "Display" },
-        { key: "speaker", label: "Speaker" },
-        { key: "earpiece", label: "Earpiece" },
-        { key: "microphone", label: "Microphone" },
-        { key: "frontCamera", label: "Kamera Depan" },
-        { key: "rearCamera", label: "Kamera Belakang" },
-        { key: "wifi", label: "WiFi" },
-        { key: "bluetooth", label: "Bluetooth" },
-        { key: "chargingPort", label: "Port Charging" },
-        { key: "buttons", label: "Tombol (Vol/Power)" },
-        { key: "fingerprint", label: "Fingerprint" },
-    ];
+    // QC Checklist Items
+    static QC_ITEMS = QC_ITEMS;
 
     // Initial QC (Step 2 for walk-in + nyala phones)
     initialQC = $state<Record<string, boolean>>({});

@@ -1,77 +1,46 @@
 <script lang="ts">
     import { Button } from "$lib/components/ui/button";
-    import { Input } from "$lib/components/ui/input";
-    import { Label } from "$lib/components/ui/label";
-    import { Upload, X, Image as ImageIcon } from "lucide-svelte";
+    import { Upload, X, Image as ImageIcon, Loader2 } from "lucide-svelte";
     import { api } from "$lib/api";
     import { toast } from "svelte-sonner";
+    import { API_URL } from "$lib/api";
 
-    // Props
     let {
-        value = $bindable(""), // URL
+        value = $bindable(""),
         disabled = false,
-    } = $props();
+    }: { value: string; disabled?: boolean } = $props();
 
-    let uploading = $state(false);
+    let isUploading = $state(false);
     let fileInput: HTMLInputElement;
 
-    async function handleFileSelect(e: Event) {
-        const target = e.target as HTMLInputElement;
-        const file = target.files?.[0];
-        if (!file) return;
+    async function handleFileChange(e: Event) {
+        const input = e.target as HTMLInputElement;
+        if (!input.files || input.files.length === 0) return;
 
-        // Validation
-        if (!file.type.startsWith("image/")) {
-            toast.error("File harus berupa gambar (JPG, PNG, WebP)");
-            return;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-            // 5MB
-            toast.error("Ukuran file maksimal 5MB");
-            return;
-        }
-
-        uploading = true;
-        const formData = new FormData();
-        formData.append("file", file);
+        const file = input.files[0];
+        isUploading = true;
 
         try {
-            const res = await api.post("/upload", formData, {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const res = await api.post("/uploads", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
             });
 
-            // Adjust depending on your API structure (standardized vs basic)
-            // Backend returns apiSuccess(c, { url }) -> res.data.data.url
-            const url = res.data?.data?.url || res.data?.url;
-
-            if (url) {
-                // Ensure absolute URL if backend returns relative
-                // const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_API_BASE_URL}${url}`;
-                // Actually, backend serves static at VITE_API_BASE_URL + /uploads/...
-                // If backend returns `/uploads/foo.jpg`, we need to prepend API Base URL for frontend to see it properly?
-                // Or works via proxy?
-                // Usually easier to store full URL or just relative and component handles it.
-                // Let's store full URL constructed here.
-                const baseUrl =
-                    import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "") ||
-                    "http://localhost:4000";
-                const fullUrl = url.startsWith("http")
-                    ? url
-                    : `${baseUrl}${url}`;
-
-                value = fullUrl;
-                toast.success("Foto berhasil diupload");
+            if (res.data.success && res.data.data.url) {
+                value = res.data.data.url;
+                toast.success("Gambar berhasil diupload");
             } else {
-                toast.error("Gagal mendapatkan URL gambar");
+                toast.error("Gagal mengupload gambar");
             }
         } catch (error) {
             console.error(error);
-            toast.error("Gagal upload gambar");
+            toast.error("Gagal mengupload gambar");
         } finally {
-            uploading = false;
-            if (fileInput) fileInput.value = "";
+            isUploading = false;
+            // Reset input so same file can be selected again if needed
+            input.value = "";
         }
     }
 
@@ -80,65 +49,53 @@
     }
 </script>
 
-<div class="grid gap-2">
+<div class="w-full">
     {#if value}
         <div
-            class="relative w-full h-48 border rounded-lg overflow-hidden group bg-muted/20"
+            class="relative w-40 h-40 group rounded-lg overflow-hidden border bg-muted/20"
         >
             <img
-                src={value}
-                alt="Preview"
-                class="w-full h-full object-contain"
-                onerror={(e) =>
-                    ((e.currentTarget as HTMLImageElement).src = "")}
+                src={value.startsWith("http") ? value : `${API_URL}${value}`}
+                alt="Upload preview"
+                class="w-full h-full object-cover"
             />
-            {#if !disabled}
+            <div
+                class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+            >
                 <Button
                     variant="destructive"
                     size="icon"
-                    class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    class="rounded-full"
                     onclick={removeImage}
+                    disabled={disabled || isUploading}
                 >
                     <X class="h-4 w-4" />
                 </Button>
-            {/if}
-        </div>
-        <div class="text-xs text-muted-foreground break-all">
-            {value}
+            </div>
         </div>
     {:else}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-            class="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-muted/5 transition-colors"
-            onclick={() => !disabled && fileInput.click()}
+        <button
+            type="button"
+            class="w-40 h-40 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-2 text-muted-foreground hover:bg-muted/50 hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            onclick={() => fileInput?.click()}
+            disabled={disabled || isUploading}
         >
-            <div class="p-4 rounded-full bg-muted">
-                <Upload class="h-6 w-6 text-muted-foreground" />
-            </div>
-            <div class="text-center">
-                <p class="text-sm font-medium">Klik untuk upload foto</p>
-                <p class="text-xs text-muted-foreground">
-                    JPG, PNG atau WebP (Max 5MB)
-                </p>
-            </div>
-            <Button
-                variant="outline"
-                size="sm"
-                class="mt-2"
-                disabled={disabled || uploading}
-            >
-                {uploading ? "Mengupload..." : "Pilih File"}
-            </Button>
-        </div>
+            {#if isUploading}
+                <Loader2 class="h-8 w-8 animate-spin" />
+                <span class="text-xs">Uploading...</span>
+            {:else}
+                <Upload class="h-8 w-8" />
+                <span class="text-xs font-medium">Upload Gambar</span>
+            {/if}
+        </button>
     {/if}
 
     <input
-        type="file"
         bind:this={fileInput}
+        type="file"
         accept="image/*"
         class="hidden"
-        onchange={handleFileSelect}
-        {disabled}
+        onchange={handleFileChange}
+        disabled={disabled || isUploading}
     />
 </div>

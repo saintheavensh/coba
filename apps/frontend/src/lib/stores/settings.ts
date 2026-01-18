@@ -1,4 +1,5 @@
 import { writable } from "svelte/store";
+import { WARRANTY_PRESETS } from "@repo/shared";
 
 // Types
 export interface StoreSettings {
@@ -29,12 +30,7 @@ const initialSettings: StoreSettings = {
     receiptFooter: "Terima kasih atas kepercayaan Anda!",
     defaultWarrantyDays: 30, // Default 30 days
     gracePeriodDays: 30, // Default 30 days
-    warrantyPresets: [
-        { label: "Tidak Ada", days: 0 },
-        { label: "Garansi 3 Hari (Cek Fisik)", days: 3 },
-        { label: "Garansi 1 Minggu", days: 7 },
-        { label: "Garansi 1 Bulan", days: 30 }
-    ]
+    warrantyPresets: WARRANTY_PRESETS
 };
 
 // Settings Store

@@ -13,17 +13,11 @@
         Pencil,
         Trash2,
         Smartphone,
-        MoreHorizontal,
         Search,
+        Filter,
+        MoreVertical,
     } from "lucide-svelte";
-    import {
-        Table,
-        TableBody,
-        TableCell,
-        TableHead,
-        TableHeader,
-        TableRow,
-    } from "$lib/components/ui/table";
+    import SearchInput from "$lib/components/custom/search-input.svelte";
     import {
         Dialog,
         DialogContent,
@@ -37,6 +31,7 @@
         DropdownMenuContent,
         DropdownMenuItem,
         DropdownMenuTrigger,
+        DropdownMenuSeparator,
     } from "$lib/components/ui/dropdown-menu";
     import { Skeleton } from "$lib/components/ui/skeleton";
     import { toast } from "svelte-sonner";
@@ -50,10 +45,22 @@
         AlertDialogHeader,
         AlertDialogTitle,
     } from "$lib/components/ui/alert-dialog";
+    import { Badge } from "$lib/components/ui/badge";
+    import {
+        Select,
+        SelectContent,
+        SelectItem,
+        SelectTrigger,
+        SelectValue,
+    } from "$lib/components/ui/select";
+    import ImageUpload from "$lib/components/custom/image-upload.svelte";
+    import { DEFAULT_BRANDS } from "@repo/shared";
+    import { API_URL } from "$lib/api";
 
     // UI State
     const queryClient = useQueryClient();
     let searchTerm = $state("");
+    let selectedBrand = $state("all");
 
     // Query
     const devicesQuery = createQuery(() => ({
@@ -61,7 +68,12 @@
         queryFn: () => InventoryService.getDevices(searchTerm),
     }));
 
-    let devices = $derived(devicesQuery.data || []);
+    // Derived filtered devices (Client-side brand filter + Search query from API)
+    let devices = $derived(
+        (devicesQuery.data || []).filter(
+            (d) => selectedBrand === "all" || d.brand === selectedBrand,
+        ),
+    );
 
     // Mutations
     const createDeviceMutation = createMutation(() => ({
@@ -103,6 +115,7 @@
     let brand = $state("");
     let model = $state("");
     let code = $state("");
+    let image = $state("");
 
     let deleteOpen = $state(false);
     let deletingId = $state<string | null>(null);
@@ -112,6 +125,7 @@
         brand = "";
         model = "";
         code = "";
+        image = "";
     }
 
     function handleCreateNew() {
@@ -124,6 +138,7 @@
         brand = device.brand;
         model = device.model;
         code = device.code || "";
+        image = device.image || "";
         open = true;
     }
 
@@ -144,6 +159,7 @@
             brand,
             model,
             code: code || undefined,
+            image: image || undefined,
         };
 
         if (editingId) {
@@ -154,181 +170,279 @@
     }
 </script>
 
-<div class="container mx-auto py-6 space-y-6">
-    <div
-        class="flex flex-col md:flex-row md:items-center justify-between gap-4"
-    >
-        <div>
-            <h2 class="text-3xl font-bold tracking-tight">Data Device</h2>
-            <p class="text-muted-foreground">
-                Kelola database handphone untuk referensi service.
-            </p>
+<div class="container mx-auto py-8">
+    <div class="flex flex-col gap-6">
+        <!-- Header -->
+        <div
+            class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6"
+        >
+            <div>
+                <h2 class="text-3xl font-bold tracking-tight">Data Device</h2>
+                <p class="text-muted-foreground mt-1">
+                    Kelola database handphone untuk referensi service.
+                </p>
+            </div>
+            <Button onclick={handleCreateNew} size="lg" class="shadow-sm">
+                <Plus class="h-5 w-5 mr-2" /> Tambah Device
+            </Button>
         </div>
-        <Button onclick={handleCreateNew}>
-            <Plus class="h-4 w-4 mr-2" /> Tambah Device
-        </Button>
-    </div>
 
-    <!-- Search Bar -->
-    <div
-        class="flex items-center space-x-2 bg-white p-2 rounded-lg border w-full md:max-w-sm"
-    >
-        <Search class="h-4 w-4 text-muted-foreground" />
-        <Input
-            bind:value={searchTerm}
-            placeholder="Cari Brand, Model atau Kode..."
-            class="border-0 focus-visible:ring-0 px-0 h-auto"
-        />
+        <!-- Filters -->
+        <div
+            class="flex flex-col md:flex-row gap-4 items-center bg-muted/30 p-4 rounded-lg border"
+        >
+            <div class="w-full md:w-auto flex-1">
+                <SearchInput
+                    bind:value={searchTerm}
+                    placeholder="Cari model, kode mesin..."
+                    class="w-full bg-background"
+                />
+            </div>
+            <div class="w-full md:w-[250px]">
+                <Select type="single" bind:value={selectedBrand}>
+                    <SelectTrigger class="bg-background">
+                        <div class="flex items-center gap-2">
+                            <Filter class="h-4 w-4 text-muted-foreground" />
+                            <span
+                                >{selectedBrand === "all"
+                                    ? "Semua Brand"
+                                    : selectedBrand}</span
+                            >
+                        </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Brand</SelectItem>
+                        {#each DEFAULT_BRANDS as b}
+                            <SelectItem value={b}>{b}</SelectItem>
+                        {/each}
+                    </SelectContent>
+                </Select>
+            </div>
+        </div>
+
+        <!-- Content Grid -->
+        {#if devicesQuery.isLoading}
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {#each Array(10) as _}
+                    <div class="space-y-3">
+                        <Skeleton class="h-[200px] w-full rounded-xl" />
+                        <div class="space-y-2">
+                            <Skeleton class="h-4 w-[80%]" />
+                            <Skeleton class="h-3 w-[50%]" />
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        {:else if devices.length === 0}
+            <div
+                class="flex flex-col items-center justify-center py-20 text-center space-y-4 border-2 border-dashed rounded-xl bg-muted/10"
+            >
+                <div class="bg-muted p-4 rounded-full">
+                    <Smartphone class="h-10 w-10 text-muted-foreground" />
+                </div>
+                <div class="max-w-md space-y-1">
+                    <h3 class="font-semibold text-lg">
+                        Tidak ada device ditemukan
+                    </h3>
+                    <p class="text-muted-foreground text-sm">
+                        Coba ubah kata kunci pencarian atau filter brand, atau
+                        tambahkan device baru.
+                    </p>
+                </div>
+                <Button
+                    variant="outline"
+                    onclick={() => {
+                        searchTerm = "";
+                        selectedBrand = "all";
+                    }}
+                >
+                    Reset Filter
+                </Button>
+            </div>
+        {:else}
+            <div
+                class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 animate-in fade-in duration-500"
+            >
+                {#each devices as device (device.id)}
+                    <div
+                        class="group relative flex flex-col bg-card border rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
+                    >
+                        <!-- Card Menu -->
+                        <div
+                            class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="secondary"
+                                        size="icon"
+                                        class="h-8 w-8 rounded-full shadow-sm bg-white/90 backdrop-blur-sm"
+                                    >
+                                        <MoreVertical class="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                        onclick={() => handleEdit(device)}
+                                    >
+                                        <Pencil class="mr-2 h-4 w-4" /> Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                        class="text-red-600"
+                                        onclick={() => confirmDelete(device.id)}
+                                    >
+                                        <Trash2 class="mr-2 h-4 w-4" /> Hapus
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+
+                        <!-- Image / Brand Placeholder -->
+                        <div
+                            class="aspect-[4/3] bg-muted relative overflow-hidden flex items-center justify-center p-6"
+                        >
+                            {#if device.image}
+                                <img
+                                    src={`${API_URL}${device.image}`}
+                                    alt={device.model}
+                                    class="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-500"
+                                />
+                            {:else}
+                                <div
+                                    class="text-center text-muted-foreground/30"
+                                >
+                                    <Smartphone
+                                        class="h-16 w-16 mx-auto mb-2"
+                                    />
+                                    <span
+                                        class="text-xs font-bold uppercase tracking-widest"
+                                        >{device.brand}</span
+                                    >
+                                </div>
+                            {/if}
+
+                            <Badge
+                                class="absolute bottom-2 left-2 bg-white/90 text-foreground shadow-sm hover:bg-white border text-[10px] backdrop-blur-sm"
+                            >
+                                {device.brand}
+                            </Badge>
+                        </div>
+
+                        <!-- Info -->
+                        <div class="p-4 flex-1 flex flex-col">
+                            <h3
+                                class="font-semibold text-lg leading-tight mb-1 group-hover:text-primary transition-colors"
+                            >
+                                {device.model}
+                            </h3>
+                            {#if device.code}
+                                <p
+                                    class="text-xs text-muted-foreground font-mono bg-muted/50 self-start px-1.5 py-0.5 rounded"
+                                >
+                                    {device.code}
+                                </p>
+                            {/if}
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        {/if}
     </div>
 
     <!-- Dialog -->
     <Dialog bind:open onOpenChange={(isOpen) => !isOpen && resetForm()}>
-        <DialogContent>
+        <DialogContent class="sm:max-w-[425px]">
             <DialogHeader>
                 <DialogTitle>
                     {editingId ? "Edit Device" : "Tambah Device Baru"}
                 </DialogTitle>
                 <DialogDescription>
-                    Isi informasi detail device.
+                    Isi informasi detail spesifikasi device handphone.
                 </DialogDescription>
             </DialogHeader>
 
             <div class="grid gap-4 py-4">
-                <div class="grid gap-2">
-                    <Label>Brand (Merek)</Label>
-                    <Input
-                        bind:value={brand}
-                        placeholder="Contoh: Samsung, Apple, Xiaomi"
-                    />
+                <div class="flex justify-center mb-2">
+                    <ImageUpload bind:value={image} />
                 </div>
 
                 <div class="grid gap-2">
-                    <Label>Model (Tipe)</Label>
+                    <Label
+                        class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
+                        >Brand</Label
+                    >
+                    <Select type="single" bind:value={brand}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Pilih Brand" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {#each DEFAULT_BRANDS as b}
+                                <SelectItem value={b}>{b}</SelectItem>
+                            {/each}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div class="grid gap-2">
+                    <Label
+                        class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
+                        >Model / Tipe</Label
+                    >
                     <Input
                         bind:value={model}
-                        placeholder="Contoh: Galaxy S24, iPhone 15"
+                        placeholder="Contoh: Galaxy S24 Ultra"
                     />
                 </div>
 
                 <div class="grid gap-2">
-                    <Label>Kode Mesin / Model Number (Opsional)</Label>
+                    <Label
+                        class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
+                        >Kode Mesin (Opsional)</Label
+                    >
                     <Input
                         bind:value={code}
-                        placeholder="Contoh: SM-S928B, A3090"
+                        placeholder="Contoh: SM-S928B"
+                        class="font-mono"
                     />
                 </div>
             </div>
 
             <DialogFooter>
-                <Button variant="outline" onclick={() => (open = false)}
+                <Button variant="ghost" onclick={() => (open = false)}
                     >Batal</Button
                 >
-                <Button onclick={handleSubmit}>Simpan</Button>
+                <Button
+                    onclick={handleSubmit}
+                    disabled={createDeviceMutation.isPending ||
+                        updateMutation.isPending}
+                >
+                    {createDeviceMutation.isPending || updateMutation.isPending
+                        ? "Menyimpan..."
+                        : "Simpan"}
+                </Button>
             </DialogFooter>
         </DialogContent>
     </Dialog>
 
-    <!-- Table -->
-    <div class="rounded-md border bg-card">
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>Brand</TableHead>
-                    <TableHead>Model</TableHead>
-                    <TableHead>Kode</TableHead>
-                    <TableHead class="text-right w-[100px]">Aksi</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {#if devicesQuery.isLoading}
-                    {#each Array(5) as _}
-                        <TableRow>
-                            <TableCell><Skeleton class="h-4 w-20" /></TableCell>
-                            <TableCell><Skeleton class="h-4 w-32" /></TableCell>
-                            <TableCell><Skeleton class="h-4 w-24" /></TableCell>
-                            <TableCell
-                                ><Skeleton class="h-8 w-8 ml-auto" /></TableCell
-                            >
-                        </TableRow>
-                    {/each}
-                {:else if devices.length === 0}
-                    <TableRow>
-                        <TableCell
-                            colspan={4}
-                            class="h-24 text-center text-muted-foreground"
-                        >
-                            {#if searchTerm}
-                                Tidak ditemukan device dengan kata kunci "{searchTerm}".
-                            {:else}
-                                Belum ada data device. Silakan tambah baru.
-                            {/if}
-                        </TableCell>
-                    </TableRow>
-                {:else}
-                    {#each devices as device}
-                        <TableRow class="hover:bg-muted/50">
-                            <TableCell class="font-medium">
-                                <span
-                                    class="uppercase tracking-wider text-xs font-bold text-muted-foreground bg-muted px-2 py-1 rounded-md"
-                                >
-                                    {device.brand}
-                                </span>
-                            </TableCell>
-                            <TableCell class="font-semibold text-base"
-                                >{device.model}</TableCell
-                            >
-                            <TableCell
-                                class="text-muted-foreground font-mono text-sm"
-                                >{device.code || "-"}</TableCell
-                            >
-                            <TableCell class="text-right">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger
-                                        class={buttonVariants({
-                                            variant: "ghost",
-                                            size: "icon",
-                                            className: "h-8 w-8",
-                                        })}
-                                    >
-                                        <MoreHorizontal class="h-4 w-4" />
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem
-                                            onclick={() => handleEdit(device)}
-                                        >
-                                            <Pencil class="mr-2 h-4 w-4" /> Edit
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            class="text-red-600"
-                                            onclick={() =>
-                                                confirmDelete(device.id)}
-                                        >
-                                            <Trash2 class="mr-2 h-4 w-4" /> Hapus
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </TableCell>
-                        </TableRow>
-                    {/each}
-                {/if}
-            </TableBody>
-        </Table>
-    </div>
-
+    <!-- Delete Confirmation -->
     <AlertDialog bind:open={deleteOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Hapus Device?</AlertDialogTitle>
                 <AlertDialogDescription>
                     Tindakan ini tidak dapat dibatalkan. Pastikan data ini sudah
-                    tidak digunakan.
+                    tidak digunakan dalam referensi service/kompatibilitas.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Batal</AlertDialogCancel>
-                <AlertDialogAction class="bg-red-500" onclick={handleDelete}
-                    >Hapus</AlertDialogAction
+                <AlertDialogAction
+                    class="bg-red-500 hover:bg-red-600"
+                    onclick={handleDelete}
                 >
+                    Hapus
+                </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>

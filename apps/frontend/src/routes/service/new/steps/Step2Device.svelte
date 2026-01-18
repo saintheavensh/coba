@@ -25,11 +25,8 @@
     // New Imports for Device Search
     import { InventoryService } from "$lib/services/inventory.service";
     import { createQuery } from "@tanstack/svelte-query";
-    import * as Popover from "$lib/components/ui/popover";
-    import * as Command from "$lib/components/ui/command";
+    import Combobox from "$lib/components/ui/combobox.svelte";
     import {
-        Search,
-        Check,
         CheckCircle,
         Smartphone,
         Grid3X3,
@@ -43,73 +40,19 @@
 
     let { form }: { form: ServiceFormStore } = $props();
 
-    let deviceSearchOpen = $state(false);
-
     const devicesQuery = createQuery(() => ({
         queryKey: ["devices"],
         queryFn: () => InventoryService.getDevices(),
     }));
 
-    const brands = [
-        "Samsung",
-        "Apple / iPhone",
-        "Xiaomi",
-        "Oppo",
-        "Vivo",
-        "Realme",
-        "Infinix",
-        "Asus",
-        "Google",
-        "Lainnya",
-    ];
+    import {
+        DEFAULT_BRANDS,
+        DEVICE_STATUS_OPTIONS,
+        PHYSICAL_CONDITIONS,
+        COMPLETENESS_OPTIONS,
+    } from "@repo/shared";
 
-    const statusOptions = [
-        {
-            value: "nyala",
-            label: "Nyala Normal",
-            color: "text-green-600",
-            bg: "bg-green-100",
-            border: "border-green-200",
-        },
-        {
-            value: "mati_total",
-            label: "Mati Total",
-            color: "text-red-600",
-            bg: "bg-red-100",
-            border: "border-red-200",
-        },
-        {
-            value: "restart",
-            label: "Restart",
-            color: "text-orange-600",
-            bg: "bg-orange-100",
-            border: "border-orange-200",
-        },
-        {
-            value: "blank_hitam",
-            label: "Blank Hitam",
-            color: "text-gray-800",
-            bg: "bg-gray-100",
-            border: "border-gray-200",
-        },
-    ];
-
-    const physicalOptions = [
-        { v: "normal", l: "Normal (Mulus)" },
-        { v: "lecet", l: "Lecet / Goresan" },
-        { v: "retak", l: "Retak / Pecah" },
-        { v: "bekas_air", l: "Bekas Air / Korosi" },
-        { v: "bengkok", l: "Bengkok / Dent" },
-    ];
-
-    const completenessOptions = [
-        { v: "charger", l: "Charger" },
-        { v: "box", l: "Dus/Box" },
-        { v: "simcard", l: "SIM Card" },
-        { v: "memorycard", l: "Memory Card" },
-        { v: "case", l: "Case/Casing" },
-        { v: "earphone", l: "Earphone" },
-    ];
+    // ... (Imports stay same, removed local consts) ...
 
     const isErrorStatus = (status: string) =>
         ["mati_total", "restart", "blank_hitam"].includes(status);
@@ -142,7 +85,7 @@
                         >{form.phoneBrand || "Pilih Brand"}</SelectTrigger
                     >
                     <SelectContent>
-                        {#each brands as brand}
+                        {#each DEFAULT_BRANDS as brand}
                             <SelectItem value={brand}>{brand}</SelectItem>
                         {/each}
                     </SelectContent>
@@ -160,67 +103,32 @@
                         class="flex-1"
                     />
 
-                    <Popover.Root bind:open={deviceSearchOpen}>
-                        <Popover.Trigger
-                            class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-3"
-                            title="Cari di Database"
-                        >
-                            <Search class="mr-2 h-4 w-4" /> Cari
-                        </Popover.Trigger>
-                        <Popover.Content class="p-0 w-[400px]" align="end">
-                            <Command.Root>
-                                <Command.Input placeholder="Cari model..." />
-                                <Command.List>
-                                    <Command.Empty
-                                        >Tidak ditemukan.</Command.Empty
-                                    >
-                                    <Command.Group
-                                        heading="Devices"
-                                        class="max-h-[200px] overflow-auto"
-                                    >
-                                        {#each devicesQuery.data || [] as device}
-                                            <Command.Item
-                                                value={`${device.brand} ${device.model}`}
-                                                onSelect={() => {
-                                                    form.phoneBrand =
-                                                        device.brand;
-                                                    form.phoneModel =
-                                                        device.model;
-                                                    form.selectedDeviceId =
-                                                        device.id;
-                                                    deviceSearchOpen = false;
-                                                    toast.success(
-                                                        `Device dipilih: ${device.brand} ${device.model}`,
-                                                    );
-                                                }}
-                                            >
-                                                <Check
-                                                    class={cn(
-                                                        "mr-2 h-4 w-4",
-                                                        form.selectedDeviceId ===
-                                                            device.id
-                                                            ? "opacity-100"
-                                                            : "opacity-0",
-                                                    )}
-                                                />
-                                                <div class="flex flex-col">
-                                                    <span
-                                                        >{device.brand}
-                                                        {device.model}</span
-                                                    >
-                                                    <span
-                                                        class="text-xs text-muted-foreground"
-                                                        >{device.code ||
-                                                            "-"}</span
-                                                    >
-                                                </div>
-                                            </Command.Item>
-                                        {/each}
-                                    </Command.Group>
-                                </Command.List>
-                            </Command.Root>
-                        </Popover.Content>
-                    </Popover.Root>
+                    <Combobox
+                        items={devicesQuery.data || []}
+                        bind:value={form.selectedDeviceId}
+                        valueKey="id"
+                        labelKey={(item) => `${item.brand} ${item.model}`}
+                        filterKey={(item) =>
+                            `${item.brand} ${item.model} ${item.code || ""}`}
+                        placeholder="Cari..."
+                        searchPlaceholder="Cari model device..."
+                        onSelect={(item) => {
+                            form.phoneBrand = item.brand;
+                            form.phoneModel = item.model;
+                            toast.success(
+                                `Device dipilih: ${item.brand} ${item.model}`,
+                            );
+                        }}
+                    >
+                        {#snippet itemSnippet(item)}
+                            <div class="flex flex-col text-left">
+                                <span>{item.brand} {item.model}</span>
+                                <span class="text-xs text-muted-foreground"
+                                    >{item.code || "-"}</span
+                                >
+                            </div>
+                        {/snippet}
+                    </Combobox>
                 </div>
                 {#if form.selectedDeviceId}
                     <p class="text-xs text-green-600 flex items-center">
@@ -240,7 +148,7 @@
         <div class="space-y-3">
             <Label>Status Awal Handphone</Label>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {#each statusOptions as option}
+                {#each DEVICE_STATUS_OPTIONS as option}
                     <label
                         class={`
                         cursor-pointer relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all
@@ -320,7 +228,7 @@
             <div class="space-y-3">
                 <Label class="text-base">Kondisi Fisik</Label>
                 <div class="grid grid-cols-2 gap-2">
-                    {#each physicalOptions as item}
+                    {#each PHYSICAL_CONDITIONS as item}
                         <label
                             class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-muted transition-colors"
                         >
@@ -338,7 +246,7 @@
             <div class="space-y-3">
                 <Label class="text-base">Kelengkapan Unit</Label>
                 <div class="grid grid-cols-2 gap-2">
-                    {#each completenessOptions as item}
+                    {#each COMPLETENESS_OPTIONS as item}
                         <label
                             class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-muted transition-colors"
                         >
