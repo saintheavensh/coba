@@ -15,6 +15,8 @@
         Trash2,
         Eye,
         ArrowUpDown,
+        ChevronRight,
+        ChevronDown,
     } from "lucide-svelte";
     import { Skeleton } from "$lib/components/ui/skeleton";
     import {
@@ -70,7 +72,7 @@
     // Queries (v6: options must be a function for reactivity)
     const productsQuery = createQuery(() => ({
         queryKey: ["products"],
-        queryFn: InventoryService.getProducts,
+        queryFn: () => InventoryService.getProducts(),
     }));
 
     const categoriesQuery = createQuery(() => ({
@@ -190,11 +192,15 @@
     let sortDir = $state<"asc" | "desc">("asc");
 
     // Detail State (Runes)
-    let selectedProduct = $state<any>(null);
+    let selectedProduct = $state<any>(null); // For Dialog Detail (optional now)
+    let expandedProductId = $state<string | null>(null); // For Expandable Row
 
     // Delete State (Runes)
     let deleteOpen = $state(false);
     let deletingId = $state<string | null>(null);
+
+    // Device Search in Form
+    let deviceSearchTerm = $state("");
 
     function resetForm() {
         newName = "";
@@ -203,7 +209,21 @@
         newMinStock = 5;
         newImage = "";
         selectedCompatibility = [];
+        deviceSearchTerm = "";
         editingId = null;
+    }
+
+    function toggleExpanded(id: string) {
+        if (expandedProductId === id) {
+            expandedProductId = null;
+        } else {
+            expandedProductId = id;
+            // Optionally fetch detail if needed, but assuming batches are in 'products' list from controller update?
+            // If the key 'getAllProducts' doesn't return batches, we might need to fetch.
+            // Based on previous plan, backend GET /inventory/products SHOULD include batches.
+            // If not, we trigger a fetch here.
+            // Let's check products data source.
+        }
     }
 
     function generateCode() {
@@ -501,53 +521,96 @@
                         <Label class="text-left md:text-right pt-2"
                             >Kompatibilitas</Label
                         >
-                        <div
-                            class="col-span-1 md:col-span-3 border rounded-md p-2 h-40 overflow-y-auto space-y-2"
-                        >
-                            {#if devicesQuery.isLoading}
-                                <div class="text-sm text-muted-foreground">
-                                    Memuat devices...
-                                </div>
-                            {:else}
-                                {#each devicesQuery.data || [] as device}
-                                    <label
-                                        class="flex items-center space-x-2 text-sm cursor-pointer hover:bg-muted/50 p-1 rounded"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            class="rounded border-gray-300"
-                                            value={device.id}
-                                            checked={selectedCompatibility.includes(
-                                                device.id,
-                                            )}
-                                            onchange={(e) => {
-                                                const checked =
-                                                    e.currentTarget.checked;
-                                                if (checked)
-                                                    selectedCompatibility = [
-                                                        ...selectedCompatibility,
-                                                        device.id,
-                                                    ];
-                                                else
-                                                    selectedCompatibility =
-                                                        selectedCompatibility.filter(
-                                                            (id) =>
-                                                                id !==
-                                                                device.id,
-                                                        );
-                                            }}
-                                        />
-                                        <span
-                                            >{device.brand}
-                                            {device.model}
-                                            <span
-                                                class="text-muted-foreground text-xs"
-                                                >({device.code})</span
-                                            ></span
+                        <div class="col-span-1 md:col-span-3">
+                            <Input
+                                placeholder="Cari device (brand, model, code)..."
+                                bind:value={deviceSearchTerm}
+                                class="mb-2"
+                            />
+                            <div
+                                class="border rounded-md p-2 h-40 overflow-y-auto space-y-2"
+                            >
+                                {#if devicesQuery.isLoading}
+                                    <div class="text-sm text-muted-foreground">
+                                        Memuat devices...
+                                    </div>
+                                {:else}
+                                    {@const filteredDevices = (
+                                        devicesQuery.data || []
+                                    ).filter(
+                                        (d: any) =>
+                                            !deviceSearchTerm ||
+                                            d.brand
+                                                .toLowerCase()
+                                                .includes(
+                                                    deviceSearchTerm.toLowerCase(),
+                                                ) ||
+                                            d.model
+                                                .toLowerCase()
+                                                .includes(
+                                                    deviceSearchTerm.toLowerCase(),
+                                                ) ||
+                                            (d.code &&
+                                                d.code
+                                                    .toLowerCase()
+                                                    .includes(
+                                                        deviceSearchTerm.toLowerCase(),
+                                                    )),
+                                    )}
+
+                                    {#if filteredDevices.length === 0}
+                                        <div
+                                            class="text-xs text-muted-foreground p-2"
                                         >
-                                    </label>
-                                {/each}
-                            {/if}
+                                            Tidak ada device cocok.
+                                        </div>
+                                    {/if}
+
+                                    {#each filteredDevices as device}
+                                        <label
+                                            class="flex items-center space-x-2 text-sm cursor-pointer hover:bg-muted/50 p-1 rounded"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                class="rounded border-gray-300"
+                                                value={device.id}
+                                                checked={selectedCompatibility.includes(
+                                                    device.id,
+                                                )}
+                                                onchange={(e) => {
+                                                    const checked =
+                                                        e.currentTarget.checked;
+                                                    if (checked)
+                                                        selectedCompatibility =
+                                                            [
+                                                                ...selectedCompatibility,
+                                                                device.id,
+                                                            ];
+                                                    else
+                                                        selectedCompatibility =
+                                                            selectedCompatibility.filter(
+                                                                (id) =>
+                                                                    id !==
+                                                                    device.id,
+                                                            );
+                                                }}
+                                            />
+                                            <span
+                                                >{device.brand}
+                                                {device.model}
+                                                <span
+                                                    class="text-muted-foreground text-xs"
+                                                    >({device.code ||
+                                                        "-"})</span
+                                                ></span
+                                            >
+                                        </label>
+                                    {/each}
+                                {/if}
+                            </div>
+                            <p class="text-[10px] text-muted-foreground mt-1">
+                                {selectedCompatibility.length} device terpilih.
+                            </p>
                         </div>
                     </div>
 
@@ -695,6 +758,8 @@
         <Table>
             <TableHeader>
                 <TableRow>
+                    <TableHead class="w-[50px]"></TableHead>
+                    <!-- Expand Toggle -->
                     <TableHead class="w-[100px]">
                         <Button
                             variant="ghost"
@@ -747,6 +812,7 @@
                 {#if loading}
                     {#each Array(5) as _}
                         <TableRow>
+                            <TableCell><Skeleton class="h-8 w-8" /></TableCell>
                             <TableCell
                                 ><Skeleton class="h-4 w-[100px]" /></TableCell
                             >
@@ -773,13 +839,31 @@
                     {/each}
                 {:else if filteredProducts.length === 0}
                     <TableRow>
-                        <TableCell colspan={6} class="h-24 text-center">
+                        <TableCell colspan={7} class="h-24 text-center">
                             Tidak ada produk ditemukan.
                         </TableCell>
                     </TableRow>
                 {:else}
                     {#each filteredProducts as product}
-                        <TableRow>
+                        <TableRow
+                            class={expandedProductId === product.id
+                                ? "bg-muted/50 border-b-0"
+                                : ""}
+                        >
+                            <TableCell>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-8 w-8"
+                                    onclick={() => toggleExpanded(product.id)}
+                                >
+                                    {#if expandedProductId === product.id}
+                                        <ChevronDown class="h-4 w-4" />
+                                    {:else}
+                                        <ChevronRight class="h-4 w-4" />
+                                    {/if}
+                                </Button>
+                            </TableCell>
                             <TableCell
                                 class="font-medium text-xs text-muted-foreground"
                             >
@@ -829,15 +913,6 @@
                                         <MoreHorizontal class="h-4 w-4" />
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel
-                                            >Aksi</DropdownMenuLabel
-                                        >
-                                        <DropdownMenuItem
-                                            onclick={() =>
-                                                handleDetail(product)}
-                                        >
-                                            <Eye class="mr-2 h-4 w-4" /> Lihat Batch
-                                        </DropdownMenuItem>
                                         <DropdownMenuItem
                                             onclick={() => handleEdit(product)}
                                         >
@@ -856,6 +931,130 @@
                                 </DropdownMenu>
                             </TableCell>
                         </TableRow>
+                        <!-- Expanded Row for Batches -->
+                        {#if expandedProductId === product.id}
+                            <TableRow class="hover:bg-muted/50 bg-muted/50">
+                                <TableCell colspan={7} class="p-4 pt-0">
+                                    <div
+                                        class="bg-card border rounded-lg p-4 shadow-inner space-y-4 animate-in slide-in-from-top-2"
+                                    >
+                                        <div
+                                            class="flex items-center justify-between"
+                                        >
+                                            <h4
+                                                class="font-semibold text-sm flex items-center gap-2"
+                                            >
+                                                📦 Stok & Varian (Batch)
+                                            </h4>
+                                            <!-- Optional: Add Batch Action if permitted, but user said remove it -->
+                                        </div>
+
+                                        {#if !product.batches || product.batches.length === 0}
+                                            <div
+                                                class="text-center py-4 text-muted-foreground text-sm border-2 border-dashed rounded"
+                                            >
+                                                Belum ada stok. Lakukan
+                                                Pembelian untuk menambah stok.
+                                            </div>
+                                        {:else}
+                                            <!-- Group by Supplier logic inline or use helper -->
+                                            {@const batchesBySup = (
+                                                product.batches || []
+                                            ).reduce((acc: any, b: any) => {
+                                                const s =
+                                                    b.supplierName ||
+                                                    "Tanpa Supplier";
+                                                if (!acc[s]) acc[s] = [];
+                                                acc[s].push(b);
+                                                return acc;
+                                            }, {})}
+
+                                            <div class="grid gap-4">
+                                                {#each Object.entries(batchesBySup) as [supplier, batches]}
+                                                    <div class="space-y-2">
+                                                        <div
+                                                            class="text-xs font-semibold text-muted-foreground flex items-center gap-2 uppercase tracking-wider"
+                                                        >
+                                                            <div
+                                                                class="w-1 h-3 bg-primary/50 rounded-full"
+                                                            ></div>
+                                                            {supplier}
+                                                        </div>
+                                                        <Table>
+                                                            <TableHeader>
+                                                                <TableRow
+                                                                    class="h-8 hover:bg-transparent"
+                                                                >
+                                                                    <TableHead
+                                                                        class="h-8 text-xs font-medium text-muted-foreground"
+                                                                        >ID</TableHead
+                                                                    >
+                                                                    <TableHead
+                                                                        class="h-8 text-xs font-medium text-muted-foreground"
+                                                                        >Varian</TableHead
+                                                                    >
+                                                                    <TableHead
+                                                                        class="h-8 text-xs font-medium text-muted-foreground text-right"
+                                                                        >Beli</TableHead
+                                                                    >
+                                                                    <TableHead
+                                                                        class="h-8 text-xs font-medium text-muted-foreground text-right"
+                                                                        >Jual</TableHead
+                                                                    >
+                                                                    <TableHead
+                                                                        class="h-8 text-xs font-medium text-muted-foreground text-right"
+                                                                        >Sisa</TableHead
+                                                                    >
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {#each batches as any as batch}
+                                                                    <TableRow
+                                                                        class="h-9"
+                                                                    >
+                                                                        <TableCell
+                                                                            class="py-1 font-mono text-[10px] text-muted-foreground"
+                                                                            >{batch.id.substring(
+                                                                                0,
+                                                                                8,
+                                                                            )}...</TableCell
+                                                                        >
+                                                                        <TableCell
+                                                                            class="py-1"
+                                                                        >
+                                                                            <Badge
+                                                                                variant="secondary"
+                                                                                class="font-normal text-xs"
+                                                                                >{batch.variant ||
+                                                                                    "Standard"}</Badge
+                                                                            >
+                                                                        </TableCell>
+                                                                        <TableCell
+                                                                            class="text-right py-1 text-xs"
+                                                                            >Rp {batch.buyPrice?.toLocaleString() ??
+                                                                                0}</TableCell
+                                                                        >
+                                                                        <TableCell
+                                                                            class="text-right py-1 text-xs font-medium"
+                                                                            >Rp {batch.sellPrice?.toLocaleString() ??
+                                                                                0}</TableCell
+                                                                        >
+                                                                        <TableCell
+                                                                            class="text-right py-1 font-bold text-xs"
+                                                                            >{batch.currentStock}</TableCell
+                                                                        >
+                                                                    </TableRow>
+                                                                {/each}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                {/each}
+                                            </div>
+                                        {/if}
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        {/if}
                     {/each}
                 {/if}
             </TableBody>

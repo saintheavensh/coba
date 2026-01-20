@@ -29,6 +29,7 @@ import { paymentMethodsController } from "./modules/payment-methods/payment-meth
 import dashboardController from "./modules/dashboard/dashboard.controller";
 import usersController from "./modules/users/users.controller";
 import devicesController from "./modules/devices/devices.controller";
+import { brandsController } from "./modules/brands/brands.controller";
 
 // Create WebSocket upgrader for Bun
 const { upgradeWebSocket, websocket } = createBunWebSocket();
@@ -60,6 +61,7 @@ app.route("/settings", settingsController);
 app.route("/payment-methods", paymentMethodsController);
 app.route("/dashboard", dashboardController);
 app.route("/devices", devicesController);
+app.route("/brands", brandsController);
 
 // WebSocket endpoint for real-time updates
 app.get(

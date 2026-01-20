@@ -58,8 +58,6 @@ export class InventoryRepository {
         const product = productResult[0];
 
         if (data.compatibility && data.compatibility.length > 0) {
-            // Check if productDeviceCompatibility is imported
-            const { productDeviceCompatibility } = await import("../../db/schema");
             await db.insert(productDeviceCompatibility).values(
                 data.compatibility.map(deviceId => ({
                     productId: product.id,
@@ -71,20 +69,20 @@ export class InventoryRepository {
     }
 
     async updateProduct(id: string, data: Partial<typeof products.$inferInsert> & { compatibility?: string[] }) {
+        // 1. Update Product fields
+        const updateData: Partial<typeof products.$inferInsert> = { ...data };
+        delete (updateData as any).compatibility; // Remove compatibility from product update payload
+
         const result = await db.update(products)
             .set({
-                name: data.name,
-                code: data.code,
-                categoryId: data.categoryId,
-                image: data.image,
-                minStock: data.minStock
-                // Note: Don't set compatibility here, it's a relation
+                ...updateData,
+                // explicit fields to ensure safety if generic spread includes extra
             })
             .where(eq(products.id, id))
             .returning();
 
+        // 2. Update Compatibility (if provided)
         if (data.compatibility) {
-            const { productDeviceCompatibility } = await import("../../db/schema");
             // Transactional update: delete all existing, insert new
             await db.delete(productDeviceCompatibility).where(eq(productDeviceCompatibility.productId, id));
 
@@ -98,7 +96,7 @@ export class InventoryRepository {
             }
         }
 
-        return result;
+        return result[0];
     }
 
     async deleteProduct(id: string) {

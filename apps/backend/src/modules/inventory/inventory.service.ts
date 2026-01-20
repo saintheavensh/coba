@@ -29,7 +29,8 @@ export class InventoryService {
             categoryId: data.categoryId && data.categoryId.trim() !== "" ? data.categoryId : null,
             image: data.image,
             minStock: data.minStock,
-            stock: 0 // Always 0 init
+            stock: 0, // Always 0 init
+            compatibility: data.compatibility
         });
     }
 
@@ -39,7 +40,8 @@ export class InventoryService {
             code: data.code,
             categoryId: data.categoryId,
             image: data.image,
-            minStock: data.minStock
+            minStock: data.minStock,
+            compatibility: data.compatibility
         });
     }
 

@@ -10,6 +10,7 @@ app.post("/", async (c: Context) => {
     try {
         const body = await c.req.parseBody();
         const file = body["file"];
+        const folder = body["folder"]; // Optional folder path
 
         if (!file || !(file instanceof File)) {
             // c, error, message, status
@@ -26,8 +27,26 @@ app.post("/", async (c: Context) => {
 
         // Save to public/uploads
         // Ensure path logic correct relative to CWD (apps/backend)
-        const uploadDir = "public/uploads";
+        let uploadDir = "public/uploads";
+
+        // If folder is provided, sanitize and append
+        let relativeUrl = "/uploads";
+        if (typeof folder === "string" && folder.trim().length > 0) {
+            // Sanitize folder name to allow only alphanumeric, underscores, hyphens, and spaces
+            const sanitizedFolder = folder.replace(/[^a-zA-Z0-9_\-\s]/g, "").trim();
+            if (sanitizedFolder) {
+                uploadDir = join(uploadDir, sanitizedFolder);
+                relativeUrl = `/uploads/${sanitizedFolder}`;
+            }
+        }
+
         const path = join(uploadDir, filename);
+
+        // Ensure directory exists
+        const fs = await import("node:fs");
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
 
         const arrayBuffer = await file.arrayBuffer();
         await Bun.write(path, arrayBuffer);
@@ -36,7 +55,7 @@ app.post("/", async (c: Context) => {
         // but returning relative path is usually safer for frontend to handle or standard base
         // Let's return the full relative path from server root or absolute URL if we knew hostname.
         // Returning `/uploads/${filename}` is good for relative to current domain
-        const url = `/uploads/${filename}`;
+        const url = `${relativeUrl}/${filename}`;
 
         return apiSuccess(c, { url }, "File uploaded successfully");
     } catch (e) {

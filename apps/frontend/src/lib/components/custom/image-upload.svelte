@@ -8,7 +8,8 @@
     let {
         value = $bindable(""),
         disabled = false,
-    }: { value: string; disabled?: boolean } = $props();
+        folder = "misc",
+    }: { value: string; disabled?: boolean; folder?: string } = $props();
 
     let isUploading = $state(false);
     let fileInput: HTMLInputElement;
@@ -23,6 +24,9 @@
         try {
             const formData = new FormData();
             formData.append("file", file);
+            if (folder) {
+                formData.append("folder", folder);
+            }
 
             const res = await api.post("/uploads", formData, {
                 headers: { "Content-Type": "multipart/form-data" },

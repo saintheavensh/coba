@@ -156,11 +156,23 @@ export const saleItems = pgTable("sale_items", {
 export const devices = pgTable("devices", {
     id: text("id").primaryKey(), // DEV-XXX or UUID
     brand: text("brand").notNull(), // Samsung, Apple
+    series: text("series"), // S Series, A Series, etc.
     model: text("model").notNull(), // Galaxy S25, iPhone 16
     code: text("code"), // SM-S921B (Machine Code)
     image: text("image"),
+    colors: json("colors").$type<string[]>(), // ["Black", "Blue"]
+    specs: text("specs"), // "128GB/256GB" (Internal Storage/RAM)
+    chipset: text("chipset"), // "Snapdragon 8 Gen 3"
+    specifications: json("specifications").$type<Record<string, any>>(), // Full detailed specs
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at"),
+});
+
+export const brands = pgTable("brands", {
+    id: text("id").primaryKey(), // "samsung", "apple"
+    name: text("name").notNull(), // "Samsung", "Apple"
+    logo: text("logo"), // URL to logo
+    createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Junction Table for Many-to-Many

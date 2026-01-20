@@ -47,9 +47,12 @@ export type AddBatchRequest = z.infer<typeof batchSchema>;
 export type Device = {
     id: string;
     brand: string;
+    series: string | null;
     model: string;
     code: string | null;
     image: string | null;
+    colors: string[] | null;
+    specs: string | null;
 };
 
 export type Product = {

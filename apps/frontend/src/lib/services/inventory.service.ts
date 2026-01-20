@@ -93,6 +93,10 @@ export const InventoryService = {
     deleteDevice: async (id: string): Promise<void> => {
         await api.delete(`/devices/${id}`);
     },
+    scrapeDevice: async (url: string): Promise<any> => {
+        const res = await api.post<ApiResponse<any>>("/devices/scrape", { url });
+        return res.data?.data;
+    },
 
     // Suppliers
     getSuppliers: async (): Promise<Supplier[]> => {

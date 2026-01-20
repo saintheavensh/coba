@@ -2,7 +2,7 @@
     import { onMount, onDestroy } from "svelte";
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
-    import { Button } from "$lib/components/ui/button";
+    import { Button, buttonVariants } from "$lib/components/ui/button";
     import {
         Search,
         ShoppingCart,
@@ -47,7 +47,10 @@
         DialogHeader,
         DialogTitle,
     } from "$lib/components/ui/dialog";
-    import Combobox from "$lib/components/custom/combobox.svelte";
+    import * as Popover from "$lib/components/ui/popover";
+    import * as Command from "$lib/components/ui/command";
+    import { Check, ChevronsUpDown } from "lucide-svelte";
+    import { cn } from "$lib/utils";
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import { formatCurrency } from "$lib/utils";
 
@@ -81,7 +84,7 @@
     // Query State
     const productsQuery = createQuery(() => ({
         queryKey: ["products"],
-        queryFn: InventoryService.getProducts,
+        queryFn: () => InventoryService.getProducts(),
     }));
 
     const categoriesQuery = createQuery(() => ({
@@ -187,6 +190,7 @@
 
     // Payment State
     let selectedCustomerId = $state(""); // From Combobox
+    let customerOpen = $state(false);
     let customerNameManual = $state("Walk-in Consumen"); // Default
     let notes = $state("");
 
@@ -732,12 +736,65 @@
                         <div class="space-y-3">
                             <Label>Data Pelanggan</Label>
                             <div class="space-y-2">
-                                <Combobox
-                                    items={customerOptions}
-                                    bind:value={selectedCustomerId}
-                                    placeholder="Cari Pelanggan..."
-                                    allowCreate={false}
-                                />
+                                <!-- Replaced Legacy Combobox with Popover+Command -->
+                                <Popover.Root bind:open={customerOpen}>
+                                    <Popover.Trigger
+                                        class={cn(
+                                            buttonVariants({
+                                                variant: "outline",
+                                            }),
+                                            "w-full justify-between",
+                                        )}
+                                        role="combobox"
+                                        aria-expanded={customerOpen}
+                                    >
+                                        {#if selectedCustomerId}
+                                            {customerOptions.find(
+                                                (c) =>
+                                                    c.value ===
+                                                    selectedCustomerId,
+                                            )?.label}
+                                        {:else}
+                                            Cari Pelanggan...
+                                        {/if}
+                                        <ChevronsUpDown
+                                            class="ml-2 h-4 w-4 opacity-50"
+                                        />
+                                    </Popover.Trigger>
+                                    <Popover.Content class="w-[300px] p-0">
+                                        <Command.Root>
+                                            <Command.Input
+                                                placeholder="Cari nama..."
+                                            />
+                                            <Command.Empty
+                                                >Pelanggan tidak ditemukan.</Command.Empty
+                                            >
+                                            <Command.Group>
+                                                {#each customerOptions as customer}
+                                                    <Command.Item
+                                                        value={customer.label}
+                                                        onSelect={() => {
+                                                            selectedCustomerId =
+                                                                customer.value;
+                                                            customerOpen = false;
+                                                        }}
+                                                    >
+                                                        <Check
+                                                            class={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                selectedCustomerId ===
+                                                                    customer.value
+                                                                    ? "opacity-100"
+                                                                    : "opacity-0",
+                                                            )}
+                                                        />
+                                                        {customer.label}
+                                                    </Command.Item>
+                                                {/each}
+                                            </Command.Group>
+                                        </Command.Root>
+                                    </Popover.Content>
+                                </Popover.Root>
                                 {#if !selectedCustomerId}
                                     <div class="pl-2 border-l-2 border-muted">
                                         <Input
