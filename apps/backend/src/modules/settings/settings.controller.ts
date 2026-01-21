@@ -8,6 +8,7 @@ import {
     WhatsAppSettings,
 } from "./settings.service";
 import { authMiddleware } from "../../middlewares/auth.middleware";
+import { apiSuccess, apiError } from "../../lib/response";
 
 const settingsController = new Hono();
 const service = new SettingsService();
@@ -19,8 +20,12 @@ settingsController.use("*", authMiddleware);
 // ============================================
 
 settingsController.get("/", async (c) => {
-    const all = await service.getAll();
-    return c.json({ success: true, data: all });
+    try {
+        const all = await service.getAll();
+        return apiSuccess(c, all);
+    } catch (e) {
+        return apiError(c, e, "Failed to fetch settings");
+    }
 });
 
 // ============================================
@@ -28,14 +33,22 @@ settingsController.get("/", async (c) => {
 // ============================================
 
 settingsController.get("/payment-methods", async (c) => {
-    const config = await service.getPaymentMethods();
-    return c.json({ success: true, data: config });
+    try {
+        const config = await service.getPaymentMethods();
+        return apiSuccess(c, config);
+    } catch (e) {
+        return apiError(c, e, "Failed to fetch payment methods");
+    }
 });
 
 settingsController.put("/payment-methods", async (c) => {
-    const body = await c.req.json<PaymentMethodConfig>();
-    await service.setPaymentMethods(body);
-    return c.json({ success: true, message: "Payment methods updated" });
+    try {
+        const body = await c.req.json<PaymentMethodConfig>();
+        await service.setPaymentMethods(body);
+        return apiSuccess(c, null, "Payment methods updated");
+    } catch (e) {
+        return apiError(c, e, "Failed to update payment methods");
+    }
 });
 
 // ============================================
@@ -43,14 +56,22 @@ settingsController.put("/payment-methods", async (c) => {
 // ============================================
 
 settingsController.get("/store-info", async (c) => {
-    const info = await service.getStoreInfo();
-    return c.json({ success: true, data: info });
+    try {
+        const info = await service.getStoreInfo();
+        return apiSuccess(c, info);
+    } catch (e) {
+        return apiError(c, e, "Failed to fetch store info");
+    }
 });
 
 settingsController.put("/store-info", async (c) => {
-    const body = await c.req.json<StoreInfo>();
-    await service.setStoreInfo(body);
-    return c.json({ success: true, message: "Store info updated" });
+    try {
+        const body = await c.req.json<StoreInfo>();
+        await service.setStoreInfo(body);
+        return apiSuccess(c, null, "Store info updated");
+    } catch (e) {
+        return apiError(c, e, "Failed to update store info");
+    }
 });
 
 // ============================================
@@ -58,14 +79,22 @@ settingsController.put("/store-info", async (c) => {
 // ============================================
 
 settingsController.get("/receipt", async (c) => {
-    const settings = await service.getReceiptSettings();
-    return c.json({ success: true, data: settings });
+    try {
+        const settings = await service.getReceiptSettings();
+        return apiSuccess(c, settings);
+    } catch (e) {
+        return apiError(c, e, "Failed to fetch receipt settings");
+    }
 });
 
 settingsController.put("/receipt", async (c) => {
-    const body = await c.req.json<ReceiptSettings>();
-    await service.setReceiptSettings(body);
-    return c.json({ success: true, message: "Receipt settings updated" });
+    try {
+        const body = await c.req.json<ReceiptSettings>();
+        await service.setReceiptSettings(body);
+        return apiSuccess(c, null, "Receipt settings updated");
+    } catch (e) {
+        return apiError(c, e, "Failed to update receipt settings");
+    }
 });
 
 // ============================================
@@ -73,14 +102,22 @@ settingsController.put("/receipt", async (c) => {
 // ============================================
 
 settingsController.get("/service", async (c) => {
-    const settings = await service.getServiceSettings();
-    return c.json({ success: true, data: settings });
+    try {
+        const settings = await service.getServiceSettings();
+        return apiSuccess(c, settings);
+    } catch (e) {
+        return apiError(c, e, "Failed to fetch service settings");
+    }
 });
 
 settingsController.put("/service", async (c) => {
-    const body = await c.req.json<ServiceSettings>();
-    await service.setServiceSettings(body);
-    return c.json({ success: true, message: "Service settings updated" });
+    try {
+        const body = await c.req.json<ServiceSettings>();
+        await service.setServiceSettings(body);
+        return apiSuccess(c, null, "Service settings updated");
+    } catch (e) {
+        return apiError(c, e, "Failed to update service settings");
+    }
 });
 
 // ============================================
@@ -88,14 +125,22 @@ settingsController.put("/service", async (c) => {
 // ============================================
 
 settingsController.get("/whatsapp", async (c) => {
-    const settings = await service.getWhatsAppSettings();
-    return c.json({ success: true, data: settings });
+    try {
+        const settings = await service.getWhatsAppSettings();
+        return apiSuccess(c, settings);
+    } catch (e) {
+        return apiError(c, e, "Failed to fetch WhatsApp settings");
+    }
 });
 
 settingsController.put("/whatsapp", async (c) => {
-    const body = await c.req.json<WhatsAppSettings>();
-    await service.setWhatsAppSettings(body);
-    return c.json({ success: true, message: "WhatsApp settings updated" });
+    try {
+        const body = await c.req.json<WhatsAppSettings>();
+        await service.setWhatsAppSettings(body);
+        return apiSuccess(c, null, "WhatsApp settings updated");
+    } catch (e) {
+        return apiError(c, e, "Failed to update WhatsApp settings");
+    }
 });
 
 // ============================================
@@ -103,16 +148,24 @@ settingsController.put("/whatsapp", async (c) => {
 // ============================================
 
 settingsController.get("/:key", async (c) => {
-    const key = c.req.param("key");
-    const value = await service.get(key, null);
-    return c.json({ success: true, data: value });
+    try {
+        const key = c.req.param("key");
+        const value = await service.get(key, null);
+        return apiSuccess(c, value);
+    } catch (e) {
+        return apiError(c, e, "Failed to fetch setting");
+    }
 });
 
 settingsController.put("/:key", async (c) => {
-    const key = c.req.param("key");
-    const body = await c.req.json();
-    await service.set(key, body.value);
-    return c.json({ success: true, message: "Setting updated" });
+    try {
+        const key = c.req.param("key");
+        const body = await c.req.json();
+        await service.set(key, body.value);
+        return apiSuccess(c, null, "Setting updated");
+    } catch (e) {
+        return apiError(c, e, "Failed to update setting");
+    }
 });
 
 export { settingsController };

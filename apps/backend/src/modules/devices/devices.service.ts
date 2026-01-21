@@ -1,6 +1,6 @@
 import { db } from "../../db";
 import { devices, productDeviceCompatibility } from "../../db/schema";
-import { eq, desc, ilike, or } from "drizzle-orm";
+import { eq, desc, ilike, or, inArray } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
 export class DevicesService {
@@ -51,5 +51,13 @@ export class DevicesService {
             .where(eq(devices.id, id))
             .returning();
         return result[0];
+    }
+
+    static async bulkDelete(ids: string[]) {
+        const result = await db
+            .delete(devices)
+            .where(inArray(devices.id, ids))
+            .returning();
+        return result;
     }
 }

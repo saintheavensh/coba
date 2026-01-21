@@ -38,6 +38,58 @@ app.post(
     }
 );
 
+app.post(
+    "/scrape-list",
+    authMiddleware,
+    permissionGuard("inventory.manage"),
+    async (c) => {
+        try {
+            const body = await c.req.json();
+            if (!body.url) return apiError(c, "URL is required", "Missing URL", 400);
+
+            const links = await ScraperService.getDeviceLinks(body.url);
+            return apiSuccess(c, links, "List parsed successfully");
+        } catch (e: any) {
+            return apiError(c, e, "Failed to parse list", 500);
+        }
+    }
+);
+
+app.post(
+    "/import-url",
+    authMiddleware,
+    permissionGuard("inventory.manage"),
+    async (c) => {
+        try {
+            const body = await c.req.json();
+            if (!body.url) return apiError(c, "URL is required", "Missing URL", 400);
+
+            // 1. Scrape
+            const scraped = await ScraperService.scrapeGsmArena(body.url);
+
+            // 2. Create in DB
+            const data = await DevicesService.create({
+                brand: scraped.brand,
+                model: scraped.model,
+                image: scraped.image,
+                code: scraped.code,
+                specs: scraped.specs_ram_storage,
+                chipset: scraped.chipset,
+                // @ts-ignore
+                specifications: scraped.specifications,
+                colors: scraped.specifications.colors ? scraped.specifications.colors.split(",").map((s: string) => s.trim()) : []
+            });
+
+            return apiSuccess(c, data, "Device imported successfully");
+        } catch (e: any) {
+            // Return 200 with error info so frontend bulk process continues
+            return apiSuccess(c, { error: e.message, success: false }, "Failed to import", 200);
+        }
+    }
+);
+
+
+
 app.get("/", async (c) => {
     const search = c.req.query("search");
     const data = await DevicesService.getAll(search);
@@ -85,6 +137,20 @@ app.patch(
         const data = await DevicesService.update(id, body);
         if (!data) return apiError(c, null, "Device not found", 404);
         return apiSuccess(c, data, "Device updated", 200);
+    }
+);
+
+app.post(
+    "/bulk-delete",
+    authMiddleware,
+    permissionGuard("inventory.manage"),
+    async (c) => {
+        const body = await c.req.json();
+        if (!body.ids || !Array.isArray(body.ids)) {
+            return apiError(c, null, "IDs must be an array", 400);
+        }
+        const data = await DevicesService.bulkDelete(body.ids);
+        return apiSuccess(c, data, "Devices deleted", 200);
     }
 );
 

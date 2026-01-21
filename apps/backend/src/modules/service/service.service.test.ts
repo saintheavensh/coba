@@ -30,33 +30,39 @@ vi.mock('../../db', () => ({
 }));
 
 // Mock SettingsService
+// We don't need module mock for DI, just interface mock
 const mockGetServiceSettings = vi.fn();
-vi.mock('../settings/settings.service', () => {
-    return {
-        SettingsService: vi.fn().mockImplementation(() => ({
-            getServiceSettings: mockGetServiceSettings
-        }))
-    };
-});
 
-// Mock ServiceRepository
-vi.mock('./service.repository', () => {
-    return {
-        ServiceRepository: vi.fn().mockImplementation(() => ({
-            findById: vi.fn(),
-            findAll: vi.fn(),
-            findLastServiceNo: vi.fn()
-        }))
-    };
-});
-
+// We DO need to mock module for SettingsService because it is imported? 
+// No, if we inject it, we don't care about module.
+// However, the test file imports 'ServiceService' which imports 'SettingsService' causing side effects? 
+// No, imports are just types if not extended. 
+// BUT 'ServiceService.ts' imports the CLASS.
+// If we execute 'new ServiceService()', it will try to import real modules if not mocked.
+// But we will inject mocks.
+// HOWEVER, logical instantiation of default params happens if we don't pass arguments.
+// So we must pass arguments.
 
 describe('ServiceService Logic', () => {
     let service: ServiceService;
+    let mockRepo: any;
+    let mockSettings: any;
 
     beforeEach(() => {
         vi.clearAllMocks();
-        service = new ServiceService();
+
+        mockRepo = {
+            findById: vi.fn(),
+            findAll: vi.fn(),
+            findLastServiceNo: vi.fn(),
+            // add others if needed
+        };
+
+        mockSettings = {
+            getServiceSettings: mockGetServiceSettings
+        };
+
+        service = new ServiceService(mockRepo, mockSettings);
 
         // Setup default settings mock
         mockGetServiceSettings.mockResolvedValue({

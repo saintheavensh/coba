@@ -3,6 +3,7 @@ import { apiSuccess, apiError } from "../../lib/response";
 import { v4 as uuidv4 } from "uuid";
 import { join } from "path";
 import { Context } from "hono";
+import { Logger } from "../../lib/logger";
 
 const app = new Hono();
 
@@ -59,7 +60,7 @@ app.post("/", async (c: Context) => {
 
         return apiSuccess(c, { url }, "File uploaded successfully");
     } catch (e) {
-        console.error(e);
+        Logger.error("Failed to upload file", e);
         return apiError(c, e, "Failed to upload file", 500);
     }
 });

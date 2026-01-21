@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { CustomersService } from "./customers.service";
+import { apiError, apiSuccess } from "../../lib/response";
 
 const customersController = new Hono();
 const membersService = new CustomersService();
@@ -21,13 +22,14 @@ const updateCustomerSchema = customerSchema.partial();
 customersController.get("/", async (c) => {
     const query = c.req.query("q");
     const customers = await membersService.getAll(query);
-    return c.json({ success: true, data: customers });
+    return apiSuccess(c, customers);
 });
 
 customersController.get("/:id", async (c) => {
     const id = c.req.param("id");
     const customer = await membersService.getById(id);
-    return c.json({ success: true, data: customer });
+    if (!customer) return apiError(c, null, "Customer not found", 404);
+    return apiSuccess(c, customer);
 });
 
 customersController.post(
@@ -36,7 +38,7 @@ customersController.post(
     async (c) => {
         const data = c.req.valid("json");
         const customer = await membersService.create(data);
-        return c.json({ success: true, data: customer }, 201);
+        return apiSuccess(c, customer, "Customer created successfully", 201);
     }
 );
 
@@ -47,14 +49,14 @@ customersController.put(
         const id = c.req.param("id");
         const data = c.req.valid("json");
         const customer = await membersService.update(id, data);
-        return c.json({ success: true, data: customer });
+        return apiSuccess(c, customer, "Customer updated successfully");
     }
 );
 
 customersController.delete("/:id", async (c) => {
     const id = c.req.param("id");
     await membersService.delete(id);
-    return c.json({ success: true, message: "Customer deleted successfully" });
+    return apiSuccess(c, null, "Customer deleted successfully");
 });
 
 const paymentSchema = z.object({
@@ -68,13 +70,13 @@ const paymentSchema = z.object({
 customersController.get("/:id/sales", async (c) => {
     const id = c.req.param("id");
     const sales = await membersService.getSales(id);
-    return c.json({ success: true, data: sales });
+    return apiSuccess(c, sales);
 });
 
 customersController.get("/:id/unpaid-sales", async (c) => {
     const id = c.req.param("id");
     const sales = await membersService.getUnpaidSales(id);
-    return c.json({ success: true, data: sales });
+    return apiSuccess(c, sales);
 });
 
 customersController.post(
@@ -84,7 +86,7 @@ customersController.post(
         const id = c.req.param("id");
         const { amount, method, notes, saleId, proofImage } = c.req.valid("json");
         const customer = await membersService.processPayment(id, amount, method, notes, saleId, proofImage);
-        return c.json({ success: true, data: customer });
+        return apiSuccess(c, customer, "Payment processed successfully");
     }
 );
 

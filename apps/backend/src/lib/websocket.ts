@@ -1,5 +1,6 @@
 import type { WSContext } from "hono/ws";
 import { subscriber } from "./redis";
+import { Logger } from "./logger";
 
 // Store active WebSocket connections by user ID
 const clients = new Map<string, Set<WSContext>>();
@@ -20,7 +21,7 @@ export function addClient(userId: string | null, ws: WSContext) {
         clients.get(userId)!.add(ws);
     }
 
-    console.log(`🔌 WebSocket connected. Total: ${allClients.size}, Users: ${clients.size}`);
+    Logger.info(`🔌 WebSocket connected`, { total: allClients.size, users: clients.size });
 }
 
 /**
@@ -36,7 +37,7 @@ export function removeClient(userId: string | null, ws: WSContext) {
         }
     }
 
-    console.log(`🔌 WebSocket disconnected. Total: ${allClients.size}, Users: ${clients.size}`);
+    Logger.info(`🔌 WebSocket disconnected`, { total: allClients.size, users: clients.size });
 }
 
 /**
@@ -50,7 +51,7 @@ export function sendToUser(userId: string, message: object) {
             try {
                 client.send(payload);
             } catch (err) {
-                console.error("Error sending to user:", err);
+                Logger.error("Error sending to user", err);
             }
         });
     }
@@ -65,7 +66,7 @@ export function broadcastToAll(message: object) {
         try {
             client.send(payload);
         } catch (err) {
-            console.error("Error broadcasting:", err);
+            Logger.error("Error broadcasting", err);
         }
     });
 }
@@ -83,9 +84,9 @@ export function getConnectionStats() {
 // Subscribe to Redis notifications channel
 subscriber.subscribe("notifications", (err) => {
     if (err) {
-        console.error("Redis subscribe error:", err);
+        Logger.error("Redis subscribe error", err);
     } else {
-        console.log("📡 Subscribed to Redis notifications channel");
+        Logger.info("📡 Subscribed to Redis notifications channel");
     }
 });
 
@@ -103,7 +104,7 @@ subscriber.on("message", (channel, message) => {
                 broadcastToAll(data);
             }
         } catch (err) {
-            console.error("Error processing Redis message:", err);
+            Logger.error("Error processing Redis message", err);
         }
     }
 });
@@ -111,9 +112,9 @@ subscriber.on("message", (channel, message) => {
 // Subscribe to real-time updates channel (for live data sync)
 subscriber.subscribe("realtime", (err) => {
     if (err) {
-        console.error("Redis realtime subscribe error:", err);
+        Logger.error("Redis realtime subscribe error", err);
     } else {
-        console.log("📡 Subscribed to Redis realtime channel");
+        Logger.info("📡 Subscribed to Redis realtime channel");
     }
 });
 
@@ -123,7 +124,7 @@ subscriber.on("message", (channel, message) => {
             const data = JSON.parse(message);
             broadcastToAll(data);
         } catch (err) {
-            console.error("Error processing realtime message:", err);
+            Logger.error("Error processing realtime message", err);
         }
     }
 });

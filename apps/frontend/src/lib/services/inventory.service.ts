@@ -1,5 +1,7 @@
 import { api } from "../api";
 import type { Product, Category, Supplier, ApiResponse, Device } from "@repo/shared";
+import * as XLSX from "xlsx";
+import { BrandsService } from "./brands.service";
 
 /** Input type for creating a device */
 export interface CreateDeviceInput {
@@ -93,9 +95,165 @@ export const InventoryService = {
     deleteDevice: async (id: string): Promise<void> => {
         await api.delete(`/devices/${id}`);
     },
+    bulkDeleteDevices: async (ids: string[]): Promise<void> => {
+        await api.post("/devices/bulk-delete", { ids });
+    },
     scrapeDevice: async (url: string): Promise<any> => {
         const res = await api.post<ApiResponse<any>>("/devices/scrape", { url });
         return res.data?.data;
+    },
+    getDeviceList: async (url: string): Promise<{ name: string; url: string; }[]> => {
+        const res = await api.post<ApiResponse<{ name: string; url: string; }[]>>("/devices/scrape-list", { url });
+        return res.data?.data ?? [];
+    },
+    importDeviceFromUrl: async (url: string): Promise<any> => {
+        const res = await api.post<ApiResponse<any>>("/devices/import-url", { url });
+        return res.data?.data;
+    },
+    exportDevices: async (format: "csv" | "excel") => {
+        try {
+            // 1. Fetch all devices
+            const devices = await InventoryService.getDevices();
+
+            // 2. Format data
+            const rows = devices.map(d => ({
+                Brand: d.brand,
+                Model: d.model,
+                Series: d.series || "",
+                Code: d.code || "",
+                Image: d.image || "",
+                Colors: Array.isArray(d.colors) ? d.colors.join(", ") : "",
+                Specs: d.specs || "",
+                Chipset: d.chipset || "",
+                Specifications: d.specifications ? JSON.stringify(d.specifications) : ""
+            }));
+
+            // 3. Create Workbook
+            const ws = XLSX.utils.json_to_sheet(rows);
+            // Auto width
+            const cols = Object.keys(rows[0] || {}).map(k => ({ wch: 20 }));
+            ws['!cols'] = cols;
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Devices");
+
+            // 4. Download
+            if (format === "csv") {
+                XLSX.writeFile(wb, "devices_export.csv");
+            } else {
+                XLSX.writeFile(wb, "devices_export.xlsx");
+            }
+        } catch (e) {
+            console.error("Export failed", e);
+            throw e;
+        }
+    },
+    importDevices: async (file: File): Promise<{ imported: number; skipped: number; errors: string[] }> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    // Get first sheet
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+
+                    // Convert to JSON
+                    const rows = XLSX.utils.sheet_to_json<any>(worksheet);
+
+                    const result = { imported: 0, skipped: 0, errors: [] as string[] };
+
+                    // fetch existing brands to minimize requests
+                    const existingBrands = await BrandsService.getAll();
+                    const brandMap = new Set(existingBrands.map(b => b.name.toLowerCase().trim()));
+
+                    for (const row of rows) {
+                        try {
+                            // Normalize keys (Brand, brand, BRAND -> brand)
+                            const normalizedRow: any = {};
+                            Object.keys(row).forEach(key => {
+                                normalizedRow[key.toLowerCase()] = row[key];
+                            });
+
+                            const brandName = normalizedRow.brand;
+                            const modelName = normalizedRow.model;
+
+                            if (!brandName || !modelName) {
+                                result.skipped++;
+                                continue;
+                            }
+
+                            // 1. Handle Brand
+                            const brandKey = brandName.toLowerCase().trim();
+                            if (!brandMap.has(brandKey)) {
+                                try {
+                                    // Optimistic check before create
+                                    const allBrands = await BrandsService.getAll();
+                                    const exists = allBrands.find(b => b.name.toLowerCase().trim() === brandKey);
+
+                                    if (!exists) {
+                                        await BrandsService.create({
+                                            id: brandKey.replace(/\s+/g, "-"),
+                                            name: brandName.trim()
+                                        });
+                                        // Refresh map
+                                        brandMap.add(brandKey);
+                                    } else {
+                                        brandMap.add(brandKey);
+                                    }
+                                } catch (err) {
+                                    console.warn(`Brand creation warning for ${brandName}`, err);
+                                    // Proceed anyway, backend might handle it or it failed
+                                }
+                            }
+
+                            // Parse colors
+                            let colorsArray: string[] = [];
+                            if (normalizedRow.colors && typeof normalizedRow.colors === 'string') {
+                                colorsArray = normalizedRow.colors.split(",").map((c: string) => c.trim()).filter((c: string) => c);
+                            }
+
+                            // Parse specs json if exists
+                            let specifications = {};
+                            if (normalizedRow.specifications) {
+                                try {
+                                    specifications = JSON.parse(normalizedRow.specifications);
+                                } catch { }
+                            }
+
+                            // 2. Create Device
+                            await InventoryService.createDevice({
+                                brand: brandName.trim(),
+                                model: modelName.trim(),
+                                code: normalizedRow.code?.toString(),
+                                image: normalizedRow.image,
+                                // @ts-ignore
+                                series: normalizedRow.series,
+                                colors: colorsArray.length > 0 ? colorsArray : undefined,
+                                specs: normalizedRow.specs,
+                                chipset: normalizedRow.chipset,
+                                specifications: Object.keys(specifications).length > 0 ? specifications : undefined
+                            });
+
+                            result.imported++;
+                        } catch (err: any) {
+                            result.errors.push(`Failed to import ${row.brand || '?'} ${row.model || '?'}: ${err.message}`);
+                            result.skipped++;
+                        }
+                    }
+
+                    resolve(result);
+                } catch (err) {
+                    reject(err);
+                }
+            };
+
+            reader.onerror = (err) => reject(err);
+            reader.readAsArrayBuffer(file);
+        });
     },
 
     // Suppliers

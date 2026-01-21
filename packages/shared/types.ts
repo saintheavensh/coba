@@ -42,10 +42,16 @@ export interface Category {
 export interface Device {
     id: string;
     brand: string;
+    series?: string | null;
     model: string;
     code?: string | null;
     image?: string | null;
+    colors?: string[] | null;
+    specs?: string | null;
+    chipset?: string | null;
+    specifications?: Record<string, any> | null;
     createdAt?: Date | null;
+    updatedAt?: Date | null;
 }
 
 export interface Supplier {
@@ -89,6 +95,7 @@ export interface Product {
     category?: Category | null;
     batches?: ProductBatch[];
     price?: number; // Calculated price (e.g. from batch)
+    compatibility?: Device[]; // Array of compatible devices
 }
 
 export interface ProductBatch {

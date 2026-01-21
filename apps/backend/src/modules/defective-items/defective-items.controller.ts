@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { DefectiveItemsService } from "./defective-items.service";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { apiSuccess } from "../../lib/response";
 
 export const defectiveItemsController = new Hono();
 const service = new DefectiveItemsService();
@@ -9,7 +10,7 @@ const service = new DefectiveItemsService();
 // GET /defective-items (Pending List)
 defectiveItemsController.get("/", async (c) => {
     const data = await service.getPendingItems();
-    return c.json({ success: true, data });
+    return apiSuccess(c, data);
 });
 
 // POST /defective-items (Manual Add)
@@ -30,7 +31,7 @@ defectiveItemsController.post(
             ...body,
             source: "manual"
         });
-        return c.json({ success: true, data: result });
+        return apiSuccess(c, result);
     }
 );
 
@@ -47,6 +48,6 @@ defectiveItemsController.post(
     async (c) => {
         const body = c.req.valid("json");
         const result = await service.createReturnFromItems(body.userId, body.itemIds);
-        return c.json({ success: true, data: result });
+        return apiSuccess(c, result);
     }
 );

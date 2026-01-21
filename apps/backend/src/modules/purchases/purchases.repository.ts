@@ -2,7 +2,12 @@ import { db } from "../../db";
 import { purchases, purchaseItems, productBatches, products, suppliers, activityLogs } from "../../db/schema";
 import { eq, desc, and, sql, gte, lte } from "drizzle-orm";
 
+import { Logger } from "../../lib/logger";
+
 export class PurchasesRepository {
+
+    // ...
+
     async findAll(filters?: {
         search?: string;
         startDate?: Date;
@@ -10,7 +15,7 @@ export class PurchasesRepository {
         userId?: string;
         limit?: number;
     }) {
-        console.log("[DEBUG] Repo findAll Filters:", {
+        Logger.debug("[DEBUG] Repo findAll Filters:", {
             start: filters?.startDate,
             end: filters?.endDate,
             userId: filters?.userId,

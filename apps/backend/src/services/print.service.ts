@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { exec } from "node:child_process";
 import util from "node:util";
+import { Logger } from "../lib/logger";
 
 const execAsync = util.promisify(exec);
 
@@ -19,7 +20,7 @@ export class PrintService {
         // Ensure we use backslashes for Windows paths
         this.interface = (envPrinter || defaultPrinter).replace(/\//g, "\\");
 
-        console.log("Printer Interface:", this.interface);
+        Logger.info("Printer Interface:", { interface: this.interface });
 
         this.printer = new ThermalPrinter({
             type: PrinterTypes.EPSON,
@@ -127,7 +128,7 @@ export class PrintService {
             // Print Image
             await this.printer.printImageBuffer(buffer);
         } catch (e) {
-            console.error("QR Print Error", e);
+            Logger.error("QR Print Error", e);
             this.printer.println(`[${service.no}]`);
         }
 
@@ -155,7 +156,7 @@ export class PrintService {
             // Using PowerShell/CMD to copy binary to printer
             // Command: COPY /B temp_print.bin \\Computer\Printer
             const cmd = `COPY /B "${tempFile}" "${this.interface}"`;
-            console.log("Executing Print Command:", cmd);
+            Logger.info(`Executing Print Command: ${cmd}`);
 
             await execAsync(cmd, { shell: "cmd.exe" });
 
@@ -163,7 +164,7 @@ export class PrintService {
             // await fs.unlink(tempFile);
             return { success: true };
         } catch (error) {
-            console.error("Print Service Error:", error);
+            Logger.error("Print Service Error", error);
             return { success: false, error };
         }
     }

@@ -44,32 +44,8 @@ export const batchSchema = z.object({
 export type AddBatchRequest = z.infer<typeof batchSchema>;
 
 // Device Type
-export type Device = {
-    id: string;
-    brand: string;
-    series: string | null;
-    model: string;
-    code: string | null;
-    image: string | null;
-    colors: string[] | null;
-    specs: string | null;
-};
 
-export type Product = {
-    id: string;
-    code?: string | null;
-    name: string;
-    categoryId: string | null;
-    stock: number;
-    minStock: number | null;
-    createdAt: Date | null;
-    // Computed/Frontend props
-    status?: "Normal" | "Critical" | "Empty";
-    categoryName?: string; // Joined name
-    min?: number; // legacy alias
-    compatibility?: Device[]; // Array of compatible devices
-    price?: number; // Computed price (e.g. from lowest batch)
-};
+
 
 // --- Service Schemas ---
 export const createServiceSchema = z.object({
@@ -143,19 +119,9 @@ export const updateStatusSchema = z.object({
 });
 export type UpdateStatusRequest = z.infer<typeof updateStatusSchema>;
 
-// Shared Types
-export type Category = {
-    id: string;
-    name: string;
-    description: string | null;
-};
 
-export type User = {
-    id: string;
-    username: string;
-    name: string;
-    role: "admin" | "teknisi" | "kasir";
-};
+
+
 
 // ============================================
 // Re-export all shared types

@@ -2,11 +2,13 @@ import { Hono } from "hono";
 import { PaymentMethodsService } from "./payment-methods.service";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 
+import { Logger } from "../../lib/logger";
+
 const paymentMethodsController = new Hono();
 const service = new PaymentMethodsService();
 
 // Seed defaults on startup
-service.seedDefaults().catch(console.error);
+service.seedDefaults().catch(err => Logger.error("Failed to seed defaults", err));
 
 // Get all payment methods (with all variants, including disabled)
 paymentMethodsController.get("/", authMiddleware, async (c) => {

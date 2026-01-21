@@ -1,6 +1,7 @@
 import { Context } from "hono";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ApiResponse } from "@repo/shared";
+import { Logger } from "./logger";
 
 /**
  * Generic API response helper
@@ -57,8 +58,7 @@ export function apiError(
     }
 
     if (status === 500) {
-        const timestamp = new Date().toISOString();
-        console.error(`[API_ERROR] ${timestamp} - ${message}`, error);
+        Logger.error(`[API_ERROR] ${message}`, error);
         // Here you could also stream to a log file or external service (Sentry, etc.)
     }
 

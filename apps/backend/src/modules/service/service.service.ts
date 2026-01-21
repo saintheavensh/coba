@@ -3,14 +3,18 @@ import { services, activityLogs, users, productBatches } from "../../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { ServiceRepository } from "./service.repository";
 import { SettingsService } from "../settings/settings.service";
+import { Logger } from "../../lib/logger";
 
 export class ServiceService {
     private repo: ServiceRepository;
     private settingsService: SettingsService;
 
-    constructor() {
-        this.repo = new ServiceRepository();
-        this.settingsService = new SettingsService();
+    constructor(
+        repo?: ServiceRepository,
+        settingsService?: SettingsService
+    ) {
+        this.repo = repo || new ServiceRepository();
+        this.settingsService = settingsService || new SettingsService();
     }
 
     async getAll(params?: { status?: string; technicianId?: string }) {
@@ -347,9 +351,9 @@ export class ServiceService {
                 // Or just default to 0 to encourage using presets.
                 // Re-using default warranty days from settings as fallback might be safer than 0?
                 // No, consistency implies if label not match, 0 is safer than random days.
-                console.warn(`Warranty label '${label}' not found in presets.`);
+                Logger.warn(`Warranty label '${label}' not found in presets.`);
             } catch (e) {
-                console.error("Error fetching warranty settings", e);
+                Logger.error("Error fetching warranty settings", e);
             }
             return 0;
         };

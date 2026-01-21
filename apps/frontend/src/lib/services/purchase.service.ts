@@ -1,13 +1,13 @@
 import { api } from "../api";
+import type { ApiResponse } from "@repo/shared";
 
 export const PurchaseService = {
     getAll: async () => {
-        const res = await api.get("/purchases");
-        // Handle new generic response format { success, data, ... }
-        return res.data.data || res.data;
+        const res = await api.get<ApiResponse<any>>("/purchases");
+        return res.data.data ?? [];
     },
     create: async (data: any) => {
-        const res = await api.post("/purchases", data);
-        return res.data;
+        const res = await api.post<ApiResponse<any>>("/purchases", data);
+        return res.data.data!;
     }
 };

@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { productSchema } from "@repo/shared";
 import { InventoryService } from "./inventory.service";
 import { apiSuccess, apiError } from "../../lib/response";
+import { Logger } from "../../lib/logger";
 
 const app = new Hono();
 const service = new InventoryService();
@@ -41,7 +42,7 @@ app.post("/", zValidator("json", productSchema), async (c) => {
         const result = await service.createProduct(data);
         return apiSuccess(c, result, "Product created successfully", 201);
     } catch (e) {
-        console.error("[CREATE_PRODUCT_ERROR]", e);
+        Logger.error("[CREATE_PRODUCT_ERROR]", e);
         return apiError(c, e, "Failed to create product", 500);
     }
 });

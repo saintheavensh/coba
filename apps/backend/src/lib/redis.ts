@@ -11,27 +11,31 @@ export const subscriber = new Redis(redisUrl);
 // General client for caching
 export const redis = new Redis(redisUrl);
 
+import { Logger } from "./logger";
+
+// ... instances ... 
+
 // Handle connection events
 publisher.on("connect", () => {
-    console.log("📨 Redis publisher connected");
+    Logger.info("📨 Redis publisher connected");
 });
 
 subscriber.on("connect", () => {
-    console.log("📩 Redis subscriber connected");
+    Logger.info("📩 Redis subscriber connected");
 });
 
 redis.on("connect", () => {
-    console.log("🔴 Redis cache client connected");
+    Logger.info("🔴 Redis cache client connected");
 });
 
 publisher.on("error", (err) => {
-    console.error("Redis publisher error:", err);
+    Logger.error("Redis publisher error", err);
 });
 
 subscriber.on("error", (err) => {
-    console.error("Redis subscriber error:", err);
+    Logger.error("Redis subscriber error", err);
 });
 
 redis.on("error", (err) => {
-    console.error("Redis cache error:", err);
+    Logger.error("Redis cache error", err);
 });

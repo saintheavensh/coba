@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { PurchasesService } from "./purchases.service";
 import { authMiddleware } from "../../middlewares/auth.middleware";
+import { Logger } from "../../lib/logger";
 
 const app = new Hono();
 const service = new PurchasesService();
@@ -35,11 +36,11 @@ app.get("/", async (c) => {
 
         if (mine === "true") {
             const user = (c as any).get("user");
-            console.log("[DEBUG] /purchases mine=true. User payload:", user);
+            Logger.debug("[DEBUG] /purchases mine=true. User payload:", { user });
             if (user) userId = user.id;
         }
 
-        console.log("[DEBUG] /purchases Filters:", { search, startDate, endDate, userId, limit });
+        Logger.debug("[DEBUG] /purchases Filters:", { search, startDate, endDate, userId, limit });
         const list = await service.getAll({
             search,
             startDate: startDate ? new Date(startDate) : undefined,
@@ -49,7 +50,7 @@ app.get("/", async (c) => {
         });
         return apiSuccess(c, list, "Purchases retrieved successfully");
     } catch (e) {
-        console.error("[PURCHASES_ERROR]", e);
+        Logger.error("[PURCHASES_ERROR]", e);
         return apiError(c, e, "Failed to retrieve purchases", 500);
     }
 });

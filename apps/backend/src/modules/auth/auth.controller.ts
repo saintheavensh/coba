@@ -1,8 +1,10 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { setCookie, deleteCookie } from "hono/cookie";
 import { loginSchema } from "@repo/shared";
 import { AuthService } from "./auth.service";
 import { authMiddleware } from "../../middlewares/auth.middleware";
+import { apiError, apiSuccess } from "../../lib/response";
 
 const app = new Hono();
 const service = new AuthService();
@@ -11,14 +13,36 @@ app.post("/login", zValidator("json", loginSchema), async (c) => {
     try {
         const data = c.req.valid("json");
         const result = await service.login(data);
-        return c.json(result);
+
+        // Set HTTP-only cookie with the token
+        setCookie(c, "auth_token", result.token, {
+            httpOnly: true,
+            secure: true, // HTTPS only
+            sameSite: "Lax",
+            path: "/",
+            maxAge: 60 * 60 * 24 // 24 hours
+        });
+
+        // Return user data without the token (token is in cookie)
+        return apiSuccess(c, { user: result.user }, "Login successful");
     } catch (e) {
-        return c.json({ message: String(e) }, 401);
+        return apiError(c, e, "Login failed", 401);
     }
 });
 
-// Register endpoint (Optional, usually admin only)
-// app.post("/register", ...);
+// Logout - clear the auth cookie
+app.post("/logout", (c) => {
+    deleteCookie(c, "auth_token", {
+        path: "/",
+    });
+    return apiSuccess(c, null, "Logged out successfully");
+});
+
+// Get current user info
+app.get("/me", authMiddleware, async (c) => {
+    const user = c.get("jwtPayload");
+    return apiSuccess(c, { user });
+});
 
 // Get users - all users or filter by role
 app.get("/users", authMiddleware, async (c) => {
@@ -28,14 +52,15 @@ app.get("/users", authMiddleware, async (c) => {
         // If role is specified and valid, filter by role
         if (role && ["admin", "teknisi", "kasir"].includes(role)) {
             const users = await service.getUsersByRole(role);
-            return c.json({ success: true, data: users });
+            return apiSuccess(c, users);
         }
 
         // Otherwise return all users
+        // Otherwise return all users
         const users = await service.getAllUsers();
-        return c.json({ success: true, data: users });
+        return apiSuccess(c, users);
     } catch (e) {
-        return c.json({ success: false, message: String(e) }, 500);
+        return apiError(c, e, "Failed to fetch users", 500);
     }
 });
 
@@ -45,9 +70,9 @@ app.put("/users/:id", authMiddleware, async (c) => {
         const id = c.req.param("id");
         const body = await c.req.json();
         const updated = await service.updateUser(id, body);
-        return c.json({ success: true, data: updated });
+        return apiSuccess(c, updated, "User updated successfully");
     } catch (e) {
-        return c.json({ success: false, message: String(e) }, 500);
+        return apiError(c, e, "Failed to update user", 500);
     }
 });
 
@@ -56,9 +81,9 @@ app.delete("/users/:id", authMiddleware, async (c) => {
     try {
         const id = c.req.param("id");
         await service.deleteUser(id);
-        return c.json({ success: true });
+        return apiSuccess(c, null, "User deleted successfully");
     } catch (e) {
-        return c.json({ success: false, message: String(e) }, 500);
+        return apiError(c, e, "Failed to delete user", 500);
     }
 });
 
@@ -67,9 +92,9 @@ app.post("/register", authMiddleware, async (c) => {
     try {
         const body = await c.req.json();
         const user = await service.register(body);
-        return c.json({ success: true, data: user });
+        return apiSuccess(c, user, "User registered successfully");
     } catch (e) {
-        return c.json({ success: false, message: String(e) }, 500);
+        return apiError(c, e, "Failed to register user", 500);
     }
 });
 

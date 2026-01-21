@@ -4,6 +4,7 @@ import { createServiceSchema, updateStatusSchema } from "@repo/shared";
 import { ServiceService } from "./service.service";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import { apiSuccess, apiError } from "../../lib/response";
+import { Logger } from "../../lib/logger";
 
 const app = new Hono();
 const service = new ServiceService();
@@ -59,7 +60,7 @@ app.post("/", async (c) => {
         const parseResult = createServiceSchema.safeParse(body);
 
         if (!parseResult.success) {
-            console.log("Validation Failed:", JSON.stringify(parseResult.error, null, 2));
+            Logger.warn("Validation Failed:", { errors: parseResult.error });
             return apiError(c, parseResult.error, "Validation Error Details", 400);
         }
 

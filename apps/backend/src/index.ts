@@ -7,6 +7,7 @@ import { db } from "./db";
 import { users } from "./db/schema";
 import { sql } from "drizzle-orm";
 import { addClient, removeClient, getConnectionStats } from "./lib/websocket";
+import { Logger } from "./lib/logger";
 
 // Import Redis to initialize connections
 import "./lib/redis";
@@ -72,23 +73,23 @@ app.get(
 
         return {
             onOpen(event, ws) {
-                console.log(`🔌 WebSocket opened${userId ? ` for user: ${userId}` : ""}`);
+                Logger.info(`🔌 WebSocket opened${userId ? ` for user: ${userId}` : ""}`);
                 addClient(userId, ws);
             },
             onMessage(event, ws) {
                 // Handle incoming messages if needed
                 const message = event.data.toString();
-                console.log("📨 WebSocket message:", message);
+                Logger.info("📨 WebSocket message:", { message });
 
                 // Echo back for now (can be extended for client commands)
                 ws.send(JSON.stringify({ type: "pong", timestamp: new Date().toISOString() }));
             },
             onClose(event, ws) {
-                console.log("🔌 WebSocket closed");
+                Logger.info("🔌 WebSocket closed");
                 removeClient(userId, ws);
             },
             onError(event, ws) {
-                console.error("WebSocket error:", event);
+                Logger.error("WebSocket error:", event);
                 removeClient(userId, ws);
             },
         };
@@ -124,7 +125,11 @@ app.get("/ws/stats", (c) => {
 const port = parseInt(process.env.PORT || "4000");
 const hostname = process.env.HOST || "0.0.0.0";
 
-console.log(`🚀 Server starting on http://${hostname}:${port}`);
+if (!process.env.JWT_SECRET) {
+    Logger.warn("⚠️  JWT_SECRET is not set! Using default 'supersecret'. This is insecure for production.");
+}
+
+Logger.info(`🚀 Server starting on http://${hostname}:${port}`);
 
 export default {
     port,

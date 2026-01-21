@@ -1,4 +1,5 @@
 import { api } from "../api";
+import type { ApiResponse } from "@repo/shared";
 
 export interface Brand {
     id: string; // "samsung"
@@ -9,22 +10,22 @@ export interface Brand {
 
 export const BrandsService = {
     getAll: async () => {
-        const res = await api.get<{ data: Brand[] }>("/brands");
-        return res.data.data;
+        const res = await api.get<ApiResponse<Brand[]>>("/brands");
+        return res.data.data ?? [];
     },
 
     create: async (data: { id: string; name: string; logo?: string }) => {
-        const res = await api.post<{ data: Brand }>("/brands", data);
-        return res.data.data;
+        const res = await api.post<ApiResponse<Brand>>("/brands", data);
+        return res.data.data!;
     },
 
     update: async (id: string, data: { name?: string; logo?: string }) => {
-        const res = await api.patch<{ data: Brand }>(`/brands/${id}`, data);
-        return res.data.data;
+        const res = await api.patch<ApiResponse<Brand>>(`/brands/${id}`, data);
+        return res.data.data!;
     },
 
     delete: async (id: string) => {
-        const res = await api.delete<{ data: { deleted: boolean } }>(`/brands/${id}`);
-        return res.data;
+        const res = await api.delete<ApiResponse<{ deleted: boolean }>>(`/brands/${id}`);
+        return res.data.data;
     }
 };

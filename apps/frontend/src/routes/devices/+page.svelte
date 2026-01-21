@@ -21,7 +21,13 @@
         ChevronDown,
         Link,
         Loader2,
+        X,
+        CheckSquare,
+        Download,
+        FileSpreadsheet,
+        Upload,
     } from "lucide-svelte";
+    import { Checkbox } from "$lib/components/ui/checkbox";
     import { cn } from "$lib/utils";
     import SearchInput from "$lib/components/custom/search-input.svelte";
     import {
@@ -38,6 +44,7 @@
         DropdownMenuItem,
         DropdownMenuTrigger,
         DropdownMenuSeparator,
+        DropdownMenuLabel,
     } from "$lib/components/ui/dropdown-menu";
     import { Skeleton } from "$lib/components/ui/skeleton";
     import { toast } from "svelte-sonner";
@@ -126,6 +133,17 @@
         onError: () => toast.error("Gagal menghapus device"),
     }));
 
+    const bulkDeleteMutation = createMutation(() => ({
+        mutationFn: InventoryService.bulkDeleteDevices,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["devices"] });
+            toast.success(`${selectedIds.length} device dihapus`);
+            selectedIds = [];
+            deleteOpen = false;
+        },
+        onError: () => toast.error("Gagal menghapus devices"),
+    }));
+
     // Form State
     let open = $state(false);
     let editingId = $state<string | null>(null);
@@ -150,6 +168,8 @@
 
     let deleteOpen = $state(false);
     let deletingId = $state<string | null>(null);
+    let selectedIds = $state<string[]>([]);
+    let isBulkDeleting = $state(false);
 
     // Grouping Logic
     let groupedDevices = $derived.by(() => {
@@ -240,8 +260,66 @@
     }
 
     function handleDelete() {
-        if (!deletingId) return;
-        deleteMutation.mutate(deletingId);
+        if (isBulkDeleting) {
+            bulkDeleteMutation.mutate(selectedIds);
+            isBulkDeleting = false;
+        } else {
+            if (!deletingId) return;
+            deleteMutation.mutate(deletingId);
+        }
+    }
+
+    function toggleSelect(id: string) {
+        if (selectedIds.includes(id)) {
+            selectedIds = selectedIds.filter((i) => i !== id);
+        } else {
+            selectedIds = [...selectedIds, id];
+        }
+    }
+
+    let allVisibleSelected = $derived(
+        devices.length > 0 && devices.every((d) => selectedIds.includes(d.id)),
+    );
+
+    function selectAll() {
+        const visibleIds = devices.map((d: any) => d.id);
+        if (allVisibleSelected) {
+            selectedIds = selectedIds.filter((id) => !visibleIds.includes(id));
+        } else {
+            const newSet = new Set(selectedIds);
+            visibleIds.forEach((id) => newSet.add(id));
+            selectedIds = Array.from(newSet);
+        }
+    }
+
+    function selectAllBrand(brandName: string) {
+        // Get all device IDs for this brand
+        const brandDeviceIds = devices
+            .filter((d) => d.brand === brandName)
+            .map((d) => d.id);
+
+        // Check if all are already selected
+        const allSelected = brandDeviceIds.every((id) =>
+            selectedIds.includes(id),
+        );
+
+        if (allSelected) {
+            // Deselect all from this brand
+            selectedIds = selectedIds.filter(
+                (id) => !brandDeviceIds.includes(id),
+            );
+        } else {
+            // Select all from this brand
+            const newSet = new Set(selectedIds);
+            brandDeviceIds.forEach((id) => newSet.add(id));
+            selectedIds = Array.from(newSet);
+        }
+    }
+
+    function confirmBulkDelete() {
+        if (selectedIds.length === 0) return;
+        isBulkDeleting = true;
+        deleteOpen = true;
     }
 
     function handleSubmit() {
@@ -333,6 +411,156 @@
         }
     }
 
+    // Bulk Import State
+    let bulkImportOpen = $state(false);
+    let bulkImportUrl = $state("");
+    let bulkImportList = $state<
+        {
+            name: string;
+            url: string;
+            selected: boolean;
+            existing?: boolean;
+            status?: "pending" | "success" | "error";
+        }[]
+    >([]);
+    let bulkImportStep = $state<"input" | "selection" | "progress" | "summary">(
+        "input",
+    );
+    let bulkImportProgress = $state({
+        current: 0,
+        total: 0,
+        success: 0,
+        failed: 0,
+    });
+
+    function resetBulkImport() {
+        bulkImportUrl = "";
+        bulkImportList = [];
+        bulkImportStep = "input";
+        bulkImportProgress = { current: 0, total: 0, success: 0, failed: 0 };
+    }
+
+    async function handleScanUrl() {
+        if (!bulkImportUrl) return toast.error("Masukkan URL List");
+        isScraping = true;
+        try {
+            const list = await InventoryService.getDeviceList(bulkImportUrl);
+            if (list.length === 0) {
+                toast.error("Tidak ditemukan device pada URL tersebut");
+                return;
+            }
+
+            // Get existing device models to compare (use full name for exact matching)
+            const existingDevices = devicesQuery.data || [];
+            const existingModels = new Set(
+                existingDevices.map((d) => {
+                    // Create full name like "Samsung Galaxy S24" for comparison
+                    const fullName = `${d.brand} ${d.model}`
+                        .toLowerCase()
+                        .trim();
+                    return fullName;
+                }),
+            );
+            // Also create a set of just model names for fallback
+            const existingModelNames = new Set(
+                existingDevices.map((d) => d.model.toLowerCase().trim()),
+            );
+
+            // Mark devices that already exist as unselected
+            let existingCount = 0;
+            bulkImportList = list.map((item) => {
+                // GSMArena names are like "Vivo Y21" - use exact matching
+                const itemName = item.name.toLowerCase().trim();
+
+                // Only match if EXACT full name matches or EXACT model name matches
+                const isExisting =
+                    existingModels.has(itemName) ||
+                    existingModelNames.has(itemName);
+
+                if (isExisting) existingCount++;
+
+                return {
+                    ...item,
+                    selected: !isExisting,
+                    existing: isExisting,
+                };
+            });
+
+            if (existingCount > 0) {
+                toast.info(
+                    `${existingCount} device sudah ada di database (otomatis tidak dipilih)`,
+                );
+            }
+
+            bulkImportStep = "selection";
+        } catch (e) {
+            toast.error("Gagal scan URL");
+        } finally {
+            isScraping = false;
+        }
+    }
+
+    function delay(ms: number) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function handleBulkImport() {
+        const selected = bulkImportList.filter((i) => i.selected);
+        if (selected.length === 0) return;
+
+        bulkImportStep = "progress";
+        bulkImportProgress.total = selected.length;
+        bulkImportProgress.current = 0;
+        bulkImportProgress.success = 0;
+        bulkImportProgress.failed = 0;
+
+        // Process sequentially to be nice to the server/target
+        // Add random delays to mimic human browsing behavior
+        for (let i = 0; i < bulkImportList.length; i++) {
+            if (!bulkImportList[i].selected) continue;
+
+            const item = bulkImportList[i];
+            item.status = "pending";
+
+            try {
+                // Wait random time (6s to 10s) - faster but still polite
+                const waitTime = Math.floor(Math.random() * 4000) + 6000;
+                await delay(waitTime);
+
+                const res = await InventoryService.importDeviceFromUrl(
+                    item.url,
+                );
+
+                if (res && res.error) {
+                    throw new Error(res.error);
+                }
+
+                item.status = "success";
+                bulkImportProgress.success++;
+            } catch (e: any) {
+                console.error(e);
+                item.status = "error";
+                bulkImportProgress.failed++;
+
+                // If 429 (rate limit), wait 60 seconds before continuing
+                if (
+                    e.message?.includes("429") ||
+                    e.message?.includes("Too Many Requests")
+                ) {
+                    toast.warning("Rate limit hit, pausing for 60s...");
+                    await delay(60000);
+                }
+            } finally {
+                bulkImportProgress.current++;
+            }
+        }
+
+        bulkImportStep = "summary";
+        toast.success(
+            `Import selesai. Sukses: ${bulkImportProgress.success}, Gagal: ${bulkImportProgress.failed}`,
+        );
+    }
+
     function openDetail(device: any) {
         selectedDevice = device;
         detailOpen = true;
@@ -343,9 +571,30 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-        class="group relative flex flex-col bg-card border rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden cursor-pointer"
-        onclick={() => openDetail(device)}
+        class={cn(
+            "group relative flex flex-col bg-card border rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden cursor-pointer",
+            selectedIds.includes(device.id) &&
+                "ring-2 ring-primary border-primary bg-primary/5",
+        )}
+        onclick={() => {
+            if (selectedIds.length > 0) {
+                toggleSelect(device.id);
+            } else {
+                openDetail(device);
+            }
+        }}
     >
+        <!-- Selection Checkbox -->
+        <div
+            class="absolute top-2 left-2 z-20"
+            onclick={(e) => e.stopPropagation()}
+        >
+            <Checkbox
+                checked={selectedIds.includes(device.id)}
+                onCheckedChange={() => toggleSelect(device.id)}
+                class="bg-white/90 backdrop-blur-sm shadow-sm data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground border-muted-foreground/40"
+            />
+        </div>
         <!-- Card Menu -->
         <div
             class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -469,12 +718,115 @@
                 </p>
             </div>
             <div class="flex items-center gap-2">
-                <Button variant="outline" href="/brands" size="lg">
-                    Kelola Brand
-                </Button>
-                <Button onclick={handleCreateNew} size="lg" class="shadow-sm">
-                    <Plus class="h-5 w-5 mr-2" /> Tambah Device
-                </Button>
+                {#if selectedIds.length > 0}
+                    <Button
+                        variant="destructive"
+                        size="lg"
+                        onclick={confirmBulkDelete}
+                        class="animate-in fade-in zoom-in duration-200"
+                    >
+                        <Trash2 class="h-4 w-4 mr-2" />
+                        Hapus ({selectedIds.length})
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="lg"
+                        onclick={() => (selectedIds = [])}
+                    >
+                        <X class="h-4 w-4 mr-2" /> Batal
+                    </Button>
+                {:else}
+                    <Button variant="outline" href="/brands" size="lg">
+                        Kelola Brand
+                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger>
+                            <Button variant="outline" size="lg">
+                                <FileSpreadsheet class="h-4 w-4 mr-2" />
+                                Excel / CSV
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuLabel>Export Data</DropdownMenuLabel>
+                            <DropdownMenuItem
+                                onclick={() =>
+                                    InventoryService.exportDevices("excel")}
+                            >
+                                <FileSpreadsheet class="h-4 w-4 mr-2" /> Export Excel
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onclick={() =>
+                                    InventoryService.exportDevices("csv")}
+                            >
+                                <Download class="h-4 w-4 mr-2" /> Export CSV
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuLabel>Import Data</DropdownMenuLabel>
+                            <DropdownMenuItem
+                                onclick={() =>
+                                    document
+                                        .getElementById("import-file")
+                                        ?.click()}
+                            >
+                                <Upload class="h-4 w-4 mr-2" /> Import Excel/CSV
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <input
+                        type="file"
+                        id="import-file"
+                        class="hidden"
+                        accept=".xlsx,.xls,.csv"
+                        onchange={async (e) => {
+                            const file = e.currentTarget.files?.[0];
+                            if (file) {
+                                try {
+                                    const res =
+                                        await InventoryService.importDevices(
+                                            file,
+                                        );
+                                    if (
+                                        res.skipped > 0 ||
+                                        res.errors.length > 0
+                                    ) {
+                                        toast.warning(
+                                            `Import: ${res.imported} sukses, ${res.skipped} dilewati`,
+                                        );
+                                    } else {
+                                        toast.success(
+                                            `Import sukses: ${res.imported} device`,
+                                        );
+                                    }
+                                    if (res.errors.length > 0) {
+                                        console.error(res.errors);
+                                        toast.error(
+                                            "Cek console untuk detail error",
+                                        );
+                                    }
+                                    devicesQuery.refetch();
+                                } catch (e) {
+                                    toast.error("Gagal import file");
+                                }
+                                e.currentTarget.value = ""; // Reset
+                            }
+                        }}
+                    />
+                    <Button
+                        variant="secondary"
+                        size="lg"
+                        onclick={() => (bulkImportOpen = true)}
+                        class="shadow-sm"
+                    >
+                        <Download class="h-5 w-5 mr-2" /> Import Bulk
+                    </Button>
+                    <Button
+                        onclick={handleCreateNew}
+                        size="lg"
+                        class="shadow-sm"
+                    >
+                        <Plus class="h-5 w-5 mr-2" /> Tambah Device
+                    </Button>
+                {/if}
             </div>
         </div>
 
@@ -510,6 +862,15 @@
                     </SelectContent>
                 </Select>
             </div>
+            <Button
+                variant="ghost"
+                class={cn("shrink-0", allVisibleSelected && "text-primary")}
+                onclick={selectAll}
+                disabled={devices.length === 0}
+            >
+                <CheckSquare class="h-4 w-4 mr-2" />
+                {allVisibleSelected ? "Deselect All" : "Select All"}
+            </Button>
         </div>
 
         <!-- Content Grid -->
@@ -584,6 +945,23 @@
                                     >({group.count} devices)</span
                                 >
                             </div>
+                            <!-- Select All Brand Button -->
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onclick={(e: MouseEvent) => {
+                                    e.stopPropagation();
+                                    selectAllBrand(brandName);
+                                }}
+                                class="text-xs"
+                            >
+                                <CheckSquare class="h-3 w-3 mr-1" />
+                                {devices
+                                    .filter((d) => d.brand === brandName)
+                                    .every((d) => selectedIds.includes(d.id))
+                                    ? "Deselect"
+                                    : "Select All"}
+                            </Button>
                         </button>
 
                         {#if !collapsedBrands[brandName]}
@@ -1193,14 +1571,242 @@
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogCancel
+                    onclick={() => {
+                        deleteOpen = false;
+                        deletingId = null;
+                        isBulkDeleting = false;
+                    }}>Batal</AlertDialogCancel
+                >
                 <AlertDialogAction
                     class="bg-red-500 hover:bg-red-600"
                     onclick={handleDelete}
                 >
-                    Hapus
+                    {isBulkDeleting
+                        ? `Hapus ${selectedIds.length} Device`
+                        : "Hapus"}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
+
+    <!-- Bulk Import Dialog -->
+    <Dialog
+        bind:open={bulkImportOpen}
+        onOpenChange={(v) => !v && resetBulkImport()}
+    >
+        <DialogContent class="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+                <DialogTitle>Import Bulk Device</DialogTitle>
+                <DialogDescription>
+                    Import banyak data device sekaligus dari halaman list
+                    GSMArena.
+                </DialogDescription>
+            </DialogHeader>
+
+            <div class="py-4 space-y-4">
+                {#if bulkImportStep === "input"}
+                    <div class="grid gap-2">
+                        <Label>URL List GSMArena</Label>
+                        <div class="flex gap-2">
+                            <Input
+                                bind:value={bulkImportUrl}
+                                placeholder="https://www.gsmarena.com/samsung-phones-9.php or result.php3?..."
+                            />
+                            <Button
+                                onclick={handleScanUrl}
+                                disabled={isScraping}
+                            >
+                                {#if isScraping}
+                                    <Loader2
+                                        class="h-4 w-4 animate-spin mr-2"
+                                    />
+                                    Scanning...
+                                {:else}
+                                    Scan
+                                {/if}
+                            </Button>
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Masukkan URL halaman list brand atau hasil pencarian
+                            GSMArena.
+                        </p>
+                    </div>
+                {:else if bulkImportStep === "selection"}
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-medium text-sm">
+                                Ditemukan {bulkImportList.length} device
+                            </h4>
+                            <div class="space-x-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onclick={() => {
+                                        bulkImportList = bulkImportList.map(
+                                            (i) => ({ ...i, selected: true }),
+                                        );
+                                    }}
+                                >
+                                    Select All
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onclick={() => {
+                                        bulkImportList = bulkImportList.map(
+                                            (i) => ({ ...i, selected: false }),
+                                        );
+                                    }}
+                                >
+                                    Deselect All
+                                </Button>
+                            </div>
+                        </div>
+                        <div
+                            class="border rounded-md max-h-[400px] overflow-y-auto p-2 space-y-1"
+                        >
+                            {#each bulkImportList as item, i (i)}
+                                <div
+                                    class={cn(
+                                        "flex items-center gap-2 p-2 hover:bg-muted rounded text-sm",
+                                        item.existing &&
+                                            "opacity-50 bg-muted/50",
+                                    )}
+                                >
+                                    <Checkbox
+                                        checked={item.selected}
+                                        onCheckedChange={(
+                                            checked: boolean | "indeterminate",
+                                        ) => {
+                                            bulkImportList[i].selected =
+                                                !!checked;
+                                        }}
+                                    />
+                                    <span
+                                        class={cn(
+                                            "truncate flex-1",
+                                            item.existing && "line-through",
+                                        )}>{item.name}</span
+                                    >
+                                    {#if item.existing}
+                                        <Badge
+                                            variant="secondary"
+                                            class="text-[10px] shrink-0"
+                                            >Sudah Ada</Badge
+                                        >
+                                    {/if}
+                                    <a
+                                        href={item.url}
+                                        target="_blank"
+                                        class="text-xs text-blue-500 hover:underline shrink-0"
+                                    >
+                                        Link
+                                    </a>
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
+                {:else if bulkImportStep === "progress" || bulkImportStep === "summary"}
+                    <div class="space-y-4">
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span>Proses Import...</span>
+                                <span
+                                    >{Math.round(
+                                        (bulkImportProgress.current /
+                                            bulkImportProgress.total) *
+                                            100,
+                                    )}%</span
+                                >
+                            </div>
+                            <div
+                                class="h-2 w-full bg-secondary rounded-full overflow-hidden"
+                            >
+                                <div
+                                    class="h-full bg-primary transition-all duration-300"
+                                    style="width: {(bulkImportProgress.current /
+                                        bulkImportProgress.total) *
+                                        100}%"
+                                ></div>
+                            </div>
+                            <div
+                                class="flex gap-4 text-sm text-muted-foreground justify-center"
+                            >
+                                <span class="text-green-600"
+                                    >Success: {bulkImportProgress.success}</span
+                                >
+                                <span class="text-red-500"
+                                    >Failed: {bulkImportProgress.failed}</span
+                                >
+                            </div>
+                        </div>
+
+                        <div
+                            class="border rounded-md max-h-[300px] overflow-y-auto p-2 text-xs font-mono space-y-1"
+                        >
+                            {#each bulkImportList.filter((i) => i.selected) as item}
+                                {#if item.status}
+                                    <div
+                                        class={cn(
+                                            "flex items-center gap-2",
+                                            item.status === "success" &&
+                                                "text-green-600",
+                                            item.status === "error" &&
+                                                "text-red-600",
+                                            item.status === "pending" &&
+                                                "text-muted-foreground",
+                                        )}
+                                    >
+                                        {#if item.status === "pending"}
+                                            <Loader2
+                                                class="h-3 w-3 animate-spin"
+                                            />
+                                        {:else if item.status === "success"}
+                                            <CheckSquare class="h-3 w-3" />
+                                        {:else}
+                                            <X class="h-3 w-3" />
+                                        {/if}
+                                        {item.name}
+                                    </div>
+                                {/if}
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+            </div>
+
+            <DialogFooter>
+                {#if bulkImportStep === "input"}
+                    <Button
+                        variant="ghost"
+                        onclick={() => (bulkImportOpen = false)}>Batal</Button
+                    >
+                {:else if bulkImportStep === "selection"}
+                    <Button
+                        variant="ghost"
+                        onclick={() => (bulkImportStep = "input")}>Back</Button
+                    >
+                    <Button
+                        onclick={handleBulkImport}
+                        disabled={!bulkImportList.some((i) => i.selected)}
+                    >
+                        Import Selected ({bulkImportList.filter(
+                            (i) => i.selected,
+                        ).length})
+                    </Button>
+                {:else if bulkImportStep === "summary"}
+                    <Button
+                        onclick={() => {
+                            bulkImportOpen = false;
+                            queryClient.invalidateQueries({
+                                queryKey: ["devices"],
+                            });
+                            resetBulkImport();
+                        }}>Selesai</Button
+                    >
+                {/if}
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 </div>

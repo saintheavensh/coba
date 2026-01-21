@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { SalesService } from "./sales.service";
 import { authMiddleware } from "../../middlewares/auth.middleware";
+import { apiError, apiSuccess } from "../../lib/response";
 
 const app = new Hono();
 const service = new SalesService();
@@ -42,24 +43,23 @@ app.use("*", authMiddleware);
 app.get("/", async (c) => {
     const query = c.req.query();
     const list = await service.getAll(query);
-    // Wrap in standard response
-    return c.json({ data: list });
+    return apiSuccess(c, list);
 });
 
 app.get("/:id", async (c) => {
     const id = c.req.param("id");
     const item = await service.getOne(id);
-    if (!item) return c.json({ message: "Not found" }, 404);
-    return c.json({ data: item });
+    if (!item) return apiError(c, null, "Sale not found", 404);
+    return apiSuccess(c, item);
 });
 
 app.post("/", zValidator("json", saleSchema), async (c) => {
     const data = c.req.valid("json");
     try {
         const result = await service.createSale(data);
-        return c.json({ data: result });
+        return apiSuccess(c, result, "Sale created successfully", 201);
     } catch (e) {
-        return c.json({ message: String(e) }, 400);
+        return apiError(c, e, "Failed to create sale", 400);
     }
 });
 

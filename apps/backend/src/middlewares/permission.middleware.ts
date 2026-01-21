@@ -1,12 +1,13 @@
 import { createMiddleware } from "hono/factory";
 import { Context, Next } from "hono";
+import { apiError } from "../lib/response";
 
 export const permissionGuard = (requiredPermission: string) => {
     return createMiddleware(async (c: Context, next: Next) => {
-        const user = c.get("user");
+        const user = c.get("jwtPayload");
 
         if (!user) {
-            return c.json({ message: "Unauthorized" }, 401);
+            return apiError(c, "No user user found in context", "Unauthorized", 401);
         }
 
         // Admin has all permissions (convention) or if specifically granted
@@ -23,6 +24,6 @@ export const permissionGuard = (requiredPermission: string) => {
             return;
         }
 
-        return c.json({ message: `Forbidden: Missing permission ${requiredPermission}` }, 403);
+        return apiError(c, `Missing permission: ${requiredPermission}`, "Forbidden", 403);
     });
 };
