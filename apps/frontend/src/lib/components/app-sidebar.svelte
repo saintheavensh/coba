@@ -515,9 +515,10 @@
 
   <div class="mt-auto p-4 px-6">
     <button
-      onclick={() => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+      onclick={async () => {
+        // Use AuthService to properly logout (clears cookie on backend)
+        const { AuthService } = await import("$lib/services/auth.service");
+        await AuthService.logout();
         window.location.href = "/login";
       }}
       class="flex w-full items-center gap-3 text-sm font-medium text-muted-foreground hover:text-red-500 transition-colors"

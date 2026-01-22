@@ -2,6 +2,7 @@ import { AuthRepository } from "./auth.repository";
 import { loginSchema } from "@repo/shared";
 import { z } from "zod";
 import { sign } from "hono/jwt";
+import { Logger } from "../../lib/logger";
 
 // Secret should be env
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
@@ -14,16 +15,29 @@ export class AuthService {
     }
 
     async login(data: z.infer<typeof loginSchema>) {
+        Logger.debug(`[AUTH_SERVICE] Looking up user: ${data.username}`);
         const user = await this.repo.findByUsername(data.username);
 
         if (!user) {
+            Logger.warn(`[AUTH_SERVICE] User not found: ${data.username}`);
             throw new Error("Invalid username or password");
         }
 
+        Logger.debug(`[AUTH_SERVICE] User found: ${user.username}, isActive: ${user.isActive ?? true}`);
+        
+        if (user.isActive === false) {
+            Logger.warn(`[AUTH_SERVICE] User account is inactive: ${user.username}`);
+            throw new Error("Account is inactive");
+        }
+
+        Logger.debug(`[AUTH_SERVICE] Verifying password for user: ${user.username}`);
         const isValid = await Bun.password.verify(data.password, user.password);
         if (!isValid) {
+            Logger.warn(`[AUTH_SERVICE] Password verification failed for user: ${user.username}`);
             throw new Error("Invalid username or password");
         }
+        
+        Logger.debug(`[AUTH_SERVICE] Password verified successfully for user: ${user.username}`);
 
         // Generate Token
         // Since we fetch with relation, user.role is now an object { id, name, permissions }

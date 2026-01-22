@@ -35,12 +35,19 @@
                 data: { username, password },
             });
 
-            // Save token
-            localStorage.setItem("token", res.data.token);
-            localStorage.setItem("user", JSON.stringify(res.data.user));
+            // Backend returns { success: true, data: { user: {...} } }
+            // Axios wraps it in response.data, so we access res.data.data.user
+            const user = res.data.data?.user || res.data.user;
+            
+            if (!user) {
+                throw new Error("Invalid response format from server");
+            }
+
+            // Save user info
+            localStorage.setItem("user", JSON.stringify(user));
 
             toast.success("Login Berhasil", {
-                description: `Selamat datang, ${res.data.user.name}`,
+                description: `Selamat datang, ${user.name}`,
             });
 
             // Force hard redirect to ensure sidebar and header state updates

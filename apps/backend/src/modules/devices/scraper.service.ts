@@ -40,8 +40,10 @@ export const ScraperService = {
             const title = $(".specs-phone-name-title").text();
             if (!title) throw new ApiError("Could not find device title", 422);
 
-            const brand = title.split(" ")[0]; // Simple guess
-            const model = title.replace(brand, "").trim();
+            // Normalize brand name: capitalize first letter
+            const rawBrand = title.split(" ")[0]; // Simple guess
+            const brand = rawBrand.charAt(0).toUpperCase() + rawBrand.slice(1).toLowerCase();
+            const model = title.replace(rawBrand, "").trim();
             const imageUrl = $(".specs-photo-main img").attr("src");
 
             // Extract Spec Tables

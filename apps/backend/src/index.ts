@@ -37,7 +37,20 @@ const { upgradeWebSocket, websocket } = createBunWebSocket();
 
 const app = new Hono();
 
-app.use("*", cors());
+// CORS configuration - allow credentials for cookie-based auth
+app.use("*", cors({
+    origin: (origin) => {
+        // Allow all origins in development (including HTTPS frontend proxying to HTTP backend)
+        if (process.env.NODE_ENV !== "production") {
+            return origin || "*";
+        }
+        // In production, specify allowed origins
+        return process.env.ALLOWED_ORIGINS?.split(",") || origin || "*";
+    },
+    credentials: true,
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+}));
 app.use("*", logger());
 
 // Serve static files

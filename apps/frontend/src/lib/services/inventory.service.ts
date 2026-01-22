@@ -186,18 +186,28 @@ export const InventoryService = {
                                 continue;
                             }
 
-                            // 1. Handle Brand
-                            const brandKey = brandName.toLowerCase().trim();
+                            // 1. Handle Brand - normalize to capitalize first letter
+                            const normalizeBrandName = (name: string): string => {
+                                if (!name || name.trim().length === 0) return name;
+                                const trimmed = name.trim();
+                                return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+                            };
+                            
+                            const normalizedBrandName = normalizeBrandName(brandName);
+                            const brandKey = normalizedBrandName.toLowerCase().trim();
+                            
                             if (!brandMap.has(brandKey)) {
                                 try {
-                                    // Optimistic check before create
+                                    // Check if brand exists (case-insensitive)
                                     const allBrands = await BrandsService.getAll();
-                                    const exists = allBrands.find(b => b.name.toLowerCase().trim() === brandKey);
+                                    const exists = allBrands.find(b => 
+                                        b.name.toLowerCase().trim() === brandKey
+                                    );
 
                                     if (!exists) {
                                         await BrandsService.create({
                                             id: brandKey.replace(/\s+/g, "-"),
-                                            name: brandName.trim()
+                                            name: normalizedBrandName // Use normalized name
                                         });
                                         // Refresh map
                                         brandMap.add(brandKey);
@@ -224,9 +234,9 @@ export const InventoryService = {
                                 } catch { }
                             }
 
-                            // 2. Create Device
+                            // 2. Create Device - use normalized brand name
                             await InventoryService.createDevice({
-                                brand: brandName.trim(),
+                                brand: normalizedBrandName, // Use normalized brand name
                                 model: modelName.trim(),
                                 code: normalizedRow.code?.toString(),
                                 image: normalizedRow.image,

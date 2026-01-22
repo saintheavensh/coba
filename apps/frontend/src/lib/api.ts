@@ -2,7 +2,11 @@ import axios, { type AxiosError, type AxiosResponse } from "axios";
 import { browser } from "$app/environment";
 import type { ApiResponse } from "@repo/shared";
 
-export const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+// Use relative /api by default so HTTPS frontend can safely proxy to HTTP backend without mixed-content issues.
+// In production, override with VITE_API_BASE_URL if you expose the API separately.
+export const API_URL =
+    import.meta.env.VITE_API_BASE_URL ||
+    "/api";
 
 export const api = axios.create({
     baseURL: API_URL,

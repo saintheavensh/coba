@@ -93,6 +93,13 @@
         Object.fromEntries(brandList.map((b) => [b.id, b])),
     );
 
+    // Normalize brand name for display (capitalize first letter)
+    function normalizeBrandDisplay(name: string): string {
+        if (!name || name.trim().length === 0) return name;
+        const trimmed = name.trim();
+        return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+    }
+
     let devices = $derived(
         (devicesQuery.data || []).filter(
             (d) => selectedBrand === "all" || d.brand === selectedBrand,
@@ -325,8 +332,15 @@
     function handleSubmit() {
         if (!brand || !model) return toast.error("Brand dan Model wajib diisi");
 
+        // Normalize brand name: capitalize first letter
+        const normalizeBrandName = (name: string): string => {
+            if (!name || name.trim().length === 0) return name;
+            const trimmed = name.trim();
+            return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+        };
+
         const payload = {
-            brand,
+            brand: normalizeBrandName(brand), // Normalize brand name
             series: series || undefined,
             model,
             code: code || undefined,
@@ -393,12 +407,23 @@
                 battery = data.specifications.battery || battery;
                 colors = data.specifications.colors || colors;
 
-                // Try to match brand if simple text match
+                // Normalize brand name and try to match brand (case-insensitive)
+                const normalizeBrandName = (name: string): string => {
+                    if (!name || name.trim().length === 0) return name;
+                    const trimmed = name.trim();
+                    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+                };
+                
+                const normalizedBrand = data.brand ? normalizeBrandName(data.brand) : "";
                 const foundBrand = brandList.find(
-                    (b) => b.name.toLowerCase() === data.brand?.toLowerCase(),
+                    (b) => b.name.toLowerCase() === normalizedBrand.toLowerCase(),
                 );
-                if (foundBrand) {
-                    brand = foundBrand.id;
+                
+                // Use normalized brand name (not ID) for consistency
+                if (normalizedBrand) {
+                    brand = normalizedBrand; // Use normalized brand name
+                } else if (foundBrand) {
+                    brand = foundBrand.name; // Fallback to found brand's normalized name
                 }
             }
 
@@ -431,13 +456,15 @@
         total: 0,
         success: 0,
         failed: 0,
+        startTime: 0,
+        estimatedTimeLeft: 0, // in seconds
     });
 
     function resetBulkImport() {
         bulkImportUrl = "";
         bulkImportList = [];
         bulkImportStep = "input";
-        bulkImportProgress = { current: 0, total: 0, success: 0, failed: 0 };
+        bulkImportProgress = { current: 0, total: 0, success: 0, failed: 0, startTime: 0, estimatedTimeLeft: 0 };
     }
 
     async function handleScanUrl() {
@@ -504,6 +531,25 @@
         return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
+    function formatTime(seconds: number): string {
+        if (seconds < 60) {
+            return `${seconds} detik`;
+        }
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        if (minutes < 60) {
+            return remainingSeconds > 0 
+                ? `${minutes} menit ${remainingSeconds} detik`
+                : `${minutes} menit`;
+        }
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        if (remainingMinutes > 0) {
+            return `${hours} jam ${remainingMinutes} menit`;
+        }
+        return `${hours} jam`;
+    }
+
     async function handleBulkImport() {
         const selected = bulkImportList.filter((i) => i.selected);
         if (selected.length === 0) return;
@@ -513,6 +559,8 @@
         bulkImportProgress.current = 0;
         bulkImportProgress.success = 0;
         bulkImportProgress.failed = 0;
+        bulkImportProgress.startTime = Date.now();
+        bulkImportProgress.estimatedTimeLeft = 0;
 
         // Process sequentially to be nice to the server/target
         // Add random delays to mimic human browsing behavior
@@ -552,6 +600,14 @@
                 }
             } finally {
                 bulkImportProgress.current++;
+                
+                // Calculate estimated time left
+                if (bulkImportProgress.current > 0) {
+                    const elapsed = (Date.now() - bulkImportProgress.startTime) / 1000; // seconds
+                    const avgTimePerItem = elapsed / bulkImportProgress.current;
+                    const remaining = bulkImportProgress.total - bulkImportProgress.current;
+                    bulkImportProgress.estimatedTimeLeft = Math.round(avgTimePerItem * remaining);
+                }
             }
         }
 
@@ -572,10 +628,11 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
         class={cn(
-            "group relative flex flex-col bg-card border rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden cursor-pointer",
+            "group relative flex flex-col bg-card border rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden cursor-pointer outline-none focus:outline-none",
             selectedIds.includes(device.id) &&
                 "ring-2 ring-primary border-primary bg-primary/5",
         )}
+        tabindex="-1"
         onclick={() => {
             if (selectedIds.length > 0) {
                 toggleSelect(device.id);
@@ -640,7 +697,7 @@
                 <div class="text-center text-muted-foreground/30">
                     <Smartphone class="h-16 w-16 mx-auto mb-2" />
                     <span class="text-xs font-bold uppercase tracking-widest"
-                        >{device.brand}</span
+                        >{normalizeBrandDisplay(device.brand)}</span
                     >
                 </div>
             {/if}
@@ -648,7 +705,7 @@
             <Badge
                 class="absolute bottom-2 left-2 bg-white/90 text-foreground shadow-sm hover:bg-white border text-[10px] backdrop-blur-sm"
             >
-                {device.brand}
+                {normalizeBrandDisplay(device.brand)}
             </Badge>
         </div>
 
@@ -740,11 +797,14 @@
                         Kelola Brand
                     </Button>
                     <DropdownMenu>
-                        <DropdownMenuTrigger>
-                            <Button variant="outline" size="lg">
-                                <FileSpreadsheet class="h-4 w-4 mr-2" />
-                                Excel / CSV
-                            </Button>
+                        <DropdownMenuTrigger
+                            class={buttonVariants({
+                                variant: "outline",
+                                size: "lg",
+                            })}
+                        >
+                            <FileSpreadsheet class="h-4 w-4 mr-2" />
+                            Excel / CSV
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                             <DropdownMenuLabel>Export Data</DropdownMenuLabel>
@@ -939,7 +999,7 @@
                                     variant="outline"
                                     class="text-lg px-3 py-1 font-bold tracking-wider bg-background"
                                 >
-                                    {brandName}
+                                    {normalizeBrandDisplay(brandName)}
                                 </Badge>
                                 <span class="text-muted-foreground text-sm"
                                     >({group.count} devices)</span
@@ -1366,7 +1426,7 @@
                             >
                             <DialogDescription class="text-base mt-2">
                                 <Badge variant="secondary" class="mr-2"
-                                    >{selectedDevice.brand}</Badge
+                                    >{normalizeBrandDisplay(selectedDevice.brand)}</Badge
                                 >
                                 {#if selectedDevice.series}<Badge
                                         variant="outline"
@@ -1635,9 +1695,21 @@
                 {:else if bulkImportStep === "selection"}
                     <div class="space-y-2">
                         <div class="flex items-center justify-between">
-                            <h4 class="font-medium text-sm">
-                                Ditemukan {bulkImportList.length} device
-                            </h4>
+                            <div>
+                                <h4 class="font-medium text-sm">
+                                    Ditemukan {bulkImportList.length} device
+                                </h4>
+                                <p class="text-xs text-muted-foreground mt-1">
+                                    {bulkImportList.filter((i) => i.selected)
+                                        .length} dipilih • Estimasi: ~{Math.ceil(
+                                        (bulkImportList.filter(
+                                            (i) => i.selected,
+                                        ).length *
+                                            10) /
+                                            60,
+                                    )} menit
+                                </p>
+                            </div>
                             <div class="space-x-2">
                                 <Button
                                     variant="ghost"
@@ -1711,7 +1783,14 @@
                     <div class="space-y-4">
                         <div class="space-y-2">
                             <div class="flex justify-between text-sm">
-                                <span>Proses Import...</span>
+                                <div class="flex flex-col">
+                                    <span>Proses Import...</span>
+                                    {#if bulkImportStep === "progress" && bulkImportProgress.current > 0 && bulkImportProgress.estimatedTimeLeft > 0}
+                                        <span class="text-xs text-muted-foreground">
+                                            Estimasi waktu tersisa: {formatTime(bulkImportProgress.estimatedTimeLeft)}
+                                        </span>
+                                    {/if}
+                                </div>
                                 <span
                                     >{Math.round(
                                         (bulkImportProgress.current /

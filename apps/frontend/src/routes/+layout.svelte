@@ -20,16 +20,22 @@
 		},
 	});
 
-	// Auth Guard
+	// Auth Guard - Check authentication via cookie (stored in HTTP-only cookie, user info in localStorage)
 	$effect(() => {
 		if (browser) {
-			const token = localStorage.getItem("token");
-			if (!token && !$page.url.pathname.startsWith("/login")) {
+			const user = localStorage.getItem("user");
+			const isLoginPage = $page.url.pathname.startsWith("/login");
+			
+			// If no user in localStorage and not on login page, redirect to login
+			if (!user && !isLoginPage) {
 				window.location.href = "/login";
+				return;
 			}
-			// Optional: If token exists but user tries to go to login, redirect to home
-			if (token && $page.url.pathname.startsWith("/login")) {
+			
+			// If user exists and on login page, redirect to home
+			if (user && isLoginPage) {
 				window.location.href = "/";
+				return;
 			}
 		}
 	});

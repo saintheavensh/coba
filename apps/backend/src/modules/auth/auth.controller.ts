@@ -12,20 +12,38 @@ const service = new AuthService();
 app.post("/login", zValidator("json", loginSchema), async (c) => {
     try {
         const data = c.req.valid("json");
+        
+        // Debug logging
+        const Logger = (await import("../../lib/logger")).Logger;
+        Logger.debug(`[AUTH] Login attempt for username: ${data.username}`);
+        
         const result = await service.login(data);
 
         // Set HTTP-only cookie with the token
+        // When frontend is HTTPS proxying to HTTP backend via Vite proxy:
+        // - Frontend makes HTTPS request to Vite dev server
+        // - Vite proxy forwards as HTTP to backend
+        // - Backend sets cookie with secure=false in dev (since backend sees HTTP)
+        // - Cookie is sent back through HTTPS proxy, so browser accepts it
+        // In production, use secure=true when backend is directly accessed via HTTPS
+        const isDevelopment = process.env.NODE_ENV !== "production";
+        const isHttpsFrontend = c.req.header("x-forwarded-proto") === "https";
+        
         setCookie(c, "auth_token", result.token, {
             httpOnly: true,
-            secure: true, // HTTPS only
+            secure: !isDevelopment && (isHttpsFrontend || process.env.NODE_ENV === "production"),
             sameSite: "Lax",
             path: "/",
             maxAge: 60 * 60 * 24 // 24 hours
         });
 
+        Logger.info(`[AUTH] Login successful for user: ${result.user.name} (${result.user.username})`);
+
         // Return user data without the token (token is in cookie)
         return apiSuccess(c, { user: result.user }, "Login successful");
     } catch (e) {
+        const Logger = (await import("../../lib/logger")).Logger;
+        Logger.error(`[AUTH] Login failed:`, e);
         return apiError(c, e, "Login failed", 401);
     }
 });
