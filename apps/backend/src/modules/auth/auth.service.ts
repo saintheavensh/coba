@@ -24,7 +24,7 @@ export class AuthService {
         }
 
         Logger.debug(`[AUTH_SERVICE] User found: ${user.username}, isActive: ${user.isActive ?? true}`);
-        
+
         if (user.isActive === false) {
             Logger.warn(`[AUTH_SERVICE] User account is inactive: ${user.username}`);
             throw new Error("Account is inactive");
@@ -36,7 +36,7 @@ export class AuthService {
             Logger.warn(`[AUTH_SERVICE] Password verification failed for user: ${user.username}`);
             throw new Error("Invalid username or password");
         }
-        
+
         Logger.debug(`[AUTH_SERVICE] Password verified successfully for user: ${user.username}`);
 
         // Generate Token
@@ -62,6 +62,7 @@ export class AuthService {
             user: {
                 id: user.id,
                 name: user.name,
+                username: user.username,
                 role: typeof user.role === 'string' ? user.role : (user.role as any).id,
                 permissions: permissions
             }
