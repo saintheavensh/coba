@@ -134,3 +134,5 @@ export class AuthService {
         return true;
     }
 }
+
+// End of AuthService
