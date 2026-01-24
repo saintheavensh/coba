@@ -17,6 +17,7 @@
         ChevronDown,
         CornerDownRight,
         MoreHorizontal,
+        Layers,
     } from "lucide-svelte";
     import {
         Table,
@@ -56,6 +57,7 @@
         AlertDialogTitle,
     } from "$lib/components/ui/alert-dialog";
     import { Badge } from "$lib/components/ui/badge";
+    import Combobox from "$lib/components/ui/combobox.svelte";
     import { SvelteSet } from "svelte/reactivity";
 
     const queryClient = useQueryClient();
@@ -65,6 +67,14 @@
         queryKey: ["categories"],
         queryFn: InventoryService.getCategories,
     }));
+
+    const suppliersQuery = createQuery(() => ({
+        queryKey: ["suppliers"],
+        queryFn: InventoryService.getSuppliers,
+    }));
+
+    // Derived
+    let suppliers = $derived(suppliersQuery.data || []);
 
     // Derived Hierarchy Logic
     let categories = $derived(categoriesQuery.data || []);
@@ -181,6 +191,72 @@
     let deleteOpen = $state(false);
     let deletingId = $state<string | null>(null);
 
+    // Variant Dialog State
+    let variantDialogOpen = $state(false);
+    let variantCategoryId = $state<string | null>(null);
+    let variantCategoryName = $state("");
+    let variantTemplates = $state<any[]>([]);
+    let newVariantName = $state("");
+    let newVariantSupplierId = $state("");
+
+    // Variant Mutations
+    const addVariantMutation = createMutation(() => ({
+        mutationFn: (vars: {
+            categoryId: string;
+            name: string;
+            supplierId?: string;
+        }) =>
+            InventoryService.addVariantTemplate(
+                vars.categoryId,
+                vars.name,
+                vars.supplierId,
+            ),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["categories"] });
+            toast.success("Varian ditambahkan & dipropagasi ke produk");
+            newVariantName = "";
+            newVariantSupplierId = "";
+        },
+        onError: () => toast.error("Gagal menambah varian"),
+    }));
+
+    const removeVariantMutation = createMutation(() => ({
+        mutationFn: InventoryService.removeVariantTemplate,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["categories"] });
+            toast.success("Varian dihapus");
+        },
+    }));
+
+    // Auto-sync variant list
+    $effect(() => {
+        if (variantDialogOpen && variantCategoryId) {
+            const cat = categories.find((c) => c.id === variantCategoryId);
+            if (cat) {
+                variantTemplates = (cat as any).variantTemplates || [];
+            }
+        }
+    });
+
+    function openVariantDialog(cat: any) {
+        variantCategoryId = cat.id;
+        variantCategoryName = cat.name;
+        variantTemplates = cat.variantTemplates || [];
+        newVariantName = "";
+        newVariantSupplierId = "";
+        variantDialogOpen = true;
+    }
+
+    function handleAddVariant() {
+        if (!newVariantName) return toast.error("Nama varian wajib diisi");
+        if (!variantCategoryId) return;
+        addVariantMutation.mutate({
+            categoryId: variantCategoryId,
+            name: newVariantName,
+            supplierId: newVariantSupplierId || undefined,
+        });
+    }
+
     function resetForm() {
         editingId = null;
         name = "";
@@ -277,56 +353,47 @@
                     {/if}
                 </DialogTitle>
                 <DialogDescription>
-                    {#if parentId}
+                    {#if parentId && !editingId}
                         Menambahkan sub-kategori ke dalam: <span
                             class="font-bold text-primary"
                             >{categories.find((c) => c.id === parentId)
                                 ?.name}</span
                         >
+                    {:else if editingId}
+                        Edit informasi kategori.
                     {:else}
-                        Buat kategori utama (root) atau pilih induk.
+                        Masukkan nama dan deskripsi kategori utama.
                     {/if}
                 </DialogDescription>
             </DialogHeader>
 
             <div class="grid gap-4 py-4">
-                <div class="grid gap-2">
-                    <Label>Nama Kategori</Label>
-                    <Input bind:value={name} placeholder="Misal: Sparepart" />
-                </div>
+                <!-- Parent Display (Read-only for child categories) -->
+                {#if parentId && !editingId}
+                    <div class="grid gap-2">
+                        <Label class="text-muted-foreground"
+                            >Induk Kategori</Label
+                        >
+                        <div
+                            class="flex items-center gap-2 p-3 bg-muted/50 rounded-md border"
+                        >
+                            <CornerDownRight
+                                class="h-4 w-4 text-muted-foreground"
+                            />
+                            <span class="font-medium">
+                                {categories.find((c) => c.id === parentId)
+                                    ?.name}
+                            </span>
+                        </div>
+                    </div>
+                {/if}
 
                 <div class="grid gap-2">
-                    <Label>Induk Kategori</Label>
-                    <div class="relative">
-                        <select
-                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            bind:value={parentId}
-                        >
-                            <option value={null}
-                                >-- Tidak Ada (Kategori Utama) --</option
-                            >
-                            {#each dropdownList as cat}
-                                {#if editingId !== cat.id}
-                                    <option value={cat.id}>
-                                        {@html "&nbsp;".repeat(cat.level * 4)}
-                                        {cat.level > 0 ? "↳ " : ""}{cat.name}
-                                    </option>
-                                {/if}
-                            {/each}
-                        </select>
-                        {#if parentId}
-                            <div
-                                class="mt-1 text-xs text-muted-foreground flex items-center"
-                            >
-                                <CornerDownRight class="h-3 w-3 mr-1" />
-                                Akan berada di bawah:
-                                <b class="ml-1"
-                                    >{categories.find((c) => c.id === parentId)
-                                        ?.name}</b
-                                >
-                            </div>
-                        {/if}
-                    </div>
+                    <Label>Nama Kategori</Label>
+                    <Input
+                        bind:value={name}
+                        placeholder="Misal: Sparepart, LCD, Baterai"
+                    />
                 </div>
 
                 <div class="grid gap-2">
@@ -448,6 +515,19 @@
                                 </TableCell>
                                 <TableCell class="text-right p-2">
                                     <div class="flex justify-end gap-1">
+                                        {#if !cat.hasChildren}
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                class="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                                title="Kelola Varian"
+                                                onclick={() =>
+                                                    openVariantDialog(cat)}
+                                            >
+                                                <Layers class="h-4 w-4" />
+                                            </Button>
+                                        {/if}
+
                                         <!-- Quick Add Child Action -->
                                         <Button
                                             variant="ghost"
@@ -518,5 +598,95 @@
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
+
+    <!-- Variant Management Dialog -->
+    <Dialog bind:open={variantDialogOpen}>
+        <DialogContent class="max-w-lg">
+            <DialogHeader>
+                <DialogTitle class="flex items-center gap-2">
+                    <Layers class="h-5 w-5 text-purple-600" />
+                    Kelola Varian - {variantCategoryName}
+                </DialogTitle>
+                <DialogDescription>
+                    Tambah varian dengan supplier. Varian akan otomatis
+                    dipropagasi ke semua produk.
+                </DialogDescription>
+            </DialogHeader>
+
+            <!-- Add Variant Form -->
+            <div class="space-y-3 py-4">
+                <div class="grid grid-cols-1 gap-3">
+                    <div>
+                        <Label class="text-sm mb-1.5 block">Nama Varian</Label>
+                        <Input
+                            bind:value={newVariantName}
+                            placeholder="Contoh: Original, OLED, Incell"
+                        />
+                    </div>
+                    <div>
+                        <Label class="text-sm mb-1.5 block">Supplier</Label>
+                        <Combobox
+                            items={suppliers.map((s) => ({
+                                label: s.name,
+                                value: s.id,
+                            }))}
+                            bind:value={newVariantSupplierId}
+                            placeholder="Pilih Supplier"
+                        />
+                    </div>
+                </div>
+                <Button
+                    class="w-full"
+                    onclick={handleAddVariant}
+                    disabled={addVariantMutation.isPending}
+                >
+                    <Plus class="h-4 w-4 mr-2" />
+                    {addVariantMutation.isPending
+                        ? "Menambahkan..."
+                        : "Tambah Varian"}
+                </Button>
+            </div>
+
+            <!-- Existing Variants List -->
+            <div class="border-t pt-4">
+                <h4 class="font-medium text-sm mb-3">Varian Terdaftar</h4>
+                {#if variantTemplates.length === 0}
+                    <div
+                        class="text-sm text-muted-foreground italic text-center py-4 border border-dashed rounded bg-muted/20"
+                    >
+                        Belum ada varian untuk kategori ini.
+                    </div>
+                {:else}
+                    <div class="space-y-2 max-h-[200px] overflow-y-auto">
+                        {#each variantTemplates as v}
+                            <div
+                                class="flex items-center justify-between p-2 bg-secondary/50 rounded-md border"
+                            >
+                                <div>
+                                    <span class="font-medium text-sm"
+                                        >{v.name}</span
+                                    >
+                                    <span
+                                        class="text-xs text-muted-foreground ml-2"
+                                    >
+                                        • {v.supplier?.name || "-"}
+                                    </span>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-7 w-7 text-red-600 hover:text-red-700"
+                                    onclick={() =>
+                                        removeVariantMutation.mutate(v.id)}
+                                    disabled={removeVariantMutation.isPending}
+                                >
+                                    <Trash2 class="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+        </DialogContent>
+    </Dialog>
 </div>
-```

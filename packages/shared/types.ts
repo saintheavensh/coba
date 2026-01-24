@@ -36,6 +36,8 @@ export interface Category {
     id: string;
     name: string;
     description?: string | null;
+    parentId?: string | null;
+    variantTemplates?: { id: number; name: string }[];
     createdAt?: Date | null;
 }
 
@@ -95,13 +97,25 @@ export interface Product {
     category?: Category | null;
     batches?: ProductBatch[];
     price?: number; // Calculated price (e.g. from batch)
+    variants?: ProductVariant[]; // Pre-defined variants
     compatibility?: Device[]; // Array of compatible devices
+}
+
+export interface ProductVariant {
+    id: string;
+    productId: string;
+    name: string;
+    image?: string | null;
+    sku?: string | null;
+    defaultPrice?: number | null;
+    createdAt?: Date | null;
 }
 
 export interface ProductBatch {
     id: string;
     productId: string;
     supplierId?: string | null;
+    variantId?: string | null; // Link to defined variant
     variant?: string | null;
     supplierName?: string | null;
     buyPrice: number;
@@ -113,6 +127,7 @@ export interface ProductBatch {
     // Relations
     product?: Product;
     supplier?: Supplier | null;
+    variantLink?: ProductVariant | null;
 }
 
 // ============================================
@@ -372,6 +387,7 @@ export const ID_PREFIXES = {
     DEFECTIVE: "DEF",
     CATEGORY: "CAT",
     SERVICE: "SRV",
+    VARIANT: "VAR",
 } as const;
 
 export type IdPrefix = typeof ID_PREFIXES[keyof typeof ID_PREFIXES];

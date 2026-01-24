@@ -4,11 +4,15 @@ import { z } from "zod";
 
 type CreateProductDto = z.infer<typeof productSchema>;
 
+import { CategoriesRepository } from "../categories/categories.repository";
+
 export class InventoryService {
     private repo: InventoryRepository;
+    private categoryRepo: CategoriesRepository;
 
     constructor() {
         this.repo = new InventoryRepository();
+        this.categoryRepo = new CategoriesRepository();
     }
 
     async getAllProducts(deviceId?: string) {
@@ -21,7 +25,7 @@ export class InventoryService {
 
     async createProduct(data: CreateProductDto) {
         const id = "PRD-" + Date.now().toString().slice(-6);
-        return await this.repo.createProduct({
+        const product = await this.repo.createProduct({
             id,
             name: data.name,
             // Sanitize input: empty string -> null to prevent Unique/FK errors
@@ -32,6 +36,22 @@ export class InventoryService {
             stock: 0, // Always 0 init
             compatibility: data.compatibility
         });
+
+        // Auto-create variants from Category Templates
+        if (data.categoryId) {
+            const category = await this.categoryRepo.findById(data.categoryId);
+            if (category?.variantTemplates?.length) {
+                for (const template of category.variantTemplates) {
+                    await this.createVariant({
+                        productId: product.id,
+                        name: template.name,
+                        // image, sku, defaultPrice empty initially
+                    });
+                }
+            }
+        }
+
+        return product;
     }
 
     async updateProduct(id: string, data: CreateProductDto) {
@@ -51,6 +71,30 @@ export class InventoryService {
     }
 
     async getSupplierVariants(supplierId: string) {
-        return await this.repo.findVariantsBySupplier(supplierId);
+        return await this.repo.findRecentVariantIdsBySupplier(supplierId);
+    }
+
+    async createVariant(data: { productId: string; name: string; image?: string; sku?: string; defaultPrice?: number }) {
+        const id = "VAR-" + Date.now().toString().slice(-6);
+        return await this.repo.createVariant({
+            id,
+            productId: data.productId,
+            name: data.name,
+            image: data.image,
+            sku: data.sku,
+            defaultPrice: data.defaultPrice
+        });
+    }
+
+    async updateVariant(id: string, data: Partial<{ name: string; image?: string; sku?: string; defaultPrice?: number }>) {
+        return await this.repo.updateVariant(id, data);
+    }
+
+    async getProductVariants(productId: string) {
+        return await this.repo.findVariantsByProductId(productId);
+    }
+
+    async deleteVariant(id: string) {
+        return await this.repo.deleteVariant(id);
     }
 }

@@ -1,9 +1,9 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import ProductMasterForm from "./product-master-form.svelte";
     import { InventoryService } from "$lib/services/inventory.service";
     import SearchInput from "$lib/components/custom/search-input.svelte";
-    import ImageUpload from "$lib/components/custom/image-upload.svelte";
-    import { Input } from "$lib/components/ui/input";
+
     import { Button, buttonVariants } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
     import {
@@ -42,9 +42,9 @@
         DialogFooter,
         DialogHeader,
         DialogTitle,
-        DialogTrigger,
     } from "$lib/components/ui/dialog";
     import { Label } from "$lib/components/ui/label";
+
     import { toast } from "svelte-sonner";
     import {
         AlertDialog,
@@ -80,34 +80,7 @@
         queryFn: InventoryService.getCategories,
     }));
 
-    const devicesQuery = createQuery(() => ({
-        queryKey: ["devices"],
-        queryFn: () => InventoryService.getDevices(),
-    }));
-
     // Mutations (v6: options function)
-    const createProductMutation = createMutation(() => ({
-        mutationFn: InventoryService.createProduct,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["products"] });
-            toast.success("Produk berhasil dibuat! Stok awal 0.");
-            open = false;
-            resetForm();
-        },
-        onError: () => toast.error("Gagal menyimpan produk"),
-    }));
-
-    const updateProductMutation = createMutation(() => ({
-        mutationFn: (vars: { id: string; data: any }) =>
-            InventoryService.updateProduct(vars.id, vars.data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["products"] });
-            toast.success("Produk berhasil diupdate!");
-            open = false;
-            resetForm();
-        },
-        onError: () => toast.error("Gagal update produk"),
-    }));
 
     const deleteProductMutation = createMutation(() => ({
         mutationFn: InventoryService.deleteProduct,
@@ -174,14 +147,7 @@
     let searchTerm = $state("");
 
     // Form State (Runes)
-    let newName = $state("");
-    let newCode = $state(""); // Universal Code
-    let selectedCategory = $state(""); // ID
-    let newMinStock = $state(5);
-    let selectedCompatibility = $state<string[]>([]); // Device IDs
-
-    let editingId = $state<string | null>(null);
-    let newImage = $state("");
+    let editingProduct = $state<any>(null);
 
     // Filter State (Runes)
     let selectedFilterCategory = $state("all");
@@ -199,20 +165,6 @@
     let deleteOpen = $state(false);
     let deletingId = $state<string | null>(null);
 
-    // Device Search in Form
-    let deviceSearchTerm = $state("");
-
-    function resetForm() {
-        newName = "";
-        newCode = "";
-        selectedCategory = "";
-        newMinStock = 5;
-        newImage = "";
-        selectedCompatibility = [];
-        deviceSearchTerm = "";
-        editingId = null;
-    }
-
     function toggleExpanded(id: string) {
         if (expandedProductId === id) {
             expandedProductId = null;
@@ -226,39 +178,8 @@
         }
     }
 
-    function generateCode() {
-        if (!selectedCategory) {
-            toast.error("Pilih kategori terlebih dahulu untuk generate kode");
-            return;
-        }
-
-        const cat = categories.find((c: any) => c.id === selectedCategory);
-        const prefix = cat
-            ? cat.name
-                  .replace(/[^a-zA-Z]/g, "")
-                  .substring(0, 3)
-                  .toUpperCase()
-            : "GEN";
-        const random = Math.floor(1000 + Math.random() * 9000); // 4 digit random
-        newCode = `${prefix}${random}`;
-    }
-
     function handleEdit(product: any) {
-        editingId = product.id;
-        newName = product.name;
-        newCode = product.code || "";
-        selectedCategory = product.categoryId || "";
-        newMinStock = product.minStock || 5;
-        newImage = product.image || "";
-        // Fetch full product for compatibility or assume it's in list (it's not in list by default usually unless we updated controller)
-        // Ideally we should call getProduct here to get compat list, but for now we might need to rely on what's available or fetch it.
-        // Let's lazy fetch detail or update logic to fetch detail for edit.
-        InventoryService.getProduct(product.id).then((detail) => {
-            // map detail.compatibility objects to IDs
-            selectedCompatibility = (detail.compatibility || []).map(
-                (d: any) => d.id,
-            );
-        });
+        editingProduct = product;
         open = true;
     }
 
@@ -281,33 +202,50 @@
         deleteProductMutation.mutate(deletingId);
     }
 
-    function handleSubmit() {
-        if (!newName) {
-            toast.error("Nama produk wajib diisi");
-            return;
+    // Helper for batches ($derived)
+    // Filter batches: for same variant, show only batches with stock > 0
+    // If all batches of a variant have 0 stock, show only the last one
+    function filterBatchesByVariant(batches: any[]): any[] {
+        if (!batches || batches.length === 0) return [];
+
+        // Group batches by variant name
+        const byVariant: Record<string, any[]> = {};
+        for (const batch of batches) {
+            const variantKey = batch.variant || "__no_variant__";
+            if (!byVariant[variantKey]) byVariant[variantKey] = [];
+            byVariant[variantKey].push(batch);
         }
 
-        const payload = {
-            name: newName,
-            code: newCode || undefined,
-            categoryId: selectedCategory || undefined,
-            minStock: parseInt(newMinStock.toString()) || 5,
-            image: newImage || undefined,
-            compatibility: selectedCompatibility,
-        };
-
-        if (editingId) {
-            updateProductMutation.mutate({ id: editingId, data: payload });
-        } else {
-            createProductMutation.mutate(payload);
+        // For each variant, filter batches
+        const result: any[] = [];
+        for (const [variantKey, variantBatches] of Object.entries(byVariant)) {
+            const withStock = variantBatches.filter(
+                (b: any) => (b.currentStock || 0) > 0,
+            );
+            if (withStock.length > 0) {
+                // Show only batches with stock
+                result.push(...withStock);
+            } else {
+                // All have 0 stock - show only the last batch (by createdAt or id)
+                const sorted = variantBatches.sort((a: any, b: any) => {
+                    const dateA = new Date(a.createdAt || 0).getTime();
+                    const dateB = new Date(b.createdAt || 0).getTime();
+                    return dateB - dateA; // Most recent first
+                });
+                result.push(sorted[0]); // Take only the most recent
+            }
         }
+
+        return result;
     }
 
-    // Helper for batches ($derived)
     let batchesBySupplier = $derived(
-        (selectedProduct?.batches || []).reduce(
+        filterBatchesByVariant(selectedProduct?.batches || []).reduce(
             (acc: Record<string, any[]>, batch: any) => {
-                const sup = batch.supplierName || "Tanpa Supplier";
+                const sup =
+                    batch.supplier?.name ||
+                    batch.supplierName ||
+                    "Tanpa Supplier";
                 if (!acc[sup]) acc[sup] = [];
                 acc[sup].push(batch);
                 return acc;
@@ -401,240 +339,22 @@
         </div>
 
         <!-- Dialog Produk Baru -->
-        <Dialog
-            bind:open
-            onOpenChange={(isOpen) => {
-                if (!isOpen) resetForm();
-                else
-                    queryClient.invalidateQueries({ queryKey: ["categories"] });
+        <Button
+            onclick={() => {
+                editingProduct = null;
+                open = true;
             }}
         >
-            <DialogTrigger class={buttonVariants({ variant: "default" })}>
-                <Plus class="mr-2 h-4 w-4" /> Produk Master Baru
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle
-                        >{editingId
-                            ? "Edit Master Produk"
-                            : "Buat Master Produk Baru"}</DialogTitle
-                    >
-                    <DialogDescription>
-                        Buat template produk. Stok masuk dilakukan melalui menu <b
-                            >Pembelian</b
-                        >.
-                    </DialogDescription>
-                </DialogHeader>
-                <div class="grid gap-4 py-4">
-                    <div
-                        class="grid grid-cols-1 md:grid-cols-4 items-start md:items-center gap-2 md:gap-4"
-                    >
-                        <Label class="text-left md:text-right">Kategori</Label>
-                        <div class="col-span-1 md:col-span-3">
-                            {#if categoriesQuery.isLoading}
-                                <div
-                                    class="flex items-center space-x-2 text-sm text-muted-foreground p-2 border rounded bg-muted"
-                                >
-                                    <div
-                                        class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
-                                    ></div>
-                                    <span>Memuat kategori...</span>
-                                </div>
-                            {:else if categories.length === 0}
-                                <div
-                                    class="text-sm text-muted-foreground p-2 border rounded bg-muted"
-                                >
-                                    Belum ada kategori.
-                                </div>
-                            {:else}
-                                <select
-                                    class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    bind:value={selectedCategory}
-                                >
-                                    <option value=""
-                                        >-- Pilih Kategori --</option
-                                    >
-                                    {#each hierarchicalCategories as cat}
-                                        <option value={cat.id}>
-                                            {@html "&nbsp;".repeat(
-                                                cat.level * 4,
-                                            )}
-                                            {cat.level > 0
-                                                ? "↳ "
-                                                : ""}{cat.name}
-                                        </option>
-                                    {/each}
-                                </select>
-                            {/if}
-                        </div>
-                    </div>
+            <Plus class="mr-2 h-4 w-4" /> Produk Master Baru
+        </Button>
 
-                    <div
-                        class="grid grid-cols-1 md:grid-cols-4 items-start md:items-center gap-2 md:gap-4"
-                    >
-                        <Label class="text-left md:text-right"
-                            >Kode Universal</Label
-                        >
-                        <div class="col-span-1 md:col-span-3 flex gap-2">
-                            <Input
-                                placeholder="Scan Barcode / SKU"
-                                bind:value={newCode}
-                            />
-                            <Button
-                                variant="outline"
-                                onclick={generateCode}
-                                title="Generate Otomatis"
-                            >
-                                <Filter class="h-4 w-4 mr-2" /> Auto
-                            </Button>
-                        </div>
-                    </div>
-
-                    <div
-                        class="grid grid-cols-1 md:grid-cols-4 items-start md:items-center gap-2 md:gap-4"
-                    >
-                        <Label class="text-left md:text-right">Nama</Label>
-                        <Input
-                            placeholder="Nama Produk (Mis: LCD Samsung)"
-                            class="col-span-1 md:col-span-3"
-                            bind:value={newName}
-                        />
-                    </div>
-
-                    <div
-                        class="grid grid-cols-1 md:grid-cols-4 items-start md:items-center gap-2 md:gap-4"
-                    >
-                        <Label class="text-left md:text-right"
-                            >Min Stock Alert</Label
-                        >
-                        <Input
-                            type="number"
-                            placeholder="5"
-                            class="col-span-1 md:col-span-3"
-                            bind:value={newMinStock}
-                        />
-                    </div>
-
-                    <div
-                        class="grid grid-cols-1 md:grid-cols-4 items-start gap-2 md:gap-4"
-                    >
-                        <Label class="text-left md:text-right pt-2"
-                            >Kompatibilitas</Label
-                        >
-                        <div class="col-span-1 md:col-span-3">
-                            <Input
-                                placeholder="Cari device (brand, model, code)..."
-                                bind:value={deviceSearchTerm}
-                                class="mb-2"
-                            />
-                            <div
-                                class="border rounded-md p-2 h-40 overflow-y-auto space-y-2"
-                            >
-                                {#if devicesQuery.isLoading}
-                                    <div class="text-sm text-muted-foreground">
-                                        Memuat devices...
-                                    </div>
-                                {:else}
-                                    {@const filteredDevices = (
-                                        devicesQuery.data || []
-                                    ).filter(
-                                        (d: any) =>
-                                            !deviceSearchTerm ||
-                                            d.brand
-                                                .toLowerCase()
-                                                .includes(
-                                                    deviceSearchTerm.toLowerCase(),
-                                                ) ||
-                                            d.model
-                                                .toLowerCase()
-                                                .includes(
-                                                    deviceSearchTerm.toLowerCase(),
-                                                ) ||
-                                            (d.code &&
-                                                d.code
-                                                    .toLowerCase()
-                                                    .includes(
-                                                        deviceSearchTerm.toLowerCase(),
-                                                    )),
-                                    )}
-
-                                    {#if filteredDevices.length === 0}
-                                        <div
-                                            class="text-xs text-muted-foreground p-2"
-                                        >
-                                            Tidak ada device cocok.
-                                        </div>
-                                    {/if}
-
-                                    {#each filteredDevices as device}
-                                        <label
-                                            class="flex items-center space-x-2 text-sm cursor-pointer hover:bg-muted/50 p-1 rounded"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                class="rounded border-gray-300"
-                                                value={device.id}
-                                                checked={selectedCompatibility.includes(
-                                                    device.id,
-                                                )}
-                                                onchange={(e) => {
-                                                    const checked =
-                                                        e.currentTarget.checked;
-                                                    if (checked)
-                                                        selectedCompatibility =
-                                                            [
-                                                                ...selectedCompatibility,
-                                                                device.id,
-                                                            ];
-                                                    else
-                                                        selectedCompatibility =
-                                                            selectedCompatibility.filter(
-                                                                (id) =>
-                                                                    id !==
-                                                                    device.id,
-                                                            );
-                                                }}
-                                            />
-                                            <span
-                                                >{device.brand}
-                                                {device.model}
-                                                <span
-                                                    class="text-muted-foreground text-xs"
-                                                    >({device.code ||
-                                                        "-"})</span
-                                                ></span
-                                            >
-                                        </label>
-                                    {/each}
-                                {/if}
-                            </div>
-                            <p class="text-[10px] text-muted-foreground mt-1">
-                                {selectedCompatibility.length} device terpilih.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div
-                        class="grid grid-cols-1 md:grid-cols-4 items-start gap-2 md:gap-4"
-                    >
-                        <Label class="text-left md:text-right pt-0 md:pt-2"
-                            >Foto Produk</Label
-                        >
-                        <div class="col-span-1 md:col-span-3">
-                            <ImageUpload
-                                bind:value={newImage}
-                                disabled={loading}
-                            />
-                        </div>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button onclick={handleSubmit} disabled={loading}>
-                        {loading ? "Menyimpan..." : "Simpan Master Produk"}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+        <ProductMasterForm
+            bind:open
+            editData={editingProduct}
+            onClose={() => {
+                editingProduct = null;
+            }}
+        />
     </div>
 
     <!-- Mobile List View -->
@@ -958,16 +678,18 @@
                                             </div>
                                         {:else}
                                             <!-- Group by Supplier logic inline or use helper -->
-                                            {@const batchesBySup = (
-                                                product.batches || []
-                                            ).reduce((acc: any, b: any) => {
-                                                const s =
-                                                    b.supplierName ||
-                                                    "Tanpa Supplier";
-                                                if (!acc[s]) acc[s] = [];
-                                                acc[s].push(b);
-                                                return acc;
-                                            }, {})}
+                                            {@const batchesBySup =
+                                                filterBatchesByVariant(
+                                                    product.batches || [],
+                                                ).reduce((acc: any, b: any) => {
+                                                    const s =
+                                                        b.supplier?.name ||
+                                                        b.supplierName ||
+                                                        "Tanpa Supplier";
+                                                    if (!acc[s]) acc[s] = [];
+                                                    acc[s].push(b);
+                                                    return acc;
+                                                }, {})}
 
                                             <div class="grid gap-4">
                                                 {#each Object.entries(batchesBySup) as [supplier, batches]}

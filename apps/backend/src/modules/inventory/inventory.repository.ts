@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { products, productBatches, categories, productDeviceCompatibility } from "../../db/schema";
+import { products, productBatches, categories, productDeviceCompatibility, productVariants } from "../../db/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 
 export class InventoryRepository {
@@ -7,7 +7,12 @@ export class InventoryRepository {
         const queryOptions: any = {
             with: {
                 category: true,
-                batches: true // Required for Sales FIFO aggregation
+                batches: {
+                    with: {
+                        supplier: true
+                    }
+                },
+                variants: true,
             },
             orderBy: [desc(products.name)]
         };
@@ -37,6 +42,7 @@ export class InventoryRepository {
             with: {
                 category: true,
                 batches: true,
+                variants: true,
                 compatibility: {
                     with: {
                         device: true
@@ -103,21 +109,48 @@ export class InventoryRepository {
         return await db.delete(products).where(eq(products.id, id));
     }
 
-    async findVariantsBySupplier(supplierId: string) {
-        // Find distinct variants for this supplier across ALL products
+    async findRecentVariantIdsBySupplier(supplierId: string) {
+        // Return Variant IDs sorted by most recent batch creation
         const results = await db
-            .selectDistinct({ variant: productBatches.variant })
+            .select({ variantId: productBatches.variantId, lastDate: sql`MAX(${productBatches.createdAt})` })
             .from(productBatches)
             .where(
                 and(
                     eq(productBatches.supplierId, supplierId),
-                    sql`${productBatches.variant} IS NOT NULL`,
-                    sql`${productBatches.variant} != ''`
+                    sql`${productBatches.variantId} IS NOT NULL`
                 )
-            );
+            )
+            .groupBy(productBatches.variantId)
+            .orderBy(desc(sql`MAX(${productBatches.createdAt})`));
 
-        return results.map((r) => r.variant);
+        return results.map(r => r.variantId as string);
     }
 
 
+
+
+    // Variants
+    async createVariant(data: typeof productVariants.$inferInsert) {
+        const result = await db.insert(productVariants).values(data).returning();
+        return result[0];
+    }
+
+    async updateVariant(id: string, data: Partial<typeof productVariants.$inferInsert>) {
+        const result = await db.update(productVariants)
+            .set(data)
+            .where(eq(productVariants.id, id))
+            .returning();
+        return result[0];
+    }
+
+    async findVariantsByProductId(productId: string) {
+        return await db.query.productVariants.findMany({
+            where: eq(productVariants.productId, productId),
+            orderBy: [desc(productVariants.createdAt)]
+        });
+    }
+
+    async deleteVariant(id: string) {
+        return await db.delete(productVariants).where(eq(productVariants.id, id));
+    }
 }

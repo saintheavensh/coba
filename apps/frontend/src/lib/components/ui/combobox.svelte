@@ -16,6 +16,8 @@
         filterKey = undefined,
         onSelect,
         itemSnippet,
+        disabled = false,
+        class: className = undefined,
     } = $props<{
         items: any[];
         value?: any;
@@ -27,6 +29,8 @@
         filterKey?: string | ((item: any) => string); // Optional custom filter string
         onSelect?: (item: any) => void;
         itemSnippet?: import("svelte").Snippet<[any]>;
+        disabled?: boolean;
+        class?: string;
     }>();
 
     let open = $state(false);
@@ -52,7 +56,7 @@
 
     // Derived Label for Button display
     let selectedLabel = $derived.by(() => {
-        const found = items.find((i) => getValue(i) === value);
+        const found = items.find((i: any) => getValue(i) === value);
         return found ? getLabel(found) : placeholder;
     });
 
@@ -75,7 +79,8 @@
                 variant="outline"
                 role="combobox"
                 aria-expanded={open}
-                class="w-full justify-between"
+                class={cn("w-full justify-between", className)}
+                {disabled}
                 {...props}
             >
                 <span class="truncate">{selectedLabel}</span>

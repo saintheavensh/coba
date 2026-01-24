@@ -25,12 +25,14 @@
     } from "lucide-svelte";
     import { Badge } from "$lib/components/ui/badge";
     import { Separator } from "$lib/components/ui/separator";
-    import Combobox from "$lib/components/custom/combobox.svelte";
+    import Combobox from "$lib/components/ui/combobox.svelte";
     import DateTimePicker from "$lib/components/custom/date-time-picker.svelte";
+    import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import { InventoryService } from "$lib/services/inventory.service";
 
     let suppliers = $state<any[]>([]);
     let products = $state<any[]>([]);
+    let categories = $state<any[]>([]);
     let loading = $state(false);
     let recentPurchases = $state<any[]>([]);
 
@@ -48,7 +50,12 @@
         Array<{
             productId: string;
             productName: string;
-            variant: string;
+            variantId?: string; // ID of the variant (if selected)
+            variantName?: string; // Display name of variant (or free text for legacy/new)
+            isNewVariant?: boolean; // If true, we need to create it on submit? Or maybe just handle inline?
+            // For now, let's stick to: if variantId is present, it's an existing variant.
+            // If variantName is present but variantId is null, it might be a free text fallback (which we want to discourage but maybe support for simplicity first, or strict mode).
+            // The plan says "Unified Search".
             qty: number;
             buyPrice: number;
             sellPrice: number;
@@ -62,7 +69,8 @@
             {
                 productId: "",
                 productName: "",
-                variant: "",
+                variantId: "",
+                variantName: "",
                 qty: 1,
                 buyPrice: 0,
                 sellPrice: 0,
@@ -74,28 +82,30 @@
         items = items.filter((_, i) => i !== index);
     }
 
-    // Cache variants for current supplier
-    let supplierVariants = $state<string[]>([]);
+    // Cache prioritized variant IDs for current supplier
+    let supplierPrioritizedIds = $state<string[]>([]);
 
-    async function loadVariants(supplierId: string) {
+    async function loadPriorities(supplierId: string) {
         if (!supplierId) return;
         try {
             const data = await InventoryService.getSupplierVariants(supplierId);
-            supplierVariants = Array.isArray(data) ? data : [];
+            supplierPrioritizedIds = Array.isArray(data) ? data : [];
         } catch (e) {
-            console.error("Failed to load variants", e);
-            supplierVariants = [];
+            console.error("Failed to load priorities", e);
+            supplierPrioritizedIds = [];
         }
     }
 
     async function loadData() {
         try {
-            const [supData, prodData] = await Promise.all([
+            const [supData, prodData, catData] = await Promise.all([
                 InventoryService.getSuppliers(),
                 InventoryService.getProducts(),
+                InventoryService.getCategories(),
             ]);
             suppliers = supData;
             products = prodData;
+            categories = catData;
         } catch (e) {
             console.error(e);
             toast.error("Gagal memuat data");
@@ -132,34 +142,186 @@
 
     // Handle Supplier Change
     async function onSupplierChange() {
-        // Reset items when supplier changes because variants depend on supplier
+        // Reset items when supplier changes because price history might depend on supplier
         items = [
             {
                 productId: "",
                 productName: "",
-                variant: "Original",
+                variantId: "",
+                variantName: "",
                 qty: 1,
                 buyPrice: 0,
                 sellPrice: 0,
             },
         ];
-        supplierVariants = []; // Clear
         if (selectedSupplierId) {
-            await loadVariants(selectedSupplierId);
+            await loadPriorities(selectedSupplierId);
         }
     }
 
-    // Handle Product Selection
-    function onProductSelect(index: number, productId: string) {
+    // Unified Search Data
+    // We need to fetch variants for ALL products to build the unified list.
+    // Optimization: We could fetch variants on demand, but for a smooth "Unified Search" UX,
+    // having them pre-calculated is better if the catalog isn't massive.
+    // Or we can just fetch all variants once.
+    let productVariantsMap = $state<Record<string, any[]>>({});
+
+    // Fetch variants for a product when needed or pre-fetch all?
+    // Let's modify loadData to fetch all variants or fetch on interaction.
+    // For now, let's fetch ALL variants (might be heavy, but safest for "Unified Search" without complex async filter).
+    // Actually, InventoryService.getAllProducts() returns products. checking if it includes variants.
+    // The previous schema update added `variants: true` to findAll repo.
+    // So `products` state ALREADY contains variants!
+
+    // Let's flatten the list for the Combobox
+    // Smart Filter: When supplier is selected, only show products with variants linked to that supplier
+    // Base options without any selection filtering
+    let allSearchOptions = $derived.by(() => {
+        const prioritySet = new Set(supplierPrioritizedIds);
+
+        // Build a map of categoryId -> variant names for the selected supplier
+        const supplierCategoryVariants: Record<string, Set<string>> = {};
+
+        if (selectedSupplierId) {
+            for (const cat of categories) {
+                const variants = cat.variantTemplates || [];
+                for (const v of variants) {
+                    if (v.supplierId === selectedSupplierId) {
+                        if (!supplierCategoryVariants[cat.id]) {
+                            supplierCategoryVariants[cat.id] = new Set();
+                        }
+                        supplierCategoryVariants[cat.id].add(v.name);
+                    }
+                }
+            }
+        }
+
+        // If no supplier selected, show all products (master only)
+        if (!selectedSupplierId) {
+            return products
+                .map((p) => ({
+                    value: p.id,
+                    label: `${p.category?.name || ""} - ${p.name}`.trim(),
+                    type: "product",
+                    product: p,
+                    isPriority: false,
+                }))
+                .sort((a, b) => a.label.localeCompare(b.label));
+        }
+
+        // When supplier is selected, only show products with matching category variants
+        const options: any[] = [];
+
+        for (const p of products) {
+            const categoryId = p.categoryId;
+            const categoryName = p.category?.name || "";
+            const allowedVariants = supplierCategoryVariants[categoryId];
+
+            if (allowedVariants && allowedVariants.size > 0) {
+                // Only show variants that belong to this supplier
+                for (const variantName of allowedVariants) {
+                    // Find matching product variant by name
+                    const matchingVariant = p.variants?.find(
+                        (v: any) => v.name === variantName,
+                    );
+
+                    const value = matchingVariant
+                        ? `${p.id}::${matchingVariant.id}`
+                        : `${p.id}::new::${variantName}`;
+
+                    options.push({
+                        value,
+                        label: `${categoryName} - ${p.name} - ${variantName}`,
+                        type: "variant",
+                        product: p,
+                        variant: matchingVariant || { name: variantName },
+                        variantName: variantName,
+                        isPriority: matchingVariant
+                            ? prioritySet.has(matchingVariant.id)
+                            : false,
+                    });
+                }
+            }
+        }
+
+        return options.sort((a, b) => {
+            // Sort Logic: Priority First, then Alphabetical
+            if (a.isPriority && !b.isPriority) return -1;
+            if (!a.isPriority && b.isPriority) return 1;
+            return a.label.localeCompare(b.label);
+        });
+    });
+
+    // Function to get options for a specific row, excluding selections from OTHER rows
+    function getSearchOptionsForRow(rowIndex: number) {
+        // Build a set of values selected in OTHER rows (not this row)
+        const otherSelectedValues = new Set<string>();
+        for (let i = 0; i < items.length; i++) {
+            if (i === rowIndex) continue; // Skip current row
+            const item = items[i];
+            if (item.productId) {
+                if (item.variantId) {
+                    otherSelectedValues.add(
+                        `${item.productId}::${item.variantId}`,
+                    );
+                } else if (item.variantName && item.isNewVariant) {
+                    otherSelectedValues.add(
+                        `${item.productId}::new::${item.variantName}`,
+                    );
+                } else {
+                    otherSelectedValues.add(item.productId);
+                }
+            }
+        }
+
+        // Filter out items selected in other rows
+        return allSearchOptions.filter(
+            (opt: any) => !otherSelectedValues.has(opt.value),
+        );
+    }
+
+    function onUnifiedSelect(index: number, selectedValue: string) {
+        if (!selectedValue) return;
+
+        // Check if it's a variant compound ID
+        const parts = selectedValue.split("::");
+        const productId = parts[0];
+        const isNewVariant = parts[1] === "new"; // Format: productId::new::variantName
+        const isExistingVariant = parts.length === 2 && !isNewVariant;
+
         const prod = products.find((p) => p.id === productId);
-        if (prod) {
-            items[index].productId = productId;
-            items[index].productName = prod.name;
+        if (!prod) return;
+
+        items[index].productId = productId;
+        items[index].productName = prod.name;
+
+        if (isNewVariant && parts.length >= 3) {
+            // New variant from category template that doesn't exist as product variant yet
+            const variantName = parts.slice(2).join("::"); // In case variant name contains ::
+            items[index].variantId = ""; // Will be created on submit
+            items[index].variantName = variantName;
+            items[index].isNewVariant = true;
+        } else if (isExistingVariant) {
+            const variantId = parts[1];
+            const variant = prod.variants?.find((v: any) => v.id === variantId);
+            items[index].variantId = variantId;
+            items[index].variantName = variant?.name || "";
+            items[index].isNewVariant = false;
+            if (variant?.defaultPrice)
+                items[index].sellPrice = variant.defaultPrice;
+        } else {
+            // Master/Product selected (no supplier selected mode)
+            items[index].variantId = "";
+            items[index].variantName = "";
+            items[index].isNewVariant = false;
+        }
+
+        // Reset prices if not already set
+        if (!items[index].sellPrice) {
             items[index].buyPrice = 0;
             items[index].sellPrice = 0;
-            items[index].variant = ""; // Reset variant
-            // Variants are already loaded by Supplier
         }
+
         items = items;
     }
 
@@ -184,7 +346,8 @@
                 date,
                 items: items.map((i) => ({
                     productId: i.productId,
-                    variant: i.variant,
+                    variantId: i.variantId || undefined, // Backend needs to know it's a variant
+                    variant: i.variantName, // Snapshot name
                     qty: i.qty,
                     buyPrice: i.buyPrice,
                     sellPrice: i.sellPrice,
@@ -193,11 +356,7 @@
 
             await api("/purchases", { method: "POST", data: payload });
             toast.success("Pembelian Berhasil Disimpan!");
-
-            await loadRecentHistory(); // Refresh history
-            resetForm();
-            // Reload variants (maybe new one added?)
-            if (selectedSupplierId) await loadVariants(selectedSupplierId);
+            goto("/purchases");
         } catch (e: any) {
             console.error(e);
             toast.error(
@@ -214,7 +373,8 @@
             {
                 productId: "",
                 productName: "",
-                variant: "Original",
+                variantId: "",
+                variantName: "",
                 qty: 1,
                 buyPrice: 0,
                 sellPrice: 0,
@@ -243,7 +403,7 @@
     });
 </script>
 
-<div class="space-y-6 max-w-4xl mx-auto pb-12">
+<div class="space-y-6 max-w-6xl mx-auto pb-12">
     <div class="flex items-center gap-4">
         <Button variant="outline" size="icon" href="/purchases">
             <ArrowLeft class="h-4 w-4" />
@@ -364,26 +524,30 @@
         </CardHeader>
         <CardContent class="p-0">
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="w-full text-sm table-fixed">
                     <thead class="bg-muted/50 border-y">
                         <tr class="text-left">
-                            <th class="p-3 font-medium w-[30%]">Produk</th>
-                            <th class="p-3 font-medium w-[15%]"
-                                >Varian / Kondisi</th
+                            <th class="p-3 font-medium" style="width: 35%;"
+                                >Produk & Varian</th
                             >
-                            <th class="p-3 font-medium w-[10%] text-center"
-                                >Qty</th
+                            <th
+                                class="p-3 font-medium text-center"
+                                style="width: 10%;">Qty</th
                             >
-                            <th class="p-3 font-medium w-[15%]"
-                                >Harga Beli (@)</th
+                            <th class="p-3 font-medium" style="width: 17%;"
+                                >Harga Beli</th
                             >
-                            <th class="p-3 font-medium w-[15%]"
-                                >Harga Jual (@)</th
+                            <th class="p-3 font-medium" style="width: 17%;"
+                                >Harga Jual</th
                             >
-                            <th class="p-3 font-medium w-[15%] text-right"
-                                >Subtotal</th
+                            <th
+                                class="p-3 font-medium text-right"
+                                style="width: 15%;">Subtotal</th
                             >
-                            <th class="p-3 font-medium w-[5%]"></th>
+                            <th
+                                class="p-3 font-medium text-center"
+                                style="width: 6%;"
+                            ></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y">
@@ -391,94 +555,107 @@
                             <tr
                                 class="group hover:bg-muted/20 transition-colors"
                             >
-                                <td class="p-3">
-                                    <select
-                                        class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                        value={item.productId}
-                                        disabled={!selectedSupplierId}
-                                        onchange={(e) =>
-                                            onProductSelect(
-                                                i,
-                                                e.currentTarget.value,
-                                            )}
-                                    >
-                                        <option value="">-- Produk --</option>
-                                        {#each products as p}
-                                            <option value={p.id}
-                                                >{p.code
-                                                    ? `[${p.code}] `
-                                                    : ""}{p.name}</option
-                                            >
-                                        {/each}
-                                    </select>
-                                </td>
-                                <td class="p-3">
+                                <td class="p-2 align-top">
                                     <Combobox
-                                        bind:value={item.variant}
-                                        options={supplierVariants}
-                                        placeholder="Pilih varian..."
-                                        allowCreate={true}
-                                        disabled={!selectedSupplierId ||
-                                            !item.productId}
+                                        items={getSearchOptionsForRow(i)}
+                                        value={item.variantId
+                                            ? `${item.productId}::${item.variantId}`
+                                            : item.productId}
+                                        placeholder="Cari Produk / Varian..."
+                                        disabled={!selectedSupplierId}
+                                        onSelect={(item) =>
+                                            onUnifiedSelect(i, item?.value)}
+                                        class="w-full h-9"
                                     />
+                                    {#if item.productId && !item.variantId}
+                                        <div class="mt-1 flex gap-2">
+                                            <Input
+                                                class="h-7 text-xs"
+                                                placeholder="Nama Varian Manual (Opsional)"
+                                                bind:value={item.variantName}
+                                            />
+                                        </div>
+                                    {/if}
                                 </td>
-                                <td class="p-3">
+                                <td class="p-2 align-top">
                                     <Input
                                         type="number"
-                                        class="h-9 text-center"
+                                        class="h-9 text-center w-full"
                                         min="1"
                                         bind:value={item.qty}
                                         disabled={!selectedSupplierId ||
                                             !item.productId}
                                     />
                                 </td>
-                                <td class="p-3">
-                                    <Input
-                                        type="number"
-                                        class="h-9"
-                                        min="0"
+                                <td class="p-2 align-top">
+                                    <CurrencyInput
                                         bind:value={item.buyPrice}
                                         disabled={!selectedSupplierId ||
                                             !item.productId}
+                                        class="h-9 w-full"
+                                        placeholder="0"
                                     />
                                 </td>
-                                <td class="p-3">
-                                    <Input
-                                        type="number"
-                                        class="h-9"
-                                        min="0"
+                                <td class="p-2 align-top">
+                                    <CurrencyInput
                                         bind:value={item.sellPrice}
-                                        placeholder="Jual"
                                         disabled={!selectedSupplierId ||
                                             !item.productId}
+                                        class="h-9 w-full {item.sellPrice > 0 &&
+                                        item.sellPrice < item.buyPrice
+                                            ? 'border-red-500 bg-red-50'
+                                            : ''}"
+                                        placeholder="0"
                                     />
+                                    {#if item.buyPrice > 0 && item.sellPrice > 0}
+                                        {@const margin =
+                                            ((item.sellPrice - item.buyPrice) /
+                                                item.buyPrice) *
+                                            100}
+                                        <div
+                                            class="text-[10px] mt-1 text-right {margin <
+                                            0
+                                                ? 'text-red-500 font-bold'
+                                                : margin < 10
+                                                  ? 'text-yellow-600'
+                                                  : 'text-green-600'}"
+                                        >
+                                            {margin < 0 ? "RUGI" : "Profit"}: {Math.round(
+                                                margin,
+                                            )}%
+                                        </div>
+                                    {/if}
                                 </td>
                                 <td
-                                    class="p-3 text-right font-medium text-foreground/80"
+                                    class="p-2 align-top text-right font-medium text-foreground/80"
                                 >
-                                    {formatRp(item.qty * item.buyPrice)}
+                                    <div
+                                        class="h-9 flex items-center justify-end"
+                                    >
+                                        {formatRp(item.qty * item.buyPrice)}
+                                    </div>
                                 </td>
-                                <td class="p-3 text-center">
-                                    {#if items.length > 1}
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            class="h-8 w-8 text-muted-foreground hover:text-red-500"
-                                            onclick={() => removeItem(i)}
-                                        >
-                                            <Trash2 class="h-4 w-4" />
-                                        </Button>
-                                    {/if}
+                                <td class="p-2 align-top text-center">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="h-8 w-8 text-muted-foreground hover:text-red-500 disabled:opacity-30"
+                                        onclick={() => removeItem(i)}
+                                        disabled={items.length <= 1}
+                                    >
+                                        <Trash2 class="h-4 w-4" />
+                                    </Button>
                                 </td>
                             </tr>
                         {/each}
                     </tbody>
                     <tfoot class="bg-muted/50 font-medium">
                         <tr>
-                            <td colspan="5" class="p-4 text-right"
+                            <td colspan="4" class="p-4 text-right"
                                 >Total Pembelian:</td
                             >
-                            <td class="p-4 text-right text-lg text-primary"
+                            <td
+                                class="p-4 text-right text-lg text-primary font-bold"
                                 >{formatRp(totalAmount)}</td
                             >
                             <td></td>

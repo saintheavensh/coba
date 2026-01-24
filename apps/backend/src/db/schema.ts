@@ -41,6 +41,14 @@ export const categories = pgTable("categories", {
     })
 }));
 
+export const categoryVariants = pgTable("category_variants", {
+    id: serial("id").primaryKey(),
+    categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: 'cascade' }),
+    name: text("name").notNull(),
+    supplierId: text("supplier_id").references(() => suppliers.id),
+    createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const suppliers = pgTable("suppliers", {
     id: text("id").primaryKey(), // SUP-XXX
     name: text("name").notNull(),
@@ -79,11 +87,22 @@ export const products = pgTable("products", {
     createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const productVariants = pgTable("product_variants", {
+    id: text("id").primaryKey(), // VAR-XXX
+    productId: text("product_id").notNull().references(() => products.id),
+    name: text("name").notNull(), // e.g. "Original Copotan", "Grade A"
+    image: text("image"), // UNIQUE IMAGE per variant
+    sku: text("sku"), // specific barcode for this variant
+    defaultPrice: integer("default_price"), // Suggested selling price
+    createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const productBatches = pgTable("product_batches", {
     id: text("id").primaryKey(), // B-XXX
     productId: text("product_id").notNull().references(() => products.id),
+    variantId: text("variant_id").references(() => productVariants.id), // Link to defined variant
     supplierId: text("supplier_id").references(() => suppliers.id),
-    variant: text("variant"), // Free-text: Original, OEM, Copy
+    variant: text("variant"), // Free-text: Original, OEM, Copy (Deprecated/Legacy, use variantId)
     supplierName: text("supplier_name"), // Snapshot for display
     buyPrice: integer("buy_price").notNull(),
     sellPrice: integer("sell_price").notNull(),
@@ -270,7 +289,19 @@ export const categoriesRelations = relations(categories, ({ one, many }) => ({
     }),
     children: many(categories, {
         relationName: "category_hierarchy"
-    })
+    }),
+    variantTemplates: many(categoryVariants)
+}));
+
+export const categoryVariantsRelations = relations(categoryVariants, ({ one }) => ({
+    category: one(categories, {
+        fields: [categoryVariants.categoryId],
+        references: [categories.id],
+    }),
+    supplier: one(suppliers, {
+        fields: [categoryVariants.supplierId],
+        references: [suppliers.id],
+    }),
 }));
 
 export const productsRelations = relations(products, ({ one, many }) => ({
@@ -282,6 +313,15 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     purchaseItems: many(purchaseItems),
     saleItems: many(saleItems),
     compatibility: many(productDeviceCompatibility),
+    variants: many(productVariants),
+}));
+
+export const productVariantsRelations = relations(productVariants, ({ one, many }) => ({
+    product: one(products, {
+        fields: [productVariants.productId],
+        references: [products.id],
+    }),
+    batches: many(productBatches),
 }));
 
 export const devicesRelations = relations(devices, ({ many }) => ({
@@ -316,6 +356,10 @@ export const productBatchesRelations = relations(productBatches, ({ one, many })
     supplier: one(suppliers, {
         fields: [productBatches.supplierId],
         references: [suppliers.id],
+    }),
+    variantLink: one(productVariants, {
+        fields: [productBatches.variantId],
+        references: [productVariants.id],
     }),
     purchaseItems: many(purchaseItems),
     saleItems: many(saleItems),

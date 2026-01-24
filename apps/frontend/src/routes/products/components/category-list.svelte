@@ -8,6 +8,7 @@
     import { Button } from "$lib/components/ui/button";
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
+    import { Textarea } from "$lib/components/ui/textarea";
     import {
         Table,
         TableBody,
@@ -25,13 +26,19 @@
         DialogDescription,
     } from "$lib/components/ui/dialog";
     import * as AlertDialog from "$lib/components/ui/alert-dialog";
-    import { Pencil, Trash2, Plus, FolderOpen, Tag } from "lucide-svelte";
+    import Combobox from "$lib/components/ui/combobox.svelte";
+    import {
+        Pencil,
+        Trash2,
+        Plus,
+        FolderOpen,
+        Tag,
+        Layers,
+    } from "lucide-svelte";
     import { toast } from "svelte-sonner";
 
     // Query Client
-    const client = useQueryClient();
-    // Helper to use in callbacks (since useQueryClient returns the instance)
-    const queryClient = client;
+    const queryClient = useQueryClient();
 
     // Queries
     const categoriesQuery = createQuery(() => ({
@@ -39,14 +46,42 @@
         queryFn: InventoryService.getCategories,
     }));
 
-    // Mutations
+    const suppliersQuery = createQuery(() => ({
+        queryKey: ["suppliers"],
+        queryFn: InventoryService.getSuppliers,
+    }));
+
+    // State (Runes)
+    let categories = $derived(categoriesQuery.data || []);
+    let suppliers = $derived(suppliersQuery.data || []);
+    let loading = $derived(categoriesQuery.isLoading);
+
+    // ============ Category Dialog State ============
+    let open = $state(false);
+    let editingId = $state<string | null>(null);
+    let name = $state("");
+    let description = $state("");
+
+    // ============ Variant Dialog State ============
+    let variantDialogOpen = $state(false);
+    let variantCategoryId = $state<string | null>(null);
+    let variantCategoryName = $state("");
+    let variantTemplates = $state<any[]>([]);
+    let newVariantName = $state("");
+    let newVariantSupplierId = $state("");
+
+    // Delete state
+    let deleteId = $state<string | null>(null);
+    let openDelete = $state(false);
+
+    // ============ Mutations ============
     const createMutationFn = createMutation(() => ({
         mutationFn: InventoryService.createCategory,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["categories"] });
             toast.success("Kategori dibuat");
             open = false;
-            reset();
+            resetCategoryForm();
         },
         onError: () => toast.error("Gagal membuat kategori"),
     }));
@@ -58,7 +93,7 @@
             queryClient.invalidateQueries({ queryKey: ["categories"] });
             toast.success("Kategori diupdate");
             open = false;
-            reset();
+            resetCategoryForm();
         },
         onError: () => toast.error("Gagal update kategori"),
     }));
@@ -72,33 +107,79 @@
         onError: () => toast.error("Gagal menghapus kategori"),
     }));
 
-    // State (Runes)
-    let categories = $derived(categoriesQuery.data || []);
-    let loading = $derived(categoriesQuery.isLoading);
+    const addVariantMutation = createMutation(() => ({
+        mutationFn: (vars: {
+            categoryId: string;
+            name: string;
+            supplierId?: string;
+        }) =>
+            InventoryService.addVariantTemplate(
+                vars.categoryId,
+                vars.name,
+                vars.supplierId,
+            ),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["categories"] });
+            toast.success(
+                "Varian ditambahkan & akan dipropagasi ke semua produk",
+            );
+            newVariantName = "";
+            newVariantSupplierId = "";
+            // Refresh local state
+            refreshVariantList();
+        },
+        onError: () => toast.error("Gagal menambah varian"),
+    }));
 
-    let open = $state(false);
-    let editingId = $state<string | null>(null);
+    const removeVariantMutation = createMutation(() => ({
+        mutationFn: InventoryService.removeVariantTemplate,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["categories"] });
+            toast.success("Varian dihapus");
+            refreshVariantList();
+        },
+    }));
 
-    // Form (Runes)
-    let name = $state("");
-    let description = $state("");
-
-    // Import api for direct calls inside inline mutations if service missing (adding TODOs to fix service later)
-
-    function reset() {
+    // ============ Helper Functions ============
+    function resetCategoryForm() {
         name = "";
         description = "";
         editingId = null;
     }
 
-    let deleteId = $state<string | null>(null);
-    let openDelete = $state(false);
+    function refreshVariantList() {
+        if (variantCategoryId) {
+            const cat = categories.find((c) => c.id === variantCategoryId);
+            if (cat) {
+                variantTemplates = cat.variantTemplates || [];
+            }
+        }
+    }
+
+    // Auto-sync variant list when categories data changes
+    $effect(() => {
+        if (variantDialogOpen && variantCategoryId) {
+            const cat = categories.find((c) => c.id === variantCategoryId);
+            if (cat) {
+                variantTemplates = cat.variantTemplates || [];
+            }
+        }
+    });
 
     function handleEdit(cat: any) {
         editingId = cat.id;
         name = cat.name;
         description = cat.description || "";
         open = true;
+    }
+
+    function openVariantDialog(cat: any) {
+        variantCategoryId = cat.id;
+        variantCategoryName = cat.name;
+        variantTemplates = cat.variantTemplates || [];
+        newVariantName = "";
+        newVariantSupplierId = "";
+        variantDialogOpen = true;
     }
 
     function confirmDelete(id: string) {
@@ -113,7 +194,7 @@
         deleteId = null;
     }
 
-    function handleSubmit() {
+    function handleCategorySubmit() {
         if (!name) return toast.error("Nama wajib diisi");
 
         if (editingId) {
@@ -125,6 +206,23 @@
             createMutationFn.mutate({ name, description });
         }
     }
+
+    function handleAddVariant() {
+        if (!newVariantName) return toast.error("Nama varian wajib diisi");
+        if (!variantCategoryId) return;
+
+        addVariantMutation.mutate({
+            categoryId: variantCategoryId,
+            name: newVariantName,
+            supplierId: newVariantSupplierId || undefined,
+        });
+    }
+
+    function getSupplierName(supplierId: string | null | undefined): string {
+        if (!supplierId) return "-";
+        const sup = suppliers.find((s) => s.id === supplierId);
+        return sup?.name || "-";
+    }
 </script>
 
 <div class="space-y-4">
@@ -135,12 +233,14 @@
         </Button>
     </div>
 
+    <!-- Desktop Table -->
     <div class="rounded-md border hidden md:block">
         <Table>
             <TableHeader>
                 <TableRow>
                     <TableHead>Nama Kategori</TableHead>
                     <TableHead>Deskripsi</TableHead>
+                    <TableHead>Varian</TableHead>
                     <TableHead class="text-right">Aksi</TableHead>
                 </TableRow>
             </TableHeader>
@@ -148,7 +248,7 @@
                 {#if categories.length === 0}
                     <TableRow>
                         <TableCell
-                            colspan={3}
+                            colspan={4}
                             class="text-center h-24 text-muted-foreground"
                         >
                             <div
@@ -170,8 +270,34 @@
                                     {cat.name}
                                 </div>
                             </TableCell>
-                            <TableCell>{cat.description || "-"}</TableCell>
+                            <TableCell
+                                class="text-muted-foreground max-w-[200px] truncate"
+                            >
+                                {cat.description || "-"}
+                            </TableCell>
+                            <TableCell>
+                                {#if cat.variantTemplates && cat.variantTemplates.length > 0}
+                                    <span
+                                        class="text-sm text-green-600 font-medium"
+                                    >
+                                        {cat.variantTemplates.length} varian
+                                    </span>
+                                {:else}
+                                    <span class="text-sm text-muted-foreground"
+                                        >-</span
+                                    >
+                                {/if}
+                            </TableCell>
                             <TableCell class="text-right">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="text-purple-600"
+                                    title="Kelola Varian"
+                                    onclick={() => openVariantDialog(cat)}
+                                >
+                                    <Layers class="h-4 w-4" />
+                                </Button>
                                 <Button
                                     variant="ghost"
                                     size="icon"
@@ -216,6 +342,14 @@
                             <Button
                                 variant="ghost"
                                 size="icon"
+                                class="h-8 w-8 text-purple-600"
+                                onclick={() => openVariantDialog(cat)}
+                            >
+                                <Layers class="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
                                 class="h-8 w-8"
                                 onclick={() => handleEdit(cat)}
                             >
@@ -236,20 +370,26 @@
                             {cat.description}
                         </p>
                     {/if}
+                    {#if cat.variantTemplates && cat.variantTemplates.length > 0}
+                        <p class="text-xs text-green-600">
+                            {cat.variantTemplates.length} varian terdefinisi
+                        </p>
+                    {/if}
                 </div>
             {/each}
         {/if}
     </div>
 
-    <Dialog bind:open onOpenChange={(isOpen) => !isOpen && reset()}>
+    <!-- ============ Category Dialog (Simplified) ============ -->
+    <Dialog bind:open onOpenChange={(isOpen) => !isOpen && resetCategoryForm()}>
         <DialogContent>
             <DialogHeader>
                 <DialogTitle
                     >{editingId ? "Edit" : "Tambah"} Kategori</DialogTitle
                 >
-                <DialogDescription
-                    >Kelola master data kategori produk.</DialogDescription
-                >
+                <DialogDescription>
+                    Masukkan nama dan deskripsi kategori.
+                </DialogDescription>
             </DialogHeader>
             <div class="grid gap-4 py-4">
                 <div
@@ -259,25 +399,137 @@
                     <Input
                         bind:value={name}
                         class="col-span-3"
-                        placeholder="Contoh: Handphone"
+                        placeholder="Contoh: LCD, Baterai, Casing"
                     />
                 </div>
                 <div
-                    class="grid grid-cols-1 md:grid-cols-4 items-center gap-2 md:gap-4"
+                    class="grid grid-cols-1 md:grid-cols-4 items-start gap-2 md:gap-4"
                 >
-                    <Label class="text-left md:text-right">Deskripsi</Label>
-                    <Input
+                    <Label class="text-left md:text-right pt-2">Deskripsi</Label
+                    >
+                    <Textarea
                         bind:value={description}
                         class="col-span-3"
-                        placeholder="Opsional"
+                        placeholder="Deskripsi opsional..."
+                        rows={2}
                     />
                 </div>
             </div>
             <DialogFooter>
-                <Button onclick={handleSubmit} disabled={loading}>
+                <Button onclick={handleCategorySubmit} disabled={loading}>
                     {loading ? "Menyimpan..." : "Simpan"}
                 </Button>
             </DialogFooter>
         </DialogContent>
     </Dialog>
+
+    <!-- ============ Variant Management Dialog ============ -->
+    <Dialog bind:open={variantDialogOpen}>
+        <DialogContent class="max-w-lg">
+            <DialogHeader>
+                <DialogTitle class="flex items-center gap-2">
+                    <Layers class="h-5 w-5 text-purple-600" />
+                    Kelola Varian - {variantCategoryName}
+                </DialogTitle>
+                <DialogDescription>
+                    Tambah varian dengan supplier untuk kategori ini. Varian
+                    akan otomatis dipropagasi ke semua produk.
+                </DialogDescription>
+            </DialogHeader>
+
+            <!-- Add Variant Form -->
+            <div class="space-y-3 py-4">
+                <div class="grid grid-cols-1 gap-3">
+                    <div>
+                        <Label class="text-sm mb-1.5 block">Nama Varian</Label>
+                        <Input
+                            bind:value={newVariantName}
+                            placeholder="Contoh: Original, OLED, Incell"
+                        />
+                    </div>
+                    <div>
+                        <Label class="text-sm mb-1.5 block">Supplier</Label>
+                        <Combobox
+                            items={suppliers.map((s) => ({
+                                label: s.name,
+                                value: s.id,
+                            }))}
+                            bind:value={newVariantSupplierId}
+                            placeholder="Pilih Supplier"
+                        />
+                    </div>
+                </div>
+                <Button
+                    class="w-full"
+                    onclick={handleAddVariant}
+                    disabled={addVariantMutation.isPending}
+                >
+                    <Plus class="h-4 w-4 mr-2" />
+                    {addVariantMutation.isPending
+                        ? "Menambahkan..."
+                        : "Tambah Varian"}
+                </Button>
+            </div>
+
+            <!-- Existing Variants List -->
+            <div class="border-t pt-4">
+                <h4 class="font-medium text-sm mb-3">Varian Terdaftar</h4>
+                {#if variantTemplates.length === 0}
+                    <div
+                        class="text-sm text-muted-foreground italic text-center py-4 border border-dashed rounded bg-muted/20"
+                    >
+                        Belum ada varian untuk kategori ini.
+                    </div>
+                {:else}
+                    <div class="space-y-2 max-h-[200px] overflow-y-auto">
+                        {#each variantTemplates as v}
+                            <div
+                                class="flex items-center justify-between p-2 bg-secondary/50 rounded-md border"
+                            >
+                                <div>
+                                    <span class="font-medium text-sm"
+                                        >{v.name}</span
+                                    >
+                                    <span
+                                        class="text-xs text-muted-foreground ml-2"
+                                    >
+                                        • {v.supplier?.name || "-"}
+                                    </span>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-7 w-7 text-red-600 hover:text-red-700"
+                                    onclick={() =>
+                                        removeVariantMutation.mutate(v.id)}
+                                    disabled={removeVariantMutation.isPending}
+                                >
+                                    <Trash2 class="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+        </DialogContent>
+    </Dialog>
+
+    <!-- Delete Confirmation -->
+    <AlertDialog.Root bind:open={openDelete}>
+        <AlertDialog.Content>
+            <AlertDialog.Header>
+                <AlertDialog.Title>Hapus Kategori?</AlertDialog.Title>
+                <AlertDialog.Description>
+                    Aksi ini tidak bisa dibatalkan. Kategori akan dihapus
+                    permanen.
+                </AlertDialog.Description>
+            </AlertDialog.Header>
+            <AlertDialog.Footer>
+                <AlertDialog.Cancel>Batal</AlertDialog.Cancel>
+                <AlertDialog.Action onclick={handleDelete}
+                    >Hapus</AlertDialog.Action
+                >
+            </AlertDialog.Footer>
+        </AlertDialog.Content>
+    </AlertDialog.Root>
 </div>

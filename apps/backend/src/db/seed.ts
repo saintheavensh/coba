@@ -22,9 +22,14 @@ import {
     productDeviceCompatibility,
     purchaseReturns,
     purchaseReturnItems,
-    defectiveItems
+    defectiveItems,
+    categoryVariants,
+    productVariants
 } from "./schema";
 import { eq, sql } from "drizzle-orm";
+import * as XLSX from "xlsx";
+import * as fs from "fs";
+import * as path from "path";
 
 async function main() {
     console.log("🌱 Starting Database Rebuild & Seed...");
@@ -48,7 +53,9 @@ async function main() {
     await db.delete(services);
     await db.delete(productDeviceCompatibility);
     await db.delete(productBatches);
+    await db.delete(productVariants);
     await db.delete(products);
+    await db.delete(categoryVariants);
     await db.delete(categories);
     await db.delete(members);
     await db.delete(suppliers);
@@ -126,14 +133,29 @@ async function main() {
 
     await db.insert(categories).values([
         { id: catHp, name: "Handphone", description: "Unit Handphone Baru/Second" },
-        { id: catSparepart, name: "Sparepart", description: "LCD, Baterai, Flexibel" },
+        { id: catSparepart, name: "Sparepart (Umum)", description: "Sparepart Umum" },
+        { id: "CAT-LCD", name: "LCD", description: "Layar LCD/OLED", parentId: catSparepart },
+        { id: "CAT-BAT", name: "Baterai", description: "Baterai HP", parentId: catSparepart },
         { id: catAcc, name: "Aksesoris", description: "Case, Charger, Kabel" },
         { id: catService, name: "Jasa Service", description: "Biaya Jasa" },
     ]);
 
+    // Suppliers must come before categoryVariants due to FK constraint
     await db.insert(suppliers).values([
         { id: supGlobal, name: "Global Sparepart Jakarta", contact: "Pak Haji", phone: "08123456789", address: "ITC Roxy Mas" },
         { id: supLokal, name: "Lokal Distributor", contact: "Ko Ayung", phone: "08987654321", address: "Bandung Electronic Center" },
+    ]);
+
+    // Category Variants with Supplier
+    await db.insert(categoryVariants).values([
+        { categoryId: catHp, name: "Inter", supplierId: supGlobal },
+        { categoryId: catHp, name: "iBox/Resmi", supplierId: supLokal },
+        { categoryId: "CAT-LCD", name: "Original", supplierId: supGlobal },
+        { categoryId: "CAT-LCD", name: "OLED", supplierId: supGlobal },
+        { categoryId: "CAT-LCD", name: "Grade A", supplierId: supLokal },
+        { categoryId: "CAT-BAT", name: "Original", supplierId: supGlobal },
+        { categoryId: "CAT-BAT", name: "Double Power", supplierId: supLokal },
+        { categoryId: catAcc, name: "Standard", supplierId: supLokal },
     ]);
 
     await db.insert(members).values([
@@ -142,35 +164,179 @@ async function main() {
     ]);
 
     // ============================================
+    // 3.5 DEVICES IMPORT (from Excel)
+    // ============================================
+    console.log("Importing devices from Excel...");
+    const excelPath = path.resolve(process.cwd(), "../../devices_export.xlsx");
+
+    let deviceIds: string[] = [];
+
+    if (fs.existsSync(excelPath)) {
+        const workbook = XLSX.readFile(excelPath);
+        const sheetName = workbook.SheetNames[0];
+        const rows: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+        console.log(`Found ${rows.length} devices in Excel.`);
+
+        const brandSet = new Set<string>();
+        const deviceDataForDb: any[] = [];
+        const deviceIdMap = new Map<string, string>(); // name -> id
+
+        for (const row of rows) {
+            const brandName = (row.Brand || row.brand || "Unknown").trim();
+            const modelName = (row.Model || row.model || "Unknown").trim();
+            if (brandName === "Unknown" || modelName === "Unknown") continue;
+
+            const normalizedBrand = brandName.charAt(0).toUpperCase() + brandName.slice(1).toLowerCase();
+            brandSet.add(normalizedBrand);
+
+            // Generate ID based on name to be deterministic if run multiple times? Or just random.
+            // Let's use random but consistent for seed? 
+            // Actually, uuid is fine.
+            const devId = `DEV-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+            deviceDataForDb.push({
+                id: devId,
+                brand: normalizedBrand,
+                model: modelName,
+                series: row.Series || row.series,
+                code: row.Code || row.code,
+                image: row.Image || row.image,
+                colors: (row.Colors || row.colors || "").split(",").map((c: string) => c.trim()).filter((c: any) => c),
+                specs: row.Specs || row.specs,
+                chipset: row.Chipset || row.chipset,
+            });
+
+            deviceIdMap.set(modelName, devId);
+            deviceIds.push(devId);
+        }
+
+        // Insert Brands
+        const brandValues = Array.from(brandSet).map(name => ({
+            id: name.toLowerCase().replace(/\s+/g, '-'),
+            name: name
+        }));
+
+        // Upsert brands? Or just insert since we cleared.
+        if (brandValues.length > 0) {
+            await db.insert(brands).values(brandValues).onConflictDoNothing();
+        }
+
+        // Insert Devices (batching in chunks of 50 to be safe)
+        const chunkSize = 50;
+        for (let i = 0; i < deviceDataForDb.length; i += chunkSize) {
+            const chunk = deviceDataForDb.slice(i, i + chunkSize);
+            await db.insert(devices).values(chunk);
+        }
+        console.log(`✅ Imported ${deviceDataForDb.length} devices.`);
+
+    } else {
+        console.warn("⚠️ devices_export.xlsx not found at " + excelPath);
+        // Fallback dummy devices
+        await db.insert(brands).values([{ id: "samsung", name: "Samsung" }, { id: "apple", name: "Apple" }]);
+        await db.insert(devices).values([
+            { id: "DEV-DUMMY-1", brand: "Samsung", model: "Galaxy S24 Ultra" },
+            { id: "DEV-DUMMY-2", brand: "Apple", model: "iPhone 15 Pro Max" }
+        ]);
+        deviceIds = ["DEV-DUMMY-1", "DEV-DUMMY-2"];
+    }
+
+    // ============================================
     // 4. INVENTORY (Products & Batches)
     // ============================================
     console.log("Creating inventory...");
 
     await db.insert(products).values([
-        { id: prdIphone13, code: "8990001", name: "iPhone 13 128GB Inter", categoryId: catHp, stock: 2, minStock: 1 },
-        { id: prdLcdIpX, code: "SP-LCD-001", name: "LCD iPhone X OLED", categoryId: catSparepart, stock: 5, minStock: 2 },
-        { id: prdBatreIpX, code: "SP-BAT-001", name: "Baterai iPhone X Vizz", categoryId: catSparepart, stock: 10, minStock: 3 },
-        { id: prdCaseClear, code: "ACC-CASE-001", name: "Clear Case iPhone 13", categoryId: catAcc, stock: 20, minStock: 5 },
-        { id: prdTempered, code: "ACC-TG-001", name: "Tempered Glass Universal", categoryId: catAcc, stock: 50, minStock: 10 },
+        { id: prdIphone13, code: "8990001", name: "iPhone 13 128GB", categoryId: catHp, stock: 2, minStock: 1 },
+        { id: prdLcdIpX, code: "SP-LCD-001", name: "iPhone X", categoryId: "CAT-LCD", stock: 5, minStock: 2 },
+        { id: prdBatreIpX, code: "SP-BAT-001", name: "iPhone X", categoryId: "CAT-BAT", stock: 10, minStock: 3 },
+        { id: prdCaseClear, code: "ACC-CASE-001", name: "iPhone 13", categoryId: catAcc, stock: 20, minStock: 5 },
+        { id: prdTempered, code: "ACC-TG-001", name: "Universal", categoryId: catAcc, stock: 50, minStock: 10 },
     ]);
 
-    // Batches linked to Suppliers
+    // Product Variants - MUST match Category Variant template names exactly!
+    // Category: Handphone -> Inter (Global), iBox/Resmi (Lokal)
+    // Category: LCD -> Original (Global), OLED (Global), Grade A (Lokal)
+    // Category: Baterai -> Original (Global), Double Power (Lokal)
+    // Category: Aksesoris -> Standard (Lokal)
+
+    const varIp13Inter = "VAR-IP13-INTER";
+    const varIp13Ibox = "VAR-IP13-IBOX";
+    const varLcdOriginal = "VAR-LCD-ORI";
+    const varLcdOled = "VAR-LCD-OLED";
+    const varBatreOriginal = "VAR-BAT-ORI";
+    const varBatreDouble = "VAR-BAT-DBL";
+    const varAccStandard = "VAR-ACC-STD";
+
+    await db.insert(productVariants).values([
+        // iPhone 13 variants
+        { id: varIp13Inter, productId: prdIphone13, name: "Inter" },
+        { id: varIp13Ibox, productId: prdIphone13, name: "iBox/Resmi" },
+        // LCD iPhone X variants
+        { id: varLcdOriginal, productId: prdLcdIpX, name: "Original" },
+        { id: varLcdOled, productId: prdLcdIpX, name: "OLED" },
+        // Baterai iPhone X variants
+        { id: varBatreOriginal, productId: prdBatreIpX, name: "Original" },
+        { id: varBatreDouble, productId: prdBatreIpX, name: "Double Power" },
+        // Accessory variants
+        { id: varAccStandard, productId: prdCaseClear, name: "Standard" },
+    ]);
+
+    // Batches linked to Suppliers AND Variants
+    // Each batch is linked to the CORRECT supplier per category variant rules
     const batchData = [
-        { id: bIphone13A, productId: prdIphone13, supplierId: supGlobal, variant: "Inter Fullset", buyPrice: 8000000, sellPrice: 9500000, initialStock: 2, currentStock: 2 },
-        { id: bLcdIpXA, productId: prdLcdIpX, supplierId: supGlobal, variant: "OLED Quality", buyPrice: 300000, sellPrice: 650000, initialStock: 5, currentStock: 5 },
-        { id: bBatreIpXA, productId: prdBatreIpX, supplierId: supLokal, variant: "Vizz Double Power", buyPrice: 150000, sellPrice: 350000, initialStock: 10, currentStock: 10 },
-        { id: bCaseA, productId: prdCaseClear, supplierId: supLokal, variant: "Clear", buyPrice: 10000, sellPrice: 50000, initialStock: 25, currentStock: 20 }, // 5 sold
-        { id: bTgA, productId: prdTempered, supplierId: supLokal, variant: "Glass", buyPrice: 5000, sellPrice: 25000, initialStock: 100, currentStock: 50 }, // 50 sold
+        // iPhone 13 from Global (Inter variant)
+        { id: bIphone13A, productId: prdIphone13, variantId: varIp13Inter, supplierId: supGlobal, variant: "Inter", buyPrice: 8000000, sellPrice: 9500000, initialStock: 2, currentStock: 2 },
+        // LCD iPhone X OLED from Global
+        { id: bLcdIpXA, productId: prdLcdIpX, variantId: varLcdOled, supplierId: supGlobal, variant: "OLED", buyPrice: 300000, sellPrice: 650000, initialStock: 5, currentStock: 5 },
+        // Baterai iPhone X Double Power from Lokal
+        { id: bBatreIpXA, productId: prdBatreIpX, variantId: varBatreDouble, supplierId: supLokal, variant: "Double Power", buyPrice: 150000, sellPrice: 350000, initialStock: 10, currentStock: 10 },
+        // Clear Case from Lokal (Standard)
+        { id: bCaseA, productId: prdCaseClear, variantId: varAccStandard, supplierId: supLokal, variant: "Standard", buyPrice: 10000, sellPrice: 50000, initialStock: 25, currentStock: 20 },
+        // Tempered Glass (no variant in Standard for this one, but we link to Standard anyway)
+        { id: bTgA, productId: prdTempered, variantId: null, supplierId: supLokal, variant: "Standard", buyPrice: 5000, sellPrice: 25000, initialStock: 100, currentStock: 50 },
     ];
 
     await db.insert(productBatches).values(batchData);
 
-    // Initial Purchase Entry (Stock In)
-    const po1 = "PO-INIT-001";
+    // ============================================
+    // Purchase Records (Stock In) - MUST match batches
+    // ============================================
+    console.log("Creating purchase records...");
+
+    // Purchase 1: Global Sparepart Jakarta
+    const po1 = "PO-2024-001";
+    const po1Total = (8000000 * 2) + (300000 * 5); // iPhone + LCD
     await db.insert(purchases).values({
-        id: po1, supplierId: supGlobal, userId: adminId, totalAmount: 18000000, notes: "Initial stock import"
+        id: po1,
+        supplierId: supGlobal,
+        userId: adminId,
+        totalAmount: po1Total,
+        notes: "Stok awal HP dan LCD dari Global"
     });
-    // Add items... (Skipping detailed purchase items for brevity, but batches reflect stock)
+
+    // Purchase Items for PO1
+    await db.insert(purchaseItems).values([
+        { purchaseId: po1, productId: prdIphone13, variant: "Inter", batchId: bIphone13A, qtyOrdered: 2, qtyReceived: 2, buyPrice: 8000000, sellPrice: 9500000 },
+        { purchaseId: po1, productId: prdLcdIpX, variant: "OLED", batchId: bLcdIpXA, qtyOrdered: 5, qtyReceived: 5, buyPrice: 300000, sellPrice: 650000 },
+    ]);
+
+    // Purchase 2: Lokal Distributor
+    const po2 = "PO-2024-002";
+    const po2Total = (150000 * 10) + (10000 * 25) + (5000 * 100); // Baterai + Case + TG
+    await db.insert(purchases).values({
+        id: po2,
+        supplierId: supLokal,
+        userId: adminId,
+        totalAmount: po2Total,
+        notes: "Stok awal Baterai dan Aksesoris dari Lokal"
+    });
+
+    // Purchase Items for PO2
+    await db.insert(purchaseItems).values([
+        { purchaseId: po2, productId: prdBatreIpX, variant: "Double Power", batchId: bBatreIpXA, qtyOrdered: 10, qtyReceived: 10, buyPrice: 150000, sellPrice: 350000 },
+        { purchaseId: po2, productId: prdCaseClear, variant: "Standard", batchId: bCaseA, qtyOrdered: 25, qtyReceived: 25, buyPrice: 10000, sellPrice: 50000 },
+        { purchaseId: po2, productId: prdTempered, variant: "Standard", batchId: bTgA, qtyOrdered: 100, qtyReceived: 100, buyPrice: 5000, sellPrice: 25000 },
+    ]);
 
     // ============================================
     // 5. SERVICES (Detailed Scenarios)
@@ -289,8 +455,8 @@ async function main() {
     });
 
 
-    console.log("\n✅ Database rebuild & seed complete!");
-    console.log("IMPORTANT: Devices table was purposefully NOT seeded.");
+    console.log("\n✅ Database rebuild & seed complete with Devices!");
+    // console.log("IMPORTANT: Devices table was purposefully NOT seeded."); // Removed warning
     console.log("Users: admin (123456), teknisi (123456), kasir (123456)");
 }
 

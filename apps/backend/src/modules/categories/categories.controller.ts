@@ -10,7 +10,8 @@ const service = new CategoriesService();
 const categorySchema = z.object({
     name: z.string().min(1),
     description: z.string().optional(),
-    parentId: z.string().optional() // New field
+    parentId: z.string().optional().nullable(),
+    variants: z.array(z.string()).optional() // Input: array of names
 });
 
 app.get("/", async (c) => {
@@ -50,6 +51,28 @@ app.delete("/:id", async (c) => {
         return apiSuccess(c, null, "Category deleted successfully");
     } catch (e) {
         return apiError(c, e, "Failed to delete category", 400);
+    }
+});
+
+// Variant Templates
+app.post("/:id/variants", zValidator("json", z.object({ name: z.string(), supplierId: z.string().optional() })), async (c) => {
+    try {
+        const categoryId = c.req.param("id");
+        const { name, supplierId } = c.req.valid("json");
+        const result = await service.addVariantTemplate(categoryId, name, supplierId);
+        return apiSuccess(c, result, "Variant template added");
+    } catch (e) {
+        return apiError(c, e, "Failed to add variant template", 500);
+    }
+});
+
+app.delete("/variants/:variantId", async (c) => {
+    try {
+        const variantId = parseInt(c.req.param("variantId"));
+        await service.removeVariantTemplate(variantId);
+        return apiSuccess(c, null, "Variant template removed");
+    } catch (e) {
+        return apiError(c, e, "Failed to remove variant template", 500);
     }
 });
 

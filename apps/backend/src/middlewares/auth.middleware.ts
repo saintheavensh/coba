@@ -24,6 +24,7 @@ export const authMiddleware = createMiddleware(async (c, next) => {
     try {
         const payload = await verify(token, JWT_SECRET);
         c.set("jwtPayload", payload);
+        c.set("user", payload); // Also set as "user" for controllers
         await next();
     } catch (e) {
         return apiError(c, e, "Invalid Token", 401);

@@ -25,6 +25,8 @@ interface CreateProductInput {
 interface CreateCategoryInput {
     name: string;
     description?: string;
+    parentId?: string | null;
+    variants?: string[];
 }
 
 /** Input type for creating a supplier */
@@ -61,6 +63,23 @@ export const InventoryService = {
         const res = await api.get<ApiResponse<string[]>>(`/inventory/suppliers/${supplierId}/variants`);
         return res.data?.data ?? [];
     },
+    getProductVariants: async (productId: string): Promise<any[]> => {
+        const res = await api.get<ApiResponse<any[]>>(`/inventory/${productId}/variants`);
+        return res.data?.data ?? [];
+    },
+
+    // Variants
+    createVariant: async (data: { productId: string; name: string; image?: string; sku?: string; defaultPrice?: number; }): Promise<any> => {
+        const res = await api.post<ApiResponse<any>>("/inventory/variants", data);
+        return res.data?.data;
+    },
+    updateVariant: async (id: string, data: { name?: string; image?: string; sku?: string; defaultPrice?: number; }): Promise<any> => {
+        const res = await api.put<ApiResponse<any>>(`/inventory/variants/${id}`, data);
+        return res.data?.data;
+    },
+    deleteVariant: async (id: string): Promise<void> => {
+        await api.delete(`/inventory/variants/${id}`);
+    },
 
     // Categories
     getCategories: async (): Promise<Category[]> => {
@@ -77,6 +96,15 @@ export const InventoryService = {
     },
     deleteCategory: async (id: string): Promise<void> => {
         await api.delete(`/categories/${id}`);
+    },
+
+    // Category Variants
+    addVariantTemplate: async (categoryId: string, name: string, supplierId?: string): Promise<any> => {
+        const res = await api.post<ApiResponse<any>>(`/categories/${categoryId}/variants`, { name, supplierId });
+        return res.data?.data;
+    },
+    removeVariantTemplate: async (variantId: number): Promise<void> => {
+        await api.delete(`/categories/variants/${variantId}`);
     },
 
     // Devices
@@ -192,15 +220,15 @@ export const InventoryService = {
                                 const trimmed = name.trim();
                                 return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
                             };
-                            
+
                             const normalizedBrandName = normalizeBrandName(brandName);
                             const brandKey = normalizedBrandName.toLowerCase().trim();
-                            
+
                             if (!brandMap.has(brandKey)) {
                                 try {
                                     // Check if brand exists (case-insensitive)
                                     const allBrands = await BrandsService.getAll();
-                                    const exists = allBrands.find(b => 
+                                    const exists = allBrands.find(b =>
                                         b.name.toLowerCase().trim() === brandKey
                                     );
 
