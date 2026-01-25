@@ -87,9 +87,12 @@
             <Select type="single" bind:value={selectedProductId}>
                 <SelectTrigger>
                     {#if selectedProductId && productsQuery.data}
-                        {productsQuery.data.find(
+                        {@const selectedProduct = productsQuery.data.find(
                             (p: any) => p.id === selectedProductId,
-                        )?.name || "Pilih Produk"}
+                        )}
+                        {selectedProduct?.category?.name
+                            ? `${selectedProduct.category.name} - ${selectedProduct.name}`
+                            : selectedProduct?.name || "Pilih Produk"}
                     {:else}
                         Pilih Produk
                     {/if}
@@ -98,7 +101,9 @@
                     {#if productsQuery.data}
                         {#each productsQuery.data as product}
                             <SelectItem value={product.id}
-                                >{product.name}</SelectItem
+                                >{product.category?.name
+                                    ? `${product.category.name} - ${product.name}`
+                                    : product.name}</SelectItem
                             >
                         {/each}
                     {/if}

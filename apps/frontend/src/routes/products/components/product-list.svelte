@@ -324,7 +324,7 @@
             </SelectTrigger>
             <SelectContent>
                 <SelectItem value="all">Semua Kategori</SelectItem>
-                {#each categories as cat}
+                {#each categories.filter((cat) => !categories.some((c) => c.parentId === cat.id)) as cat}
                     <SelectItem value={cat.id}>{cat.name}</SelectItem>
                 {/each}
             </SelectContent>

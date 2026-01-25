@@ -56,6 +56,9 @@
     let minStock = $state(5);
     let image = $state("");
     let compatibility = $state<string[]>([]); // Device IDs
+    let manualNameParts = $state<string[]>([]); // Parts not matching devices
+    let nameSuggestions = $state<{ device: any; matched: string }[]>([]);
+    let deviceSearchQuery = $state(""); // Search within suggestions dropdown
 
     // Queries
     const categoriesQuery = createQuery(() => ({
@@ -154,24 +157,151 @@
     let categories = $derived(categoriesQuery.data || []);
     let hierarchicalCategories = $derived(buildCategoryHierarchy(categories));
 
-    // Derived Device List with Optimization
-    let deviceSearch = $state("");
+    // Derived Device List
     let devices = $derived(devicesQuery.data || []);
-    let filteredDevices = $derived(
-        devices.filter((d: any) => {
-            if (!deviceSearch) return true;
-            const term = deviceSearch.toLowerCase();
-            return (
-                d.brand.toLowerCase().includes(term) ||
-                d.model.toLowerCase().includes(term) ||
-                (d.code && d.code.toLowerCase().includes(term))
-            );
-        }),
+
+    // Selected devices for display
+    let selectedDevices = $derived(
+        devices.filter((d: any) => compatibility.includes(d.id)),
     );
-    // Limit visible devices for performance if search is empty
-    let visibleDevices = $derived(
-        !deviceSearch ? filteredDevices.slice(0, 50) : filteredDevices,
+
+    // Helper: Build product name from selected compatibility devices
+    function buildNameFromCompatibility(): string {
+        const selected = devices.filter((d: any) =>
+            compatibility.includes(d.id),
+        );
+        if (selected.length === 0) return manualNameParts.join(" / ");
+
+        // Group by brand
+        const byBrand: Record<string, any[]> = {};
+        for (const d of selected) {
+            if (!byBrand[d.brand]) byBrand[d.brand] = [];
+            byBrand[d.brand].push(d);
+        }
+
+        // Build: "Oppo A3s / A5s / A31" then "Realme 2"
+        const parts: string[] = [];
+        for (const [brand, models] of Object.entries(byBrand).sort()) {
+            // Sort models alphabetically
+            models.sort((a, b) => a.model.localeCompare(b.model));
+            // First with brand, rest model only
+            parts.push(`${brand} ${models[0].model}`);
+            for (let i = 1; i < models.length; i++) {
+                parts.push(models[i].model);
+            }
+        }
+
+        // Append manual parts
+        parts.push(...manualNameParts);
+
+        return parts.join(" / ");
+    }
+
+    // Helper: Update name when compatibility changes
+    function updateNameFromCompatibility() {
+        name = buildNameFromCompatibility();
+    }
+
+    // Helper: Parse name and find matching devices for suggestions
+    function parseNameForSuggestions(inputName: string) {
+        const parts = inputName.split(/\s*\/\s*/);
+        const suggestions: { device: any; matched: string }[] = [];
+        const newManualParts: string[] = [];
+        let currentBrand = "";
+
+        for (const part of parts) {
+            const trimmed = part.trim();
+            if (!trimmed) continue;
+
+            // Try to find exact match with brand + model
+            let match = devices.find((d: any) => {
+                const fullName = `${d.brand} ${d.model}`.toLowerCase();
+                return fullName === trimmed.toLowerCase();
+            });
+
+            // If no exact match, try model-only match with current brand context
+            if (!match && currentBrand) {
+                match = devices.find((d: any) => {
+                    return (
+                        d.brand.toLowerCase() === currentBrand.toLowerCase() &&
+                        d.model.toLowerCase() === trimmed.toLowerCase()
+                    );
+                });
+            }
+
+            // If still no match, try model-only match across all devices
+            if (!match) {
+                match = devices.find(
+                    (d: any) => d.model.toLowerCase() === trimmed.toLowerCase(),
+                );
+            }
+
+            if (match) {
+                currentBrand = match.brand; // Set context for next parts
+                if (!compatibility.includes(match.id)) {
+                    suggestions.push({ device: match, matched: trimmed });
+                }
+            } else {
+                // No match - this is a manual part
+                newManualParts.push(trimmed);
+            }
+        }
+
+        nameSuggestions = suggestions;
+        manualNameParts = newManualParts;
+    }
+
+    // Handle name input change
+    function handleNameChange(newName: string) {
+        name = newName;
+        parseNameForSuggestions(newName);
+    }
+
+    // Handle suggestion click - add device to compatibility
+    function applySuggestion(suggestion: { device: any; matched: string }) {
+        compatibility = [...compatibility, suggestion.device.id];
+        nameSuggestions = nameSuggestions.filter(
+            (s) => s.device.id !== suggestion.device.id,
+        );
+        deviceSearchQuery = ""; // Reset search when adding
+    }
+
+    // Apply all suggestions at once (GO button)
+    function applyAllSuggestions() {
+        const deviceIds = filteredSuggestions.map((s) => s.device.id);
+        compatibility = [...compatibility, ...deviceIds];
+        nameSuggestions = nameSuggestions.filter(
+            (s) => !deviceIds.includes(s.device.id),
+        );
+        deviceSearchQuery = "";
+    }
+
+    // Filter suggestions based on search query
+    let filteredSuggestions = $derived(
+        deviceSearchQuery.trim()
+            ? nameSuggestions.filter((s) => {
+                  const term = deviceSearchQuery.trim().toLowerCase();
+                  return (
+                      s.device.brand.toLowerCase().includes(term) ||
+                      s.device.model.toLowerCase().includes(term) ||
+                      (s.device.code &&
+                          s.device.code.toLowerCase().includes(term))
+                  );
+              })
+            : nameSuggestions,
     );
+
+    // Remove device from compatibility
+    function removeDevice(deviceId: string) {
+        compatibility = compatibility.filter((id) => id !== deviceId);
+        updateNameFromCompatibility();
+    }
+
+    // Remove manual name part
+    function removeManualPart(index: number) {
+        manualNameParts = manualNameParts.filter((_, i) => i !== index);
+        updateNameFromCompatibility();
+    }
 
     // Effect to populate form on open/editData change
     $effect(() => {
@@ -202,7 +332,9 @@
         minStock = 5;
         image = "";
         compatibility = [];
-        deviceSearch = "";
+        manualNameParts = [];
+        nameSuggestions = [];
+        deviceSearchQuery = "";
         activeTab = "general";
         newVariantName = "";
     }
@@ -375,17 +507,201 @@
                         </div>
                     </div>
 
-                    <!-- Name -->
-                    <div class="space-y-2">
-                        <Label class="text-sm font-medium"
-                            >Nama Produk <span class="text-destructive">*</span
-                            ></Label
-                        >
+                    <!-- Name with Autocomplete Device Suggestions -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <Label class="text-sm font-medium"
+                                >Nama Produk <span class="text-destructive"
+                                    >*</span
+                                ></Label
+                            >
+                            {#if compatibility.length > 0 || manualNameParts.length > 0}
+                                <Badge
+                                    variant="secondary"
+                                    class="font-normal text-xs"
+                                >
+                                    <Smartphone class="h-3 w-3 mr-1" />
+                                    {compatibility.length} device{#if manualNameParts.length > 0}
+                                        + {manualNameParts.length} manual{/if}
+                                </Badge>
+                            {/if}
+                        </div>
+
                         <Input
-                            bind:value={name}
-                            placeholder="Nama Produk (Mis: LCD Samsung)"
+                            value={name}
+                            oninput={(e) =>
+                                handleNameChange(e.currentTarget.value)}
+                            placeholder="Ketik nama device (Mis: Oppo A3s / A5s / Realme 2)"
                             class="text-base"
                         />
+
+                        <!-- Device Suggestions Dropdown -->
+                        {#if nameSuggestions.length > 0}
+                            <div
+                                class="border rounded-lg shadow-lg bg-card overflow-hidden"
+                            >
+                                <!-- Search Header -->
+                                <div
+                                    class="flex items-center gap-2 p-2 border-b bg-muted/30"
+                                >
+                                    <div class="relative flex-1">
+                                        <Search
+                                            class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
+                                        />
+                                        <Input
+                                            value={deviceSearchQuery}
+                                            oninput={(e) =>
+                                                (deviceSearchQuery =
+                                                    e.currentTarget.value)}
+                                            placeholder="Cari device..."
+                                            class="pl-8 h-9 text-sm"
+                                        />
+                                    </div>
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        class="h-9 px-3 text-xs"
+                                        onclick={() => applyAllSuggestions()}
+                                    >
+                                        GO
+                                    </Button>
+                                </div>
+
+                                <!-- Devices Header -->
+                                <div class="px-3 py-2 bg-muted/20 border-b">
+                                    <span
+                                        class="text-xs font-semibold text-muted-foreground uppercase tracking-wider"
+                                        >DEVICES</span
+                                    >
+                                </div>
+
+                                <!-- Device List -->
+                                <div class="max-h-[250px] overflow-y-auto">
+                                    {#each filteredSuggestions as suggestion, index}
+                                        <button
+                                            type="button"
+                                            class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-primary/5 transition-colors border-b border-muted/30 last:border-b-0 text-left"
+                                            onclick={() =>
+                                                applySuggestion(suggestion)}
+                                        >
+                                            <!-- Device Image -->
+                                            <div
+                                                class="w-12 h-12 rounded-md bg-muted/30 flex items-center justify-center overflow-hidden shrink-0"
+                                            >
+                                                {#if suggestion.device.image}
+                                                    <img
+                                                        src={suggestion.device
+                                                            .image}
+                                                        alt="{suggestion.device
+                                                            .brand} {suggestion
+                                                            .device.model}"
+                                                        class="w-full h-full object-contain"
+                                                    />
+                                                {:else}
+                                                    <Smartphone
+                                                        class="h-6 w-6 text-muted-foreground/50"
+                                                    />
+                                                {/if}
+                                            </div>
+
+                                            <!-- Device Info -->
+                                            <div class="flex-1 min-w-0">
+                                                <div
+                                                    class="font-medium text-sm text-foreground"
+                                                >
+                                                    {suggestion.device.brand}
+                                                    {suggestion.device.model}
+                                                </div>
+                                                {#if suggestion.device.code}
+                                                    <div
+                                                        class="text-xs text-muted-foreground truncate"
+                                                    >
+                                                        {suggestion.device.code}
+                                                    </div>
+                                                {/if}
+                                            </div>
+
+                                            <!-- Add Icon -->
+                                            <Plus
+                                                class="h-4 w-4 text-primary shrink-0"
+                                            />
+                                        </button>
+                                    {/each}
+
+                                    {#if filteredSuggestions.length === 0}
+                                        <div
+                                            class="p-4 text-center text-sm text-muted-foreground"
+                                        >
+                                            Tidak ada device yang cocok
+                                        </div>
+                                    {/if}
+                                </div>
+                            </div>
+                        {/if}
+
+                        <!-- Selected Devices -->
+                        {#if compatibility.length > 0 || manualNameParts.length > 0}
+                            <div class="flex flex-wrap gap-2">
+                                {#each selectedDevices as device (device.id)}
+                                    <span
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-sm bg-primary/10 text-primary rounded-full border border-primary/20"
+                                    >
+                                        <Smartphone class="h-3.5 w-3.5" />
+                                        {device.brand}
+                                        {device.model}
+                                        <button
+                                            type="button"
+                                            class="ml-1 hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                                            onclick={() =>
+                                                removeDevice(device.id)}
+                                            aria-label="Hapus {device.brand} {device.model}"
+                                        >
+                                            <svg
+                                                class="h-3 w-3"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                            >
+                                                <path
+                                                    d="M18 6L6 18M6 6l12 12"
+                                                />
+                                            </svg>
+                                        </button>
+                                    </span>
+                                {/each}
+                                {#each manualNameParts as part, i}
+                                    <span
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-sm bg-muted text-muted-foreground rounded-full border"
+                                    >
+                                        🔤 {part}
+                                        <button
+                                            type="button"
+                                            class="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5 transition-colors"
+                                            onclick={() => removeManualPart(i)}
+                                            aria-label="Hapus {part}"
+                                        >
+                                            <svg
+                                                class="h-3 w-3"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                            >
+                                                <path
+                                                    d="M18 6L6 18M6 6l12 12"
+                                                />
+                                            </svg>
+                                        </button>
+                                    </span>
+                                {/each}
+                            </div>
+                        {/if}
+
+                        <p class="text-[10px] text-muted-foreground">
+                            Ketik nama device dipisahkan dengan " / ". Saran
+                            akan muncul untuk device yang cocok.
+                        </p>
                     </div>
 
                     <!-- Details Row -->
@@ -412,160 +728,6 @@
                                 <div class="w-full h-32">
                                     <ImageUpload bind:value={image} />
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Compatibility Section - OPTIMIZED -->
-                    <div class="space-y-3 pt-2">
-                        <div class="flex items-center justify-between">
-                            <Label class="text-sm font-medium"
-                                >Kompatibilitas Device ({compatibility.length})</Label
-                            >
-                            <Badge
-                                variant="outline"
-                                class="font-normal bg-primary/5"
-                            >
-                                {compatibility.length} terpilih
-                            </Badge>
-                        </div>
-
-                        <div
-                            class="border rounded-lg overflow-hidden bg-card text-card-foreground shadow-sm"
-                        >
-                            <div
-                                class="p-2 border-b bg-muted/20 flex gap-2 items-center"
-                            >
-                                <div class="relative flex-1">
-                                    <Search
-                                        class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
-                                    />
-                                    <Input
-                                        bind:value={deviceSearch}
-                                        placeholder="Cari Brand, Model, atau Kode Device..."
-                                        class="pl-8 h-9 border-none focus-visible:ring-0 bg-transparent shadow-none"
-                                    />
-                                </div>
-                                {#if compatibility.length > 0}
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        class="h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-                                        onclick={() => (compatibility = [])}
-                                    >
-                                        Reset
-                                    </Button>
-                                {/if}
-                            </div>
-
-                            <div
-                                class="h-[200px] overflow-y-auto p-1 bg-white dark:bg-zinc-950/50"
-                            >
-                                {#if devicesQuery.isLoading}
-                                    <div
-                                        class="flex items-center justify-center h-full text-muted-foreground gap-2"
-                                    >
-                                        <Loader2 class="h-4 w-4 animate-spin" />
-                                        Memuat data device...
-                                    </div>
-                                {:else if filteredDevices.length === 0}
-                                    <div
-                                        class="flex flex-col items-center justify-center h-full text-muted-foreground p-4 text-center"
-                                    >
-                                        <Smartphone
-                                            class="h-8 w-8 mb-2 opacity-20"
-                                        />
-                                        <span class="text-sm"
-                                            >Tidak ada device yang cocok dengan
-                                            "{deviceSearch}"</span
-                                        >
-                                    </div>
-                                {:else}
-                                    <div
-                                        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1"
-                                    >
-                                        {#each visibleDevices as device (device.id)}
-                                            {@const isSelected =
-                                                compatibility.includes(
-                                                    device.id,
-                                                )}
-                                            <label
-                                                class={cn(
-                                                    "flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all border select-none group",
-                                                    isSelected
-                                                        ? "bg-primary/5 border-primary/20"
-                                                        : "border-transparent hover:bg-muted",
-                                                )}
-                                            >
-                                                <div
-                                                    class="relative flex items-center justify-center"
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        class="peer sr-only"
-                                                        checked={isSelected}
-                                                        onchange={(e) => {
-                                                            if (
-                                                                e.currentTarget
-                                                                    .checked
-                                                            ) {
-                                                                compatibility =
-                                                                    [
-                                                                        ...compatibility,
-                                                                        device.id,
-                                                                    ];
-                                                            } else {
-                                                                compatibility =
-                                                                    compatibility.filter(
-                                                                        (id) =>
-                                                                            id !==
-                                                                            device.id,
-                                                                    );
-                                                            }
-                                                        }}
-                                                    />
-                                                    <div
-                                                        class={cn(
-                                                            "h-4 w-4 rounded border border-muted-foreground/30 shadow-sm flex items-center justify-center transition-colors bg-background",
-                                                            isSelected
-                                                                ? "bg-primary border-primary text-primary-foreground"
-                                                                : "group-hover:border-primary/50",
-                                                        )}
-                                                    >
-                                                        {#if isSelected}<Check
-                                                                class="h-3 w-3 stroke-[3px]"
-                                                            />{/if}
-                                                    </div>
-                                                </div>
-                                                <div
-                                                    class="flex-1 min-w-0 flex flex-col justify-center"
-                                                >
-                                                    <div
-                                                        class="text-sm font-medium leading-none truncate text-foreground/90"
-                                                    >
-                                                        {device.brand}
-                                                        {device.model}
-                                                    </div>
-                                                    {#if device.code}
-                                                        <div
-                                                            class="text-[10px] text-muted-foreground truncate font-mono mt-0.5 opacity-70"
-                                                        >
-                                                            {device.code}
-                                                        </div>
-                                                    {/if}
-                                                </div>
-                                            </label>
-                                        {/each}
-                                    </div>
-                                    {#if !deviceSearch && devices.length > 50}
-                                        <div
-                                            class="text-xs text-center text-muted-foreground py-2 italic border-t mt-1 bg-muted/10"
-                                        >
-                                            + {devices.length - 50} device lainnya
-                                            disembunyikan. Cari untuk menampilkan.
-                                        </div>
-                                    {/if}
-                                {/if}
                             </div>
                         </div>
                     </div>
