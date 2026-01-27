@@ -40,6 +40,7 @@
     import Step5Review from "./steps/Step5Review.svelte";
     import { fade, slide } from "svelte/transition";
     import { ClipboardCheck, FileCheck } from "lucide-svelte";
+    import { cn } from "$lib/utils";
 
     // Initialize Store
     const form = new ServiceFormStore();
@@ -154,15 +155,24 @@
     </div>
 
     <div
-        class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-8 bg-card rounded-3xl shadow-sm border p-6 min-h-[800px]"
+        class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 bg-card/60 rounded-[2.5rem] shadow-xl shadow-primary/5 border border-white/20 p-6 sm:p-8 min-h-[850px] backdrop-blur-3xl relative overflow-hidden"
     >
+        <!-- Background Decor -->
+        <div
+            class="absolute -top-40 -right-40 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none"
+        ></div>
+        <div
+            class="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none"
+        ></div>
         <!-- Sidebar (Desktop Navigation) -->
-        <aside class="hidden lg:flex flex-col gap-8 border-r pr-6 h-full">
+        <aside
+            class="hidden lg:flex flex-col gap-8 h-full pr-8 border-r border-border/40"
+        >
             <div class="space-y-6">
                 <Button
                     variant="ghost"
                     href="/service"
-                    class="-ml-4 justify-start text-muted-foreground hover:text-foreground group"
+                    class="-ml-4 justify-start text-muted-foreground hover:text-foreground group rounded-xl"
                 >
                     <ArrowLeft
                         class="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform"
@@ -170,60 +180,123 @@
                     Kembali ke Daftar
                 </Button>
                 <div>
-                    <h1 class="text-3xl font-bold tracking-tight">
+                    <h1
+                        class="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent"
+                    >
                         Service Baru
                     </h1>
-                    <p class="text-muted-foreground mt-2">
-                        Buat tiket service baru untuk pelanggan.
+                    <p
+                        class="text-sm text-muted-foreground mt-2 leading-relaxed"
+                    >
+                        Buat tiket service baru untuk pelanggan dengan mudah.
                     </p>
                 </div>
             </div>
 
-            <Separator />
+            <Separator class="bg-border/50" />
 
             <!-- Service Type Selector -->
-            <!-- Simplified Intake Mode -->
-            <div class="bg-primary/5 p-4 rounded-xl border border-primary/20">
-                <div class="flex items-center gap-3">
-                    <div
-                        class="p-2 rounded-full bg-primary text-primary-foreground"
+            <div class="space-y-4">
+                <p
+                    class="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1"
+                >
+                    Mode Layanan
+                </p>
+                <div
+                    class="grid grid-cols-2 gap-3 p-1 bg-muted/40 rounded-2xl border border-border/50"
+                >
+                    <button
+                        class={cn(
+                            "flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]",
+                            form.priority === "standard"
+                                ? "bg-background shadow-sm border-primary/20 text-primary ring-1 ring-primary/10"
+                                : "border-transparent text-muted-foreground hover:bg-background/50 hover:text-foreground",
+                        )}
+                        onclick={() => {
+                            form.priority = "standard";
+                            form.isDirectComplete = false;
+                            form.isWalkin = false;
+                        }}
                     >
-                        <Clock class="h-4 w-4" />
-                    </div>
-                    <div>
-                        <p class="font-medium text-sm">Mode Penerimaan</p>
-                        <p class="text-xs text-muted-foreground">Admin / CS</p>
-                    </div>
+                        <Clock class="h-5 w-5 mb-2" />
+                        <span class="text-[10px] font-bold">DITINGGAL</span>
+                    </button>
+                    <button
+                        class={cn(
+                            "flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]",
+                            form.priority === "wait"
+                                ? "bg-background shadow-sm border-primary/20 text-primary ring-1 ring-primary/10"
+                                : "border-transparent text-muted-foreground hover:bg-background/50 hover:text-foreground",
+                        )}
+                        onclick={() => {
+                            form.priority = "wait";
+                            form.isDirectComplete = true;
+                            form.isWalkin = true;
+                        }}
+                    >
+                        <User class="h-5 w-5 mb-2" />
+                        <span class="text-[10px] font-bold">DITUNGGU</span>
+                    </button>
                 </div>
+                {#if form.priority === "wait"}
+                    <div
+                        class="px-2 pt-1 animate-in slide-in-from-top-2 duration-300"
+                    >
+                        <label
+                            class="flex items-center gap-3 cursor-pointer group p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                        >
+                            <input
+                                type="checkbox"
+                                bind:checked={form.isDirectComplete}
+                                class="w-4 h-4 rounded border-muted text-primary focus:ring-primary accent-primary"
+                            />
+                            <span
+                                class="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors"
+                                >Langsung Selesai & Bayar</span
+                            >
+                        </label>
+                    </div>
+                {/if}
             </div>
 
-            <Separator />
+            <Separator class="bg-border/50" />
 
             <!-- Vertical Stepper -->
-            <nav class="space-y-1">
+            <nav class="space-y-0 relative">
                 {#each steps as item}
                     {@const isActive = form.currentStep === item.step}
                     {@const isCompleted = form.currentStep > item.step}
-                    <div class="relative pl-4 pb-8 last:pb-0">
+                    <div class="relative pl-6 pb-10 last:pb-0 group">
                         <!-- Connecting Line -->
-                        {#if item.step !== 4}
+                        {#if item.step !== 5}
                             <div
-                                class={`absolute left-[27px] top-8 bottom-0 w-[2px] ${isCompleted ? "bg-primary" : "bg-muted"}`}
+                                class={cn(
+                                    "absolute left-[35px] top-10 bottom-0 w-[2px] transition-colors duration-500",
+                                    isCompleted
+                                        ? "bg-primary"
+                                        : "bg-muted/50 group-hover:bg-muted",
+                                )}
                             ></div>
                         {/if}
 
-                        <div class="flex items-start gap-4">
+                        <div class="flex items-start gap-4 cursor-default">
                             <!-- Indicator -->
                             <div
-                                class={`
-                                relative z-10 flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all duration-300
-                                ${isActive ? "border-primary bg-background ring-4 ring-primary/20" : isCompleted ? "border-primary bg-primary text-primary-foreground" : "border-muted bg-background text-muted-foreground"}
-                            `}
+                                class={cn(
+                                    "relative z-10 flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all duration-500 shadow-sm",
+                                    isActive
+                                        ? "border-primary bg-background ring-4 ring-primary/10 scale-110"
+                                        : isCompleted
+                                          ? "border-primary bg-primary text-primary-foreground scale-100"
+                                          : "border-muted/50 bg-muted/20 text-muted-foreground/50",
+                                )}
                             >
                                 {#if isCompleted}
-                                    <CheckCircle class="h-4 w-4" />
+                                    <CheckCircle
+                                        class="h-4 w-4 animate-in zoom-in duration-300"
+                                    />
                                 {:else}
-                                    <span class="text-xs font-bold"
+                                    <span class="text-xs font-bold font-mono"
                                         >{item.step}</span
                                     >
                                 {/if}
@@ -231,12 +304,28 @@
 
                             <!-- Label -->
                             <div
-                                class={`transition-opacity duration-300 ${!isActive && !isCompleted ? "opacity-50" : "opacity-100"}`}
+                                class={cn(
+                                    "transition-all duration-300 pt-1",
+                                    isActive
+                                        ? "opacity-100 translate-x-1"
+                                        : isCompleted
+                                          ? "opacity-80"
+                                          : "opacity-40",
+                                )}
                             >
-                                <p class="text-sm font-semibold leading-none">
+                                <p
+                                    class={cn(
+                                        "text-sm font-bold leading-none",
+                                        isActive
+                                            ? "text-primary"
+                                            : "text-foreground",
+                                    )}
+                                >
                                     {item.label}
                                 </p>
-                                <p class="text-xs text-muted-foreground mt-1">
+                                <p
+                                    class="text-[11px] font-medium text-muted-foreground mt-1.5 uppercase tracking-wide"
+                                >
                                     {item.desc}
                                 </p>
                             </div>

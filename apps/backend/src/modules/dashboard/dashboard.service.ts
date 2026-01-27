@@ -260,4 +260,8 @@ export class DashboardService {
             }
         };
     }
+
+    async getProfitAndLoss(startDate?: string, endDate?: string) {
+        return await this.reports.getProfitAndLoss({ startDate, endDate });
+    }
 }

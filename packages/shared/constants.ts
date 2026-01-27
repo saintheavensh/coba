@@ -63,7 +63,8 @@ export const COMPLETENESS_OPTIONS = [
 export const SPAREPART_SOURCES = [
     { v: "none", l: "Tanpa Part" },
     { v: "inventory", l: "Inventory" },
-    { v: "external", l: "Beli Luar" }
+    { v: "external", l: "Beli Luar" },
+    { v: "customer", l: "Bawa Sendiri" }
 ];
 
 export const WARRANTY_PRESETS = [

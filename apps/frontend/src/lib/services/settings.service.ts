@@ -90,7 +90,7 @@ export interface WarrantyPreset {
 export interface ServiceSettings {
     numberFormat: string;
     resetCounterYearly: boolean;
-    defaultStatus: "antrian" | "proses";
+    defaultStatus: "antrian" | "dicek" | "menunggu_sparepart" | "proses" | "selesai" | "diambil" | "batal";
     autoNotifyOnStatusChange: boolean;
     warrantyPresets: WarrantyPreset[];
     defaultWarrantyDays: number;
@@ -117,6 +117,17 @@ export interface WhatsAppSettings {
 }
 
 // ============================================
+// COMMISSION SETTINGS
+// ============================================
+
+export interface CommissionSettings {
+    enabled: boolean;
+    globalRate: number; // Percentage 0-100
+    type: "flat" | "percentage";
+    target: "technician" | "all";
+}
+
+// ============================================
 // ALL SETTINGS COMBINED
 // ============================================
 
@@ -125,6 +136,7 @@ export interface AllSettings {
     receiptSettings: ReceiptSettings;
     serviceSettings: ServiceSettings;
     whatsappSettings: WhatsAppSettings;
+    commissionSettings: CommissionSettings;
 }
 
 // ============================================
@@ -245,6 +257,21 @@ export const SettingsService = {
 
     async setWhatsAppSettings(settings: WhatsAppSettings): Promise<void> {
         await api.put("/settings/whatsapp", settings);
+    },
+
+    // Commission Settings
+    async getCommissionSettings(): Promise<CommissionSettings> {
+        const response = await api.get<ApiResponse<CommissionSettings>>("/settings/commission");
+        return response.data.data!;
+    },
+
+    async setCommissionSettings(settings: CommissionSettings): Promise<void> {
+        await api.put("/settings/commission", settings);
+    },
+
+    // Factory Reset
+    async factoryReset(mode: "data" | "full"): Promise<void> {
+        await api.post("/settings/reset", { mode });
     },
 
     // Generic methods (legacy/fallback)

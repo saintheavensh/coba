@@ -7,6 +7,7 @@
     import ServiceListCompact from "$lib/components/dashboard/ServiceListCompact.svelte";
     import TechnicianDashboard from "$lib/components/dashboard/TechnicianDashboard.svelte";
     import CashierDashboard from "$lib/components/dashboard/CashierDashboard.svelte";
+    import ProfitLossSummary from "$lib/components/dashboard/ProfitLossSummary.svelte";
     import {
         Card,
         CardContent,
@@ -29,6 +30,7 @@
     let activities = $state<any[]>([]);
     let recentServices = $state<any[]>([]);
     let urgentServices = $state<any[]>([]);
+    let profitLossData = $state<any>(null);
     let error = $state<string | null>(null);
     let userRole = $state<string>("admin");
 
@@ -37,17 +39,24 @@
             loading = true;
             error = null;
             // Use api.get which adds Authorization header automatically
-            const [dashRes, actRes, recentRes, urgentRes] = await Promise.all([
-                api.get("/dashboard"),
-                api.get("/dashboard/activities", { params: { limit: 10 } }),
-                api.get("/dashboard/recent-services", { params: { limit: 5 } }),
-                api.get("/dashboard/urgent-services", { params: { limit: 5 } }),
-            ]);
+            const [dashRes, actRes, recentRes, urgentRes, plRes] =
+                await Promise.all([
+                    api.get("/dashboard"),
+                    api.get("/dashboard/activities", { params: { limit: 10 } }),
+                    api.get("/dashboard/recent-services", {
+                        params: { limit: 5 },
+                    }),
+                    api.get("/dashboard/urgent-services", {
+                        params: { limit: 5 },
+                    }),
+                    api.get("/dashboard/profit-loss"),
+                ]);
 
             dashboardData = dashRes.data.data;
             activities = actRes.data.data;
             recentServices = recentRes.data.data;
             urgentServices = urgentRes.data.data;
+            profitLossData = plRes.data.data;
         } catch (e: any) {
             console.error("Failed to fetch dashboard data", e);
             error =
@@ -144,6 +153,11 @@
                     class="h-32 w-full bg-muted/20 animate-pulse rounded-lg"
                 ></div>
             {/if}
+        </section>
+
+        <!-- 1.5 Profit & Loss Analytics -->
+        <section>
+            <ProfitLossSummary data={profitLossData} isLoading={loading} />
         </section>
 
         <!-- 2. Charts Section -->

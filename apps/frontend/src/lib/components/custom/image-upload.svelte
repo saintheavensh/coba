@@ -9,7 +9,13 @@
         value = $bindable(""),
         disabled = false,
         folder = "misc",
-    }: { value: string; disabled?: boolean; folder?: string } = $props();
+        compact = false,
+    }: {
+        value: string;
+        disabled?: boolean;
+        folder?: string;
+        compact?: boolean;
+    } = $props();
 
     let isUploading = $state(false);
     let fileInput: HTMLInputElement;
@@ -51,12 +57,17 @@
     function removeImage() {
         value = "";
     }
+
+    // Determine size classes based on compact mode
+    const sizeClasses = $derived(
+        compact ? "h-full w-full max-h-32" : "h-32 w-32",
+    );
 </script>
 
-<div class="w-full">
+<div class="w-full h-full flex items-center justify-center">
     {#if value}
         <div
-            class="relative w-40 h-40 group rounded-lg overflow-hidden border bg-muted/20"
+            class="{sizeClasses} relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-gradient-to-br from-muted/30 to-muted/10 shadow-sm"
         >
             <img
                 src={value.startsWith("http") ? value : `${API_URL}${value}`}
@@ -64,12 +75,12 @@
                 class="w-full h-full object-cover"
             />
             <div
-                class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center backdrop-blur-[2px]"
             >
                 <Button
                     variant="destructive"
                     size="icon"
-                    class="rounded-full"
+                    class="rounded-full shadow-lg scale-90 hover:scale-100 transition-transform"
                     onclick={removeImage}
                     disabled={disabled || isUploading}
                 >
@@ -80,15 +91,17 @@
     {:else}
         <button
             type="button"
-            class="w-40 h-40 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-2 text-muted-foreground hover:bg-muted/50 hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            class="{sizeClasses} rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:bg-primary/5 hover:border-primary/50 hover:text-primary transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
             onclick={() => fileInput?.click()}
             disabled={disabled || isUploading}
         >
             {#if isUploading}
-                <Loader2 class="h-8 w-8 animate-spin" />
-                <span class="text-xs">Uploading...</span>
+                <Loader2 class="h-6 w-6 animate-spin text-primary" />
+                <span class="text-xs font-medium">Uploading...</span>
             {:else}
-                <Upload class="h-8 w-8" />
+                <div class="p-2 rounded-full bg-primary/10">
+                    <Upload class="h-5 w-5 text-primary" />
+                </div>
                 <span class="text-xs font-medium">Upload Gambar</span>
             {/if}
         </button>

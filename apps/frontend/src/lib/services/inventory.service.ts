@@ -40,8 +40,10 @@ interface CreateSupplierInput {
 
 export const InventoryService = {
     // Products
-    getProducts: async (deviceId?: string): Promise<Product[]> => {
-        const res = await api.get<ApiResponse<Product[]>>("/inventory", { params: { deviceId } });
+    getProducts: async (deviceId?: string, search?: string, categoryId?: string): Promise<Product[]> => {
+        const res = await api.get<ApiResponse<Product[]>>("/inventory", {
+            params: { deviceId, search, categoryId }
+        });
         return res.data?.data ?? [];
     },
     getProduct: async (id: string): Promise<Product> => {
@@ -81,6 +83,16 @@ export const InventoryService = {
         await api.delete(`/inventory/variants/${id}`);
     },
 
+    // Bulk Min Stock
+    getProductCountByCategory: async (categoryId: string): Promise<number> => {
+        const res = await api.get<ApiResponse<{ count: number }>>(`/inventory/categories/${categoryId}/product-count`);
+        return res.data?.data?.count ?? 0;
+    },
+    bulkUpdateMinStock: async (categoryId: string, minStock: number): Promise<number> => {
+        const res = await api.patch<ApiResponse<{ updatedCount: number }>>("/inventory/bulk-min-stock", { categoryId, minStock });
+        return res.data?.data?.updatedCount ?? 0;
+    },
+
     // Categories
     getCategories: async (): Promise<Category[]> => {
         const res = await api.get<ApiResponse<Category[]>>("/categories");
@@ -108,8 +120,10 @@ export const InventoryService = {
     },
 
     // Devices
-    getDevices: async (search?: string): Promise<Device[]> => {
-        const res = await api.get<ApiResponse<Device[]>>("/devices", { params: { search } });
+    getDevices: async (search?: string, limit: number = 20, offset: number = 0, brand?: string): Promise<Device[]> => {
+        const res = await api.get<ApiResponse<Device[]>>("/devices", {
+            params: { search, limit, offset, brand }
+        });
         return res.data?.data ?? [];
     },
     createDevice: async (data: CreateDeviceInput): Promise<Device> => {
@@ -309,5 +323,29 @@ export const InventoryService = {
     },
     deleteSupplier: async (id: string): Promise<void> => {
         await api.delete(`/suppliers/${id}`);
+    },
+
+    // Stock Opname
+    getOpnameSessions: async (): Promise<any[]> => {
+        const res = await api.get<ApiResponse<any[]>>("/inventory/opname/sessions");
+        return res.data?.data ?? [];
+    },
+    createOpnameSession: async (data: { notes?: string; categoryId?: string }): Promise<{ id: string }> => {
+        const res = await api.post<ApiResponse<{ id: string }>>("/inventory/opname/sessions", data);
+        return res.data?.data!;
+    },
+    getOpnameSessionDetails: async (id: string): Promise<any> => {
+        const res = await api.get<ApiResponse<any>>(`/inventory/opname/sessions/${id}`);
+        return res.data?.data;
+    },
+    updateOpnameItem: async (itemId: number, data: { physicalStock: number, reason?: string }): Promise<any> => {
+        const res = await api.put<ApiResponse<any>>(`/inventory/opname/items/${itemId}`, data);
+        return res.data?.data;
+    },
+    finalizeOpnameSession: async (id: string): Promise<void> => {
+        await api.post(`/inventory/opname/sessions/${id}/finalize`);
+    },
+    cancelOpnameSession: async (id: string): Promise<void> => {
+        await api.post(`/inventory/opname/sessions/${id}/cancel`);
     }
 };

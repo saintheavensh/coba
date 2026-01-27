@@ -29,6 +29,7 @@ const DEFAULT_RECEIPT_SETTINGS: ReceiptSettings = {
     showSparepartDetails: false,
     showTechnicianName: true,
     showWarrantyInfo: true,
+    showBarcode: false,
     printerType: "thermal",
     paperSize: "58mm",
     printCopies: 1,
@@ -69,6 +70,7 @@ function createSettingsStore() {
     let receiptSettings = $state<ReceiptSettings>(DEFAULT_RECEIPT_SETTINGS);
     let serviceSettings = $state<ServiceSettings>(DEFAULT_SERVICE_SETTINGS);
     let whatsappSettings = $state<WhatsAppSettings>(DEFAULT_WHATSAPP_SETTINGS);
+    let deviceFeatureEnabled = $state(true);
     let isLoaded = $state(false);
     let isLoading = $state(false);
     let error = $state<string | null>(null);
@@ -99,6 +101,10 @@ function createSettingsStore() {
                 ...data.whatsappSettings,
             };
 
+            // Feature Flags
+            const deviceFlag = await SettingsService.get<boolean>("device_feature_enabled");
+            deviceFeatureEnabled = deviceFlag ?? true; // Default to true if not set
+
             isLoaded = true;
         } catch (e) {
             error = e instanceof Error ? e.message : "Failed to load settings";
@@ -118,6 +124,7 @@ function createSettingsStore() {
         get receiptSettings() { return receiptSettings; },
         get serviceSettings() { return serviceSettings; },
         get whatsappSettings() { return whatsappSettings; },
+        get deviceFeatureEnabled() { return deviceFeatureEnabled; },
         get isLoaded() { return isLoaded; },
         get isLoading() { return isLoading; },
         get error() { return error; },

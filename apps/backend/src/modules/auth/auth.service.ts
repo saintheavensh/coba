@@ -3,6 +3,7 @@ import { loginSchema } from "@repo/shared";
 import { z } from "zod";
 import { sign } from "hono/jwt";
 import { Logger } from "../../lib/logger";
+import { ActivityLogService } from "../../lib/activity-log.service";
 
 // Secret should be env
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
@@ -38,6 +39,15 @@ export class AuthService {
         }
 
         Logger.debug(`[AUTH_SERVICE] Password verified successfully for user: ${user.username}`);
+
+        // Log Login Action
+        await ActivityLogService.log({
+            userId: user.id,
+            action: "LOGIN",
+            entityType: "auth",
+            entityId: user.id,
+            description: `User ${user.username} logged in`,
+        });
 
         // Generate Token
         // Since we fetch with relation, user.role is now an object { id, name, permissions }
@@ -79,7 +89,8 @@ export class AuthService {
             username: data.username,
             password: hashedPassword,
             name: data.name,
-            role: data.role
+            role: data.role,
+            commissionConfig: data.commissionConfig || null,
         });
     }
 
@@ -92,6 +103,7 @@ export class AuthService {
             username: u.username,
             role: u.role,
             isActive: u.isActive ?? true,
+            commissionConfig: u.commissionConfig,
         }));
     }
 
@@ -104,33 +116,64 @@ export class AuthService {
             username: u.username,
             role: u.role,
             isActive: u.isActive ?? true,
+            commissionConfig: u.commissionConfig,
         }));
     }
 
-    async updateUser(id: string, data: { name?: string; role?: "admin" | "teknisi" | "kasir"; isActive?: boolean; password?: string }) {
+    async updateUser(id: string, data: { name?: string; role?: "admin" | "teknisi" | "kasir"; isActive?: boolean; password?: string; commissionConfig?: any }, performerId?: string) {
         const updateData: any = { ...data };
         if (data.password) {
             updateData.password = await Bun.password.hash(data.password);
         }
 
+        const oldValue = await this.repo.findById(id);
         const updated = await this.repo.update(id, updateData);
         if (!updated.length) {
             throw new Error("User not found");
         }
+
+        if (performerId) {
+            await ActivityLogService.log({
+                userId: performerId,
+                action: "UPDATE",
+                entityType: "user",
+                entityId: id,
+                description: `Updated user profile for ${updated[0].username}`,
+                details: {
+                    oldValue,
+                    newValue: updated[0]
+                }
+            });
+        }
+
         return {
             id: updated[0].id,
             name: updated[0].name,
             username: updated[0].username,
             role: updated[0].role,
             isActive: updated[0].isActive,
+            commissionConfig: updated[0].commissionConfig,
         };
     }
 
-    async deleteUser(id: string) {
+    async deleteUser(id: string, performerId?: string) {
+        const oldValue = await this.repo.findById(id);
         const deleted = await this.repo.delete(id);
         if (!deleted.length) {
             throw new Error("User not found");
         }
+
+        if (performerId) {
+            await ActivityLogService.log({
+                userId: performerId,
+                action: "DELETE",
+                entityType: "user",
+                entityId: id,
+                description: `Deleted user ${oldValue?.username || id}`,
+                details: { oldValue }
+            });
+        }
+
         return true;
     }
 }

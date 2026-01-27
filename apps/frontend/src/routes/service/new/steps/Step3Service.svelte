@@ -26,6 +26,7 @@
     import { createQuery } from "@tanstack/svelte-query";
     import { InventoryService } from "$lib/services/inventory.service";
     import { SPAREPART_SOURCES } from "@repo/shared";
+    import { cn } from "$lib/utils";
 
     // The original file used: import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
@@ -205,8 +206,9 @@
 
 <div class="grid gap-6 animate-in slide-in-from-right-4 duration-500">
     <div class="space-y-4">
-        <h3 class="text-lg font-semibold flex items-center gap-2">
-            <Wrench class="h-5 w-5 text-primary" />
+        <h3
+            class="text-xl font-bold flex items-center gap-2 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent"
+        >
             {form.isWalkin ? "Service & Sparepart (Walk-in)" : "Detail Service"}
         </h3>
         <p class="text-sm text-muted-foreground">
@@ -216,24 +218,43 @@
         </p>
     </div>
 
-    <div class="space-y-6 p-4 border rounded-xl bg-card/50 shadow-sm">
+    <div
+        class="space-y-6 p-6 sm:p-8 border border-muted/60 rounded-3xl bg-card/50 shadow-sm relative overflow-hidden group"
+    >
+        <!-- Glow Effect -->
+        <div
+            class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -z-10 transition-opacity opacity-0 group-hover:opacity-100"
+        ></div>
         <!-- Complaint -->
-        <div class="space-y-2">
-            <Label for="complaint">
+        <!-- Complaint -->
+        <div class="space-y-3">
+            <Label
+                for="complaint"
+                class="text-sm font-semibold text-foreground/80"
+            >
                 {form.isWalkin
                     ? "Kerusakan yang Diperbaiki"
                     : "Keluhan Customer"}
                 <span class="text-red-500">*</span>
             </Label>
-            <Textarea
-                id="complaint"
-                bind:value={form.complaint}
-                placeholder={form.isWalkin
-                    ? "Contoh: Ganti LCD, Ganti Baterai"
-                    : "Contoh: HP sering restart sendiri saat panas"}
-                rows={3}
-                class="resize-none"
-            />
+            <div class="relative group/input">
+                <div
+                    class="absolute top-3.5 left-3 flex items-start pointer-events-none"
+                >
+                    <AlertCircle
+                        class="h-4 w-4 text-muted-foreground transition-colors group-focus-within/input:text-primary"
+                    />
+                </div>
+                <Textarea
+                    id="complaint"
+                    bind:value={form.complaint}
+                    placeholder={form.isWalkin
+                        ? "Contoh: Ganti LCD, Ganti Baterai"
+                        : "Contoh: HP sering restart sendiri saat panas..."}
+                    rows={3}
+                    class="pl-10 min-h-[100px] rounded-2xl bg-background/50 border-muted-foreground/20 focus:bg-background transition-all focus:ring-4 focus:ring-primary/10 resize-none"
+                />
+            </div>
         </div>
 
         <!-- Technician (Hidden for Intake Mode based on user request to simplify) -->
@@ -259,11 +280,13 @@
         {#if form.isWalkin}
             <!-- Walk-in Specific UI -->
             <div
-                class="p-4 bg-blue-50/50 border border-blue-100 rounded-xl space-y-4"
+                class="p-6 bg-blue-50/30 border border-blue-100/50 rounded-3xl space-y-6"
             >
-                <div class="flex items-center gap-2 text-blue-800">
-                    <Package class="h-4 w-4" />
-                    <h4 class="font-semibold text-sm">Biaya & Sparepart</h4>
+                <div class="flex items-center gap-3 text-blue-800">
+                    <div class="p-2 bg-blue-100 rounded-lg">
+                        <Package class="h-5 w-5" />
+                    </div>
+                    <h4 class="font-bold text-base">Biaya & Sparepart</h4>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-4">
@@ -281,23 +304,59 @@
                     </div>
                 </div>
 
-                <div class="space-y-3">
-                    <Label>Sumber Sparepart</Label>
-                    <div class="grid grid-cols-3 gap-2">
+                <div class="space-y-4">
+                    <Label class="text-sm font-semibold text-foreground/80"
+                        >Sumber Sparepart</Label
+                    >
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {#each SPAREPART_SOURCES as src}
                             <label
-                                class={`
-                                flex items-center justify-center p-3 rounded-lg border cursor-pointer transition-all text-sm font-medium
-                                ${form.sparepartSource === src.v ? "bg-primary text-primary-foreground border-primary" : "bg-white hover:bg-gray-50"}
-                            `}
+                                class={cn(
+                                    "flex flex-col items-center justify-center p-4 rounded-2xl border cursor-pointer transition-all duration-200 text-sm font-semibold gap-2 group/card relative overflow-hidden",
+                                    form.sparepartSource === src.v
+                                        ? "bg-primary/5 text-primary border-primary ring-1 ring-primary/20 shadow-sm"
+                                        : "bg-background hover:bg-muted/50 border-muted hover:border-primary/50",
+                                )}
                             >
                                 <input
                                     type="radio"
                                     bind:group={form.sparepartSource}
                                     value={src.v}
                                     class="sr-only"
+                                    onchange={() => {
+                                        if (src.v === "customer") {
+                                            form.warranty = "none";
+                                            toast.info(
+                                                "Mode 'Bawa Sendiri' aktif. Estimasi biaya hanya mencakup jasa pasang/labor.",
+                                            );
+                                        }
+                                    }}
                                 />
-                                {src.l}
+                                <div
+                                    class={cn(
+                                        "p-2 rounded-full transition-colors",
+                                        form.sparepartSource === src.v
+                                            ? "bg-white shadow-sm"
+                                            : "bg-muted group-hover/card:bg-white",
+                                    )}
+                                >
+                                    {#if src.v === "none"}
+                                        <X class="h-5 w-5" />
+                                    {:else if src.v === "inventory"}
+                                        <Package class="h-5 w-5" />
+                                    {:else if src.v === "external"}
+                                        <Search class="h-5 w-5" />
+                                    {:else if src.v === "customer"}
+                                        <Wrench class="h-5 w-5" />
+                                    {/if}
+                                </div>
+                                <span>{src.l}</span>
+
+                                {#if form.sparepartSource === src.v}
+                                    <div
+                                        class="absolute inset-0 border-2 border-primary rounded-2xl pointer-events-none"
+                                    ></div>
+                                {/if}
                             </label>
                         {/each}
                     </div>
@@ -307,37 +366,42 @@
                     <div class="space-y-2 animate-in slide-in-from-top-2">
                         <Button
                             variant="outline"
-                            class="w-full justify-between"
+                            class="w-full justify-between h-11 rounded-xl border-dashed hover:border-primary hover:bg-primary/5"
                             onclick={() => (showInventoryModal = true)}
                         >
-                            <span>
-                                <Search class="h-4 w-4 inline mr-2" />
+                            <span class="flex items-center">
+                                <Search class="h-4 w-4 mr-2 text-primary" />
                                 Cari dari Inventory
                             </span>
-                            <span class="text-xs text-muted-foreground"
-                                >Klik untuk cari</span
+                            <span
+                                class="text-[10px] uppercase font-bold text-muted-foreground"
+                                >Klik untuk buka katalog</span
                             >
                         </Button>
                         {#if form.selectedParts.length > 0}
                             <div
-                                class="border rounded-lg overflow-hidden bg-white"
+                                class="border rounded-xl overflow-hidden bg-white shadow-sm"
                             >
                                 {#each form.selectedParts as part, index}
                                     <div
-                                        class="flex items-center justify-between p-3 border-b last:border-0"
+                                        class="flex items-center justify-between p-3 border-b last:border-0 hover:bg-muted/30 transition-colors"
                                     >
                                         <div>
-                                            <p class="text-sm font-medium">
+                                            <p class="text-sm font-bold">
                                                 {part.name}
                                             </p>
                                             <p
-                                                class="text-xs text-muted-foreground"
+                                                class="text-xs text-muted-foreground flex items-center gap-1"
                                             >
-                                                Stok: {part.stock}
+                                                <Package class="h-3 w-3" /> Stok:
+                                                {part.stock}
                                             </p>
                                         </div>
                                         <div class="flex items-center gap-3">
-                                            <Badge variant="secondary">
+                                            <Badge
+                                                variant="outline"
+                                                class="bg-primary/5 text-primary border-primary/10"
+                                            >
                                                 Rp {parseInt(
                                                     part.sellPrice || 0,
                                                 ).toLocaleString("id-ID")}
@@ -345,11 +409,11 @@
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                class="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                class="h-8 w-8 text-destructive hover:text-white hover:bg-destructive transition-all rounded-lg"
                                                 onclick={() =>
                                                     form.removePart(index)}
                                             >
-                                                <Trash2 class="h-4 w-4" />
+                                                <X class="h-4 w-4" />
                                             </Button>
                                         </div>
                                     </div>
@@ -359,28 +423,66 @@
                     </div>
                 {:else if form.sparepartSource === "external"}
                     <div
-                        class="grid md:grid-cols-2 gap-4 animate-in slide-in-from-top-2 p-3 bg-white border rounded-lg"
+                        class="grid md:grid-cols-2 gap-4 animate-in slide-in-from-top-2 p-4 bg-white border rounded-xl shadow-sm"
                     >
-                        <div class="space-y-2">
-                            <Label>Nama Sparepart</Label>
+                        <div class="space-y-2 text-left">
+                            <Label
+                                class="text-xs font-bold uppercase text-muted-foreground"
+                                >Nama Sparepart</Label
+                            >
                             <Input
                                 bind:value={form.extPartName}
                                 placeholder="Contoh: LCD KW Super"
+                                class="h-11 rounded-lg"
                             />
                         </div>
-                        <div class="space-y-2">
-                            <Label>Harga Beli (Modal)</Label>
-                            <CurrencyInput bind:value={form.extPartBuyPrice} />
+                        <div class="space-y-2 text-left">
+                            <Label
+                                class="text-xs font-bold uppercase text-muted-foreground"
+                                >Harga Beli (Modal)</Label
+                            >
+                            <CurrencyInput
+                                bind:value={form.extPartBuyPrice}
+                                class="h-11 rounded-lg"
+                            />
+                        </div>
+                    </div>
+                {:else if form.sparepartSource === "customer"}
+                    <div
+                        class="space-y-3 animate-in slide-in-from-top-2 p-4 bg-orange-50/50 border border-orange-200 border-dashed rounded-xl"
+                    >
+                        <div class="flex items-start gap-3">
+                            <div class="p-2 bg-orange-100 rounded-lg">
+                                <AlertCircle class="h-5 w-5 text-orange-600" />
+                            </div>
+                            <div class="space-y-1">
+                                <h5 class="text-sm font-bold text-orange-800">
+                                    Part Disediakan Pelanggan
+                                </h5>
+                                <p
+                                    class="text-xs text-orange-700 leading-relaxed"
+                                >
+                                    Customer membawa sparepart sendiri. Pastikan
+                                    "Total Biaya" di atas <b
+                                        >hanya jasa pasang/labor</b
+                                    >. <br />
+                                    Sesuai kebijakan: <b>Tanpa Garansi</b> untuk
+                                    sparepart yang dibawa sendiri.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 {:else}
                     <div class="space-y-2 animate-in slide-in-from-top-2">
-                        <Label>Keterangan Pengerjaan</Label>
+                        <Label
+                            class="text-xs font-bold uppercase text-muted-foreground"
+                            >Keterangan Pengerjaan</Label
+                        >
                         <Textarea
                             bind:value={form.serviceDescription}
-                            placeholder="Jumper, Cleaning, Software..."
+                            placeholder="Jumper, Cleaning, Software, Re-flek, dll..."
                             rows={2}
-                            class="bg-white"
+                            class="bg-white rounded-xl"
                         />
                     </div>
                 {/if}

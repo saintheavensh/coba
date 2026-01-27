@@ -1,5 +1,6 @@
 import { db } from "../../db";
 import { sales, saleItems, productBatches, products, activityLogs, members, salePayments } from "../../db/schema";
+import { ActivityLogService } from "../../lib/activity-log.service";
 import { eq, and, gt, asc } from "drizzle-orm";
 import { SalesRepository } from "./sales.repository";
 
@@ -216,14 +217,13 @@ export class SalesService {
             }
 
             // 3. Log
-            await tx.insert(activityLogs).values({
+            await ActivityLogService.log({
                 userId: data.userId,
                 action: "CREATE",
                 entityType: "sale",
                 entityId: saleId,
-                description: `Created sale ${saleId} amount ${finalAmount}`,
-                newValue: JSON.stringify(data),
-                createdAt: new Date()
+                description: `Created sale ${saleId} for total ${finalAmount}`,
+                details: { newValue: data }
             });
         });
 

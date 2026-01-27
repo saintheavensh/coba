@@ -15,8 +15,8 @@ export class InventoryService {
         this.categoryRepo = new CategoriesRepository();
     }
 
-    async getAllProducts(deviceId?: string) {
-        return await this.repo.findAll(deviceId);
+    async getAllProducts(deviceId?: string, search?: string, categoryId?: string) {
+        return await this.repo.findAll(deviceId, search, categoryId);
     }
 
     async getProductById(id: string) {
@@ -96,5 +96,15 @@ export class InventoryService {
 
     async deleteVariant(id: string) {
         return await this.repo.deleteVariant(id);
+    }
+
+    // Bulk update minimum stock for all products in a category
+    async bulkUpdateMinStock(categoryId: string, minStock: number): Promise<number> {
+        return await this.repo.updateMinStockByCategory(categoryId, minStock);
+    }
+
+    // Get count of products in a category
+    async getProductCountByCategory(categoryId: string): Promise<number> {
+        return await this.repo.countByCategory(categoryId);
     }
 }

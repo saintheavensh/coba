@@ -19,6 +19,7 @@ export const users = pgTable("users", {
     role: text("role").notNull().references(() => roles.id).default("teknisi"),
     name: text("name").notNull(),
     image: text("image"), // Profile photo URL (optional)
+    commissionConfig: json("commission_config"), // { type: 'percent' | 'fixed', value: number, enabled: boolean }
     isActive: boolean("is_active").default(true),
     createdAt: timestamp("created_at").defaultNow(),
 });
@@ -237,6 +238,8 @@ export const services = pgTable("services", {
 
     warranty: text("warranty"),
     warrantyExpiryDate: timestamp("warranty_expiry_date"),
+    priority: text("priority", { enum: ["standard", "wait"] }).default("standard"),
+    isDirectComplete: boolean("is_direct_complete").default(false),
 });
 
 // ============================================
@@ -246,7 +249,7 @@ export const services = pgTable("services", {
 export const activityLogs = pgTable("activity_logs", {
     id: serial("id").primaryKey(),
     userId: text("user_id").notNull().references(() => users.id),
-    action: text("action", { enum: ["CREATE", "UPDATE", "DELETE", "ASSIGN", "STATUS_CHANGE"] }).notNull(),
+    action: text("action", { enum: ["CREATE", "UPDATE", "DELETE", "ASSIGN", "STATUS_CHANGE", "LOGIN", "LOGOUT", "EXPORT"] }).notNull(),
     entityType: text("entity_type").notNull(), // service, sale, purchase, product
     entityId: text("entity_id").notNull(),
     oldValue: json("old_value"),
@@ -609,3 +612,89 @@ export const defectiveItemsRelations = relations(defectiveItems, ({ one }) => ({
         references: [suppliers.id],
     }),
 }));
+
+// ============================================
+// OPERATIONAL COSTS
+// ============================================
+
+export const operationalCosts = pgTable("operational_costs", {
+    id: serial("id").primaryKey(),
+    category: text("category").notNull(), // "Listrik", "Sewa", "Konsumsi", "Internet", "Lainnya"
+    amount: integer("amount").notNull(),
+    date: timestamp("date").defaultNow(),
+    description: text("description"),
+    userId: text("user_id").references(() => users.id),
+    createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const operationalCostsRelations = relations(operationalCosts, ({ one }) => ({
+    user: one(users, {
+        fields: [operationalCosts.userId],
+        references: [users.id],
+    }),
+}));
+
+// ============================================
+// SERVICE TOOLS (Assets)
+// ============================================
+
+// ============================================
+// STOCK OPNAME
+// ============================================
+
+export const stockOpnameSessions = pgTable("stock_opname_sessions", {
+    id: text("id").primaryKey(), // SO-YYYYMMDD-XXX
+    status: text("status", { enum: ["draft", "completed", "cancelled"] }).default("draft"),
+    userId: text("user_id").notNull().references(() => users.id),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").defaultNow(),
+    completedAt: timestamp("completed_at"),
+});
+
+export const stockOpnameItems = pgTable("stock_opname_items", {
+    id: serial("id").primaryKey(),
+    sessionId: text("session_id").notNull().references(() => stockOpnameSessions.id, { onDelete: 'cascade' }),
+    productId: text("product_id").notNull().references(() => products.id),
+    variantName: text("variant_name"), // e.g. "iPhone 13 - Black"
+    batchId: text("batch_id").references(() => productBatches.id), // Nullable if grouped
+    systemStock: integer("system_stock").notNull(),
+    physicalStock: integer("physical_stock"),
+    difference: integer("difference"), // physical - system
+    adjustmentReason: text("adjustment_reason"),
+});
+
+export const stockOpnameSessionsRelations = relations(stockOpnameSessions, ({ one, many }) => ({
+    user: one(users, {
+        fields: [stockOpnameSessions.userId],
+        references: [users.id],
+    }),
+    items: many(stockOpnameItems),
+}));
+
+export const stockOpnameItemsRelations = relations(stockOpnameItems, ({ one }) => ({
+    session: one(stockOpnameSessions, {
+        fields: [stockOpnameItems.sessionId],
+        references: [stockOpnameSessions.id],
+    }),
+    product: one(products, {
+        fields: [stockOpnameItems.productId],
+        references: [products.id],
+    }),
+    batch: one(productBatches, {
+        fields: [stockOpnameItems.batchId],
+        references: [productBatches.id],
+    }),
+}));
+
+export const serviceTools = pgTable("service_tools", {
+    id: text("id").primaryKey(), // TOOL-XXX
+    name: text("name").notNull(),
+    brand: text("brand"),
+    qty: integer("qty").notNull().default(1),
+    condition: text("condition", { enum: ["good", "damaged", "lost"] }).default("good"),
+    purchaseDate: timestamp("purchase_date"),
+    price: integer("price"), // Asset value
+    notes: text("notes"),
+    createdAt: timestamp("created_at").defaultNow(),
+});
+

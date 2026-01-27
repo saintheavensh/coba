@@ -1,9 +1,42 @@
 import { db } from "../../db";
 import { products, productBatches, categories, productDeviceCompatibility, productVariants } from "../../db/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql, or, ilike } from "drizzle-orm";
 
 export class InventoryRepository {
-    async findAll(deviceId?: string) {
+    async findAll(deviceId?: string, search?: string, categoryId?: string) {
+        let whereClause: any = undefined;
+
+        const conditions = [];
+
+        if (deviceId) {
+            conditions.push(
+                sql`${products.id} IN (
+                    SELECT ${productDeviceCompatibility.productId} 
+                    FROM ${productDeviceCompatibility} 
+                    WHERE ${productDeviceCompatibility.deviceId} = ${deviceId}
+                )`
+            );
+        }
+
+        if (categoryId && categoryId !== "all") {
+            conditions.push(eq(products.categoryId, categoryId));
+        }
+
+        if (search && search.trim()) {
+            const term = search.trim();
+            conditions.push(
+                or(
+                    sql`${products.name} || ' ' || ${products.code} ILIKE ${"%" + term + "%"}`,
+                    ilike(products.name, `%${term}%`),
+                    ilike(products.code, `%${term}%`)
+                )
+            );
+        }
+
+        if (conditions.length > 0) {
+            whereClause = and(...conditions);
+        }
+
         const queryOptions: any = {
             with: {
                 category: true,
@@ -14,18 +47,23 @@ export class InventoryRepository {
                 },
                 variants: true,
             },
-            orderBy: [desc(products.name)]
+            where: whereClause
         };
 
-        if (deviceId) {
-            // Filter by device compatibility
-            queryOptions.where = (products: any, { inArray, eq }: any) =>
-                inArray(
-                    products.id,
-                    db.select({ id: productDeviceCompatibility.productId })
-                        .from(productDeviceCompatibility)
-                        .where(eq(productDeviceCompatibility.deviceId, deviceId))
-                );
+        // Add Relevance Sorting if search is provided
+        if (search && search.trim()) {
+            const term = search.trim();
+            queryOptions.orderBy = [
+                sql`CASE 
+                    WHEN ${products.name} ILIKE ${term} THEN 1
+                    WHEN ${products.name} ILIKE ${term + "%"} THEN 2
+                    WHEN ${products.name} ILIKE ${"%" + term + "%"} THEN 3
+                    ELSE 4
+                END`,
+                products.name
+            ];
+        } else {
+            queryOptions.orderBy = [desc(products.name)];
         }
 
         const items = await db.query.products.findMany(queryOptions);
@@ -107,6 +145,23 @@ export class InventoryRepository {
 
     async deleteProduct(id: string) {
         return await db.delete(products).where(eq(products.id, id));
+    }
+
+    // Bulk update minStock for all products in a category
+    async updateMinStockByCategory(categoryId: string, minStock: number): Promise<number> {
+        const result = await db.update(products)
+            .set({ minStock })
+            .where(eq(products.categoryId, categoryId))
+            .returning();
+        return result.length;
+    }
+
+    // Count products by category
+    async countByCategory(categoryId: string): Promise<number> {
+        const result = await db.select({ count: sql<number>`count(*)` })
+            .from(products)
+            .where(eq(products.categoryId, categoryId));
+        return Number(result[0]?.count || 0);
     }
 
     async findRecentVariantIdsBySupplier(supplierId: string) {

@@ -39,6 +39,7 @@
         ScanBarcode,
         Camera, // Keep if used, though not seen in use in logic, maybe in modal
         Upload, // Keep if used
+        Plus,
     } from "lucide-svelte";
     import { goto } from "$app/navigation";
     import { Separator } from "$lib/components/ui/separator";
@@ -531,18 +532,121 @@
         selectedServiceForReassign = null;
         loadData();
     }
+    // Derived Status Counts
+    let statusCounts = $derived.by(() => {
+        const counts: Record<string, number> = {
+            antrian: 0,
+            dicek: 0,
+            konfirmasi: 0,
+            dikerjakan: 0,
+            selesai: 0,
+            batal: 0,
+            diambil: 0,
+        };
+        serviceOrders.forEach((o) => {
+            if (counts[o.status] !== undefined) counts[o.status]++;
+        });
+        return counts;
+    });
+
+    const statusTiles = $derived([
+        {
+            id: "antrian",
+            label: "Antrian",
+            count: statusCounts.antrian,
+            icon: "🕒",
+            color: "text-blue-600",
+            bg: "bg-blue-50",
+        },
+        {
+            id: "dicek",
+            label: "Dicek",
+            count: statusCounts.dicek,
+            icon: "🔍",
+            color: "text-indigo-600",
+            bg: "bg-indigo-50",
+        },
+        {
+            id: "konfirmasi",
+            label: "Konfirmasi",
+            count: statusCounts.konfirmasi,
+            icon: "💬",
+            color: "text-amber-600",
+            bg: "bg-amber-50",
+        },
+        {
+            id: "dikerjakan",
+            label: "Proses",
+            count: statusCounts.dikerjakan,
+            icon: "🔧",
+            color: "text-purple-600",
+            bg: "bg-purple-50",
+        },
+        {
+            id: "selesai",
+            label: "Selesai",
+            count: statusCounts.selesai,
+            icon: "✅",
+            color: "text-emerald-600",
+            bg: "bg-emerald-50",
+        },
+    ]);
 </script>
 
 <Card>
-    <CardHeader class="flex flex-row items-center justify-between">
+    <CardHeader class="flex flex-row items-center justify-between pb-2">
         <div>
-            <CardTitle>Daftar Service Order</CardTitle>
+            <CardTitle class="text-2xl font-bold">Service Order</CardTitle>
             <CardDescription>
-                Kelola semua service handphone customer.
+                Monitor dan kelola alur kerja reparasi secara real-time.
             </CardDescription>
         </div>
+        <div class="flex gap-2">
+            <Button
+                variant="outline"
+                size="sm"
+                onclick={loadData}
+                disabled={loading}
+            >
+                <Play class={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                Update Data
+            </Button>
+            <Button size="sm" href="/service/new">
+                <Plus class="h-4 w-4 mr-2" /> Service Baru
+            </Button>
+        </div>
     </CardHeader>
-    <CardContent class="space-y-4">
+    <CardContent class="space-y-6">
+        <!-- Dashboard Tiles -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {#each statusTiles as tile}
+                <button
+                    class={`p-4 rounded-2xl border-2 transition-all text-left group ${filterStatus === tile.id ? "border-primary shadow-md ring-2 ring-primary/10" : "border-transparent bg-muted/30 hover:bg-muted hover:border-muted-foreground/20"}`}
+                    onclick={() => (filterStatus = tile.id)}
+                >
+                    <div class="flex justify-between items-start">
+                        <div
+                            class={`p-2 rounded-xl ${tile.bg} ${tile.color} text-lg`}
+                        >
+                            {tile.icon}
+                        </div>
+                        <span class="text-2xl font-black">{tile.count}</span>
+                    </div>
+                    <div class="mt-4">
+                        <p
+                            class="text-xs font-bold text-muted-foreground uppercase tracking-tight"
+                        >
+                            {tile.label}
+                        </p>
+                        <div
+                            class="h-1 w-8 bg-primary/20 rounded-full mt-1 group-hover:w-12 transition-all"
+                        ></div>
+                    </div>
+                </button>
+            {/each}
+        </div>
+
+        <Separator />
         <!-- Filters -->
         <div class="flex flex-col sm:flex-row gap-4">
             <div class="relative flex-1 md:max-w-sm flex gap-2">

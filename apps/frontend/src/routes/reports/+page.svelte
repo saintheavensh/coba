@@ -49,6 +49,8 @@
         type ServiceReport,
         type TechnicianReport,
         type PartsUsageReport,
+        type ProfitAndLoss,
+        type StockValueReport,
     } from "$lib/services/reports.service";
 
     // State Filter
@@ -106,6 +108,23 @@
             ReportsService.getPartsUsageReport({ startDate, endDate }),
     }));
 
+    // Profit & Loss Query
+    const profitLossQuery = createQuery(() => ({
+        queryKey: ["reports", "profit-loss", startDate, endDate],
+        queryFn: () => ReportsService.getProfitAndLoss({ startDate, endDate }),
+    }));
+
+    // Stock Value Query
+    const stockValueQuery = createQuery(() => ({
+        queryKey: ["reports", "stock-value"],
+        queryFn: () => ReportsService.getStockValueReport(),
+    }));
+
+    const stockAdjustmentsQuery = createQuery(() => ({
+        queryKey: ["reports", "stock-adjustments"],
+        queryFn: () => ReportsService.getStockAdjustments(),
+    }));
+
     // Derived from queries - Sales
     let salesSummary = $derived<SalesSummary>(
         salesSummaryQuery.data || {
@@ -161,14 +180,26 @@
         partsUsage.reduce((sum, p) => sum + p.subtotal, 0),
     );
 
+    // Derived from queries - P&L
+    let profitLoss = $derived<ProfitAndLoss | null>(
+        profitLossQuery.data || null,
+    );
+
+    // Derived from queries - Stock Value
+    let stockValue = $derived<StockValueReport | null>(
+        stockValueQuery.data || null,
+    );
+
     // Loading state
     let isLoading = $derived(
         salesSummaryQuery.isPending ||
             purchasesSummaryQuery.isPending ||
-            purchasesSummaryQuery.isPending ||
             servicesStatsQuery.isPending ||
             techniciansQuery.isPending ||
-            partsUsageQuery.isPending,
+            partsUsageQuery.isPending ||
+            profitLossQuery.isPending ||
+            stockValueQuery.isPending ||
+            stockAdjustmentsQuery.isPending,
     );
 
     // Helper functions
@@ -217,6 +248,46 @@
         if (total === 0) return 0;
         return Math.round((count / total) * 100);
     }
+
+    function exportToCSV() {
+        let content = "";
+        let filename = `report_${activeTab}_${startDate}_to_${endDate}.csv`;
+
+        if (activeTab === "sales") {
+            content = "Tanggal,No Nota,Items,Total,HPP,Profit\n";
+            salesTransactions.forEach((t) => {
+                content += `${t.date},${t.nota},${t.items},${t.total},${t.hpp},${t.profit}\n`;
+            });
+        } else if (activeTab === "services") {
+            content = "Tanggal,No Service,Customer,Device,Status,Biaya\n";
+            servicesTransactions.forEach((s) => {
+                content += `${s.date},${s.no},${s.customerName},${s.deviceInfo},${s.status},${s.actualCost}\n`;
+            });
+        } else if (activeTab === "stock") {
+            content = "Kategori,Stock,Nilai HPP\n";
+            stockValue?.categories.forEach((c) => {
+                content += `${c.name},${c.stock},${c.value}\n`;
+            });
+        } else if (activeTab === "adjustments") {
+            content =
+                "Tanggal,Produk,Varian,Sistem,Fisik,Selisih,Petugas,Alasan\n";
+            (stockAdjustmentsQuery.data || []).forEach((adj) => {
+                content += `${adj.completedAt},${adj.productName},${adj.variantName || "-"},${adj.systemStock},${adj.physicalStock},${adj.difference},${adj.userName},${adj.reason || "-"}\n`;
+            });
+        }
+
+        const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = "hidden";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
 </script>
 
 <div class="space-y-6">
@@ -231,7 +302,7 @@
             </p>
         </div>
         <div class="flex items-center gap-2">
-            <Button variant="outline">
+            <Button variant="outline" onclick={exportToCSV}>
                 <Download class="mr-2 h-4 w-4" />
                 Export CSV
             </Button>
@@ -275,16 +346,18 @@
 
     <!-- Tabbed Reports -->
     <Tabs bind:value={activeTab} class="space-y-4">
-        <TabsList class="grid w-full grid-cols-5">
+        <TabsList class="grid w-full grid-cols-7">
+            <TabsTrigger value="profit-loss" class="flex items-center gap-2">
+                <DollarSign class="h-4 w-4" />
+                <span>Laba Rugi</span>
+            </TabsTrigger>
             <TabsTrigger value="sales" class="flex items-center gap-2">
                 <TrendingUp class="h-4 w-4" />
-                <span class="hidden sm:inline">Penjualan</span>
-                <span class="sm:hidden">Sales</span>
+                <span>Penjualan</span>
             </TabsTrigger>
             <TabsTrigger value="purchases" class="flex items-center gap-2">
                 <Package class="h-4 w-4" />
-                <span class="hidden sm:inline">Pembelian</span>
-                <span class="sm:hidden">Purchase</span>
+                <span>Pembelian</span>
             </TabsTrigger>
             <TabsTrigger value="services" class="flex items-center gap-2">
                 <Wrench class="h-4 w-4" />
@@ -298,7 +371,163 @@
                 <ClipboardList class="h-4 w-4" />
                 <span>Sparepart</span>
             </TabsTrigger>
+            <TabsTrigger value="stock" class="flex items-center gap-2">
+                <Package class="h-4 w-4" />
+                <span>Nilai Stok</span>
+            </TabsTrigger>
+            <TabsTrigger value="adjustments" class="flex items-center gap-2">
+                <ClipboardList class="h-4 w-4" />
+                <span>Audit Stok</span>
+            </TabsTrigger>
         </TabsList>
+
+        <!-- P&L Tab -->
+        <TabsContent value="profit-loss" class="space-y-4">
+            {#if profitLoss}
+                <div class="grid gap-4 md:grid-cols-2">
+                    <Card class="border-blue-200 bg-blue-50/10">
+                        <CardHeader>
+                            <CardTitle>Rangkuman Pendapatan</CardTitle>
+                        </CardHeader>
+                        <CardContent class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-medium"
+                                    >Pendapatan Penjualan</span
+                                >
+                                <span class="font-bold"
+                                    >{formatCurrency(
+                                        profitLoss.revenue.sales,
+                                    )}</span
+                                >
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-medium"
+                                    >Pendapatan Service</span
+                                >
+                                <span class="font-bold"
+                                    >{formatCurrency(
+                                        profitLoss.revenue.services,
+                                    )}</span
+                                >
+                            </div>
+                            <Separator />
+                            <div class="flex justify-between items-center">
+                                <span class="text-lg font-bold text-blue-600"
+                                    >Total Pendapatan</span
+                                >
+                                <span class="text-lg font-black text-blue-600"
+                                    >{formatCurrency(
+                                        profitLoss.revenue.total,
+                                    )}</span
+                                >
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card class="border-red-200 bg-red-50/10">
+                        <CardHeader>
+                            <CardTitle>Rangkuman Pengeluaran</CardTitle>
+                        </CardHeader>
+                        <CardContent class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-medium"
+                                    >HPP Barang (Sales)</span
+                                >
+                                <span class="font-bold text-red-600"
+                                    >({formatCurrency(
+                                        profitLoss.cogs.sales,
+                                    )})</span
+                                >
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-medium"
+                                    >HPP Sparepart (Services)</span
+                                >
+                                <span class="font-bold text-red-600"
+                                    >({formatCurrency(
+                                        profitLoss.cogs.services,
+                                    )})</span
+                                >
+                            </div>
+                            <div
+                                class="flex justify-between items-center text-red-600"
+                            >
+                                <span class="text-sm font-medium"
+                                    >Komisi Teknisi</span
+                                >
+                                <span class="font-bold"
+                                    >({formatCurrency(
+                                        profitLoss.expenses.commissions,
+                                    )})</span
+                                >
+                            </div>
+                            <div
+                                class="flex justify-between items-center text-red-600"
+                            >
+                                <span class="text-sm font-medium"
+                                    >Biaya Operasional</span
+                                >
+                                <span class="font-bold"
+                                    >({formatCurrency(
+                                        profitLoss.expenses.operational,
+                                    )})</span
+                                >
+                            </div>
+                            <Separator />
+                            <div class="flex justify-between items-center">
+                                <span class="text-lg font-bold text-red-600"
+                                    >Total Pengeluaran</span
+                                >
+                                <span class="text-lg font-black text-red-600"
+                                    >({formatCurrency(
+                                        profitLoss.cogs.total +
+                                            profitLoss.expenses.total,
+                                    )})</span
+                                >
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card
+                        class="md:col-span-2 border-2 border-primary bg-primary/5 shadow-inner"
+                    >
+                        <CardContent class="p-8">
+                            <div
+                                class="flex flex-col items-center justify-center space-y-2"
+                            >
+                                <h4
+                                    class="text-xl font-bold uppercase tracking-wider text-muted-foreground"
+                                >
+                                    Laba Bersih (Net Profit)
+                                </h4>
+                                <div
+                                    class={`text-5xl font-black ${profitLoss.netProfit >= 0 ? "text-green-600" : "text-red-600"}`}
+                                >
+                                    {formatCurrency(profitLoss.netProfit)}
+                                </div>
+                                <div
+                                    class="flex items-center gap-2 font-semibold"
+                                >
+                                    <TrendingUp class="h-4 w-4" />
+                                    {Math.round(
+                                        (profitLoss.netProfit /
+                                            profitLoss.revenue.total) *
+                                            100,
+                                    )}% Margin Keuntungan
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            {:else}
+                <div
+                    class="h-64 flex items-center justify-center text-muted-foreground bg-muted/20 rounded-xl border-2 border-dashed"
+                >
+                    Pilih periode dan terapkan filter untuk melihat Laporan Laba
+                    Rugi
+                </div>
+            {/if}
+        </TabsContent>
 
         <!-- Sales Tab -->
         <TabsContent value="sales" class="space-y-4">
@@ -1093,6 +1322,212 @@
                                     >
                                         Tidak ada penggunaan sparepart dalam
                                         periode ini
+                                    </TableCell>
+                                </TableRow>
+                            {/if}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <!-- Stock Value Tab -->
+        <TabsContent value="stock" class="space-y-4">
+            {#if stockValue}
+                <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Card>
+                        <CardHeader class="pb-2">
+                            <CardTitle
+                                class="text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                                >Total Item</CardTitle
+                            >
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-2xl font-bold">
+                                {stockValue.totalItems}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader class="pb-2">
+                            <CardTitle
+                                class="text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                                >Total Stok (Qty)</CardTitle
+                            >
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-2xl font-bold">
+                                {stockValue.totalStock}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card class="border-blue-200">
+                        <CardHeader class="pb-2">
+                            <CardTitle
+                                class="text-xs font-bold uppercase tracking-wider text-blue-600"
+                                >Nilai Aset (HPP)</CardTitle
+                            >
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-2xl font-bold text-blue-600">
+                                {formatCurrency(stockValue.totalValueHPP)}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card class="border-green-200">
+                        <CardHeader class="pb-2">
+                            <CardTitle
+                                class="text-xs font-bold uppercase tracking-wider text-green-600"
+                                >Nilai Jual (Omzet)</CardTitle
+                            >
+                        </CardHeader>
+                        <CardContent>
+                            <div class="text-2xl font-bold text-green-600">
+                                {formatCurrency(stockValue.totalValueSell)}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Nilai Stok Per Kategori</CardTitle>
+                        <CardDescription
+                            >Visualisasi aset inventori yang sedang mengendap.</CardDescription
+                        >
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Kategori</TableHead>
+                                    <TableHead class="text-center"
+                                        >Jumlah Stok</TableHead
+                                    >
+                                    <TableHead class="text-right"
+                                        >Total Nilai (HPP)</TableHead
+                                    >
+                                    <TableHead class="text-right"
+                                        >Presentase</TableHead
+                                    >
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {#each stockValue.categories as c}
+                                    <TableRow>
+                                        <TableCell class="font-medium"
+                                            >{c.name}</TableCell
+                                        >
+                                        <TableCell class="text-center"
+                                            >{c.stock}</TableCell
+                                        >
+                                        <TableCell class="text-right font-bold"
+                                            >{formatCurrency(
+                                                c.value,
+                                            )}</TableCell
+                                        >
+                                        <TableCell class="text-right">
+                                            {Math.round(
+                                                (c.value /
+                                                    stockValue.totalValueHPP) *
+                                                    100,
+                                            )}%
+                                        </TableCell>
+                                    </TableRow>
+                                {/each}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            {:else}
+                <div
+                    class="h-64 flex items-center justify-center text-muted-foreground bg-muted/20 rounded-xl border-2 border-dashed"
+                >
+                    Menghitung nilai stok...
+                </div>
+            {/if}
+        </TabsContent>
+        <!-- Stock Value Tab remains same... -->
+
+        <!-- Audit Stok Tab -->
+        <TabsContent value="adjustments" class="space-y-4">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Riwayat Penyesuaian Stok (Audit)</CardTitle>
+                    <CardDescription>
+                        Daftar selisih stok yang ditemukan saat opname dan telah
+                        disesuaikan ke sistem.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Tanggal</TableHead>
+                                <TableHead>Produk</TableHead>
+                                <TableHead>Varian</TableHead>
+                                <TableHead class="text-center">Sistem</TableHead
+                                >
+                                <TableHead class="text-center">Fisik</TableHead>
+                                <TableHead class="text-center"
+                                    >Selisih</TableHead
+                                >
+                                <TableHead>Petugas</TableHead>
+                                <TableHead>Alasan / Catatan</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {#each stockAdjustmentsQuery.data || [] as adj}
+                                <TableRow>
+                                    <TableCell
+                                        >{formatDate(
+                                            adj.completedAt,
+                                        )}</TableCell
+                                    >
+                                    <TableCell class="font-medium"
+                                        >{adj.productName}</TableCell
+                                    >
+                                    <TableCell
+                                        >{adj.variantName || "-"}</TableCell
+                                    >
+                                    <TableCell class="text-center font-mono"
+                                        >{adj.systemStock}</TableCell
+                                    >
+                                    <TableCell class="text-center font-mono"
+                                        >{adj.physicalStock}</TableCell
+                                    >
+                                    <TableCell class="text-center">
+                                        {#if adj.difference > 0}
+                                            <Badge
+                                                class="bg-blue-100 text-blue-700 hover:bg-blue-100"
+                                                >+{adj.difference} (Surplus)</Badge
+                                            >
+                                        {:else}
+                                            <Badge
+                                                variant="destructive"
+                                                class="bg-red-100 text-red-700 hover:bg-red-100"
+                                                >{adj.difference} (Loss)</Badge
+                                            >
+                                        {/if}
+                                    </TableCell>
+                                    <TableCell
+                                        >{adj.userName || "System"}</TableCell
+                                    >
+                                    <TableCell
+                                        class="text-sm text-muted-foreground italic"
+                                    >
+                                        {adj.reason || "-"}
+                                    </TableCell>
+                                </TableRow>
+                            {/each}
+                            {#if (stockAdjustmentsQuery.data || []).length === 0}
+                                <TableRow>
+                                    <TableCell
+                                        colspan={8}
+                                        class="text-center py-10 text-muted-foreground"
+                                    >
+                                        Tidak ada riwayat selisih stok
+                                        ditemukan.
                                     </TableCell>
                                 </TableRow>
                             {/if}

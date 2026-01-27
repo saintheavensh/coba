@@ -59,6 +59,15 @@
     let manualNameParts = $state<string[]>([]); // Parts not matching devices
     let nameSuggestions = $state<{ device: any; matched: string }[]>([]);
     let deviceSearchQuery = $state(""); // Search within suggestions dropdown
+    let debouncedDeviceSearch = $state("");
+    let deviceSearchTimeout: any;
+
+    $effect(() => {
+        if (deviceSearchTimeout) clearTimeout(deviceSearchTimeout);
+        deviceSearchTimeout = setTimeout(() => {
+            debouncedDeviceSearch = deviceSearchQuery;
+        }, 300);
+    });
 
     // Queries
     const categoriesQuery = createQuery(() => ({
@@ -67,8 +76,8 @@
     }));
 
     const devicesQuery = createQuery(() => ({
-        queryKey: ["devices"],
-        queryFn: () => InventoryService.getDevices(),
+        queryKey: ["devices", debouncedDeviceSearch],
+        queryFn: () => InventoryService.getDevices(debouncedDeviceSearch, 500),
     }));
 
     // Variant Logic
@@ -208,42 +217,87 @@
         const suggestions: { device: any; matched: string }[] = [];
         const newManualParts: string[] = [];
         let currentBrand = "";
+        const addedDeviceIds = new Set<string>();
 
         for (const part of parts) {
             const trimmed = part.trim();
             if (!trimmed) continue;
 
-            // Try to find exact match with brand + model
-            let match = devices.find((d: any) => {
+            const searchTerm = trimmed.toLowerCase();
+
+            // Try to find exact match with brand + model first
+            let exactMatch = devices.find((d: any) => {
                 const fullName = `${d.brand} ${d.model}`.toLowerCase();
-                return fullName === trimmed.toLowerCase();
+                return fullName === searchTerm;
             });
 
-            // If no exact match, try model-only match with current brand context
-            if (!match && currentBrand) {
-                match = devices.find((d: any) => {
+            // If no exact match, try model-only exact match with current brand context
+            if (!exactMatch && currentBrand) {
+                exactMatch = devices.find((d: any) => {
                     return (
                         d.brand.toLowerCase() === currentBrand.toLowerCase() &&
-                        d.model.toLowerCase() === trimmed.toLowerCase()
+                        d.model.toLowerCase() === searchTerm
                     );
                 });
             }
 
-            // If still no match, try model-only match across all devices
-            if (!match) {
-                match = devices.find(
-                    (d: any) => d.model.toLowerCase() === trimmed.toLowerCase(),
+            // If still no exact match, try model-only exact match across all devices
+            if (!exactMatch) {
+                exactMatch = devices.find(
+                    (d: any) => d.model.toLowerCase() === searchTerm,
                 );
             }
 
-            if (match) {
-                currentBrand = match.brand; // Set context for next parts
-                if (!compatibility.includes(match.id)) {
-                    suggestions.push({ device: match, matched: trimmed });
+            if (exactMatch) {
+                currentBrand = exactMatch.brand; // Set context for next parts
+                if (
+                    !compatibility.includes(exactMatch.id) &&
+                    !addedDeviceIds.has(exactMatch.id)
+                ) {
+                    suggestions.push({ device: exactMatch, matched: trimmed });
+                    addedDeviceIds.add(exactMatch.id);
                 }
             } else {
-                // No match - this is a manual part
-                newManualParts.push(trimmed);
+                // No exact match - find partial matches (substring search)
+                const partialMatches = devices.filter((d: any) => {
+                    if (
+                        compatibility.includes(d.id) ||
+                        addedDeviceIds.has(d.id)
+                    )
+                        return false;
+
+                    const fullName = `${d.brand} ${d.model}`.toLowerCase();
+                    const model = d.model.toLowerCase();
+                    const brand = d.brand.toLowerCase();
+                    const code = (d.code || "").toLowerCase();
+
+                    return (
+                        fullName.includes(searchTerm) ||
+                        model.includes(searchTerm) ||
+                        brand.includes(searchTerm) ||
+                        code.includes(searchTerm)
+                    );
+                });
+
+                if (partialMatches.length > 0) {
+                    // Add all partial matches as suggestions
+                    for (const match of partialMatches) {
+                        if (!addedDeviceIds.has(match.id)) {
+                            suggestions.push({
+                                device: match,
+                                matched: trimmed,
+                            });
+                            addedDeviceIds.add(match.id);
+                        }
+                    }
+                    // Update brand context with the first match
+                    currentBrand = partialMatches[0].brand;
+                    // NOTE: When there are partial matches, do NOT add to manualNameParts
+                    // The user will choose from suggestions which device(s) to add
+                } else {
+                    // No match at all - this is a manual part
+                    newManualParts.push(trimmed);
+                }
             }
         }
 
@@ -264,6 +318,8 @@
             (s) => s.device.id !== suggestion.device.id,
         );
         deviceSearchQuery = ""; // Reset search when adding
+        // Update the name field to use proper format: Brand Model / Model / Different Brand Model
+        updateNameFromCompatibility();
     }
 
     // Apply all suggestions at once (GO button)
@@ -274,20 +330,31 @@
             (s) => !deviceIds.includes(s.device.id),
         );
         deviceSearchQuery = "";
+        // Update the name field to use proper format
+        updateNameFromCompatibility();
     }
 
     // Filter suggestions based on search query
     let filteredSuggestions = $derived(
         deviceSearchQuery.trim()
-            ? nameSuggestions.filter((s) => {
-                  const term = deviceSearchQuery.trim().toLowerCase();
-                  return (
-                      s.device.brand.toLowerCase().includes(term) ||
-                      s.device.model.toLowerCase().includes(term) ||
-                      (s.device.code &&
-                          s.device.code.toLowerCase().includes(term))
-                  );
-              })
+            ? [
+                  ...(devicesQuery.data || []).map((d: any) => ({
+                      device: d,
+                      matched: deviceSearchQuery.trim(),
+                  })),
+                  ...nameSuggestions.filter((s) => {
+                      const term = deviceSearchQuery.trim().toLowerCase();
+                      return (
+                          s.device.brand.toLowerCase().includes(term) ||
+                          s.device.model.toLowerCase().includes(term) ||
+                          (s.device.code &&
+                              s.device.code.toLowerCase().includes(term))
+                      );
+                  }),
+              ].filter(
+                  (v, i, a) =>
+                      a.findIndex((t) => t.device.id === v.device.id) === i,
+              )
             : nameSuggestions,
     );
 
@@ -538,11 +605,11 @@
                         <!-- Device Suggestions Dropdown -->
                         {#if nameSuggestions.length > 0}
                             <div
-                                class="border rounded-lg shadow-lg bg-card overflow-hidden"
+                                class="border-2 border-primary/20 rounded-xl shadow-lg bg-card overflow-hidden"
                             >
                                 <!-- Search Header -->
                                 <div
-                                    class="flex items-center gap-2 p-2 border-b bg-muted/30"
+                                    class="flex items-center gap-2 p-3 border-b bg-gradient-to-r from-primary/5 to-transparent"
                                 >
                                     <div class="relative flex-1">
                                         <Search
@@ -558,35 +625,40 @@
                                         />
                                     </div>
                                     <Button
-                                        variant="secondary"
+                                        variant="default"
                                         size="sm"
-                                        class="h-9 px-3 text-xs"
+                                        class="h-9 px-4 text-xs font-semibold shadow-sm"
                                         onclick={() => applyAllSuggestions()}
                                     >
-                                        GO
+                                        <Check class="h-3.5 w-3.5 mr-1" />
+                                        Tambah Semua
                                     </Button>
                                 </div>
 
                                 <!-- Devices Header -->
-                                <div class="px-3 py-2 bg-muted/20 border-b">
+                                <div
+                                    class="px-3 py-2 bg-muted/30 border-b flex items-center justify-between"
+                                >
                                     <span
                                         class="text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-                                        >DEVICES</span
+                                        >Saran Device ({filteredSuggestions.length})</span
                                     >
                                 </div>
 
                                 <!-- Device List -->
-                                <div class="max-h-[250px] overflow-y-auto">
+                                <div
+                                    class="max-h-[280px] overflow-y-auto divide-y divide-muted/20"
+                                >
                                     {#each filteredSuggestions as suggestion, index}
                                         <button
                                             type="button"
-                                            class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-primary/5 transition-colors border-b border-muted/30 last:border-b-0 text-left"
+                                            class="w-full flex items-center gap-3 px-3 py-3 hover:bg-primary/5 transition-all duration-150 text-left group"
                                             onclick={() =>
                                                 applySuggestion(suggestion)}
                                         >
                                             <!-- Device Image -->
                                             <div
-                                                class="w-12 h-12 rounded-md bg-muted/30 flex items-center justify-center overflow-hidden shrink-0"
+                                                class="w-11 h-11 rounded-lg bg-gradient-to-br from-muted/50 to-muted/20 flex items-center justify-center overflow-hidden shrink-0 ring-1 ring-muted/30"
                                             >
                                                 {#if suggestion.device.image}
                                                     <img
@@ -599,7 +671,7 @@
                                                     />
                                                 {:else}
                                                     <Smartphone
-                                                        class="h-6 w-6 text-muted-foreground/50"
+                                                        class="h-5 w-5 text-muted-foreground/50"
                                                     />
                                                 {/if}
                                             </div>
@@ -622,9 +694,11 @@
                                             </div>
 
                                             <!-- Add Icon -->
-                                            <Plus
-                                                class="h-4 w-4 text-primary shrink-0"
-                                            />
+                                            <div
+                                                class="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0"
+                                            >
+                                                <Plus class="h-4 w-4" />
+                                            </div>
                                         </button>
                                     {/each}
 
@@ -698,36 +772,62 @@
                             </div>
                         {/if}
 
-                        <p class="text-[10px] text-muted-foreground">
+                        <p class="text-xs text-muted-foreground">
                             Ketik nama device dipisahkan dengan " / ". Saran
                             akan muncul untuk device yang cocok.
                         </p>
                     </div>
 
-                    <!-- Details Row -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Image & Details Row -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Image Upload - Left Column -->
                         <div class="space-y-2">
                             <Label class="text-sm font-medium"
-                                >Minimum Stok (Alert)</Label
+                                >Gambar Produk</Label
+                            >
+                            <div
+                                class="h-36 rounded-xl border-2 border-muted bg-muted/5 p-2"
+                            >
+                                <ImageUpload
+                                    bind:value={image}
+                                    compact={true}
+                                />
+                            </div>
+                        </div>
+
+                        <!-- Min Stock - Middle Column -->
+                        <div class="space-y-2">
+                            <Label class="text-sm font-medium"
+                                >Minimum Stok</Label
                             >
                             <Input
                                 type="number"
                                 bind:value={minStock}
                                 min="0"
+                                class="h-11"
                             />
-                            <p class="text-[10px] text-muted-foreground">
+                            <p class="text-xs text-muted-foreground">
                                 Peringatan saat stok di bawah jumlah ini.
                             </p>
                         </div>
 
+                        <!-- Empty space or additional info - Right Column -->
                         <div class="space-y-2">
-                            <Label class="text-sm font-medium"
-                                >Gambar Produk</Label
+                            <Label
+                                class="text-sm font-medium text-muted-foreground"
+                                >Info</Label
                             >
-                            <div class="border rounded-md p-2 bg-muted/10">
-                                <div class="w-full h-32">
-                                    <ImageUpload bind:value={image} />
-                                </div>
+                            <div
+                                class="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-100 dark:border-blue-900"
+                            >
+                                <p
+                                    class="text-xs text-blue-700 dark:text-blue-300 leading-relaxed"
+                                >
+                                    💡 Stok awal produk baru adalah <strong
+                                        >0</strong
+                                    >. Tambah stok melalui menu
+                                    <strong>Pembelian</strong>.
+                                </p>
                             </div>
                         </div>
                     </div>

@@ -24,9 +24,20 @@
     Shield,
     List,
     Smartphone,
+    Banknote,
+    Hammer,
+    CreditCard,
+    MessageSquare,
+    Percent,
+    Database,
+    Receipt,
   } from "lucide-svelte";
   import { cn } from "$lib/utils";
   import { slide } from "svelte/transition";
+  import {
+    settingsStore,
+    initializeSettings,
+  } from "$lib/stores/settings-store.svelte";
 
   // Type definitions
   type MenuItem = {
@@ -81,6 +92,11 @@
           href: "/customers",
           icon: Users,
         },
+        {
+          title: "Alat Service",
+          href: "/service-tools",
+          icon: Hammer,
+        },
       ],
     },
     {
@@ -111,10 +127,14 @@
           ],
         },
         {
+          title: "Biaya Operasional",
+          href: "/operational-costs",
+          icon: Banknote,
+        },
+        {
           title: "Service",
           icon: Wrench,
           children: [
-            { title: "Service Baru", href: "/service/new", icon: Plus },
             {
               title: "Daftar Service",
               icon: List,
@@ -187,9 +207,41 @@
       label: "Pengaturan",
       items: [
         {
-          title: "Pengaturan",
-          href: "/settings",
+          title: "Setting",
           icon: Settings,
+          children: [
+            {
+              title: "Store Information",
+              href: "/settings/store",
+              icon: Store,
+            },
+            {
+              title: "Notes & Receipts",
+              href: "/settings/notes",
+              icon: Receipt,
+            },
+            { title: "Service", href: "/settings/service", icon: Wrench },
+            { title: "Payment", href: "/settings/payment", icon: CreditCard },
+            { title: "Employees", href: "/settings/employees", icon: Users },
+            {
+              title: "Integration",
+              href: "#", // Container only? Or link to page
+              icon: Boxes,
+              children: [
+                {
+                  title: "WhatsApp",
+                  href: "/settings/integration/whatsapp",
+                  icon: MessageSquare,
+                },
+                {
+                  title: "Device",
+                  href: "/settings/integration/device",
+                  icon: Smartphone,
+                },
+              ],
+            },
+            { title: "Factory Reset", href: "/settings/reset", icon: Database },
+          ],
         },
       ],
     },
@@ -223,6 +275,9 @@
 
       // Fetch counts on mount
       await fetchStatusCounts();
+
+      // Initialize settings
+      await initializeSettings();
     } catch {}
   });
 
@@ -241,25 +296,25 @@
     return null;
   }
 
-  // Role-based menu filtering
+  // Role-based & Feature-based menu filtering
   let filteredMenuGroups = $derived(() => {
+    let groups = menuGroups;
+
     if (userRole === "teknisi") {
       // Technicians only see Service (without "Service Baru") and Settings
       const serviceMenu = menuGroups
         .find((g) => g.label === "Transaksi")
         ?.items.find((i) => i.title === "Service");
 
-      // Filter out "Service Baru" from children
+      // Filter out "Service Baru" from children - No longer needed as it's removed
       const filteredServiceMenu = serviceMenu
         ? {
             ...serviceMenu,
-            children: serviceMenu.children?.filter(
-              (c) => c.title !== "Service Baru",
-            ),
+            children: serviceMenu.children,
           }
         : null;
 
-      return [
+      groups = [
         {
           label: "Utama",
           items: [{ title: "Dashboard", href: "/", icon: LayoutDashboard }],
@@ -273,10 +328,9 @@
           items: menuGroups.find((g) => g.label === "Pengaturan")?.items || [],
         },
       ].filter((g) => g.items.length > 0);
-    }
-    if (userRole === "kasir") {
+    } else if (userRole === "kasir") {
       // Cashiers see Sales, Service (limited), and Settings
-      return [
+      groups = [
         {
           label: "Utama",
           items: [{ title: "Dashboard", href: "/", icon: LayoutDashboard }],
@@ -296,8 +350,16 @@
         },
       ].filter((g) => g.items.length > 0);
     }
-    // Admin sees everything
-    return menuGroups;
+
+    // Apply Feature Flags
+    return groups.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        if (item.title === "Devices" && !settingsStore.deviceFeatureEnabled)
+          return false;
+        return true;
+      }),
+    }));
   });
 
   // Effect to auto-expand parent if child is active
@@ -352,12 +414,22 @@
 <div class="flex h-screen w-64 flex-col border-r bg-background text-foreground">
   <div class="flex h-16 items-center px-6">
     <div class="flex items-center gap-2 text-blue-600">
-      <div
-        class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white"
-      >
-        <Package class="h-5 w-5" />
-      </div>
-      <span class="font-bold text-lg text-foreground">Inventory App</span>
+      {#if settingsStore.storeInfo?.logo}
+        <img
+          src={settingsStore.storeInfo.logo}
+          alt="Logo"
+          class="h-8 w-8 rounded-lg object-contain bg-white"
+        />
+      {:else}
+        <div
+          class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white"
+        >
+          <Package class="h-5 w-5" />
+        </div>
+      {/if}
+      <span class="font-bold text-lg text-foreground truncate max-w-[150px]">
+        {settingsStore.storeInfo?.name || "Inventory App"}
+      </span>
     </div>
   </div>
 

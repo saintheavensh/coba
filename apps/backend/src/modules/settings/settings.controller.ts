@@ -6,6 +6,7 @@ import {
     ReceiptSettings,
     ServiceSettings,
     WhatsAppSettings,
+    CommissionSettings,
 } from "./settings.service";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import { apiSuccess, apiError } from "../../lib/response";
@@ -140,6 +141,45 @@ settingsController.put("/whatsapp", async (c) => {
         return apiSuccess(c, null, "WhatsApp settings updated");
     } catch (e) {
         return apiError(c, e, "Failed to update WhatsApp settings");
+    }
+});
+
+// ============================================
+// COMMISSION SETTINGS
+// ============================================
+
+settingsController.get("/commission", async (c) => {
+    try {
+        const settings = await service.getCommissionSettings();
+        return apiSuccess(c, settings);
+    } catch (e) {
+        return apiError(c, e, "Failed to fetch commission settings");
+    }
+});
+
+settingsController.put("/commission", async (c) => {
+    try {
+        const body = await c.req.json<CommissionSettings>();
+        await service.setCommissionSettings(body);
+        return apiSuccess(c, null, "Commission settings updated");
+    } catch (e) {
+        return apiError(c, e, "Failed to update commission settings");
+    }
+});
+
+// ============================================
+// FACTORY RESET
+// ============================================
+
+settingsController.post("/reset", async (c) => {
+    try {
+        const body = await c.req.json<{ mode: "data" | "full" }>();
+        if (!body.mode) return c.json({ success: false, message: "Mode is required ('data' | 'full')" }, 400);
+
+        await service.factoryReset(body.mode);
+        return apiSuccess(c, null, "Factory reset completed successfully");
+    } catch (e) {
+        return apiError(c, e, "Factory reset failed");
     }
 });
 

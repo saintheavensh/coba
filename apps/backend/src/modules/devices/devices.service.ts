@@ -1,6 +1,6 @@
 import { db } from "../../db";
 import { devices, productDeviceCompatibility } from "../../db/schema";
-import { eq, desc, ilike, or, inArray } from "drizzle-orm";
+import { eq, desc, ilike, or, inArray, and, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { BrandsService } from "../brands/brands.service";
 
@@ -14,21 +14,66 @@ function normalizeBrandName(name: string): string {
 }
 
 export class DevicesService {
-    static async getAll(search?: string) {
-        if (search) {
-            return await db
-                .select()
-                .from(devices)
-                .where(
-                    or(
-                        ilike(devices.brand, `%${search}%`),
-                        ilike(devices.model, `%${search}%`),
-                        ilike(devices.code, `%${search}%`)
-                    )
+    static async getAll(search?: string, limit: number = 50, offset: number = 0, brand?: string) {
+        let query = db
+            .select()
+            .from(devices);
+
+        const conditions = [];
+        let term = search?.trim();
+
+        if (term) {
+            conditions.push(
+                or(
+                    // Combined Search (Brand + Model)
+                    sql`${devices.brand} || ' ' || ${devices.model} ILIKE ${"%" + term + "%"}`,
+                    // Individual Field Search
+                    ilike(devices.brand, `%${term}%`),
+                    ilike(devices.model, `%${term}%`),
+                    ilike(devices.code, `%${term}%`)
                 )
-                .orderBy(desc(devices.createdAt));
+            );
         }
-        return await db.select().from(devices).orderBy(desc(devices.createdAt));
+
+        if (brand) {
+            conditions.push(ilike(devices.brand, brand.trim()));
+        }
+
+        if (conditions.length > 0) {
+            query = query.where(and(...conditions)) as any;
+        }
+
+        const combinedName = sql`${devices.brand} || ' ' || ${devices.model}`;
+
+        // Add Relevance Scoring
+        if (term) {
+            query = query.orderBy(
+                sql`CASE 
+                    -- Exact Model Match
+                    WHEN ${devices.model} ILIKE ${term} THEN 1
+                    
+                    -- Combined Name Starts With
+                    WHEN ${combinedName} ILIKE ${term + "%"} THEN 2
+                    
+                    -- Model Starts With
+                    WHEN ${devices.model} ILIKE ${term + "%"} THEN 3
+                    
+                    -- Combined Name Contains
+                    WHEN ${combinedName} ILIKE ${"%" + term + "%"} THEN 4
+                    
+                    -- Code Matches (Lower priority)
+                    WHEN ${devices.code} ILIKE ${"%" + term + "%"} THEN 5
+                    
+                    ELSE 6
+                END`,
+                // Secondary sort by newest
+                desc(devices.createdAt)
+            ) as any;
+        } else {
+            query = query.orderBy(desc(devices.createdAt)) as any;
+        }
+
+        return await query.limit(limit).offset(offset);
     }
 
     static async getById(id: string) {
@@ -39,7 +84,7 @@ export class DevicesService {
     static async create(data: Omit<typeof devices.$inferInsert, "id" | "createdAt" | "updatedAt"> & { id?: string }) {
         // Normalize brand name and ensure brand exists
         const normalizedBrand = normalizeBrandName(data.brand);
-        
+
         // Check if brand exists (case-insensitive), create if not
         let existingBrand = await BrandsService.findByName(normalizedBrand);
         if (!existingBrand) {
@@ -51,7 +96,7 @@ export class DevicesService {
             });
             existingBrand = createdBrands[0];
         }
-        
+
         const id = data.id || `DEV-${uuidv4().substring(0, 8)}`; // emulate short ID or just use full UUID
         const result = await db
             .insert(devices)

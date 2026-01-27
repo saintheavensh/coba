@@ -141,6 +141,33 @@ app.get("/logs", async (c) => {
     }
 });
 
+/**
+ * GET /reports/profit-loss
+ * Get Profit and Loss summary
+ */
+app.get("/profit-loss", async (c) => {
+    try {
+        const { startDate, endDate } = c.req.query();
+        const data = await reportsService.getProfitAndLoss({ startDate, endDate });
+        return apiSuccess(c, data, "Profit & Loss retrieved successfully");
+    } catch (e) {
+        return apiError(c, e, "Failed to get Profit & Loss");
+    }
+});
+
+/**
+ * GET /reports/stock-value
+ * Get current stock value report
+ */
+app.get("/stock-value", async (c) => {
+    try {
+        const data = await reportsService.getStockValueReport();
+        return apiSuccess(c, data, "Stock value report retrieved successfully");
+    } catch (e) {
+        return apiError(c, e, "Failed to get stock value report");
+    }
+});
+
 export default app;
 
 

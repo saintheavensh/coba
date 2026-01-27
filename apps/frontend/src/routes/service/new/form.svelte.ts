@@ -7,6 +7,8 @@ import { QC_ITEMS } from "@repo/shared";
 export class ServiceFormStore {
     // Service Type
     isWalkin = $state(false);
+    priority = $state<"standard" | "wait">("standard");
+    isDirectComplete = $state(false);
     currentStep = $state(1);
     isSubmitting = $state(false);
 
@@ -22,6 +24,9 @@ export class ServiceFormStore {
     phoneStatus = $state("nyala");
     // isDead is derived now
     isDead = $derived(this.phoneStatus === "mati_total");
+    phoneColor = $state(""); // New Color Field
+    deviceImage = $state<string | null>(null); // Persist Image
+    deviceColors = $state<string[]>([]); // Persist Colors
     imei = $state("");
     pinPattern = $state("");
     physicalConditions = $state<string[]>([]);
@@ -102,10 +107,12 @@ export class ServiceFormStore {
     );
 
     totalPartPrice = $derived(
-        this.selectedParts.reduce(
-            (sum, p) => sum + (parseInt(p.sellPrice) || 0),
-            0
-        ) + (this.sparepartSource === "external" ? this.extPartBuyPrice || 0 : 0)
+        this.sparepartSource === "customer"
+            ? 0
+            : this.selectedParts.reduce(
+                (sum, p) => sum + (parseInt(p.sellPrice) || 0),
+                0
+            ) + (this.sparepartSource === "external" ? this.extPartBuyPrice || 0 : 0)
     );
 
     grandTotal = $derived((this.serviceFee || 0));
@@ -234,7 +241,8 @@ export class ServiceFormStore {
 
     addInventoryPart(part: any) {
         const sellPrice = part.batches?.[0]?.sellPrice || 0;
-        this.selectedParts.push({ ...part, sellPrice, type: "inventory" });
+        const buyPrice = part.batches?.[0]?.buyPrice || 0;
+        this.selectedParts.push({ ...part, sellPrice, buyPrice, type: "inventory" });
         toast.success(`${part.name} ditambahkan`);
     }
 
@@ -267,6 +275,7 @@ export class ServiceFormStore {
                     model: this.phoneModel,
                     status: this.phoneStatus,
                     imei: this.imei || undefined,
+                    color: this.phoneColor || undefined, // New Payload Field
                     pin: this.pinPattern || undefined,
                     condition: this.physicalConditions,
                     completeness: this.completeness,
@@ -275,7 +284,8 @@ export class ServiceFormStore {
                 complaint: this.complaint,
                 technicianId: this.technician || null,
                 status: this.isWalkin ? "selesai" : "antrian",
-                photos: [...this.photos],
+                priority: this.priority,
+                isDirectComplete: this.isDirectComplete,
                 estimatedCompletionDate: this.estimatedCompletionDate
                     ? new Date(this.estimatedCompletionDate).toISOString()
                     : undefined,
@@ -315,6 +325,7 @@ export class ServiceFormStore {
                         productId: p.id,
                         qty: 1,
                         price: parseInt(p.price),
+                        buyPrice: p.buyPrice || 0,
                     }));
                 }
 
@@ -376,8 +387,11 @@ export class ServiceFormStore {
         this.phoneBrand = "";
         this.phoneModel = "";
         this.selectedDeviceId = null;
+        this.deviceImage = null;
+        this.deviceColors = [];
         this.phoneStatus = "nyala";
         // this.isDead is derived, auto updates
+        this.phoneColor = "";
         this.imei = "";
         this.pinPattern = "";
         this.physicalConditions = [];

@@ -9,13 +9,18 @@
 
 <div class="space-y-6">
     <div
-        class="bg-primary/5 p-4 rounded-xl border border-primary/20 flex items-center gap-3"
+        class="bg-gradient-to-r from-primary/10 to-transparent p-6 rounded-3xl border border-primary/20 flex items-center gap-4 relative overflow-hidden"
     >
-        <AlertCircle class="h-5 w-5 text-primary" />
-        <div>
-            <p class="font-medium text-primary">Konfirmasi Data Service</p>
+        <div class="absolute inset-0 bg-primary/5 blur-3xl"></div>
+        <div class="p-3 bg-background/50 rounded-2xl shadow-sm z-10">
+            <AlertCircle class="h-6 w-6 text-primary" />
+        </div>
+        <div class="z-10">
+            <p class="font-bold text-lg text-primary">
+                Konfirmasi Data Service
+            </p>
             <p class="text-sm text-muted-foreground">
-                Pastikan seluruh data sudah benar sebelum menyimpan.
+                Pastikan seluruh data sudah benar sebelum menyimpan tiket.
             </p>
         </div>
     </div>
@@ -25,21 +30,23 @@
         <div class="space-y-4">
             <h3 class="font-bold text-lg flex items-center gap-2">
                 <span
-                    class="bg-muted w-6 h-6 rounded-full flex items-center justify-center text-xs"
+                    class="bg-primary/10 text-primary w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ring-1 ring-primary/20"
                     >1</span
                 >
                 Data Pelanggan
             </h3>
-            <div class="bg-card border rounded-xl p-4 space-y-3 shadow-sm">
-                <div class="grid grid-cols-[100px_1fr] gap-2 text-sm">
+            <div
+                class="bg-card/50 border rounded-3xl p-6 space-y-4 shadow-sm hover:shadow-md transition-all duration-300"
+            >
+                <div class="grid grid-cols-[100px_1fr] gap-3 text-sm">
                     <span class="text-muted-foreground">Nama:</span>
-                    <span class="font-medium">{form.customerName}</span>
+                    <span class="font-bold">{form.customerName}</span>
 
                     <span class="text-muted-foreground">Telepon:</span>
                     <span class="font-medium">{form.customerPhone || "-"}</span>
 
                     <span class="text-muted-foreground">Alamat:</span>
-                    <span class="font-medium"
+                    <span class="font-medium leading-relaxed"
                         >{form.customerAddress || "-"}</span
                     >
                 </div>
@@ -50,50 +57,60 @@
         <div class="space-y-4">
             <h3 class="font-bold text-lg flex items-center gap-2">
                 <span
-                    class="bg-muted w-6 h-6 rounded-full flex items-center justify-center text-xs"
+                    class="bg-primary/10 text-primary w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ring-1 ring-primary/20"
                     >2</span
                 >
                 Data Perangkat
             </h3>
-            <div class="bg-card border rounded-xl p-4 space-y-3 shadow-sm">
-                <div class="grid grid-cols-[100px_1fr] gap-2 text-sm">
+            <div
+                class="bg-card/50 border rounded-3xl p-6 space-y-4 shadow-sm hover:shadow-md transition-all duration-300"
+            >
+                <div class="grid grid-cols-[100px_1fr] gap-3 text-sm">
                     <span class="text-muted-foreground">Device:</span>
-                    <span class="font-medium"
+                    <span class="font-bold"
                         >{form.phoneBrand} {form.phoneModel}</span
                     >
 
                     <span class="text-muted-foreground">IMEI:</span>
-                    <span class="font-medium font-mono">{form.imei || "-"}</span
+                    <span
+                        class="font-mono bg-muted/50 px-2 py-0.5 rounded text-xs w-fit"
+                        >{form.imei || "-"}</span
                     >
 
                     <span class="text-muted-foreground">Status:</span>
                     <span>
                         {#if form.phoneStatus === "mati_total"}
-                            <Badge variant="destructive">Mati Total</Badge>
+                            <Badge variant="destructive" class="rounded-md"
+                                >Mati Total</Badge
+                            >
                         {:else}
                             <Badge
                                 variant="outline"
-                                class="bg-green-50 text-green-700 border-green-200"
+                                class="bg-green-50 text-green-700 border-green-200 rounded-md"
                                 >Nyala</Badge
                             >
                         {/if}
                     </span>
 
                     <span class="text-muted-foreground">Pola/PIN:</span>
-                    <span class="font-medium">{form.pinPattern || "-"}</span>
+                    <span class="font-medium font-mono"
+                        >{form.pinPattern || "-"}</span
+                    >
                 </div>
 
-                <Separator />
+                <Separator class="bg-border/50" />
 
                 <div class="space-y-2">
                     <span
-                        class="text-xs font-semibold text-muted-foreground uppercase"
+                        class="text-[10px] font-bold text-muted-foreground uppercase tracking-wider"
                         >Kondisi Fisik</span
                     >
-                    <div class="flex flex-wrap gap-1">
+                    <div class="flex flex-wrap gap-1.5">
                         {#if form.physicalConditions.length > 0}
                             {#each form.physicalConditions as condition}
-                                <Badge variant="secondary" class="text-xs"
+                                <Badge
+                                    variant="secondary"
+                                    class="text-xs font-normal rounded-lg bg-muted text-foreground"
                                     >{condition}</Badge
                                 >
                             {/each}
@@ -107,13 +124,15 @@
 
                 <div class="space-y-2">
                     <span
-                        class="text-xs font-semibold text-muted-foreground uppercase"
+                        class="text-[10px] font-bold text-muted-foreground uppercase tracking-wider"
                         >Kelengkapan</span
                     >
-                    <div class="flex flex-wrap gap-1">
+                    <div class="flex flex-wrap gap-1.5">
                         {#if form.completeness.length > 0}
                             {#each form.completeness as item}
-                                <Badge variant="outline" class="text-xs"
+                                <Badge
+                                    variant="outline"
+                                    class="text-xs font-normal rounded-lg"
                                     >{item}</Badge
                                 >
                             {/each}

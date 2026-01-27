@@ -92,7 +92,10 @@ app.post(
 
 app.get("/", async (c) => {
     const search = c.req.query("search");
-    const data = await DevicesService.getAll(search);
+    const brand = c.req.query("brand");
+    const limit = parseInt(c.req.query("limit") || "20");
+    const offset = parseInt(c.req.query("offset") || "0");
+    const data = await DevicesService.getAll(search, limit, offset, brand);
     return apiSuccess(c, data, "Devices retrieved", 200);
 });
 

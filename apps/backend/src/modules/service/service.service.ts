@@ -1,5 +1,6 @@
 import { db } from "../../db";
 import { services, activityLogs, users, productBatches } from "../../db/schema";
+import { ActivityLogService } from "../../lib/activity-log.service";
 import { eq, desc } from "drizzle-orm";
 import { ServiceRepository } from "./service.repository";
 import { SettingsService } from "../settings/settings.service";
@@ -181,27 +182,41 @@ export class ServiceService {
                 complaint: data.complaint,
                 diagnosis: JSON.stringify(data.diagnosis || {}),
                 technicianId: data.technicianId || null,
-                status: data.status || "antrian" as any,
+                status: (data.isDirectComplete ? "selesai" : (data.status || "antrian")) as any,
                 createdBy: userId || null,
                 dateIn: new Date(),
+                dateOut: data.isDirectComplete ? new Date() : null,
                 estimatedCompletionDate: data.estimatedCompletionDate
                     ? new Date(data.estimatedCompletionDate)
                     : null,
                 actualCost: data.actualCost || null,
                 qc: data.qc || null,
+                priority: data.priority || "standard",
+                isDirectComplete: data.isDirectComplete || false,
             });
 
             // Log
-            await tx.insert(activityLogs).values({
+            await ActivityLogService.log({
                 userId: userId || "USR-000",
                 action: "CREATE",
                 entityType: "service",
                 entityId: no,
                 description: `New Service ${no} created for ${data.customer.name}`,
-                newValue: JSON.stringify(data),
-                createdAt: new Date()
+                details: { newValue: data }
             });
         });
+
+        // Trigger WhatsApp Notification (Fire and forget or await without blocking error)
+        try {
+            this.sendWhatsAppNotification("new", {
+                no,
+                customer: data.customer,
+                device: data.unit,
+                status: data.status || "antrian"
+            });
+        } catch (e) {
+            Logger.error("Failed to trigger WA notification", e);
+        }
 
         return { message: "Service created", no };
     }
@@ -224,15 +239,18 @@ export class ServiceService {
 
             await tx.update(services).set(updateValues).where(eq(services.id, id));
 
-            await tx.insert(activityLogs).values({
+            await tx.update(services).set(updateValues).where(eq(services.id, id));
+
+            await ActivityLogService.log({
                 userId: userId || "USR-000",
                 action: "STATUS_CHANGE",
                 entityType: "service",
                 entityId: srv.no,
                 description: `Service ${srv.no} status updated to ${data.status}`,
-                oldValue: JSON.stringify({ status: srv.status }),
-                newValue: JSON.stringify({ status: data.status }),
-                createdAt: new Date()
+                details: {
+                    oldValue: { status: srv.status },
+                    newValue: { status: data.status }
+                }
             });
 
             // Auto-deduct stock if status is 'selesai'
@@ -253,15 +271,16 @@ export class ServiceService {
                             }).where(eq(productBatches.id, part.batchId));
 
                             // Log usage
-                            await tx.insert(activityLogs).values({
+                            await ActivityLogService.log({
                                 userId: userId || "USR-SYSTEM",
                                 action: "UPDATE",
                                 entityType: "product_batch",
                                 entityId: part.batchId,
                                 description: `Stock deducted for Service ${srv.no}`,
-                                oldValue: JSON.stringify({ stock: batch.currentStock }),
-                                newValue: JSON.stringify({ stock: batch.currentStock - part.qty }),
-                                createdAt: new Date()
+                                details: {
+                                    oldValue: { stock: batch.currentStock },
+                                    newValue: { stock: batch.currentStock - part.qty }
+                                }
                             });
                         }
                     }
@@ -269,6 +288,22 @@ export class ServiceService {
             }
 
         });
+
+        // Trigger WhatsApp Notification
+        try {
+            const isComplete = data.status === "selesai";
+            // If complete, send 'complete' template if enabled.
+            // If just status change, send 'status' template.
+            // Check settings logic in helper.
+
+            if (isComplete) {
+                this.sendWhatsAppNotification("complete", { ...srv, status: data.status, actualCost: data.actualCost }, { total: data.actualCost });
+            } else {
+                this.sendWhatsAppNotification("status", { ...srv, status: data.status }, { status: data.status });
+            }
+        } catch (e) {
+            Logger.error("Failed to trigger WA notification", e);
+        }
 
         return { message: "Status updated" };
     }
@@ -284,14 +319,13 @@ export class ServiceService {
                 complaint: data.complaint
             }).where(eq(services.id, id));
 
-            await tx.insert(activityLogs).values({
+            await ActivityLogService.log({
                 userId: userId || "USR-000",
                 action: "UPDATE",
                 entityType: "service",
                 entityId: srv.no,
                 description: `Service details updated`,
-                newValue: JSON.stringify(data),
-                createdAt: new Date()
+                details: { newValue: data }
             });
         });
 
@@ -410,17 +444,94 @@ export class ServiceService {
                 technicianId: technicianId
             }).where(eq(services.id, id));
 
-            await tx.insert(activityLogs).values({
+            await ActivityLogService.log({
                 userId: userId || "USR-000",
                 action: "ASSIGN",
                 entityType: "service",
                 entityId: srv.no,
                 description: `Assigned to technician ${technician.name}`,
-                newValue: JSON.stringify({ technicianId, technicianName: technician.name }),
-                createdAt: new Date()
+                details: { newValue: { technicianId, technicianName: technician.name } }
             });
         });
 
         return { message: "Technician assigned", technician };
+    }
+
+    private async sendWhatsAppNotification(
+        type: "new" | "status" | "complete",
+        serviceData: any,
+        extra: { status?: string, total?: number } = {}
+    ) {
+        try {
+            const settings = await this.settingsService.getWhatsAppSettings();
+            if (!settings.enabled) return;
+
+            let shouldSend = false;
+            let template = "";
+
+            if (type === "new") {
+                shouldSend = settings.autoSendOnNewService;
+                template = settings.newServiceTemplate;
+            } else if (type === "status") {
+                shouldSend = settings.autoSendOnStatusChange;
+                template = settings.statusUpdateTemplate;
+            } else if (type === "complete") {
+                shouldSend = settings.autoSendOnComplete;
+                template = settings.readyForPickupTemplate;
+            }
+
+            if (!shouldSend || !template) return;
+
+            // Resolve variables
+            const customerName = serviceData.customer?.name || "Customer";
+            const customerPhone = serviceData.customer?.phone;
+
+            if (!customerPhone) {
+                Logger.debug("[WHATSAPP] No customer phone number, skipping.");
+                return;
+            }
+
+            const serviceNo = serviceData.no;
+            const deviceName = serviceData.device ? `${serviceData.device.brand} ${serviceData.device.model}` : "Device";
+            const status = extra.status || serviceData.status;
+
+            // Human readable status mapping
+            const statusMap: Record<string, string> = {
+                "antrian": "Dalam Antrian",
+                "dicek": "Sedang Dicek",
+                "menunggu_sparepart": "Menunggu Sparepart",
+                "konfirmasi": "Butuh Konfirmasi",
+                "dikerjakan": "Sedang Dikerjakan",
+                "re-konfirmasi": "Konfirmasi Ulang",
+                "selesai": "Selesai",
+                "diambil": "Sudah Diambil",
+                "batal": "Dibatalkan"
+            };
+            const readableStatus = statusMap[status] || status;
+
+            // Format total
+            const total = new Intl.NumberFormat("id-ID").format(extra.total || serviceData.actualCost || 0);
+
+            let message = template
+                .replace(/{customer}/g, customerName)
+                .replace(/{serviceNo}/g, serviceNo)
+                .replace(/{device}/g, deviceName)
+                .replace(/{status}/g, readableStatus)
+                .replace(/{total}/g, total)
+                .replace(/{days}/g, "0");
+
+            Logger.info(`[WHATSAPP] Sending to ${customerPhone}: ${message}`);
+
+            // TODO: Implement actual HTTP call here
+            // const gatewayUrl = "https://your-wa-gateway.com/send";
+            // await fetch(gatewayUrl, {
+            //      method: "POST",
+            //      headers: { "Content-Type": "application/json", "Authorization": settings.phoneNumber },
+            //      body: JSON.stringify({ phone: customerPhone, message })
+            // });
+
+        } catch (e) {
+            Logger.error("[WHATSAPP] Failed to send notification", e);
+        }
     }
 }

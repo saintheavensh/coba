@@ -69,4 +69,15 @@ app.get("/cashier", async (c) => {
     }
 });
 
+app.get("/profit-loss", async (c) => {
+    const startDate = c.req.query("startDate");
+    const endDate = c.req.query("endDate");
+    try {
+        const data = await dashboard.getProfitAndLoss(startDate, endDate);
+        return apiSuccess(c, data, "Profit & Loss data retrieved");
+    } catch (e) {
+        return apiError(c, String(e));
+    }
+});
+
 export default app;

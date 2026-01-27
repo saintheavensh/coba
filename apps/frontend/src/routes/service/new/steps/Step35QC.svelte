@@ -35,25 +35,34 @@
 
 <div class="grid gap-6 animate-in slide-in-from-right-4 duration-500">
     <div class="space-y-4">
-        <h3 class="text-lg font-semibold flex items-center gap-2">
-            <ClipboardCheck class="h-5 w-5 text-primary" />
+        <h3
+            class="text-xl font-bold flex items-center gap-2 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent"
+        >
+            <ClipboardCheck class="h-6 w-6 text-primary" />
             Quality Control
         </h3>
         <p class="text-sm text-muted-foreground">
             {#if form.canDoInitialQC}
                 Bandingkan kondisi sebelum dan sesudah perbaikan.
             {:else}
-                <span class="flex items-center gap-1.5 text-amber-600">
+                <span
+                    class="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-3 py-1 rounded-full w-fit"
+                >
                     <AlertCircle class="h-4 w-4" />
-                    Kondisi awal tidak dapat direkam (HP mati/error). Verifikasi
-                    hasil perbaikan saja.
+                    Kondisi awal tidak dapat direkam (HP mati/error).
                 </span>
             {/if}
         </p>
     </div>
 
     <!-- QC Checklist Grid -->
-    <div class="rounded-xl border bg-card/50 shadow-sm overflow-hidden">
+    <div
+        class="rounded-3xl border border-muted/60 bg-card/50 shadow-sm overflow-hidden relative group"
+    >
+        <!-- Glow Effect -->
+        <div
+            class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -z-10 transition-opacity opacity-0 group-hover:opacity-100"
+        ></div>
         <div class="bg-muted/50 p-3 border-b">
             <!-- Headers adapt to mode -->
             {#if form.currentStep === 3}
@@ -252,13 +261,16 @@
         </div>
 
         <!-- QC Notes -->
-        <div class="space-y-2">
-            <Label for="qc-notes">Catatan QC (Opsional)</Label>
+        <div class="space-y-3">
+            <Label for="qc-notes" class="text-sm font-semibold"
+                >Catatan QC (Opsional)</Label
+            >
             <Textarea
                 id="qc-notes"
                 bind:value={form.qcNotes}
                 placeholder="Catatan tambahan hasil quality control..."
                 rows={2}
+                class="rounded-xl bg-background/50 border-muted-foreground/20 focus:bg-background transition-colors"
             />
         </div>
 

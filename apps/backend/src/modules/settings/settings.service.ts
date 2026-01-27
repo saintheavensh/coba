@@ -1,5 +1,14 @@
 import { db } from "../../db";
-import { settings } from "../../db/schema";
+import {
+    settings,
+    salePayments, saleItems, sales,
+    purchaseReturnItems, purchaseReturns,
+    purchaseItems, purchases,
+    services,
+    activityLogs, notifications,
+    productBatches, productVariants, products,
+    categories, suppliers, members
+} from "../../db/schema";
 import { eq } from "drizzle-orm";
 
 // ============================================
@@ -190,8 +199,30 @@ const DEFAULT_WHATSAPP_SETTINGS: WhatsAppSettings = {
 // SETTINGS SERVICE
 // ============================================
 
+// ============================================
+// COMMISSION SETTINGS
+// ============================================
+
+export interface CommissionSettings {
+    enabled: boolean;
+    globalRate: number; // Percentage 0-100
+    type: "flat" | "percentage";
+    target: "technician" | "all";
+}
+
+const DEFAULT_COMMISSION_SETTINGS: CommissionSettings = {
+    enabled: false,
+    globalRate: 10,
+    type: "percentage",
+    target: "technician",
+};
+
+// ============================================
+// SETTINGS SERVICE
+// ============================================
+
 export class SettingsService {
-    // Generic methods
+    // ... existing generic methods ...
     async get<T>(key: string, defaultValue: T): Promise<T> {
         const result = await db.query.settings.findFirst({
             where: eq(settings.key, key)
@@ -223,15 +254,19 @@ export class SettingsService {
         receiptSettings: ReceiptSettings;
         serviceSettings: ServiceSettings;
         whatsappSettings: WhatsAppSettings;
+        commissionSettings: CommissionSettings; // Added
     }> {
-        const [storeInfo, receiptSettings, serviceSettings, whatsappSettings] = await Promise.all([
+        const [storeInfo, receiptSettings, serviceSettings, whatsappSettings, commissionSettings] = await Promise.all([
             this.getStoreInfo(),
             this.getReceiptSettings(),
             this.getServiceSettings(),
             this.getWhatsAppSettings(),
+            this.getCommissionSettings(),
         ]);
-        return { storeInfo, receiptSettings, serviceSettings, whatsappSettings };
+        return { storeInfo, receiptSettings, serviceSettings, whatsappSettings, commissionSettings };
     }
+
+    // ... existing specific methods ...
 
     // Payment methods
     async getPaymentMethods(): Promise<PaymentMethodConfig> {
@@ -276,5 +311,56 @@ export class SettingsService {
 
     async setWhatsAppSettings(settings: WhatsAppSettings): Promise<void> {
         await this.set("whatsapp_settings", settings);
+    }
+
+    // Commission settings
+    async getCommissionSettings(): Promise<CommissionSettings> {
+        return this.get("commission_settings", DEFAULT_COMMISSION_SETTINGS);
+    }
+
+    async setCommissionSettings(settings: CommissionSettings): Promise<void> {
+        await this.set("commission_settings", settings);
+    }
+
+    // Factory Reset
+    async factoryReset(mode: "data" | "full"): Promise<void> {
+        // Clear Transactional Data
+        if (mode === "data" || mode === "full") {
+            try {
+                // Delete in reverse order of dependencies
+                await db.delete(salePayments);
+                await db.delete(saleItems);
+                await db.delete(sales);
+
+                await db.delete(purchaseReturnItems);
+                await db.delete(purchaseReturns);
+
+                await db.delete(purchaseItems);
+                await db.delete(purchases);
+
+                await db.delete(services);
+
+                await db.delete(activityLogs);
+                await db.delete(notifications);
+
+                // Reset stock of products
+                if (mode === "full") {
+                    await db.delete(productBatches);
+                    await db.delete(productVariants);
+                    await db.delete(products);
+                    await db.delete(categories);
+                    await db.delete(suppliers);
+                    await db.delete(members);
+                    // Keep users/settings
+                } else {
+                    // Just reset stock counts?
+                    // Or maybe we should keep stock history?
+                    // Factory reset usually assumes clean slate.
+                }
+            } catch (e) {
+                console.error("Factory Reset Error:", e);
+                throw new Error("Failed to reset data");
+            }
+        }
     }
 }

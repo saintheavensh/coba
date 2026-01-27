@@ -10,6 +10,39 @@ export interface SalesSummary {
     profitMargin: number;
 }
 
+export interface ProfitAndLoss {
+    revenue: {
+        sales: number;
+        services: number;
+        total: number;
+    };
+    cogs: {
+        sales: number;
+        services: number;
+        total: number;
+    };
+    grossProfit: number;
+    expenses: {
+        operational: number;
+        commissions: number;
+        total: number;
+    };
+    netProfit: number;
+}
+
+export interface StockValueReport {
+    totalItems: number;
+    totalStock: number;
+    totalValueHPP: number;
+    totalValueSell: number;
+    potentialProfit: number;
+    categories: {
+        name: string;
+        stock: number;
+        value: number;
+    }[];
+}
+
 export interface TransactionReport {
     id: string;
     date: string;
@@ -155,6 +188,34 @@ export const ReportsService = {
 
         const res = await api.get<ApiResponse<PartsUsageReport[]>>(`/reports/parts?${params.toString()}`);
         return res.data.data || [];
+    },
+
+    /**
+     * Get Profit and Loss summary
+     */
+    getProfitAndLoss: async (filters: ReportFilters = {}): Promise<ProfitAndLoss> => {
+        const params = new URLSearchParams();
+        if (filters.startDate) params.set("startDate", filters.startDate);
+        if (filters.endDate) params.set("endDate", filters.endDate);
+
+        const res = await api.get<ApiResponse<ProfitAndLoss>>(`/reports/profit-loss?${params.toString()}`);
+        return res.data.data!;
+    },
+
+    /**
+     * Get current stock value report
+     */
+    getStockValueReport: async (): Promise<StockValueReport> => {
+        const res = await api.get<ApiResponse<StockValueReport>>(`/reports/stock-value`);
+        return res.data.data!;
+    },
+
+    /**
+     * Get stock adjustment history from opname sessions
+     */
+    getStockAdjustments: async (): Promise<any[]> => {
+        const res = await api.get<ApiResponse<any[]>>("/inventory/opname/adjustment-history");
+        return res.data?.data || [];
     }
 };
 

@@ -15,6 +15,8 @@
         valueKey = "value",
         filterKey = undefined,
         onSelect,
+        onSearch,
+        shouldFilter = true,
         itemSnippet,
         disabled = false,
         class: className = undefined,
@@ -28,6 +30,8 @@
         valueKey?: string | ((item: any) => string);
         filterKey?: string | ((item: any) => string); // Optional custom filter string
         onSelect?: (item: any) => void;
+        onSearch?: (term: string) => void;
+        shouldFilter?: boolean;
         itemSnippet?: import("svelte").Snippet<[any]>;
         disabled?: boolean;
         class?: string;
@@ -92,8 +96,11 @@
         class="w-[--radix-popover-trigger-width] p-0"
         align="start"
     >
-        <Command.Root>
-            <Command.Input placeholder={searchPlaceholder} />
+        <Command.Root {shouldFilter}>
+            <Command.Input
+                placeholder={searchPlaceholder}
+                oninput={(e: any) => onSearch?.(e.currentTarget.value)}
+            />
             <Command.List>
                 <Command.Empty>{emptyText}</Command.Empty>
                 <Command.Group class="max-h-[300px] overflow-y-auto">

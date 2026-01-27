@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import ProductMasterForm from "./product-master-form.svelte";
+    import BulkMinStockDialog from "./bulk-min-stock-dialog.svelte";
     import { InventoryService } from "$lib/services/inventory.service";
     import SearchInput from "$lib/components/custom/search-input.svelte";
 
@@ -17,6 +18,7 @@
         ArrowUpDown,
         ChevronRight,
         ChevronDown,
+        Settings2,
     } from "lucide-svelte";
     import { Skeleton } from "$lib/components/ui/skeleton";
     import {
@@ -69,10 +71,28 @@
         SelectTrigger,
     } from "$lib/components/ui/select";
 
+    // Search Debounce (Rune-based)
+    let searchTerm = $state("");
+    let debouncedSearch = $state("");
+    let selectedFilterCategory = $state("all");
+    let searchTimeout: any;
+
+    $effect(() => {
+        if (searchTimeout) clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            debouncedSearch = searchTerm;
+        }, 500); // 500ms debounce
+    });
+
     // Queries (v6: options must be a function for reactivity)
     const productsQuery = createQuery(() => ({
-        queryKey: ["products"],
-        queryFn: () => InventoryService.getProducts(),
+        queryKey: ["products", debouncedSearch, selectedFilterCategory],
+        queryFn: () =>
+            InventoryService.getProducts(
+                undefined,
+                debouncedSearch,
+                selectedFilterCategory,
+            ),
     }));
 
     const categoriesQuery = createQuery(() => ({
@@ -144,13 +164,10 @@
     // Internal State (Runes)
     let open = $state(false);
     let detailOpen = $state(false);
-    let searchTerm = $state("");
+    let bulkMinStockOpen = $state(false);
 
     // Form State (Runes)
     let editingProduct = $state<any>(null);
-
-    // Filter State (Runes)
-    let selectedFilterCategory = $state("all");
 
     // Sort State (Runes)
     type SortKey = "code" | "name" | "categoryName" | "stock" | "status";
@@ -254,39 +271,23 @@
         ),
     );
 
-    // Filtering & Sorting (Reactive)
-    // Filtering & Sorting ($derived)
+    // Sorting ($derived) - Search/Category filtering now handled by server
     let filteredProducts = $derived(
-        products
-            .filter((p: any) => {
-                const term = searchTerm.toLowerCase();
-                const matchSearch =
-                    p.name.toLowerCase().includes(term) ||
-                    (p.code && p.code.toLowerCase().includes(term)) ||
-                    (p.categoryName &&
-                        p.categoryName.toLowerCase().includes(term));
+        products.sort((a: any, b: any) => {
+            const valA = a[sortKey] || "";
+            const valB = b[sortKey] || "";
 
-                const matchCategory =
-                    selectedFilterCategory === "all" ||
-                    p.categoryId === selectedFilterCategory;
+            if (typeof valA === "number" && typeof valB === "number") {
+                return sortDir === "asc" ? valA - valB : valB - valA;
+            }
 
-                return matchSearch && matchCategory;
-            })
-            .sort((a: any, b: any) => {
-                const valA = a[sortKey] || "";
-                const valB = b[sortKey] || "";
+            const strA = String(valA).toLowerCase();
+            const strB = String(valB).toLowerCase();
 
-                if (typeof valA === "number" && typeof valB === "number") {
-                    return sortDir === "asc" ? valA - valB : valB - valA;
-                }
-
-                const strA = String(valA).toLowerCase();
-                const strB = String(valB).toLowerCase();
-
-                if (strA < strB) return sortDir === "asc" ? -1 : 1;
-                if (strA > strB) return sortDir === "asc" ? 1 : -1;
-                return 0;
-            }),
+            if (strA < strB) return sortDir === "asc" ? -1 : 1;
+            if (strA > strB) return sortDir === "asc" ? 1 : -1;
+            return 0;
+        }),
     );
 
     function toggleSort(key: SortKey) {
@@ -338,15 +339,22 @@
             <!-- Spacer to maintain layout structure if needed, or remove completely if not needed -->
         </div>
 
-        <!-- Dialog Produk Baru -->
-        <Button
-            onclick={() => {
-                editingProduct = null;
-                open = true;
-            }}
-        >
-            <Plus class="mr-2 h-4 w-4" /> Produk Master Baru
-        </Button>
+        <div class="flex items-center gap-2">
+            <!-- Bulk Min Stock Button -->
+            <Button variant="outline" onclick={() => (bulkMinStockOpen = true)}>
+                <Settings2 class="mr-2 h-4 w-4" /> Atur Min. Stok
+            </Button>
+
+            <!-- Dialog Produk Baru -->
+            <Button
+                onclick={() => {
+                    editingProduct = null;
+                    open = true;
+                }}
+            >
+                <Plus class="mr-2 h-4 w-4" /> Produk Master Baru
+            </Button>
+        </div>
 
         <ProductMasterForm
             bind:open
@@ -355,6 +363,9 @@
                 editingProduct = null;
             }}
         />
+
+        <!-- Bulk Min Stock Dialog -->
+        <BulkMinStockDialog bind:open={bulkMinStockOpen} />
     </div>
 
     <!-- Mobile List View -->

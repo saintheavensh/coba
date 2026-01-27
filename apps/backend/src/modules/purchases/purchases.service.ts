@@ -1,5 +1,6 @@
 import { db } from "../../db";
 import { purchases, purchaseItems, productBatches, products, activityLogs } from "../../db/schema";
+import { ActivityLogService } from "../../lib/activity-log.service";
 import { eq, sql, and } from "drizzle-orm";
 import { PurchasesRepository } from "./purchases.repository";
 
@@ -128,13 +129,13 @@ export class PurchasesService {
 
             // 5. Activity Log
             if (data.userId) {
-                await tx.insert(activityLogs).values({
+                await ActivityLogService.log({
                     userId: data.userId,
                     action: "CREATE",
                     entityType: "purchase",
                     entityId: purchaseId,
-                    description: `Created purchase ${purchaseId}`,
-                    createdAt: new Date()
+                    description: `Created purchase ${purchaseId} for ${totalAmount}`,
+                    details: { newValue: data }
                 });
             }
         });

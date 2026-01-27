@@ -138,7 +138,11 @@
                         <div
                             class="border-b border-dashed border-black my-2"
                         ></div>
-                        <h3 class="font-bold text-sm">SERVICE TICKET</h3>
+                        <h3 class="font-bold text-sm">
+                            {serviceOrder?.isDirectComplete
+                                ? "INVOICE / NOTA"
+                                : "SERVICE TICKET"}
+                        </h3>
                     {/if}
                 </div>
 
@@ -233,7 +237,11 @@
                         class="text-center text-[10px] mt-4 pt-2 border-t border-dashed border-black"
                     >
                         <p class="mb-1">{footerText}</p>
-                        <p class="font-semibold">*** SIMPAN STRUK INI ***</p>
+                        <p class="font-semibold">
+                            {serviceOrder?.isDirectComplete
+                                ? "*** SUDAH DIBAYAR (LUNAS) ***"
+                                : "*** SIMPAN STRUK INI ***"}
+                        </p>
                     </div>
                 {:else}
                     <!-- STICKER MODE (Compact) -->

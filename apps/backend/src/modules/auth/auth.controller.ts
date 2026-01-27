@@ -12,11 +12,11 @@ const service = new AuthService();
 app.post("/login", zValidator("json", loginSchema), async (c) => {
     try {
         const data = c.req.valid("json");
-        
+
         // Debug logging
         const Logger = (await import("../../lib/logger")).Logger;
         Logger.debug(`[AUTH] Login attempt for username: ${data.username}`);
-        
+
         const result = await service.login(data);
 
         // Set HTTP-only cookie with the token
@@ -28,7 +28,7 @@ app.post("/login", zValidator("json", loginSchema), async (c) => {
         // In production, use secure=true when backend is directly accessed via HTTPS
         const isDevelopment = process.env.NODE_ENV !== "production";
         const isHttpsFrontend = c.req.header("x-forwarded-proto") === "https";
-        
+
         setCookie(c, "auth_token", result.token, {
             httpOnly: true,
             secure: !isDevelopment && (isHttpsFrontend || process.env.NODE_ENV === "production"),
@@ -87,7 +87,8 @@ app.put("/users/:id", authMiddleware, async (c) => {
     try {
         const id = c.req.param("id");
         const body = await c.req.json();
-        const updated = await service.updateUser(id, body);
+        const performer = c.get("jwtPayload") as any;
+        const updated = await service.updateUser(id, body, performer?.id);
         return apiSuccess(c, updated, "User updated successfully");
     } catch (e) {
         return apiError(c, e, "Failed to update user", 500);
@@ -98,7 +99,8 @@ app.put("/users/:id", authMiddleware, async (c) => {
 app.delete("/users/:id", authMiddleware, async (c) => {
     try {
         const id = c.req.param("id");
-        await service.deleteUser(id);
+        const performer = c.get("jwtPayload") as any;
+        await service.deleteUser(id, performer?.id);
         return apiSuccess(c, null, "User deleted successfully");
     } catch (e) {
         return apiError(c, e, "Failed to delete user", 500);

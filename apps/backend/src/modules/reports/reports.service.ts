@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { sales, saleItems, productBatches, services, purchases, users, activityLogs } from "../../db/schema";
+import { sales, saleItems, productBatches, services, purchases, users, activityLogs, operationalCosts } from "../../db/schema";
 import { sql, eq, gte, lte, and, count, sum, desc } from "drizzle-orm";
 
 export interface ReportFilters {
@@ -16,6 +16,26 @@ export interface SalesSummary {
     profitMargin: number;
 }
 
+export interface ProfitAndLoss {
+    revenue: {
+        sales: number;
+        services: number;
+        total: number;
+    };
+    cogs: {
+        sales: number;
+        services: number;
+        total: number;
+    };
+    grossProfit: number;
+    expenses: {
+        operational: number;
+        commissions: number;
+        total: number;
+    };
+    netProfit: number;
+}
+
 export interface TransactionReport {
     id: string;
     date: Date;
@@ -25,6 +45,19 @@ export interface TransactionReport {
     total: number;
     hpp: number;
     profit: number;
+}
+
+export interface StockValueReport {
+    totalItems: number;
+    totalStock: number;
+    totalValueHPP: number;
+    totalValueSell: number;
+    potentialProfit: number;
+    categories: {
+        name: string;
+        stock: number;
+        value: number;
+    }[];
 }
 
 export class ReportsService {
@@ -565,6 +598,178 @@ export class ReportsService {
                 newValue: log.newValue ? JSON.parse(log.newValue as string) : null
             }
         }));
+    }
+
+    /**
+     * Get Profit and Loss Summary
+     */
+    async getProfitAndLoss(filters: ReportFilters = {}): Promise<ProfitAndLoss> {
+        let salesConditions = [];
+        let serviceConditions = [];
+        let expenseConditions = [];
+
+        if (filters.startDate) {
+            const start = new Date(filters.startDate);
+            salesConditions.push(gte(sales.createdAt, start));
+            serviceConditions.push(gte(services.dateOut, start)); // Profit counted on completion
+            expenseConditions.push(gte(operationalCosts.date, start));
+        }
+        if (filters.endDate) {
+            const end = new Date(filters.endDate);
+            end.setHours(23, 59, 59, 999);
+            salesConditions.push(lte(sales.createdAt, end));
+            serviceConditions.push(lte(services.dateOut, end));
+            expenseConditions.push(lte(operationalCosts.date, end));
+        }
+
+        // 1. Sales Revenue & COGS
+        const salesData = await db.query.sales.findMany({
+            where: and(...salesConditions),
+            with: {
+                items: {
+                    with: {
+                        batch: true
+                    }
+                }
+            }
+        });
+
+        let salesRevenue = 0;
+        let salesCOGS = 0;
+        for (const s of salesData) {
+            salesRevenue += s.finalAmount;
+            for (const item of (s.items || [])) {
+                const buyPrice = (item as any).batch?.buyPrice || 0;
+                salesCOGS += buyPrice * item.qty;
+            }
+        }
+
+        // 2. Service Revenue & COGS & Commissions
+        const servicesData = await db.query.services.findMany({
+            where: and(
+                eq(services.status, "diambil"), // Only count if picked up/paid
+                ...serviceConditions
+            ),
+            with: {
+                technician: true
+            }
+        });
+
+        let serviceRevenue = 0;
+        let serviceCOGS = 0;
+        let totalCommissions = 0;
+
+        for (const svc of servicesData) {
+            serviceRevenue += svc.actualCost || 0;
+
+            // a. Calculate COGS
+            const parts = (svc.parts as any[]) || [];
+            for (const p of parts) {
+                serviceCOGS += (p.buyPrice || 0) * (p.qty || 1);
+            }
+
+            // b. Calculate Commission
+            if (svc.technicianId && svc.technician) {
+                const config = (svc.technician as any).commissionConfig;
+                if (config && config.enabled) {
+                    let comm = 0;
+                    // Jasa = actualCost - partsSellingPrice
+                    const partsSellingPrice = parts.reduce((sum, p) => sum + (p.price || 0) * (p.qty || 1), 0);
+                    const jasaValue = Math.max(0, (svc.actualCost || 0) - partsSellingPrice);
+
+                    if (config.type === 'percent') {
+                        comm = (jasaValue * config.value) / 100;
+                    } else if (config.type === 'fixed') {
+                        comm = config.value;
+                    }
+                    totalCommissions += comm;
+                }
+            }
+        }
+
+        // 3. Operational Expenses
+        const expensesData = await db.query.operationalCosts.findMany({
+            where: and(...expenseConditions)
+        });
+
+        const operationalExpense = expensesData.reduce((sum, e) => sum + e.amount, 0);
+
+        const totalRevenue = salesRevenue + serviceRevenue;
+        const totalCOGS = salesCOGS + serviceCOGS;
+        const grossProfit = totalRevenue - totalCOGS;
+        const totalExpenses = operationalExpense + totalCommissions;
+        const netProfit = grossProfit - totalExpenses;
+
+        return {
+            revenue: {
+                sales: salesRevenue,
+                services: serviceRevenue,
+                total: totalRevenue
+            },
+            cogs: {
+                sales: salesCOGS,
+                services: serviceCOGS,
+                total: totalCOGS
+            },
+            grossProfit,
+            expenses: {
+                operational: operationalExpense,
+                commissions: totalCommissions,
+                total: totalExpenses
+            },
+            netProfit
+        };
+    }
+
+    /**
+     * Get Stock Value Report
+     */
+    async getStockValueReport(): Promise<StockValueReport> {
+        const batches = await db.query.productBatches.findMany({
+            with: {
+                product: {
+                    with: {
+                        category: true
+                    }
+                }
+            }
+        });
+
+        let totalItems = new Set();
+        let totalStock = 0;
+        let totalValueHPP = 0;
+        let totalValueSell = 0;
+        const categoryMap = new Map<string, { stock: number; value: number }>();
+
+        for (const b of batches) {
+            const stock = Math.max(0, b.currentStock);
+            const valueHPP = stock * b.buyPrice;
+            const valueSell = stock * b.sellPrice;
+
+            totalItems.add(b.productId);
+            totalStock += stock;
+            totalValueHPP += valueHPP;
+            totalValueSell += valueSell;
+
+            const catName = (b.product as any)?.category?.name || "Uncategorized";
+            const current = categoryMap.get(catName) || { stock: 0, value: 0 };
+            categoryMap.set(catName, {
+                stock: current.stock + stock,
+                value: current.value + valueHPP
+            });
+        }
+
+        return {
+            totalItems: totalItems.size,
+            totalStock,
+            totalValueHPP,
+            totalValueSell,
+            potentialProfit: totalValueSell - totalValueHPP,
+            categories: Array.from(categoryMap.entries()).map(([name, data]) => ({
+                name,
+                ...data
+            }))
+        };
     }
 }
 
