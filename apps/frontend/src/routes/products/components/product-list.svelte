@@ -19,6 +19,7 @@
         ChevronRight,
         ChevronDown,
         Settings2,
+        Boxes,
     } from "lucide-svelte";
     import { Skeleton } from "$lib/components/ui/skeleton";
     import {
@@ -300,59 +301,68 @@
     }
 </script>
 
-<div class="space-y-4">
+<div class="space-y-6">
     <!-- Toolbar -->
-    <div class="flex flex-row items-center gap-2 w-full md:w-auto">
-        <SearchInput
-            bind:value={searchTerm}
-            placeholder="Cari..."
-            class="flex-1 w-auto md:w-[300px]"
-        />
-        <Select
-            type="single"
-            value={selectedFilterCategory}
-            onValueChange={(v) => (selectedFilterCategory = v)}
-        >
-            <SelectTrigger class="w-[140px] md:w-[200px]">
-                <span class="truncate">
-                    {#if selectedFilterCategory === "all"}
-                        Kategori
-                    {:else}
-                        {categories.find((c) => c.id === selectedFilterCategory)
-                            ?.name || "Kategori"}
-                    {/if}
-                </span>
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="all">Semua Kategori</SelectItem>
-                {#each categories.filter((cat) => !categories.some((c) => c.parentId === cat.id)) as cat}
-                    <SelectItem value={cat.id}>{cat.name}</SelectItem>
-                {/each}
-            </SelectContent>
-        </Select>
-    </div>
-
     <div
-        class="flex flex-col md:flex-row md:items-center justify-between gap-4"
+        class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-sm"
     >
-        <div>
-            <!-- Spacer to maintain layout structure if needed, or remove completely if not needed -->
+        <div
+            class="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto"
+        >
+            <div class="relative w-full sm:w-auto">
+                <SearchInput
+                    bind:value={searchTerm}
+                    placeholder="Search by name, code..."
+                    class="w-full sm:w-[320px] bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:ring-blue-500/20 shadow-sm"
+                />
+            </div>
+            <Select
+                type="single"
+                value={selectedFilterCategory}
+                onValueChange={(v) => (selectedFilterCategory = v)}
+            >
+                <SelectTrigger
+                    class="w-full sm:w-[200px] bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-sm"
+                >
+                    <span class="truncate flex items-center gap-2">
+                        <Filter class="h-3.5 w-3.5 text-slate-500" />
+                        {#if selectedFilterCategory === "all"}
+                            All Categories
+                        {:else}
+                            {categories.find(
+                                (c) => c.id === selectedFilterCategory,
+                            )?.name || "Category"}
+                        {/if}
+                    </span>
+                </SelectTrigger>
+                <SelectContent class="max-h-[300px]">
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {#each categories.filter((cat) => !categories.some((c) => c.parentId === cat.id)) as cat}
+                        <SelectItem value={cat.id}>{cat.name}</SelectItem>
+                    {/each}
+                </SelectContent>
+            </Select>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 w-full xl:w-auto">
             <!-- Bulk Min Stock Button -->
-            <Button variant="outline" onclick={() => (bulkMinStockOpen = true)}>
-                <Settings2 class="mr-2 h-4 w-4" /> Atur Min. Stok
+            <Button
+                variant="outline"
+                class="flex-1 xl:flex-none border-slate-200 dark:border-slate-800 hover:bg-white dark:hover:bg-slate-800 shadow-sm"
+                onclick={() => (bulkMinStockOpen = true)}
+            >
+                <Settings2 class="mr-2 h-4 w-4" /> Min. Stock
             </Button>
 
             <!-- Dialog Produk Baru -->
             <Button
+                class="flex-1 xl:flex-none bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/20 border-0"
                 onclick={() => {
                     editingProduct = null;
                     open = true;
                 }}
             >
-                <Plus class="mr-2 h-4 w-4" /> Produk Master Baru
+                <Plus class="mr-2 h-4 w-4" /> Add Product
             </Button>
         </div>
 
@@ -372,7 +382,9 @@
     <div class="grid gap-4 md:hidden">
         {#if loading}
             {#each Array(3) as _}
-                <div class="border rounded-lg p-4 space-y-3">
+                <div
+                    class="border rounded-xl p-4 space-y-3 bg-white dark:bg-slate-900 shadow-sm"
+                >
                     <Skeleton class="h-4 w-1/3" />
                     <Skeleton class="h-4 w-2/3" />
                     <Skeleton class="h-8 w-full" />
@@ -380,22 +392,24 @@
             {/each}
         {:else if filteredProducts.length === 0}
             <div
-                class="text-center py-8 text-muted-foreground border rounded-lg bg-muted/20"
+                class="text-center py-12 text-muted-foreground border border-dashed rounded-xl bg-slate-50/50"
             >
-                Tidak ada produk ditemukan.
+                No products found matching your criteria.
             </div>
         {:else}
             {#each filteredProducts as product}
-                <div class="bg-card border rounded-lg p-4 shadow-sm space-y-3">
+                <div
+                    class="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-4 shadow-sm space-y-3"
+                >
                     <div class="flex justify-between items-start">
                         <div>
                             <div
-                                class="text-[10px] font-mono text-muted-foreground uppercase tracking-wider"
+                                class="text-[10px] font-mono text-slate-500 uppercase tracking-wider bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md inline-block mb-1"
                             >
                                 {product.code || "-"}
                             </div>
                             <h3
-                                class="font-semibold text-base leading-tight mt-0.5"
+                                class="font-semibold text-base leading-tight text-slate-900 dark:text-white"
                             >
                                 {product.name}
                             </h3>
@@ -404,34 +418,39 @@
                             {#if product.status === "Normal"}
                                 <Badge
                                     variant="outline"
-                                    class="bg-green-50 text-green-700 border-green-200 text-[10px] px-1.5 h-5"
-                                    >Aman</Badge
+                                    class="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/30 font-medium"
+                                    >In Stock</Badge
                                 >
                             {:else if product.status === "Critical"}
                                 <Badge
                                     variant="outline"
-                                    class="bg-yellow-50 text-yellow-700 border-yellow-200 text-[10px] px-1.5 h-5"
-                                    >Menipis</Badge
+                                    class="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-900/30 font-medium"
+                                    >Low Stock</Badge
                                 >
                             {:else}
                                 <Badge
                                     variant="destructive"
-                                    class="text-[10px] px-1.5 h-5">Habis</Badge
+                                    class="font-medium shadow-sm"
+                                    >Out of Stock</Badge
                                 >
                             {/if}
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between text-sm pt-1">
+                    <div
+                        class="flex items-center justify-between text-sm pt-2 border-t border-slate-50 dark:border-slate-800"
+                    >
                         <Badge
                             variant="secondary"
-                            class="font-normal text-muted-foreground bg-muted/50"
+                            class="font-normal text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800"
                         >
                             {product.categoryName}
                         </Badge>
                         <div class="text-right">
-                            <div class="text-xs text-muted-foreground">
-                                Stok
+                            <div
+                                class="text-[10px] uppercase tracking-wider text-slate-400"
+                            >
+                                Stock
                             </div>
                             <div
                                 class="font-bold text-lg leading-none"
@@ -444,22 +463,22 @@
                         </div>
                     </div>
 
-                    <div class="pt-3 border-t flex justify-end gap-2">
+                    <div class="pt-3 flex justify-end gap-2">
                         <Button
                             variant="outline"
                             size="sm"
-                            class="h-8 text-xs flex-1"
+                            class="h-8 text-xs flex-1 border-slate-200 dark:border-slate-800"
                             onclick={() => handleDetail(product)}
                         >
-                            <Eye class="mr-1.5 h-3.5 w-3.5" /> Detail
+                            <Eye class="mr-1.5 h-3.5 w-3.5" /> Details
                         </Button>
-                        <!-- Action Menu Trigger -->
                         <DropdownMenu>
                             <DropdownMenuTrigger
                                 class={buttonVariants({
                                     variant: "ghost",
                                     size: "icon",
-                                    className: "h-8 w-8",
+                                    className:
+                                        "h-8 w-8 hover:bg-slate-100 dark:hover:bg-slate-800",
                                 })}
                             >
                                 <MoreHorizontal class="h-4 w-4" />
@@ -470,11 +489,12 @@
                                 >
                                     <Pencil class="mr-2 h-4 w-4" /> Edit
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                    class="text-red-600"
+                                    class="text-red-600 focus:text-red-700 focus:bg-red-50"
                                     onclick={() => confirmDelete(product.id)}
                                 >
-                                    <Trash2 class="mr-2 h-4 w-4" /> Hapus
+                                    <Trash2 class="mr-2 h-4 w-4" /> Delete
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -485,82 +505,92 @@
     </div>
 
     <!-- Desktop Table -->
-    <div class="hidden md:block rounded-md border bg-card">
+    <div
+        class="hidden md:block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 overflow-hidden shadow-sm"
+    >
         <Table>
-            <TableHeader>
-                <TableRow>
+            <TableHeader class="bg-slate-50/50 dark:bg-slate-900/50">
+                <TableRow
+                    class="hover:bg-transparent border-slate-100 dark:border-slate-800"
+                >
                     <TableHead class="w-[50px]"></TableHead>
-                    <!-- Expand Toggle -->
-                    <TableHead class="w-[100px]">
+                    <TableHead class="w-[120px]">
                         <Button
                             variant="ghost"
                             onclick={() => toggleSort("code")}
-                            class="h-8 -ml-3"
+                            class="h-8 -ml-3 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:hover:text-slate-300"
                         >
-                            Kode <ArrowUpDown class="ml-2 h-3 w-3" />
+                            Code <ArrowUpDown class="ml-2 h-3 w-3" />
                         </Button>
                     </TableHead>
                     <TableHead>
                         <Button
                             variant="ghost"
                             onclick={() => toggleSort("name")}
-                            class="h-8 -ml-3"
+                            class="h-8 -ml-3 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:hover:text-slate-300"
                         >
-                            Nama Produk <ArrowUpDown class="ml-2 h-3 w-3" />
+                            Product Name <ArrowUpDown class="ml-2 h-3 w-3" />
                         </Button>
                     </TableHead>
                     <TableHead>
                         <Button
                             variant="ghost"
                             onclick={() => toggleSort("categoryName")}
-                            class="h-8 -ml-3"
+                            class="h-8 -ml-3 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:hover:text-slate-300"
                         >
-                            Kategori <ArrowUpDown class="ml-2 h-3 w-3" />
+                            Category <ArrowUpDown class="ml-2 h-3 w-3" />
                         </Button>
                     </TableHead>
                     <TableHead class="text-right">
                         <Button
                             variant="ghost"
                             onclick={() => toggleSort("stock")}
-                            class="h-8 px-0"
+                            class="h-8 px-0 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:hover:text-slate-300"
                         >
-                            Stok Aggregat <ArrowUpDown class="ml-2 h-3 w-3" />
+                            Total Stock <ArrowUpDown class="ml-2 h-3 w-3" />
                         </Button>
                     </TableHead>
                     <TableHead class="text-center">
                         <Button
                             variant="ghost"
                             onclick={() => toggleSort("status")}
-                            class="h-8"
+                            class="h-8 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:hover:text-slate-300"
                         >
                             Status <ArrowUpDown class="ml-2 h-3 w-3" />
                         </Button>
                     </TableHead>
-                    <TableHead class="text-right">Aksi</TableHead>
+                    <TableHead
+                        class="text-right text-xs font-bold uppercase tracking-wider text-slate-500"
+                        >Actions</TableHead
+                    >
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {#if loading}
                     {#each Array(5) as _}
-                        <TableRow>
-                            <TableCell><Skeleton class="h-8 w-8" /></TableCell>
+                        <TableRow class="border-slate-50 dark:border-slate-800">
                             <TableCell
-                                ><Skeleton class="h-4 w-[100px]" /></TableCell
+                                ><Skeleton
+                                    class="h-8 w-8 rounded-md"
+                                /></TableCell
                             >
                             <TableCell
-                                ><Skeleton class="h-4 w-[250px]" /></TableCell
+                                ><Skeleton class="h-4 w-[80px]" /></TableCell
+                            >
+                            <TableCell
+                                ><Skeleton class="h-4 w-[200px]" /></TableCell
                             >
                             <TableCell
                                 ><Skeleton class="h-4 w-[100px]" /></TableCell
                             >
                             <TableCell class="text-right"
                                 ><Skeleton
-                                    class="h-4 w-[50px] ml-auto"
+                                    class="h-4 w-[40px] ml-auto"
                                 /></TableCell
                             >
                             <TableCell class="text-center"
                                 ><Skeleton
-                                    class="h-4 w-[80px] mx-auto"
+                                    class="h-6 w-[80px] rounded-full mx-auto"
                                 /></TableCell
                             >
                             <TableCell class="text-right"
@@ -570,22 +600,26 @@
                     {/each}
                 {:else if filteredProducts.length === 0}
                     <TableRow>
-                        <TableCell colspan={7} class="h-24 text-center">
-                            Tidak ada produk ditemukan.
+                        <TableCell
+                            colspan={7}
+                            class="h-32 text-center text-slate-500"
+                        >
+                            No products found matching your search.
                         </TableCell>
                     </TableRow>
                 {:else}
                     {#each filteredProducts as product}
                         <TableRow
-                            class={expandedProductId === product.id
-                                ? "bg-muted/50 border-b-0"
-                                : ""}
+                            class="border-slate-50 dark:border-slate-800 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors {expandedProductId ===
+                            product.id
+                                ? 'bg-slate-50/80 dark:bg-slate-800/50'
+                                : ''}"
                         >
                             <TableCell>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    class="h-8 w-8"
+                                    class="h-8 w-8 text-slate-400 hover:text-blue-600"
                                     onclick={() => toggleExpanded(product.id)}
                                 >
                                     {#if expandedProductId === product.id}
@@ -595,22 +629,31 @@
                                     {/if}
                                 </Button>
                             </TableCell>
-                            <TableCell
-                                class="font-medium text-xs text-muted-foreground"
-                            >
+                            <TableCell class="font-mono text-xs text-slate-500">
                                 {product.code || "-"}
                             </TableCell>
-                            <TableCell
-                                ><div class="font-medium">
+                            <TableCell>
+                                <div
+                                    class="font-medium text-slate-700 dark:text-slate-200"
+                                >
                                     {product.name}
-                                </div></TableCell
-                            >
-                            <TableCell>{product.categoryName}</TableCell>
+                                </div>
+                            </TableCell>
+                            <TableCell>
+                                <Badge
+                                    variant="secondary"
+                                    class="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 font-normal hover:bg-slate-200"
+                                >
+                                    {product.categoryName}
+                                </Badge>
+                            </TableCell>
                             <TableCell class="text-right font-bold w-[120px]">
                                 <span
                                     class:text-red-500={product.stock === 0}
                                     class:text-yellow-600={product.status ===
                                         "Critical"}
+                                    class:text-slate-700={product.stock >
+                                        (product.minStock || 5)}
                                 >
                                     {product.stock}
                                 </span>
@@ -619,17 +662,19 @@
                                 {#if product.status === "Normal"}
                                     <Badge
                                         variant="outline"
-                                        class="bg-green-50 text-green-700 border-green-200"
-                                        >Aman</Badge
+                                        class="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/30"
+                                        >In Stock</Badge
                                     >
                                 {:else if product.status === "Critical"}
                                     <Badge
                                         variant="outline"
-                                        class="bg-yellow-50 text-yellow-700 border-yellow-200"
-                                        >Menipis</Badge
+                                        class="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-900/30"
+                                        >Low Stock</Badge
                                     >
                                 {:else}
-                                    <Badge variant="destructive">Habis</Badge>
+                                    <Badge variant="destructive"
+                                        >Out of Stock</Badge
+                                    >
                                 {/if}
                             </TableCell>
                             <TableCell class="text-right">
@@ -638,7 +683,8 @@
                                         class={buttonVariants({
                                             variant: "ghost",
                                             size: "icon",
-                                            className: "h-8 w-8",
+                                            className:
+                                                "h-8 w-8 text-slate-400 hover:text-slate-900 dark:hover:text-white",
                                         })}
                                     >
                                         <MoreHorizontal class="h-4 w-4" />
@@ -648,15 +694,14 @@
                                             onclick={() => handleEdit(product)}
                                         >
                                             <Pencil class="mr-2 h-4 w-4" /> Edit
-                                            Master
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem
-                                            class="text-red-600"
+                                            class="text-red-600 focus:text-red-700 focus:bg-red-50"
                                             onclick={() =>
                                                 confirmDelete(product.id)}
                                         >
-                                            <Trash2 class="mr-2 h-4 w-4" /> Hapus
+                                            <Trash2 class="mr-2 h-4 w-4" /> Delete
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -664,31 +709,33 @@
                         </TableRow>
                         <!-- Expanded Row for Batches -->
                         {#if expandedProductId === product.id}
-                            <TableRow class="hover:bg-muted/50 bg-muted/50">
-                                <TableCell colspan={7} class="p-4 pt-0">
+                            <TableRow
+                                class="bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-50/50"
+                            >
+                                <TableCell
+                                    colspan={7}
+                                    class="p-4 pt-0 border-b border-slate-100 dark:border-slate-800"
+                                >
                                     <div
-                                        class="bg-card border rounded-lg p-4 shadow-inner space-y-4 animate-in slide-in-from-top-2"
+                                        class="ml-10 mt-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm animate-in fade-in zoom-in-95 duration-200"
                                     >
                                         <div
-                                            class="flex items-center justify-between"
+                                            class="flex items-center justify-between mb-3"
                                         >
                                             <h4
-                                                class="font-semibold text-sm flex items-center gap-2"
+                                                class="font-semibold text-sm flex items-center gap-2 text-slate-700 dark:text-slate-300"
                                             >
-                                                📦 Stok & Varian (Batch)
+                                                <Boxes class="h-4 w-4" /> Stock Batches
                                             </h4>
-                                            <!-- Optional: Add Batch Action if permitted, but user said remove it -->
                                         </div>
 
                                         {#if !product.batches || product.batches.length === 0}
                                             <div
-                                                class="text-center py-4 text-muted-foreground text-sm border-2 border-dashed rounded"
+                                                class="text-center py-6 text-muted-foreground text-sm border border-dashed rounded-lg"
                                             >
-                                                Belum ada stok. Lakukan
-                                                Pembelian untuk menambah stok.
+                                                No stock batches found.
                                             </div>
                                         {:else}
-                                            <!-- Group by Supplier logic inline or use helper -->
                                             {@const batchesBySup =
                                                 filterBatchesByVariant(
                                                     product.batches || [],
@@ -696,7 +743,7 @@
                                                     const s =
                                                         b.supplier?.name ||
                                                         b.supplierName ||
-                                                        "Tanpa Supplier";
+                                                        "Unknown Supplier";
                                                     if (!acc[s]) acc[s] = [];
                                                     acc[s].push(b);
                                                     return acc;
@@ -706,80 +753,91 @@
                                                 {#each Object.entries(batchesBySup) as [supplier, batches]}
                                                     <div class="space-y-2">
                                                         <div
-                                                            class="text-xs font-semibold text-muted-foreground flex items-center gap-2 uppercase tracking-wider"
+                                                            class="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2"
                                                         >
                                                             <div
-                                                                class="w-1 h-3 bg-primary/50 rounded-full"
+                                                                class="w-1.5 h-1.5 bg-blue-500 rounded-full"
                                                             ></div>
                                                             {supplier}
                                                         </div>
-                                                        <Table>
-                                                            <TableHeader>
-                                                                <TableRow
-                                                                    class="h-8 hover:bg-transparent"
+                                                        <div
+                                                            class="rounded-lg border border-slate-100 dark:border-slate-800 overflow-hidden"
+                                                        >
+                                                            <Table>
+                                                                <TableHeader
+                                                                    class="bg-slate-50/50 dark:bg-slate-900/50"
                                                                 >
-                                                                    <TableHead
-                                                                        class="h-8 text-xs font-medium text-muted-foreground"
-                                                                        >ID</TableHead
-                                                                    >
-                                                                    <TableHead
-                                                                        class="h-8 text-xs font-medium text-muted-foreground"
-                                                                        >Varian</TableHead
-                                                                    >
-                                                                    <TableHead
-                                                                        class="h-8 text-xs font-medium text-muted-foreground text-right"
-                                                                        >Beli</TableHead
-                                                                    >
-                                                                    <TableHead
-                                                                        class="h-8 text-xs font-medium text-muted-foreground text-right"
-                                                                        >Jual</TableHead
-                                                                    >
-                                                                    <TableHead
-                                                                        class="h-8 text-xs font-medium text-muted-foreground text-right"
-                                                                        >Sisa</TableHead
-                                                                    >
-                                                                </TableRow>
-                                                            </TableHeader>
-                                                            <TableBody>
-                                                                {#each batches as any as batch}
                                                                     <TableRow
-                                                                        class="h-9"
+                                                                        class="h-7 hover:bg-transparent border-none"
                                                                     >
-                                                                        <TableCell
-                                                                            class="py-1 font-mono text-[10px] text-muted-foreground"
-                                                                            >{batch.id.substring(
-                                                                                0,
-                                                                                8,
-                                                                            )}...</TableCell
+                                                                        <TableHead
+                                                                            class="h-7 text-[10px] font-semibold text-slate-500"
+                                                                            >BATCH
+                                                                            ID</TableHead
                                                                         >
-                                                                        <TableCell
-                                                                            class="py-1"
+                                                                        <TableHead
+                                                                            class="h-7 text-[10px] font-semibold text-slate-500"
+                                                                            >VARIANT</TableHead
                                                                         >
-                                                                            <Badge
-                                                                                variant="secondary"
-                                                                                class="font-normal text-xs"
-                                                                                >{batch.variant ||
-                                                                                    "Standard"}</Badge
-                                                                            >
-                                                                        </TableCell>
-                                                                        <TableCell
-                                                                            class="text-right py-1 text-xs"
-                                                                            >Rp {batch.buyPrice?.toLocaleString() ??
-                                                                                0}</TableCell
+                                                                        <TableHead
+                                                                            class="h-7 text-[10px] font-semibold text-slate-500 text-right"
+                                                                            >BUY
+                                                                            PRICE</TableHead
                                                                         >
-                                                                        <TableCell
-                                                                            class="text-right py-1 text-xs font-medium"
-                                                                            >Rp {batch.sellPrice?.toLocaleString() ??
-                                                                                0}</TableCell
+                                                                        <TableHead
+                                                                            class="h-7 text-[10px] font-semibold text-slate-500 text-right"
+                                                                            >SELL
+                                                                            PRICE</TableHead
                                                                         >
-                                                                        <TableCell
-                                                                            class="text-right py-1 font-bold text-xs"
-                                                                            >{batch.currentStock}</TableCell
+                                                                        <TableHead
+                                                                            class="h-7 text-[10px] font-semibold text-slate-500 text-right"
+                                                                            >REMAINING</TableHead
                                                                         >
                                                                     </TableRow>
-                                                                {/each}
-                                                            </TableBody>
-                                                        </Table>
+                                                                </TableHeader>
+                                                                <TableBody>
+                                                                    {#each batches as any as batch}
+                                                                        <TableRow
+                                                                            class="h-8 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-slate-50 dark:border-slate-800"
+                                                                        >
+                                                                            <TableCell
+                                                                                class="py-1 font-mono text-[10px] text-slate-400"
+                                                                                >{batch.id.substring(
+                                                                                    0,
+                                                                                    8,
+                                                                                )}</TableCell
+                                                                            >
+                                                                            <TableCell
+                                                                                class="py-1"
+                                                                            >
+                                                                                <Badge
+                                                                                    variant="secondary"
+                                                                                    class="font-normal text-[10px] h-5 px-1.5 bg-white border border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-400"
+                                                                                    >{batch.variant ||
+                                                                                        "Standard"}</Badge
+                                                                                >
+                                                                            </TableCell>
+                                                                            <TableCell
+                                                                                class="text-right py-1 text-xs text-slate-600 dark:text-slate-400"
+                                                                                >Rp
+                                                                                {batch.buyPrice?.toLocaleString() ??
+                                                                                    0}</TableCell
+                                                                            >
+                                                                            <TableCell
+                                                                                class="text-right py-1 text-xs font-medium text-slate-900 dark:text-slate-200"
+                                                                                >Rp
+                                                                                {batch.sellPrice?.toLocaleString() ??
+                                                                                    0}</TableCell
+                                                                            >
+                                                                            <TableCell
+                                                                                class="text-right py-1 font-bold text-xs text-blue-600 dark:text-blue-400"
+                                                                                >{batch.currentStock}</TableCell
+                                                                            >
+                                                                        </TableRow>
+                                                                    {/each}
+                                                                </TableBody>
+                                                            </Table>
+                                                        </div>
                                                     </div>
                                                 {/each}
                                             </div>

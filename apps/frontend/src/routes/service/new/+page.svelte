@@ -27,6 +27,7 @@
     } from "$lib/components/ui/dialog";
     import { Printer, FileText } from "lucide-svelte";
     import ServiceNotePrint from "../components/service-note-print.svelte";
+    import ServicePickupWizard from "../components/service-pickup-wizard.svelte"; // Added
 
     // Logic & State
     import { ServiceFormStore } from "./form.svelte";
@@ -115,8 +116,13 @@
 
     let showPrintSuccessModal = $state(false);
     let createdServiceId = $state<number | string | null>(null);
+    let printedServiceData = $state<any>(null); // Added state
     let showPrintPreview = $state(false);
     let printMode = $state<"receipt" | "sticker">("receipt");
+
+    // Pickup Wizard State
+    let showPickupWizard = $state(false);
+    let completedService = $state<any>(null);
 
     function openPrintPreview(mode: "receipt" | "sticker") {
         printMode = mode;
@@ -418,13 +424,67 @@
                                 onclick={async () => {
                                     const res = await form.handleSubmit();
                                     if (res?.success) {
-                                        // goto("/service");
-                                        // New logic: Check if we have ID to print
-                                        if (res.serviceId) {
-                                            createdServiceId = res.serviceId;
-                                            showPrintSuccessModal = true;
+                                        if (form.isWalkin) {
+                                            completedService = {
+                                                serviceId: res.serviceId,
+                                                serviceNo:
+                                                    res.serviceNo || "NEW",
+                                                customer: {
+                                                    name: form.customerName,
+                                                    phone: form.customerPhone,
+                                                },
+                                                device: {
+                                                    brand: form.phoneBrand,
+                                                    model: form.phoneModel,
+                                                    imei: form.imei,
+                                                },
+                                                cost: form.grandTotal,
+                                                status: "selesai",
+                                                warranty: form.warranty, // Added warranty
+                                            };
+                                            showPickupWizard = true;
                                         } else {
-                                            goto("/service");
+                                            if (res.serviceId) {
+                                                createdServiceId =
+                                                    res.serviceId;
+                                                // Populate print data for preview
+                                                const currentUser =
+                                                    typeof localStorage !==
+                                                    "undefined"
+                                                        ? JSON.parse(
+                                                              localStorage.getItem(
+                                                                  "user",
+                                                              ) || "{}",
+                                                          )
+                                                        : {};
+                                                printedServiceData = {
+                                                    no: res.serviceNo,
+                                                    dateIn: new Date(),
+                                                    customer: {
+                                                        name: form.customerName,
+                                                        phone: form.customerPhone,
+                                                    },
+                                                    phone: {
+                                                        brand: form.phoneBrand,
+                                                        model: form.phoneModel,
+                                                        imei: form.imei,
+                                                        condition:
+                                                            form.physicalConditions,
+                                                        status: form.phoneStatus,
+                                                    },
+                                                    complaint: form.complaint,
+                                                    creator: {
+                                                        name:
+                                                            currentUser.name ||
+                                                            "Admin",
+                                                    },
+                                                    warranty: form.warranty,
+                                                    isDirectComplete: false,
+                                                };
+                                                showPrintSuccessModal = true;
+                                            } else {
+                                                goto("/service");
+                                            }
                                         }
                                     }
                                 }}
@@ -493,25 +553,39 @@
         </DialogContent>
     </Dialog>
 
-    {#if createdServiceId}
+    {#if createdServiceId && printedServiceData}
         <ServiceNotePrint
             bind:open={showPrintPreview}
             serviceId={createdServiceId}
-            serviceOrder={{
-                no: "LOADING...",
-                dateIn: new Date(),
-                customer: { name: form.customerName },
-                phone: { brand: form.phoneBrand, model: form.phoneModel },
-            }}
+            serviceOrder={printedServiceData}
             mode={printMode}
             onClose={() => {
                 showPrintPreview = false;
             }}
         />
-        <!-- Note: We mock serviceOrder partially because create API returns ID but we have form data here. 
-             If ServiceNotePrint fetches by ID internally, that's better. 
-             Currently ServiceNotePrint accepts `serviceOrder` prop.
-             We can pass the form data as a temporary object so it renders immediately. 
-        -->
+        <!-- Data is now populated from handlePrintPreview logic -->
+    {/if}
+
+    {#if showPickupWizard && completedService}
+        <ServicePickupWizard
+            bind:open={showPickupWizard}
+            serviceId={completedService.serviceId}
+            serviceNo={completedService.serviceNo}
+            customer={completedService.customer}
+            device={completedService.device}
+            cost={completedService.cost}
+            serviceStatus={completedService.status}
+            requireProof={false}
+            warranty={completedService.warranty}
+            onComplete={() => {
+                showPickupWizard = false;
+                createdServiceId = completedService.serviceId;
+                showPrintSuccessModal = true;
+            }}
+            onClose={() => {
+                showPickupWizard = false;
+                goto("/service");
+            }}
+        />
     {/if}
 </div>

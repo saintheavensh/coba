@@ -220,17 +220,19 @@
                         {/if}
                     </div>
 
-                    <!-- QRCode -->
-                    <div
-                        class="flex flex-col items-center justify-center my-4 pt-2 border-t border-dashed border-black"
-                    >
-                        <div class="w-24 h-24 bg-white">
-                            {@html qrHtml}
+                    <!-- QRCode (Only if warranty exists) -->
+                    {#if serviceOrder?.warranty && serviceOrder.warranty !== "none"}
+                        <div
+                            class="flex flex-col items-center justify-center my-4 pt-2 border-t border-dashed border-black"
+                        >
+                            <div class="w-24 h-24 bg-white">
+                                {@html qrHtml}
+                            </div>
+                            <p class="text-xs mt-1 font-mono">
+                                {serviceOrder?.no || "-"}
+                            </p>
                         </div>
-                        <p class="text-xs mt-1 font-mono">
-                            {serviceOrder?.no || "-"}
-                        </p>
-                    </div>
+                    {/if}
 
                     <!-- Footer -->
                     <div

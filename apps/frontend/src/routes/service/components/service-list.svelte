@@ -178,6 +178,11 @@
     $effect(() => {
         if (urlStatus) {
             filterStatus = urlStatus;
+        } else {
+            // Reset filters if no status in URL (Semua Data clicked)
+            filterStatus = "all";
+            searchQuery = "";
+            filterTechnician = "all";
         }
     });
 
@@ -832,6 +837,7 @@
                         <TableHead>Tanggal</TableHead>
                         <TableHead>Customer</TableHead>
                         <TableHead>Handphone</TableHead>
+                        <TableHead>Warna</TableHead>
                         <TableHead>Teknisi</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead class="text-right">Aksi</TableHead>
@@ -886,6 +892,11 @@
                                                 "-"}</span
                                         >
                                     </div>
+                                </TableCell>
+                                <TableCell>
+                                    <span class="text-sm"
+                                        >{order.device.color || "-"}</span
+                                    >
                                 </TableCell>
                                 <TableCell>
                                     <div class="flex items-center gap-2">

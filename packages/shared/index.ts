@@ -60,6 +60,7 @@ export const createServiceSchema = z.object({
         model: z.string(),
         status: z.string(),
         imei: z.string().optional(),
+        color: z.string().optional(), // Added color
         pin: z.string().optional(),
         condition: z.array(z.string()).optional(),
         completeness: z.array(z.string()).optional(),
@@ -105,7 +106,12 @@ export const createServiceSchema = z.object({
     }).optional(),
 
     // Actual cost for walk-in (paid immediately)
-    actualCost: z.number().optional()
+    actualCost: z.number().optional(),
+
+    // Added missing fields
+    warranty: z.string().optional(),
+    priority: z.enum(["standard", "wait"]).optional(),
+    isDirectComplete: z.boolean().optional()
 });
 
 export type CreateServiceRequest = z.infer<typeof createServiceSchema>;

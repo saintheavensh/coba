@@ -55,6 +55,7 @@ export class ServiceFormStore {
     minPrice = $state(0);
     maxPrice = $state(0);
     downPayment = $state(0);
+    warranty = $state("1 Minggu"); // Default or "none"
 
     // Walk-in specific
     serviceFee = $state(0);
@@ -82,7 +83,7 @@ export class ServiceFormStore {
     // Payment (for walk-in)
     paymentMethod = $state<"cash" | "transfer" | "qris" | "mixed">("cash");
     paymentNotes = $state("");
-    warranty = $state("none"); // from settings warrantyPresets
+    // warranty removed (duplicate)
     payments = $state<{ method: string; amount: number }[]>([{ method: "cash", amount: 0 }]);
     cashReceived = $state(0);
     selectedBank = $state<{ id: string; name: string; accountNumber: string; accountHolder: string } | null>(null);
@@ -344,11 +345,16 @@ export class ServiceFormStore {
                     };
                 }
 
-                // Add Payment data
                 payload.payments = this.payments;
                 payload.paymentMethod = this.paymentMethod;
                 payload.paymentNotes = this.paymentNotes || undefined;
-                payload.warranty = this.warranty !== "none" ? this.warranty : undefined;
+
+                // Enforce warranty logic
+                if (this.sparepartSource === 'customer') {
+                    payload.warranty = "none";
+                } else {
+                    payload.warranty = this.warranty !== "none" ? this.warranty : undefined;
+                }
 
                 // Add bank details for transfer/mixed payments
                 if ((this.paymentMethod === "transfer" || this.paymentMethod === "mixed") && this.selectedBank) {
@@ -368,7 +374,7 @@ export class ServiceFormStore {
             );
 
             // Return success to allow handling navigation in the UI (for Print/Loop)
-            return { success: true, serviceId: newService.id }; // We might need serviceId from backend response
+            return { success: true, serviceId: newService.id, serviceNo: newService.no }; // Added serviceNo
         } catch (e: any) {
             toast.error(
                 "Gagal membuat service: " +

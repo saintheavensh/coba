@@ -10,9 +10,11 @@
     } from "lucide-svelte";
     import { onMount } from "svelte";
 
-    let { value = $bindable(new Date().toISOString()) } = $props<{
-        value: string;
-    }>();
+    let { value = $bindable(new Date().toISOString()), showTime = true } =
+        $props<{
+            value: string;
+            showTime?: boolean;
+        }>();
 
     let date = $state(value ? new Date(value) : new Date());
     let isOpen = $state(false);
@@ -89,6 +91,9 @@
         newDate.setMinutes(date.getMinutes());
         date = newDate;
         updateValue();
+        if (!showTime) {
+            isOpen = false;
+        }
     }
 
     function selectTime(timeStr: string) {
@@ -106,9 +111,14 @@
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, "0");
         const day = String(date.getDate()).padStart(2, "0");
-        const hours = String(date.getHours()).padStart(2, "0");
-        const minutes = String(date.getMinutes()).padStart(2, "0");
-        value = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+        if (showTime) {
+            const hours = String(date.getHours()).padStart(2, "0");
+            const minutes = String(date.getMinutes()).padStart(2, "0");
+            value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        } else {
+            value = `${year}-${month}-${day}`;
+        }
     }
 
     function prevMonth() {
@@ -132,8 +142,8 @@
             day: "numeric",
             month: "long",
             year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
+            hour: showTime ? "2-digit" : undefined,
+            minute: showTime ? "2-digit" : undefined,
         }),
     );
 
@@ -153,7 +163,7 @@
         <CalendarIcon class="ml-2 h-4 w-4 opacity-50" />
     </Popover.Trigger>
     <Popover.Content class="w-auto p-0" align="start">
-        <div class="flex h-[300px]">
+        <div class="flex" class:h-[300px]={showTime}>
             <!-- Calendar Section -->
             <div class="p-4 border-r w-[280px]">
                 <div class="flex items-center justify-between mb-4">
@@ -218,33 +228,35 @@
             </div>
 
             <!-- Time Section -->
-            <div class="flex flex-col w-[120px]">
-                <div
-                    class="p-3 border-b text-sm font-medium text-center bg-muted/20"
-                >
-                    Jam
+            {#if showTime}
+                <div class="flex flex-col w-[120px]">
+                    <div
+                        class="p-3 border-b text-sm font-medium text-center bg-muted/20"
+                    >
+                        Jam
+                    </div>
+                    <div
+                        class="overflow-y-auto flex-1 p-2 space-y-1 scrollbar-hide"
+                    >
+                        {#each times as t}
+                            <button
+                                class={cn(
+                                    "w-full text-left px-3 py-1.5 text-sm rounded-sm flex items-center justify-between",
+                                    currentTimeString === t
+                                        ? "bg-primary/10 text-primary font-medium"
+                                        : "hover:bg-accent text-muted-foreground",
+                                )}
+                                onclick={() => selectTime(t)}
+                            >
+                                {t}
+                                {#if currentTimeString === t}
+                                    <Check class="h-3 w-3" />
+                                {/if}
+                            </button>
+                        {/each}
+                    </div>
                 </div>
-                <div
-                    class="overflow-y-auto flex-1 p-2 space-y-1 scrollbar-hide"
-                >
-                    {#each times as t}
-                        <button
-                            class={cn(
-                                "w-full text-left px-3 py-1.5 text-sm rounded-sm flex items-center justify-between",
-                                currentTimeString === t
-                                    ? "bg-primary/10 text-primary font-medium"
-                                    : "hover:bg-accent text-muted-foreground",
-                            )}
-                            onclick={() => selectTime(t)}
-                        >
-                            {t}
-                            {#if currentTimeString === t}
-                                <Check class="h-3 w-3" />
-                            {/if}
-                        </button>
-                    {/each}
-                </div>
-            </div>
+            {/if}
         </div>
     </Popover.Content>
 </Popover.Root>

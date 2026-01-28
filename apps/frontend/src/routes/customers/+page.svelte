@@ -17,6 +17,16 @@
         Wallet,
         CreditCard,
         ArrowRight,
+        Search,
+        User,
+        Users,
+        TrendingUp,
+        Filter,
+        Download,
+        Mail,
+        MoreVertical,
+        PhoneCall,
+        Receipt,
     } from "lucide-svelte";
     import {
         Dialog,
@@ -25,9 +35,9 @@
         DialogFooter,
         DialogHeader,
         DialogTitle,
-        DialogTrigger,
     } from "$lib/components/ui/dialog";
     import * as AlertDialog from "$lib/components/ui/alert-dialog";
+    import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
     import { Label } from "$lib/components/ui/label";
     import {
         Avatar,
@@ -35,9 +45,10 @@
         AvatarImage,
     } from "$lib/components/ui/avatar";
     import { toast } from "svelte-sonner";
-    import SearchInput from "$lib/components/custom/search-input.svelte";
-    import CurrencyInput from "$lib/components/custom/currency-input.svelte";
+    import { Badge } from "$lib/components/ui/badge";
     import { formatCurrency, cn } from "$lib/utils";
+    import { fade, fly, scale } from "svelte/transition";
+    import CurrencyInput from "$lib/components/custom/currency-input.svelte";
 
     const client = useQueryClient();
 
@@ -58,7 +69,7 @@
         },
         onSuccess: () => {
             client.invalidateQueries({ queryKey: ["customers"] });
-            toast.success("Data pelanggan disimpan");
+            toast.success("Data pelanggan berhasil disimpan");
             openDialog = false;
             resetForm();
         },
@@ -73,7 +84,8 @@
         mutationFn: CustomersService.delete,
         onSuccess: () => {
             client.invalidateQueries({ queryKey: ["customers"] });
-            toast.success("Pelanggan dihapus");
+            toast.success("Pelanggan berhasil dihapus");
+            openDelete = false;
         },
         onError: () => toast.error("Gagal menghapus pelanggan"),
     }));
@@ -81,6 +93,8 @@
     // Local State
     let searchQuery = $state("");
     let openDialog = $state(false);
+    let openDelete = $state(false);
+    let deleteId = $state<string | null>(null);
 
     // Form State
     let editingId = $state<string | null>(null);
@@ -88,7 +102,6 @@
     let phone = $state("");
     let address = $state("");
     let creditLimit = $state(0);
-    // let image = $state("");
 
     // Reactive Data
     let customers = $derived(customersQuery.data || []);
@@ -102,7 +115,23 @@
         ),
     );
 
+    // Stats
+    let totalCustomers = $derived(customers.length);
+    let totalDebt = $derived(
+        customers.reduce((acc: number, cur: any) => acc + (cur.debt || 0), 0),
+    );
+    let totalLimit = $derived(
+        customers.reduce(
+            (acc: number, cur: any) => acc + (cur.creditLimit || 0),
+            0,
+        ),
+    );
+    let activeReceivables = $derived(
+        customers.filter((c: any) => (c.debt || 0) > 0).length,
+    );
+
     function getInitials(name: string) {
+        if (!name) return "??";
         return name
             .split(" ")
             .map((n) => n[0])
@@ -128,9 +157,6 @@
         openDialog = true;
     }
 
-    let deleteId = $state<string | null>(null);
-    let openDelete = $state(false);
-
     function confirmDelete(id: string) {
         deleteId = id;
         openDelete = true;
@@ -139,8 +165,6 @@
     function handleDelete() {
         if (!deleteId) return;
         deleteCustomerMutation.mutate(deleteId);
-        openDelete = false;
-        deleteId = null;
     }
 
     function handleSave() {
@@ -158,229 +182,449 @@
     }
 </script>
 
-<div class="container mx-auto py-6 space-y-6">
-    <div class="flex items-center justify-between">
-        <div>
-            <h2 class="text-3xl font-bold tracking-tight">Pelanggan</h2>
-            <p class="text-muted-foreground">
-                Manajemen data pelanggan dan limit kredit.
-            </p>
+<div class="container mx-auto py-8 space-y-8 animate-in fade-in duration-500">
+    <!-- Hero Section -->
+    <section
+        class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-indigo-600 to-violet-700 p-8 md:p-12 shadow-2xl"
+    >
+        <div
+            class="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10"
+        ></div>
+        <div
+            class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"
+        ></div>
+
+        <div
+            class="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6"
+        >
+            <div class="space-y-2 text-white">
+                <div
+                    class="inline-flex items-center rounded-full bg-white/20 backdrop-blur-md px-3 py-1 text-xs font-medium text-white ring-1 ring-inset ring-white/30"
+                >
+                    <Users class="mr-1.5 h-3.5 w-3.5" />
+                    Customer Portfolio
+                </div>
+                <h1 class="text-3xl md:text-5xl font-bold tracking-tight">
+                    Manajemen Pelanggan
+                </h1>
+                <p class="text-blue-100 max-w-xl text-lg">
+                    Kelola data pelanggan, pantau tagihan, dan atur limit kredit
+                    untuk memperlancar arus kas bisnis Anda.
+                </p>
+            </div>
+            <Button
+                onclick={() => {
+                    resetForm();
+                    openDialog = true;
+                }}
+                size="lg"
+                class="bg-white text-blue-700 hover:bg-slate-100 shadow-lg border-0 font-semibold transition-all hover:scale-105 active:scale-95"
+            >
+                <Plus class="h-5 w-5 mr-2" /> Pelanggan Baru
+            </Button>
         </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-10">
+            {#each [{ label: "Total Pelanggan", value: totalCustomers, icon: Users, color: "text-blue-100" }, { label: "Piutang Aktif", value: activeReceivables, icon: Wallet, color: "text-indigo-100" }, { label: "Total Piutang", value: formatCurrency(totalDebt), icon: Receipt, color: "text-violet-100" }, { label: "Total Limit", value: formatCurrency(totalLimit), icon: CreditCard, color: "text-blue-100" }] as stat}
+                <div
+                    class="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 hover:bg-white/15 transition-colors group"
+                >
+                    <div class="flex items-center gap-3 mb-2">
+                        <div
+                            class="p-2 rounded-lg bg-white/20 text-white group-hover:scale-110 transition-transform"
+                        >
+                            <stat.icon class="h-4 w-4" />
+                        </div>
+                        <span
+                            class={cn(
+                                "text-xs font-medium opacity-80",
+                                stat.color,
+                            )}>{stat.label}</span
+                        >
+                    </div>
+                    <div
+                        class="text-xl font-bold text-white pl-1 truncate"
+                        title={String(stat.value)}
+                    >
+                        {stat.value}
+                    </div>
+                </div>
+            {/each}
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <div class="grid gap-6">
+        <!-- Toolbar -->
+        <div
+            class="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl border bg-card shadow-sm"
+        >
+            <div class="relative w-full sm:w-80">
+                <Search
+                    class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                />
+                <Input
+                    bind:value={searchQuery}
+                    placeholder="Cari nama atau telepon..."
+                    class="pl-9 bg-secondary/30 border-transparent focus:bg-background focus:border-blue-500/50 transition-all rounded-lg"
+                />
+            </div>
+            <div class="flex items-center gap-2">
+                <Button variant="outline" size="sm" class="h-9 rounded-lg">
+                    <Filter class="h-3.5 w-3.5 mr-2" /> Filter
+                </Button>
+                <Button variant="outline" size="sm" class="h-9 rounded-lg">
+                    <Download class="h-3.5 w-3.5 mr-2" /> Export
+                </Button>
+            </div>
+        </div>
+
+        <!-- Grid Cards -->
+        {#if loading && customers.length === 0}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {#each Array(6) as _}
+                    <div class="p-5 rounded-2xl border bg-card space-y-4">
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="h-12 w-12 rounded-full bg-muted animate-pulse"
+                            ></div>
+                            <div class="flex-1 space-y-2">
+                                <div
+                                    class="h-4 w-2/3 bg-muted animate-pulse rounded"
+                                ></div>
+                                <div
+                                    class="h-3 w-1/2 bg-muted animate-pulse rounded"
+                                ></div>
+                            </div>
+                        </div>
+                        <div class="pt-4 border-t space-y-3">
+                            <div
+                                class="h-10 w-full bg-muted animate-pulse rounded-lg"
+                            ></div>
+                            <div
+                                class="h-8 w-full bg-muted animate-pulse rounded-lg"
+                            ></div>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        {:else if filteredCustomers.length === 0}
+            <div
+                class="flex flex-col items-center justify-center p-20 rounded-3xl border-2 border-dashed bg-muted/5"
+            >
+                <div
+                    class="h-20 w-20 rounded-full bg-muted/20 flex items-center justify-center mb-4 text-blue-500"
+                >
+                    <User class="h-10 w-10 opacity-20" />
+                </div>
+                <h3 class="text-xl font-semibold text-foreground">
+                    Tidak ada pelanggan
+                </h3>
+                <p class="text-muted-foreground max-w-xs text-center mt-2">
+                    Kami tidak menemukan pelanggan dengan kriteria tersebut.
+                </p>
+                <Button
+                    variant="link"
+                    onclick={() => (searchQuery = "")}
+                    class="mt-2">Bersihkan Pencarian</Button
+                >
+            </div>
+        {:else}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {#each filteredCustomers as cust (cust.id)}
+                    <div
+                        class="group relative flex flex-col bg-card border border-slate-200/60 dark:border-slate-800/60 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                        transition:fly={{ y: 20, duration: 400 }}
+                    >
+                        <div class="p-6">
+                            <div class="flex items-start justify-between mb-4">
+                                <Avatar
+                                    class="h-12 w-12 border-2 border-background shadow-sm ring-2 ring-blue-50 dark:ring-blue-900/20 group-hover:scale-110 transition-transform duration-500"
+                                >
+                                    <AvatarFallback
+                                        class="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-bold"
+                                    >
+                                        {getInitials(cust.name)}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <DropdownMenu.Root>
+                                    <DropdownMenu.Trigger
+                                        class={cn(
+                                            buttonVariants({
+                                                variant: "ghost",
+                                                size: "icon",
+                                            }),
+                                            "h-8 w-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800",
+                                        )}
+                                    >
+                                        <MoreVertical class="h-4 w-4" />
+                                    </DropdownMenu.Trigger>
+                                    <DropdownMenu.Content
+                                        align="end"
+                                        class="w-48 rounded-xl shadow-xl"
+                                    >
+                                        <DropdownMenu.Item
+                                            onclick={() => handleEdit(cust)}
+                                            class="rounded-lg cursor-pointer"
+                                        >
+                                            <Pencil class="mr-2 h-4 w-4" /> Edit
+                                            Data
+                                        </DropdownMenu.Item>
+                                        <DropdownMenu.Separator />
+                                        <DropdownMenu.Item
+                                            onclick={() =>
+                                                confirmDelete(cust.id)}
+                                            class="text-red-600 focus:text-red-700 focus:bg-red-50 rounded-lg cursor-pointer"
+                                        >
+                                            <Trash2 class="mr-2 h-4 w-4" /> Hapus
+                                            Pelanggan
+                                        </DropdownMenu.Item>
+                                    </DropdownMenu.Content>
+                                </DropdownMenu.Root>
+                            </div>
+
+                            <div class="space-y-1">
+                                <a
+                                    href={`/customers/${cust.id}`}
+                                    class="text-lg font-bold hover:text-blue-600 transition-colors block leading-tight truncate"
+                                >
+                                    {cust.name}
+                                </a>
+                                <div
+                                    class="flex items-center gap-2 text-sm text-muted-foreground group/phone"
+                                >
+                                    <Phone
+                                        class="h-3.5 w-3.5 text-blue-500/70"
+                                    />
+                                    <span class="truncate">{cust.phone}</span>
+                                    <a
+                                        href={`tel:${cust.phone}`}
+                                        class="opacity-0 group-hover/phone:opacity-100 transition-opacity p-1 hover:bg-blue-50 rounded text-blue-600"
+                                    >
+                                        <PhoneCall class="h-3 w-3" />
+                                    </a>
+                                </div>
+                            </div>
+
+                            {#if cust.address}
+                                <div
+                                    class="mt-3 flex items-start gap-2 text-xs text-muted-foreground line-clamp-1"
+                                >
+                                    <MapPin
+                                        class="h-3.5 w-3.5 text-blue-500/50 shrink-0 mt-0.5"
+                                    />
+                                    <span>{cust.address}</span>
+                                </div>
+                            {/if}
+
+                            <div class="mt-6 grid grid-cols-2 gap-3">
+                                <div
+                                    class="bg-red-50/50 dark:bg-red-950/10 p-3 rounded-xl border border-red-100/50 dark:border-red-900/20"
+                                >
+                                    <span
+                                        class="text-[10px] font-bold text-red-500 uppercase tracking-widest block mb-1"
+                                        >Tagihan</span
+                                    >
+                                    <span
+                                        class="text-sm font-bold text-red-700 dark:text-red-400"
+                                        >{formatCurrency(cust.debt || 0)}</span
+                                    >
+                                </div>
+                                <div
+                                    class="bg-emerald-50/50 dark:bg-emerald-950/10 p-3 rounded-xl border border-emerald-100/50 dark:border-emerald-900/20"
+                                >
+                                    <span
+                                        class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest block mb-1"
+                                        >Limit</span
+                                    >
+                                    <span
+                                        class="text-sm font-bold text-emerald-700 dark:text-emerald-400"
+                                        >{formatCurrency(
+                                            cust.creditLimit || 0,
+                                        )}</span
+                                    >
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="px-6 py-4 bg-muted/30 border-t mt-auto flex items-center justify-between"
+                        >
+                            <Badge
+                                variant="outline"
+                                class="bg-background text-[10px] h-5 py-0"
+                                >ID: {cust.id.slice(0, 8)}</Badge
+                            >
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                href={`/customers/${cust.id}`}
+                                class="h-8 text-xs font-semibold text-blue-600 hover:bg-blue-50 rounded-lg group/btn"
+                            >
+                                Lihat Detail <ArrowRight
+                                    class="ml-1 h-3 w-3 group-hover/btn:translate-x-1 transition-transform"
+                                />
+                            </Button>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        {/if}
     </div>
 
-    <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-        <SearchInput
-            bind:value={searchQuery}
-            placeholder="Cari pelanggan..."
-            class="w-full md:w-[300px]"
-        />
-
-        <Dialog bind:open={openDialog} onOpenChange={(o) => !o && resetForm()}>
-            <DialogTrigger
-                class={cn(
-                    buttonVariants({ variant: "default" }),
-                    "w-full md:w-auto",
-                )}
+    <!-- Dialog Create/Edit -->
+    <Dialog bind:open={openDialog} onOpenChange={(o) => !o && resetForm()}>
+        <DialogContent
+            class="sm:max-w-[500px] rounded-3xl p-0 overflow-hidden border-none shadow-2xl"
+        >
+            <div
+                class="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white"
             >
-                <Plus class="mr-2 h-4 w-4" /> Pelanggan Baru
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle
-                        >{editingId ? "Edit" : "Tambah"} Pelanggan</DialogTitle
-                    >
-                    <DialogDescription
-                        >Input data pelanggan baru.</DialogDescription
-                    >
-                </DialogHeader>
-                <div class="grid gap-4 py-4">
-                    <div
-                        class="grid grid-cols-1 md:grid-cols-4 items-center gap-2 md:gap-4"
-                    >
-                        <Label class="text-left md:text-right"
-                            >Nama <span class="text-red-500">*</span></Label
+                <DialogTitle class="text-2xl font-bold">
+                    {editingId ? "Perbarui Pelanggan" : "Tambah Pelanggan Baru"}
+                </DialogTitle>
+                <DialogDescription class="text-blue-100 mt-1">
+                    Silakan lengkapi informasi profil dan pengaturan limit
+                    kredit.
+                </DialogDescription>
+            </div>
+
+            <div class="p-8 space-y-5 bg-background">
+                <div class="grid gap-5">
+                    <div class="grid gap-2">
+                        <Label
+                            for="name"
+                            class="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"
                         >
+                            <User class="h-3.5 w-3.5 text-blue-500" /> Nama Lengkap
+                            <span class="text-red-500">*</span>
+                        </Label>
                         <Input
+                            id="name"
                             bind:value={name}
-                            placeholder="Nama Pelanggan"
-                            class="col-span-3"
+                            placeholder="Contoh: Toko Berkah Jaya"
+                            class="h-11 rounded-xl"
                         />
                     </div>
-                    <div
-                        class="grid grid-cols-1 md:grid-cols-4 items-center gap-2 md:gap-4"
-                    >
-                        <Label class="text-left md:text-right"
-                            >Telepon <span class="text-red-500">*</span></Label
+
+                    <div class="grid gap-2">
+                        <Label
+                            for="phone"
+                            class="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"
                         >
+                            <Phone class="h-3.5 w-3.5 text-blue-500" /> Nomor Telepon
+                            <span class="text-red-500">*</span>
+                        </Label>
                         <Input
+                            id="phone"
                             bind:value={phone}
-                            placeholder="08xxx"
-                            class="col-span-3"
+                            placeholder="08xxxxxxxx"
+                            class="h-11 rounded-xl"
                         />
                     </div>
-                    <div
-                        class="grid grid-cols-1 md:grid-cols-4 items-center gap-2 md:gap-4"
-                    >
-                        <Label class="text-left md:text-right">Alamat</Label>
-                        <Input
-                            bind:value={address}
-                            placeholder="Alamat lengkap"
-                            class="col-span-3"
-                        />
-                    </div>
-                    <div
-                        class="grid grid-cols-1 md:grid-cols-4 items-center gap-2 md:gap-4"
-                    >
-                        <Label class="text-left md:text-right"
-                            >Limit Kredit</Label
+
+                    <div class="grid gap-2">
+                        <Label
+                            for="address"
+                            class="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"
                         >
-                        <div class="col-span-3 relative">
+                            <MapPin class="h-3.5 w-3.5 text-blue-500" /> Alamat
+                        </Label>
+                        <Input
+                            id="address"
+                            bind:value={address}
+                            placeholder="Alamat lengkap pengiriman"
+                            class="h-11 rounded-xl"
+                        />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label
+                            for="creditLimit"
+                            class="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"
+                        >
+                            <CreditCard class="h-3.5 w-3.5 text-blue-500" /> Limit
+                            Kredit
+                        </Label>
+                        <div class="relative">
                             <span
-                                class="absolute left-3 top-2.5 text-muted-foreground text-sm z-10"
+                                class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-bold z-10"
                                 >Rp</span
                             >
                             <CurrencyInput
                                 bind:value={creditLimit}
-                                class="pl-9"
+                                class="h-11 pl-9 rounded-xl font-bold text-blue-700"
                                 placeholder="0"
                             />
                         </div>
                     </div>
                 </div>
-                <DialogFooter>
-                    <Button
-                        onclick={handleSave}
-                        disabled={saveCustomerMutation.isPending}
-                    >
-                        {saveCustomerMutation.isPending
-                            ? "Menyimpan..."
-                            : "Simpan"}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    </div>
+            </div>
 
-    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {#if loading && customers.length === 0}
-            <div class="col-span-full p-8 text-center text-muted-foreground">
-                Memuat data...
-            </div>
-        {:else if filteredCustomers.length === 0}
-            <div
-                class="col-span-full p-8 text-center border rounded-lg bg-muted/20"
-            >
-                <p class="text-muted-foreground">Belum ada data pelanggan.</p>
-            </div>
-        {:else}
-            {#each filteredCustomers as cust (cust.id)}
-                <div
-                    class="rounded-lg border bg-card p-5 shadow-sm hover:shadow-md transition-all"
+            <DialogFooter class="px-8 pb-8 pt-0 bg-background">
+                <Button
+                    variant="ghost"
+                    class="h-11 px-6 rounded-xl"
+                    onclick={() => (openDialog = false)}>Batal</Button
                 >
-                    <div class="flex items-start justify-between">
-                        <div class="flex gap-3">
-                            <Avatar class="h-10 w-10 border">
-                                <AvatarFallback
-                                    class="bg-primary/10 text-primary font-bold"
-                                >
-                                    {getInitials(cust.name)}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <a
-                                    href={`/customers/${cust.id}`}
-                                    class="font-semibold hover:underline block"
-                                    >{cust.name}</a
-                                >
-                                <div
-                                    class="text-sm text-muted-foreground flex items-center gap-2"
-                                >
-                                    <Phone class="h-3 w-3" />
-                                    {cust.phone}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex gap-1">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="h-8 w-8"
-                                onclick={() => handleEdit(cust)}
-                            >
-                                <Pencil class="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="h-8 w-8 text-red-500 hover:bg-red-50"
-                                onclick={() => confirmDelete(cust.id)}
-                            >
-                                <Trash2 class="h-3.5 w-3.5" />
-                            </Button>
-                        </div>
-                    </div>
+                <Button
+                    class="h-11 px-8 rounded-xl bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20"
+                    onclick={handleSave}
+                    disabled={saveCustomerMutation.isPending}
+                >
+                    {saveCustomerMutation.isPending
+                        ? "Menyimpan..."
+                        : editingId
+                          ? "Simpan Perubahan"
+                          : "Simpan Pelanggan"}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 
-                    <div class="mt-4 space-y-4 text-sm">
-                        {#if cust.address}
-                            <div
-                                class="flex items-center gap-2 text-muted-foreground"
-                            >
-                                <MapPin class="h-3.5 w-3.5" />
-                                <span class="truncate">{cust.address}</span>
-                            </div>
-                        {/if}
-
-                        <div class="grid grid-cols-2 gap-2 pt-2 border-t">
-                            <div class="bg-red-50 p-2 rounded text-center">
-                                <span class="text-xs text-red-500 block"
-                                    >Hutang</span
-                                >
-                                <span class="font-bold text-red-700"
-                                    >{formatCurrency(cust.debt || 0)}</span
-                                >
-                            </div>
-                            <div class="bg-green-50 p-2 rounded text-center">
-                                <span class="text-xs text-green-600 block"
-                                    >Limit</span
-                                >
-                                <span class="font-bold text-green-700"
-                                    >{formatCurrency(
-                                        cust.creditLimit || 0,
-                                    )}</span
-                                >
-                            </div>
-                        </div>
-
-                        <Button
-                            variant="outline"
-                            class="w-full mt-4"
-                            size="sm"
-                            href={`/customers/${cust.id}`}
-                        >
-                            Lihat Detail
-                        </Button>
-                    </div>
-                </div>
-            {/each}
-        {/if}
-    </div>
-
+    <!-- Delete Alert -->
     <AlertDialog.Root bind:open={openDelete}>
-        <AlertDialog.Content>
-            <AlertDialog.Header>
-                <AlertDialog.Title>Hapus Pelanggan?</AlertDialog.Title>
-                <AlertDialog.Description>
-                    Tindakan ini tidak dapat dibatalkan.
-                </AlertDialog.Description>
-            </AlertDialog.Header>
-            <AlertDialog.Footer>
-                <AlertDialog.Cancel>Batal</AlertDialog.Cancel>
+        <AlertDialog.Content
+            class="rounded-3xl border-none shadow-2xl p-0 overflow-hidden max-w-sm bg-background"
+        >
+            <div
+                class="bg-red-50 dark:bg-red-950/20 p-8 flex flex-col items-center text-center gap-4"
+            >
+                <div
+                    class="h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600"
+                >
+                    <Trash2 class="h-8 w-8" />
+                </div>
+                <div>
+                    <h3
+                        class="text-xl font-bold text-red-700 dark:text-red-500"
+                    >
+                        Hapus Pelanggan?
+                    </h3>
+                    <p class="text-sm text-red-600/80 mt-1 font-medium">
+                        Data ini akan hilang secara permanen.
+                    </p>
+                </div>
+            </div>
+            <div class="p-8 pt-0 flex gap-3">
+                <AlertDialog.Cancel
+                    class="flex-1 h-11 rounded-xl border-slate-200"
+                    >Batal</AlertDialog.Cancel
+                >
                 <AlertDialog.Action
                     onclick={handleDelete}
-                    class="bg-red-600 text-white hover:bg-red-700"
-                    >Hapus</AlertDialog.Action
+                    class="flex-1 h-11 rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/20"
                 >
-            </AlertDialog.Footer>
+                    Hapus
+                </AlertDialog.Action>
+            </div>
         </AlertDialog.Content>
     </AlertDialog.Root>
 </div>
+
+<style>
+    :global(.lucide) {
+        stroke-width: 2px;
+    }
+</style>

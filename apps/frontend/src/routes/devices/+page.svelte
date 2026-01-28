@@ -26,6 +26,9 @@
         Download,
         FileSpreadsheet,
         Upload,
+        Tags,
+        Boxes,
+        Database,
     } from "lucide-svelte";
     import { Checkbox } from "$lib/components/ui/checkbox";
     import { cn } from "$lib/utils";
@@ -93,7 +96,7 @@
         Object.fromEntries(brandList.map((b) => [b.id, b])),
     );
 
-    // Normalize brand name for display (capitalize first letter)
+    // Customize brand name for display
     function normalizeBrandDisplay(name: string): string {
         if (!name || name.trim().length === 0) return name;
         const trimmed = name.trim();
@@ -104,6 +107,60 @@
         (devicesQuery.data || []).filter(
             (d) => selectedBrand === "all" || d.brand === selectedBrand,
         ),
+    );
+
+    let groupedDevices = $derived.by(() => {
+        const brands: Record<
+            string,
+            {
+                flat: any[];
+                series: Record<string, any[]>;
+                count: number;
+            }
+        > = {};
+
+        // Initializes groups
+        devices.forEach((d) => {
+            if (!brands[d.brand]) {
+                brands[d.brand] = { flat: [], series: {}, count: 0 };
+            }
+            brands[d.brand].count++;
+
+            if (d.series) {
+                if (!brands[d.brand].series[d.series]) {
+                    brands[d.brand].series[d.series] = [];
+                }
+                brands[d.brand].series[d.series].push(d);
+            } else {
+                brands[d.brand].flat.push(d);
+            }
+        });
+
+        return Object.entries(brands).sort((a, b) => a[0].localeCompare(b[0]));
+    });
+
+    // Stats Calculations
+    let totalDevices = $derived(devices.length);
+    let topBrand = $derived.by(() => {
+        if (devices.length === 0) return "-";
+        const counts: Record<string, number> = {};
+        let max = 0;
+        let best = "-";
+        devices.forEach((d) => {
+            const b = d.brand || "Unknown";
+            counts[b] = (counts[b] || 0) + 1;
+            if (counts[b] > max) {
+                max = counts[b];
+                best = b;
+            }
+        });
+        return best;
+    });
+    let totalBrands = $derived(Object.keys(groupedDevices).length);
+    let withSpecsCount = $derived(
+        devices.filter(
+            (d) => d.specifications && Object.keys(d.specifications).length > 0,
+        ).length,
     );
 
     // Mutations
@@ -177,37 +234,6 @@
     let deletingId = $state<string | null>(null);
     let selectedIds = $state<string[]>([]);
     let isBulkDeleting = $state(false);
-
-    // Grouping Logic
-    let groupedDevices = $derived.by(() => {
-        const brands: Record<
-            string,
-            {
-                flat: any[];
-                series: Record<string, any[]>;
-                count: number;
-            }
-        > = {};
-
-        // Initializes groups
-        devices.forEach((d) => {
-            if (!brands[d.brand]) {
-                brands[d.brand] = { flat: [], series: {}, count: 0 };
-            }
-            brands[d.brand].count++;
-
-            if (d.series) {
-                if (!brands[d.brand].series[d.series]) {
-                    brands[d.brand].series[d.series] = [];
-                }
-                brands[d.brand].series[d.series].push(d);
-            } else {
-                brands[d.brand].flat.push(d);
-            }
-        });
-
-        return Object.entries(brands).sort((a, b) => a[0].localeCompare(b[0]));
-    });
 
     function resetForm() {
         editingId = null;
@@ -336,7 +362,9 @@
         const normalizeBrandName = (name: string): string => {
             if (!name || name.trim().length === 0) return name;
             const trimmed = name.trim();
-            return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+            return (
+                trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase()
+            );
         };
 
         const payload = {
@@ -411,14 +439,20 @@
                 const normalizeBrandName = (name: string): string => {
                     if (!name || name.trim().length === 0) return name;
                     const trimmed = name.trim();
-                    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+                    return (
+                        trimmed.charAt(0).toUpperCase() +
+                        trimmed.slice(1).toLowerCase()
+                    );
                 };
-                
-                const normalizedBrand = data.brand ? normalizeBrandName(data.brand) : "";
+
+                const normalizedBrand = data.brand
+                    ? normalizeBrandName(data.brand)
+                    : "";
                 const foundBrand = brandList.find(
-                    (b) => b.name.toLowerCase() === normalizedBrand.toLowerCase(),
+                    (b) =>
+                        b.name.toLowerCase() === normalizedBrand.toLowerCase(),
                 );
-                
+
                 // Use normalized brand name (not ID) for consistency
                 if (normalizedBrand) {
                     brand = normalizedBrand; // Use normalized brand name
@@ -464,7 +498,14 @@
         bulkImportUrl = "";
         bulkImportList = [];
         bulkImportStep = "input";
-        bulkImportProgress = { current: 0, total: 0, success: 0, failed: 0, startTime: 0, estimatedTimeLeft: 0 };
+        bulkImportProgress = {
+            current: 0,
+            total: 0,
+            success: 0,
+            failed: 0,
+            startTime: 0,
+            estimatedTimeLeft: 0,
+        };
     }
 
     async function handleScanUrl() {
@@ -538,7 +579,7 @@
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = seconds % 60;
         if (minutes < 60) {
-            return remainingSeconds > 0 
+            return remainingSeconds > 0
                 ? `${minutes} menit ${remainingSeconds} detik`
                 : `${minutes} menit`;
         }
@@ -600,13 +641,17 @@
                 }
             } finally {
                 bulkImportProgress.current++;
-                
+
                 // Calculate estimated time left
                 if (bulkImportProgress.current > 0) {
-                    const elapsed = (Date.now() - bulkImportProgress.startTime) / 1000; // seconds
+                    const elapsed =
+                        (Date.now() - bulkImportProgress.startTime) / 1000; // seconds
                     const avgTimePerItem = elapsed / bulkImportProgress.current;
-                    const remaining = bulkImportProgress.total - bulkImportProgress.current;
-                    bulkImportProgress.estimatedTimeLeft = Math.round(avgTimePerItem * remaining);
+                    const remaining =
+                        bulkImportProgress.total - bulkImportProgress.current;
+                    bulkImportProgress.estimatedTimeLeft = Math.round(
+                        avgTimePerItem * remaining,
+                    );
                 }
             }
         }
@@ -628,9 +673,9 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
         class={cn(
-            "group relative flex flex-col bg-card border rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden cursor-pointer outline-none focus:outline-none",
+            "group relative flex flex-col bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200/50 dark:border-white/5 rounded-2xl shadow-sm hover:shadow-xl hover:shadow-blue-500/5 hover:-translate-y-1 transition-all duration-300 overflow-hidden cursor-pointer outline-none focus:outline-none",
             selectedIds.includes(device.id) &&
-                "ring-2 ring-primary border-primary bg-primary/5",
+                "ring-2 ring-blue-500 border-blue-500/50 bg-blue-50/50 dark:bg-blue-900/20",
         )}
         tabindex="-1"
         onclick={() => {
@@ -643,47 +688,49 @@
     >
         <!-- Selection Checkbox -->
         <div
-            class="absolute top-2 left-2 z-20"
+            class="absolute top-3 left-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+            class:opacity-100={selectedIds.includes(device.id)}
             onclick={(e) => e.stopPropagation()}
         >
             <Checkbox
                 checked={selectedIds.includes(device.id)}
                 onCheckedChange={() => toggleSelect(device.id)}
-                class="bg-white/90 backdrop-blur-sm shadow-sm data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground border-muted-foreground/40"
+                class="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm shadow-sm border-slate-200 dark:border-slate-700 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 h-5 w-5 rounded-md"
             />
         </div>
+
         <!-- Card Menu -->
         <div
-            class="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+            class="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
             onclick={(e) => e.stopPropagation()}
         >
             <DropdownMenu>
                 <DropdownMenuTrigger
                     class={cn(
-                        buttonVariants({ variant: "secondary", size: "icon" }),
-                        "h-8 w-8 rounded-full shadow-sm bg-white/90 backdrop-blur-sm",
+                        buttonVariants({ variant: "ghost", size: "icon" }),
+                        "h-8 w-8 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm shadow-sm hover:bg-white dark:hover:bg-slate-800",
                     )}
                 >
-                    <MoreVertical class="h-4 w-4" />
+                    <MoreVertical class="h-4 w-4 text-slate-500" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" class="rounded-xl">
                     <DropdownMenuItem onclick={() => handleEdit(device)}>
                         <Pencil class="mr-2 h-4 w-4" /> Edit
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                        class="text-red-600"
+                        class="text-red-600 focus:text-red-600"
                         onclick={() => confirmDelete(device.id)}
                     >
-                        <Trash2 class="mr-2 h-4 w-4" /> Hapus
+                        <Trash2 class="mr-2 h-4 w-4" /> Delete
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
         </div>
 
-        <!-- Image / Brand Placeholder -->
+        <!-- Image Area -->
         <div
-            class="aspect-[4/3] bg-muted relative overflow-hidden flex items-center justify-center p-6"
+            class="aspect-[4/3] bg-gradient-to-b from-slate-50 to-white dark:from-slate-900/30 dark:to-transparent relative overflow-hidden flex items-center justify-center p-8"
         >
             {#if device.image}
                 <img
@@ -691,69 +738,78 @@
                         ? device.image
                         : `${API_URL}${device.image}`}
                     alt={device.model}
-                    class="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-500"
+                    class="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal group-hover:scale-110 transition-transform duration-500 drop-shadow-xl"
                 />
             {:else}
-                <div class="text-center text-muted-foreground/30">
-                    <Smartphone class="h-16 w-16 mx-auto mb-2" />
-                    <span class="text-xs font-bold uppercase tracking-widest"
-                        >{normalizeBrandDisplay(device.brand)}</span
-                    >
+                <div
+                    class="flex flex-col items-center justify-center text-slate-300 dark:text-slate-700"
+                >
+                    <Smartphone class="h-16 w-16 mb-2" />
                 </div>
             {/if}
 
-            <Badge
-                class="absolute bottom-2 left-2 bg-white/90 text-foreground shadow-sm hover:bg-white border text-[10px] backdrop-blur-sm"
-            >
-                {normalizeBrandDisplay(device.brand)}
-            </Badge>
+            <!-- Brand Badge -->
+            <div class="absolute bottom-3 left-3">
+                <span
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-100 dark:border-slate-700 shadow-sm text-slate-900 dark:text-slate-100"
+                >
+                    {normalizeBrandDisplay(device.brand)}
+                </span>
+            </div>
         </div>
 
-        <!-- Info -->
-        <div class="p-4 flex-1 flex flex-col gap-1">
-            <h3
-                class="font-semibold text-lg leading-tight group-hover:text-primary transition-colors"
-            >
-                {device.model}
-            </h3>
-
-            <div class="flex flex-wrap gap-1 mt-1">
-                {#if device.code}
-                    <span
-                        class="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded"
-                    >
-                        {device.code}
-                    </span>
-                {/if}
-                {#if device.chipset}
-                    <span
-                        class="text-xs text-muted-foreground border px-1.5 py-0.5 rounded bg-muted/50"
-                        title="Chipset"
-                    >
-                        {device.chipset}
-                    </span>
-                {/if}
-                {#if device.specs}
-                    <span
-                        class="text-xs text-muted-foreground border px-1.5 py-0.5 rounded"
-                        title="Internal Storage/RAM"
-                    >
-                        {device.specs}
-                    </span>
-                {/if}
+        <!-- Content -->
+        <div class="p-5 flex-1 flex flex-col gap-2 relative">
+            <div>
+                <h3
+                    class="font-bold text-base leading-tight text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1"
+                    title={device.model}
+                >
+                    {device.model}
+                </h3>
+                <div class="flex flex-wrap gap-2 mt-2">
+                    {#if device.chipset}
+                        <span
+                            class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 px-2 py-1 rounded-md"
+                        >
+                            <span
+                                class="w-1.5 h-1.5 rounded-full bg-blue-500/50"
+                            ></span>
+                            {device.chipset}
+                        </span>
+                    {/if}
+                    {#if device.specs}
+                        <span
+                            class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 px-2 py-1 rounded-md"
+                        >
+                            <Database class="w-3 h-3 opacity-50" />
+                            {device.specs}
+                        </span>
+                    {/if}
+                    {#if device.code}
+                        <span
+                            class="inline-flex items-center gap-1 text-[11px] font-mono text-slate-400 dark:text-slate-500 border border-slate-100 dark:border-slate-800 px-1.5 py-0.5 rounded ml-auto"
+                        >
+                            {device.code}
+                        </span>
+                    {/if}
+                </div>
             </div>
+
             {#if device.colors && device.colors.length > 0}
-                <div class="flex items-center gap-1 mt-1">
-                    {#each device.colors.slice(0, 3) as color}
+                <div
+                    class="mt-auto pt-3 flex items-center gap-1.5 border-t border-slate-100 dark:border-slate-800/50"
+                >
+                    {#each device.colors.slice(0, 4) as color}
                         <div
-                            class="w-2 h-2 rounded-full border shadow-sm"
+                            class="w-2.5 h-2.5 rounded-full border border-black/5 dark:border-white/10 shadow-sm ring-1 ring-inset ring-black/5"
                             style="background-color: {color.toLowerCase()};"
                             title={color}
                         ></div>
                     {/each}
-                    {#if device.colors.length > 3}
-                        <span class="text-[10px] text-muted-foreground"
-                            >+{device.colors.length - 3}</span
+                    {#if device.colors.length > 4}
+                        <span class="text-[10px] font-medium text-slate-400"
+                            >+{device.colors.length - 4}</span
                         >
                     {/if}
                 </div>
@@ -763,17 +819,144 @@
 {/snippet}
 
 <div class="container mx-auto py-8">
-    <div class="flex flex-col gap-6">
-        <!-- Header -->
-        <div
-            class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6"
-        >
+    <div class="space-y-6 pb-20">
+        <!-- Added padding for scroll -->
+        <!-- Dashboard Header & Stats -->
+        <div class="flex flex-col gap-6">
             <div>
-                <h2 class="text-3xl font-bold tracking-tight">Data Device</h2>
-                <p class="text-muted-foreground mt-1">
-                    Kelola database handphone untuk referensi service.
+                <h1
+                    class="text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-400 bg-clip-text text-transparent"
+                >
+                    Device Database
+                </h1>
+                <p class="text-slate-500 dark:text-slate-400 mt-1">
+                    Manage your phone specifications and inventory reference
+                    data.
                 </p>
             </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div
+                    class="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200 dark:border-slate-800"
+                >
+                    <div
+                        class="absolute right-0 top-0 -mt-2 -mr-2 h-24 w-24 rounded-full bg-blue-500/10 blur-2xl"
+                    ></div>
+                    <div class="flex items-center gap-4">
+                        <div
+                            class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500"
+                        >
+                            <Smartphone class="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p
+                                class="text-sm font-medium text-slate-500 dark:text-slate-400"
+                            >
+                                Total Devices
+                            </p>
+                            <h3
+                                class="text-2xl font-bold text-slate-900 dark:text-white"
+                            >
+                                {totalDevices}
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    class="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200 dark:border-slate-800"
+                >
+                    <div
+                        class="absolute right-0 top-0 -mt-2 -mr-2 h-24 w-24 rounded-full bg-purple-500/10 blur-2xl"
+                    ></div>
+                    <div class="flex items-center gap-4">
+                        <div
+                            class="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 text-purple-500"
+                        >
+                            <Tags class="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p
+                                class="text-sm font-medium text-slate-500 dark:text-slate-400"
+                            >
+                                Top Brand
+                            </p>
+                            <h3
+                                class="text-2xl font-bold text-slate-900 dark:text-white truncate max-w-[120px]"
+                                title={topBrand}
+                            >
+                                {normalizeBrandDisplay(topBrand)}
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    class="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200 dark:border-slate-800"
+                >
+                    <div
+                        class="absolute right-0 top-0 -mt-2 -mr-2 h-24 w-24 rounded-full bg-emerald-500/10 blur-2xl"
+                    ></div>
+                    <div class="flex items-center gap-4">
+                        <div
+                            class="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500"
+                        >
+                            <Boxes class="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p
+                                class="text-sm font-medium text-slate-500 dark:text-slate-400"
+                            >
+                                Brands
+                            </p>
+                            <h3
+                                class="text-2xl font-bold text-slate-900 dark:text-white"
+                            >
+                                {totalBrands}
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    class="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200 dark:border-slate-800"
+                >
+                    <div
+                        class="absolute right-0 top-0 -mt-2 -mr-2 h-24 w-24 rounded-full bg-orange-500/10 blur-2xl"
+                    ></div>
+                    <div class="flex items-center gap-4">
+                        <div
+                            class="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/10 text-orange-500"
+                        >
+                            <CheckSquare class="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p
+                                class="text-sm font-medium text-slate-500 dark:text-slate-400"
+                            >
+                                With Specs
+                            </p>
+                            <div class="flex items-baseline gap-1">
+                                <h3
+                                    class="text-2xl font-bold text-slate-900 dark:text-white"
+                                >
+                                    {withSpecsCount}
+                                </h3>
+                                <span class="text-xs text-slate-400"
+                                    >/ {totalDevices}</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toolbar (Action Bar) -->
+        <div
+            class="flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-16 z-20 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-md p-4 rounded-2xl border border-white/20 shadow-sm"
+        >
             <div class="flex items-center gap-2">
                 {#if selectedIds.length > 0}
                     <Button
@@ -783,155 +966,161 @@
                         class="animate-in fade-in zoom-in duration-200"
                     >
                         <Trash2 class="h-4 w-4 mr-2" />
-                        Hapus ({selectedIds.length})
+                        Delete ({selectedIds.length})
                     </Button>
                     <Button
                         variant="ghost"
                         size="lg"
                         onclick={() => (selectedIds = [])}
                     >
-                        <X class="h-4 w-4 mr-2" /> Batal
+                        <X class="h-4 w-4 mr-2" /> Cancel
                     </Button>
                 {:else}
-                    <Button variant="outline" href="/brands" size="lg">
-                        Kelola Brand
-                    </Button>
+                    <div class="relative w-full md:w-64">
+                        <Search
+                            class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none"
+                        />
+                        <Input
+                            type="search"
+                            bind:value={searchTerm}
+                            placeholder="Search devices..."
+                            class="pl-9 h-11 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500/20"
+                        />
+                    </div>
+
                     <DropdownMenu>
                         <DropdownMenuTrigger
-                            class={buttonVariants({
-                                variant: "outline",
-                                size: "lg",
-                            })}
+                            class={cn(
+                                buttonVariants({
+                                    variant: "outline",
+                                    size: "lg",
+                                }),
+                                "h-11 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800",
+                            )}
                         >
-                            <FileSpreadsheet class="h-4 w-4 mr-2" />
-                            Excel / CSV
+                            <Filter class="h-4 w-4 mr-2 text-slate-500" />
+                            {selectedBrand === "all"
+                                ? "All Brands"
+                                : normalizeBrandDisplay(selectedBrand)}
+                            <ChevronDown class="ml-2 h-4 w-4 text-slate-400" />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                            <DropdownMenuLabel>Export Data</DropdownMenuLabel>
+                        <DropdownMenuContent
+                            class="max-h-[300px] overflow-y-auto"
+                        >
                             <DropdownMenuItem
-                                onclick={() =>
-                                    InventoryService.exportDevices("excel")}
+                                onclick={() => (selectedBrand = "all")}
                             >
-                                <FileSpreadsheet class="h-4 w-4 mr-2" /> Export Excel
+                                All Brands
+                            </DropdownMenuItem>
+                            {#each brandList as brandItem}
+                                <DropdownMenuItem
+                                    onclick={() =>
+                                        (selectedBrand = brandItem.name)}
+                                >
+                                    {normalizeBrandDisplay(brandItem.name)}
+                                </DropdownMenuItem>
+                            {/each}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                {/if}
+            </div>
+
+            <div class="flex items-center gap-2">
+                {#if selectedIds.length === 0}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger
+                            class={cn(
+                                buttonVariants({
+                                    variant: "outline",
+                                    size: "lg",
+                                }),
+                                "h-11 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800",
+                            )}
+                        >
+                            <FileSpreadsheet
+                                class="h-4 w-4 mr-2 text-slate-500"
+                            /> Actions
+                            <ChevronDown class="ml-2 h-4 w-4 text-slate-400" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" class="w-48">
+                            <DropdownMenuLabel>Import</DropdownMenuLabel>
+                            <DropdownMenuItem
+                                onclick={() => (isScraping = true)}
+                            >
+                                <Link class="mr-2 h-4 w-4" /> Scrape from URL
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                                onclick={() =>
-                                    InventoryService.exportDevices("csv")}
+                                onclick={() => (bulkImportOpen = true)}
                             >
-                                <Download class="h-4 w-4 mr-2" /> Export CSV
+                                <FileSpreadsheet class="mr-2 h-4 w-4" /> Bulk Import
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuLabel>Import Data</DropdownMenuLabel>
                             <DropdownMenuItem
                                 onclick={() =>
                                     document
                                         .getElementById("import-file")
                                         ?.click()}
                             >
-                                <Upload class="h-4 w-4 mr-2" /> Import Excel/CSV
+                                <Upload class="mr-2 h-4 w-4" /> Import Excel/CSV
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuLabel>Export</DropdownMenuLabel>
+                            <DropdownMenuItem
+                                onclick={() =>
+                                    InventoryService.exportDevices("excel")}
+                            >
+                                <FileSpreadsheet class="mr-2 h-4 w-4" /> Export Excel
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onclick={() =>
+                                    InventoryService.exportDevices("csv")}
+                            >
+                                <Download class="mr-2 h-4 w-4" /> Export CSV
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                    <input
-                        type="file"
-                        id="import-file"
-                        class="hidden"
-                        accept=".xlsx,.xls,.csv"
-                        onchange={async (e) => {
-                            const file = e.currentTarget.files?.[0];
-                            if (file) {
-                                try {
-                                    const res =
-                                        await InventoryService.importDevices(
-                                            file,
-                                        );
-                                    if (
-                                        res.skipped > 0 ||
-                                        res.errors.length > 0
-                                    ) {
-                                        toast.warning(
-                                            `Import: ${res.imported} sukses, ${res.skipped} dilewati`,
-                                        );
-                                    } else {
-                                        toast.success(
-                                            `Import sukses: ${res.imported} device`,
-                                        );
-                                    }
-                                    if (res.errors.length > 0) {
-                                        console.error(res.errors);
-                                        toast.error(
-                                            "Cek console untuk detail error",
-                                        );
-                                    }
-                                    devicesQuery.refetch();
-                                } catch (e) {
-                                    toast.error("Gagal import file");
-                                }
-                                e.currentTarget.value = ""; // Reset
-                            }
-                        }}
-                    />
-                    <Button
-                        variant="secondary"
-                        size="lg"
-                        onclick={() => (bulkImportOpen = true)}
-                        class="shadow-sm"
-                    >
-                        <Download class="h-5 w-5 mr-2" /> Import Bulk
-                    </Button>
+
                     <Button
                         onclick={handleCreateNew}
                         size="lg"
-                        class="shadow-sm"
+                        class="h-11 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/20 border-0"
                     >
-                        <Plus class="h-5 w-5 mr-2" /> Tambah Device
+                        <Plus class="h-4 w-4 mr-2" /> Add Device
                     </Button>
                 {/if}
             </div>
         </div>
 
-        <!-- Filters -->
-        <div
-            class="flex flex-col md:flex-row gap-4 items-center bg-muted/30 p-4 rounded-lg border"
-        >
-            <div class="w-full md:w-auto flex-1">
-                <SearchInput
-                    bind:value={searchTerm}
-                    placeholder="Cari model, kode mesin..."
-                    class="w-full bg-background"
-                />
-            </div>
-            <div class="w-full md:w-[250px]">
-                <Select type="single" bind:value={selectedBrand}>
-                    <SelectTrigger class="bg-background">
-                        <div class="flex items-center gap-2">
-                            <Filter class="h-4 w-4 text-muted-foreground" />
-                            <span
-                                >{selectedBrand === "all"
-                                    ? "Semua Brand"
-                                    : brandMap[selectedBrand]?.name ||
-                                      selectedBrand}</span
-                            >
-                        </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Brand</SelectItem>
-                        {#each brandList as b}
-                            <SelectItem value={b.id}>{b.name}</SelectItem>
-                        {/each}
-                    </SelectContent>
-                </Select>
-            </div>
-            <Button
-                variant="ghost"
-                class={cn("shrink-0", allVisibleSelected && "text-primary")}
-                onclick={selectAll}
-                disabled={devices.length === 0}
-            >
-                <CheckSquare class="h-4 w-4 mr-2" />
-                {allVisibleSelected ? "Deselect All" : "Select All"}
-            </Button>
-        </div>
+        <input
+            type="file"
+            id="import-file"
+            class="hidden"
+            accept=".xlsx,.xls,.csv"
+            onchange={async (e) => {
+                const file = e.currentTarget.files?.[0];
+                if (file) {
+                    try {
+                        const res = await InventoryService.importDevices(file);
+                        if (res.skipped > 0 || res.errors.length > 0) {
+                            toast.warning(
+                                `Import: ${res.imported} sukses, ${res.skipped} dilewati`,
+                            );
+                        } else {
+                            toast.success(
+                                `Import sukses: ${res.imported} device`,
+                            );
+                        }
+                        if (res.errors.length > 0) {
+                            console.error(res.errors);
+                            toast.error("Cek console untuk detail error");
+                        }
+                        devicesQuery.refetch();
+                    } catch (e) {
+                        toast.error("Gagal import file");
+                    }
+                    e.currentTarget.value = ""; // Reset
+                }
+            }}
+        />
 
         <!-- Content Grid -->
         {#if devicesQuery.isLoading}
@@ -1426,7 +1615,9 @@
                             >
                             <DialogDescription class="text-base mt-2">
                                 <Badge variant="secondary" class="mr-2"
-                                    >{normalizeBrandDisplay(selectedDevice.brand)}</Badge
+                                    >{normalizeBrandDisplay(
+                                        selectedDevice.brand,
+                                    )}</Badge
                                 >
                                 {#if selectedDevice.series}<Badge
                                         variant="outline"
@@ -1786,8 +1977,12 @@
                                 <div class="flex flex-col">
                                     <span>Proses Import...</span>
                                     {#if bulkImportStep === "progress" && bulkImportProgress.current > 0 && bulkImportProgress.estimatedTimeLeft > 0}
-                                        <span class="text-xs text-muted-foreground">
-                                            Estimasi waktu tersisa: {formatTime(bulkImportProgress.estimatedTimeLeft)}
+                                        <span
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            Estimasi waktu tersisa: {formatTime(
+                                                bulkImportProgress.estimatedTimeLeft,
+                                            )}
                                         </span>
                                     {/if}
                                 </div>

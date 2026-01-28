@@ -47,6 +47,9 @@
         AlertCircle,
         RefreshCw,
         ShieldCheck,
+        Search,
+        UserPlus,
+        Activity,
     } from "lucide-svelte";
 
     import { onMount } from "svelte";
@@ -375,47 +378,82 @@
     // Service fee is the remaining amount after deducting parts
     let derivedServiceFee = $derived(Math.max(0, grandTotal - totalParts));
 
-    // Status colors and labels
+    // Status colors and labels with premium gradients
     const STATUS_CONFIG: Record<
         string,
-        { color: string; bg: string; label: string }
+        {
+            color: string;
+            bg: string;
+            gradient: string;
+            shadow: string;
+            label: string;
+            icon: any;
+        }
     > = {
         antrian: {
-            color: "text-gray-700",
-            bg: "bg-gray-100",
+            color: "text-slate-700",
+            bg: "bg-slate-100",
+            gradient: "from-slate-500/10 to-slate-500/5",
+            shadow: "shadow-slate-200",
             label: "Antrian",
+            icon: Clock,
         },
         dicek: {
             color: "text-blue-700",
             bg: "bg-blue-100",
+            gradient: "from-blue-500/10 to-blue-500/5",
+            shadow: "shadow-blue-200",
             label: "Sedang Dicek",
+            icon: Search,
         },
         konfirmasi: {
             color: "text-amber-700",
             bg: "bg-amber-100",
+            gradient: "from-amber-500/10 to-amber-500/5",
+            shadow: "shadow-amber-200",
             label: "Konfirmasi",
+            icon: AlertCircle,
         },
         dikerjakan: {
             color: "text-purple-700",
             bg: "bg-purple-100",
+            gradient: "from-purple-500/10 to-purple-500/5",
+            shadow: "shadow-purple-200",
             label: "Dikerjakan",
+            icon: Wrench,
         },
         selesai: {
             color: "text-green-700",
             bg: "bg-green-100",
+            gradient: "from-green-500/10 to-green-500/5",
+            shadow: "shadow-green-200",
             label: "Selesai",
+            icon: CheckCircle,
         },
         diambil: {
             color: "text-teal-700",
             bg: "bg-teal-100",
+            gradient: "from-teal-500/10 to-teal-500/5",
+            shadow: "shadow-teal-200",
             label: "Sudah Diambil",
+            icon: Smartphone,
         },
         "re-konfirmasi": {
             color: "text-orange-700",
             bg: "bg-orange-100",
+            gradient: "from-orange-500/10 to-orange-500/5",
+            shadow: "shadow-orange-200",
             label: "Re-konfirmasi",
+            icon: RefreshCw,
         },
-        batal: { color: "text-red-700", bg: "bg-red-100", label: "Dibatalkan" },
+        batal: {
+            color: "text-red-700",
+            bg: "bg-red-100",
+            gradient: "from-red-500/10 to-red-500/5",
+            shadow: "shadow-red-200",
+            label: "Dibatalkan",
+            icon: XCircle,
+        },
     };
 
     function getStatusConfig(status: string) {
@@ -633,309 +671,385 @@
             </Button>
         </div>
     {:else}
-        <!-- Hero Header -->
-        <div class="bg-card rounded-3xl shadow-sm border p-6 mb-6">
+        <!-- Hero Header with Status-driven Theme -->
+        <div
+            class="relative overflow-hidden bg-card rounded-[2rem] shadow-xl border-2 transition-all duration-500 {statusConfig.shadow} mb-8"
+        >
             <div
-                class="flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-            >
-                <div class="flex items-start gap-4">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onclick={() => goto("/service")}
-                        class="shrink-0"
-                    >
-                        <ArrowLeft class="h-5 w-5" />
-                    </Button>
-                    <div>
-                        <div class="flex items-center gap-3 flex-wrap">
-                            <h1 class="text-2xl font-bold">
-                                {serviceOrder.no}
-                            </h1>
-                            <Badge
-                                class="{statusConfig.bg} {statusConfig.color} hover:{statusConfig.bg} px-3 py-1 text-sm font-medium"
-                            >
-                                {statusConfig.label}
-                            </Badge>
-                            {#if serviceOrder.isWalkin}
-                                <Badge
-                                    class="bg-green-100 text-green-700 hover:bg-green-100"
-                                >
-                                    <Clock class="h-3 w-3 mr-1" /> Walk-in
-                                </Badge>
-                            {:else}
-                                <Badge variant="outline">
-                                    <Calendar class="h-3 w-3 mr-1" /> Regular
-                                </Badge>
-                            {/if}
-                        </div>
-                        <p class="text-muted-foreground mt-1">
-                            <span class="font-medium"
-                                >{serviceOrder.customer?.name ||
-                                    "Unknown"}</span
-                            >
-                            <span class="mx-2">•</span>
-                            {serviceOrder.phone?.brand || ""}
-                            {serviceOrder.phone?.model || ""}
-                        </p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2 flex-wrap ml-14 lg:ml-0">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onclick={() => handlePrint("sticker")}
-                    >
-                        <Printer class="h-4 w-4 mr-2" /> Cetak Label Unit
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onclick={() => handlePrint("receipt")}
-                    >
-                        <FileText class="h-4 w-4 mr-2" /> Cetak Nota
-                    </Button>
-                    {#if canViewContact}
+                class="absolute inset-0 bg-gradient-to-br {statusConfig.gradient} opacity-50"
+            ></div>
+
+            <div class="relative p-6 md:p-8">
+                <div
+                    class="flex flex-col lg:flex-row lg:items-center justify-between gap-6"
+                >
+                    <div class="flex items-start gap-5">
                         <Button
-                            variant="outline"
-                            size="sm"
-                            class="text-green-600"
-                            onclick={handleChatCustomer}
+                            variant="secondary"
+                            size="icon"
+                            onclick={() => goto("/service")}
+                            class="shrink-0 rounded-2xl bg-white/50 backdrop-blur-sm border shadow-sm hover:scale-105 transition-transform"
                         >
-                            <MessageCircle class="h-4 w-4 mr-2" /> WhatsApp
+                            <ArrowLeft class="h-5 w-5" />
                         </Button>
-                    {/if}
+                        <div>
+                            <div class="flex items-center gap-3 flex-wrap">
+                                <h1
+                                    class="text-3xl font-black tracking-tight font-heading"
+                                >
+                                    {serviceOrder.no}
+                                </h1>
+                                <Badge
+                                    class="{statusConfig.bg} {statusConfig.color} px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ring-2 ring-white"
+                                >
+                                    <statusConfig.icon
+                                        class="h-3.5 w-3.5 mr-1.5"
+                                    />
+                                    {statusConfig.label}
+                                </Badge>
+                                {#if serviceOrder.isWalkin}
+                                    <Badge
+                                        class="bg-emerald-500 text-white rounded-full px-3 py-1 font-bold shadow-sm shadow-emerald-200"
+                                    >
+                                        <Clock class="h-3.5 w-3.5 mr-1.5" /> Walk-in
+                                    </Badge>
+                                {:else}
+                                    <Badge
+                                        variant="outline"
+                                        class="rounded-full px-3 py-1 font-bold bg-white/50 backdrop-blur-sm"
+                                    >
+                                        <Calendar class="h-3.5 w-3.5 mr-1.5" /> Regular
+                                    </Badge>
+                                {/if}
+                            </div>
+                            <div class="flex items-center gap-6 mt-4">
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none"
+                                        >Customer</span
+                                    >
+                                    <span
+                                        class="font-black text-xl tracking-tight text-slate-800 leading-none"
+                                    >
+                                        {serviceOrder.customer?.name ||
+                                            "Unknown"}
+                                    </span>
+                                </div>
+                                <div class="w-px h-8 bg-slate-200"></div>
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none"
+                                        >Penerima</span
+                                    >
+                                    <div class="flex items-center gap-2">
+                                        <div
+                                            class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center border shadow-sm"
+                                        >
+                                            <User
+                                                class="h-3 w-3 text-slate-400"
+                                            />
+                                        </div>
+                                        <span
+                                            class="text-sm font-bold text-slate-600 tracking-tight uppercase"
+                                        >
+                                            {serviceOrder.creator?.name ||
+                                                "Admin"}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        class="flex flex-wrap items-center gap-3 bg-white/60 backdrop-blur-xl p-2.5 rounded-[2rem] border-2 border-white shadow-xl"
+                    >
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onclick={() => handlePrint("sticker")}
+                            class="rounded-full font-black text-[10px] uppercase tracking-widest bg-white hover:bg-slate-50 border shadow-sm px-6 h-10 transition-all hover:scale-105 active:scale-95"
+                        >
+                            <Printer class="h-4 w-4 mr-2 text-slate-400" /> Cetak
+                            Label
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onclick={() => handlePrint("receipt")}
+                            class="rounded-full font-black text-[10px] uppercase tracking-widest bg-white hover:bg-slate-50 border shadow-sm px-6 h-10 transition-all hover:scale-105 active:scale-95"
+                        >
+                            <Printer class="h-4 w-4 mr-2 text-slate-400" /> Cetak
+                            Nota
+                        </Button>
+
+                        <div
+                            class="w-px h-6 bg-slate-200 mx-1 hidden sm:block"
+                        ></div>
+
+                        {#if canViewContact}
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                class="rounded-full font-black text-[10px] uppercase tracking-widest bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-200 px-6 h-10 transition-all hover:scale-105 active:scale-95 border-none"
+                                onclick={handleChatCustomer}
+                            >
+                                <MessageCircle class="h-4 w-4 mr-2" /> WhatsApp
+                            </Button>
+                        {/if}
+                        {#if canAssignTechnician}
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                class="rounded-full font-black text-[10px] uppercase tracking-widest bg-blue-500 text-white hover:bg-blue-600 shadow-lg shadow-blue-200 px-6 h-10 transition-all hover:scale-105 active:scale-95 border-none"
+                                onclick={() => (showAssignModal = true)}
+                            >
+                                <UserPlus class="h-4 w-4 mr-2" /> Tunjuk Teknisi
+                            </Button>
+                        {/if}
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Main Content Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
-            <!-- Left Sidebar: Timeline -->
+            <!-- Left Sidebar: Timeline & Quick Info -->
             <aside class="space-y-6">
-                <!-- Timeline Card -->
-                <div class="bg-card rounded-2xl shadow-sm border p-5">
+                <!-- Status & Progress Card -->
+                <div
+                    class="relative overflow-hidden bg-card rounded-[2rem] shadow-lg border-2 border-slate-100 p-6"
+                >
+                    <div class="absolute top-0 right-0 p-4 opacity-5">
+                        <Activity class="h-16 w-16" />
+                    </div>
+
                     <h3
-                        class="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2"
+                        class="font-bold text-sm uppercase tracking-[0.2em] text-slate-400 mb-6 flex items-center gap-2"
                     >
-                        <Clock class="h-4 w-4" /> Timeline Service
+                        <Activity class="h-4 w-4" /> Progres Service
                     </h3>
 
                     <!-- Status Progress -->
-                    <div class="mb-6">
+                    <div
+                        class="mb-8 p-4 bg-slate-50 rounded-2xl border border-slate-100"
+                    >
                         <div
-                            class="flex justify-between text-xs text-muted-foreground mb-2"
+                            class="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3"
                         >
-                            <span>Masuk</span>
-                            <span>Selesai</span>
+                            <span>Check-in</span>
+                            <span>Target</span>
                         </div>
-                        <div class="h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                            class="h-3 bg-slate-200 rounded-full overflow-hidden p-0.5 border shadow-inner"
+                        >
                             <div
-                                class="h-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-500"
-                                style="width: {Math.min(progress, 100)}%"
+                                class="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full transition-all duration-1000 ease-out shadow-sm"
+                                style="width: {Math.max(
+                                    5,
+                                    Math.min(progress, 100),
+                                )}%"
                             ></div>
                         </div>
+                        <p
+                            class="text-[10px] font-bold text-center mt-2 text-primary uppercase tracking-tighter"
+                        >
+                            {Math.round(progress)}% Selesai
+                        </p>
                     </div>
 
-                    <!-- Timeline Events -->
-                    <!-- Warranty Card Integration -->
-                    {#if serviceOrder.warranty && serviceOrder.warranty !== "Tanpa Garansi"}
+                    <!-- Dates Section -->
+                    <div class="space-y-4 mb-8">
                         <div
-                            class="mb-6 p-4 bg-primary/5 rounded-xl border border-primary/10"
+                            class="flex items-center gap-3 p-3 bg-white rounded-2xl border shadow-sm group hover:border-primary/30 transition-colors"
                         >
-                            <h4
-                                class="text-sm font-semibold flex items-center gap-2 mb-3 text-primary"
+                            <div
+                                class="p-2 bg-slate-100 rounded-xl group-hover:bg-primary/10 transition-colors"
                             >
-                                <ShieldCheck class="h-4 w-4" /> Garansi Toko
-                            </h4>
-                            <div class="space-y-2 text-sm">
-                                <div class="flex justify-between">
-                                    <span class="text-muted-foreground"
-                                        >Durasi</span
+                                <Calendar
+                                    class="h-4 w-4 text-slate-500 group-hover:text-primary"
+                                />
+                            </div>
+                            <div class="flex flex-col">
+                                <span
+                                    class="text-[10px] font-black uppercase tracking-tighter text-slate-400"
+                                    >Tgl Masuk</span
+                                >
+                                <span class="text-xs font-bold"
+                                    >{formatDate(serviceOrder.dateIn)}</span
+                                >
+                            </div>
+                        </div>
+
+                        {#if serviceOrder.estimatedCompletionDate}
+                            <div
+                                class="flex items-center gap-3 p-3 bg-white rounded-2xl border shadow-sm group hover:border-amber-500/30 transition-colors"
+                            >
+                                <div
+                                    class="p-2 bg-slate-100 rounded-xl group-hover:bg-amber-500/10 transition-colors"
+                                >
+                                    <Clock
+                                        class="h-4 w-4 text-slate-500 group-hover:text-amber-600"
+                                    />
+                                </div>
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-[10px] font-black uppercase tracking-tighter text-slate-400"
+                                        >Estimasi Selesai</span
                                     >
-                                    <span class="font-medium"
-                                        >{serviceOrder.warranty}</span
+                                    <span
+                                        class="text-xs font-bold text-amber-600"
+                                        >{formatDate(
+                                            serviceOrder.estimatedCompletionDate,
+                                        )}</span
                                     >
                                 </div>
-                                {#if serviceOrder.warrantyExpiryDate}
-                                    <div class="flex justify-between">
-                                        <span class="text-muted-foreground"
-                                            >Berakhir</span
-                                        >
-                                        <span class="font-medium"
-                                            >{formatDate(
-                                                serviceOrder.warrantyExpiryDate,
-                                            )}</span
-                                        >
-                                    </div>
-                                    <div class="pt-2 mt-2 border-t">
-                                        {#if new Date(serviceOrder.warrantyExpiryDate) < new Date()}
-                                            <Badge
-                                                variant="destructive"
-                                                class="w-full justify-center"
-                                                >Expired</Badge
-                                            >
-                                        {:else}
-                                            <Badge
-                                                class="w-full justify-center bg-green-600 hover:bg-green-700"
-                                                >Active</Badge
-                                            >
-                                        {/if}
-                                    </div>
-                                {/if}
+                            </div>
+                        {/if}
+
+                        {#if serviceOrder.dateOut}
+                            <div
+                                class="flex items-center gap-3 p-3 bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm group"
+                            >
+                                <div class="p-2 bg-emerald-500/10 rounded-xl">
+                                    <CheckCircle
+                                        class="h-4 w-4 text-emerald-600"
+                                    />
+                                </div>
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-[10px] font-black uppercase tracking-tighter text-emerald-400"
+                                        >Selesai/Keluar</span
+                                    >
+                                    <span
+                                        class="text-xs font-black text-emerald-700"
+                                        >{formatDate(
+                                            serviceOrder.dateOut,
+                                        )}</span
+                                    >
+                                </div>
+                            </div>
+                        {/if}
+                    </div>
+
+                    <!-- Warranty Badge -->
+                    {#if serviceOrder.warranty && serviceOrder.warranty !== "Tanpa Garansi" && serviceOrder.warranty !== "none"}
+                        <div
+                            class="p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[1.5rem] text-white shadow-lg shadow-indigo-100 mb-6"
+                        >
+                            <div class="flex items-center gap-2 mb-3">
+                                <ShieldCheck class="h-5 w-5" />
+                                <span
+                                    class="text-xs font-black uppercase tracking-widest"
+                                    >Garansi Aktif</span
+                                >
+                            </div>
+                            <div class="flex items-end justify-between">
+                                <span class="text-2xl font-black"
+                                    >{serviceOrder.warranty}</span
+                                >
+                                <div
+                                    class="text-[10px] font-bold opacity-80 text-right"
+                                >
+                                    Sampai<br />{formatDate(
+                                        serviceOrder.warrantyExpiryDate,
+                                    ).split(",")[0]}
+                                </div>
                             </div>
                         </div>
                     {/if}
 
-                    <div class="space-y-1">
-                        {#each serviceOrder.timeline || [] as item, i}
-                            {@const isLast =
-                                i === (serviceOrder.timeline?.length || 0) - 1}
-                            <div
-                                class="relative pl-6 pb-4 {isLast
-                                    ? ''
-                                    : 'border-l-2 border-muted ml-2'}"
-                            >
+                    <Separator class="mb-6" />
+
+                    <!-- Activity View -->
+                    <h3
+                        class="font-bold text-[10px] uppercase tracking-[0.2em] text-slate-400 mb-4 flex items-center gap-2"
+                    >
+                        Aktivitas Terkini
+                    </h3>
+
+                    <div
+                        class="space-y-6 relative before:absolute before:inset-y-0 before:left-[11px] before:w-0.5 before:bg-slate-100"
+                    >
+                        {#each (serviceOrder.timeline || [])
+                            .slice(-3)
+                            .reverse() as item, i}
+                            <div class="relative pl-8 group">
                                 <div
-                                    class="absolute left-0 top-0 w-4 h-4 rounded-full {isLast
-                                        ? 'bg-primary ring-4 ring-primary/20'
-                                        : 'bg-muted-foreground/30'} -translate-x-[7px]"
-                                ></div>
-                                <div class="ml-2">
-                                    <p class="font-medium text-sm">
-                                        {item.event}
-                                    </p>
-                                    {#if item.details}
+                                    class="absolute left-0 top-1 w-6 h-6 rounded-full bg-white border-2 border-slate-200 group-hover:border-primary transition-colors flex items-center justify-center z-10"
+                                >
+                                    <div
+                                        class="w-2 h-2 rounded-full bg-slate-300 group-hover:bg-primary transition-colors"
+                                    ></div>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-xs font-black tracking-tight"
+                                        >{item.event}</span
+                                    >
+                                    <span
+                                        class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter"
+                                        >{item.time}</span
+                                    >
+                                    {#if item.details?.technician}
                                         <div
-                                            class="text-xs text-muted-foreground mt-1 space-y-0.5 border-l-2 border-muted pl-2"
+                                            class="mt-1 px-2 py-0.5 bg-slate-100 rounded text-[9px] font-bold text-slate-500 inline-block w-fit uppercase"
                                         >
-                                            {#if item.details.customer}
-                                                <p>
-                                                    Customer: {item.details
-                                                        .customer}
-                                                </p>
-                                            {/if}
-                                            {#if item.details.phone}
-                                                <p>
-                                                    Unit: {item.details.phone}
-                                                </p>
-                                            {/if}
-                                            {#if item.details.technician}
-                                                <p>
-                                                    Status Teknisi: {item
-                                                        .details.technician}
-                                                </p>
-                                            {/if}
-                                            {#if item.details.isWalkin}
-                                                <p>
-                                                    Tipe: {item.details
-                                                        .isWalkin}
-                                                </p>
-                                            {/if}
+                                            {item.details.technician}
                                         </div>
                                     {/if}
-                                    <div class="flex items-center gap-2 mt-1">
-                                        <p
-                                            class="text-xs text-muted-foreground flex items-center gap-1"
-                                        >
-                                            <User class="h-3 w-3" />
-                                            {item.by}
-                                        </p>
-                                        <span
-                                            class="text-xs text-muted-foreground"
-                                            >•</span
-                                        >
-                                        <p
-                                            class="text-xs text-muted-foreground"
-                                        >
-                                            {item.time}
-                                        </p>
-                                    </div>
                                 </div>
                             </div>
                         {/each}
                         {#if !serviceOrder.timeline?.length}
-                            <p class="text-sm text-muted-foreground italic">
+                            <p
+                                class="text-[10px] text-slate-400 italic font-bold text-center py-4"
+                            >
                                 Belum ada aktivitas
                             </p>
                         {/if}
                     </div>
                 </div>
 
-                <!-- Dates Card -->
-                <div class="bg-card rounded-2xl shadow-sm border p-5 space-y-4">
-                    <h3
-                        class="font-semibold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2"
-                    >
-                        <Calendar class="h-4 w-4" /> Tanggal
-                    </h3>
-                    <div class="space-y-3 text-sm">
-                        <div class="flex justify-between">
-                            <span class="text-muted-foreground">Masuk</span>
-                            <span class="font-medium"
-                                >{formatDate(serviceOrder.dateIn)}</span
-                            >
-                        </div>
-                        {#if serviceOrder.estimatedCompletionDate}
-                            <div class="flex justify-between">
-                                <span class="text-muted-foreground"
-                                    >Est. Selesai</span
-                                >
-                                <span class="font-medium"
-                                    >{formatDate(
-                                        serviceOrder.estimatedCompletionDate,
-                                    )}</span
-                                >
-                            </div>
-                        {/if}
-                        {#if serviceOrder.dateOut}
-                            <div class="flex justify-between">
-                                <span class="text-muted-foreground">Keluar</span
-                                >
-                                <span class="font-medium text-green-600"
-                                    >{formatDate(serviceOrder.dateOut)}</span
-                                >
-                            </div>
-                        {/if}
-                    </div>
-                </div>
-
                 <!-- Technician Card -->
-                <div class="bg-card rounded-2xl shadow-sm border p-5">
-                    <div class="flex items-center justify-between mb-3">
+                <div
+                    class="group relative overflow-hidden bg-card rounded-[2rem] shadow-lg border-2 border-slate-100 p-6 hover:border-primary/20 transition-all duration-300"
+                >
+                    <div class="flex items-center justify-between mb-4">
                         <h3
-                            class="font-semibold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2"
+                            class="font-bold text-[10px] uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2"
                         >
-                            <Wrench class="h-4 w-4" /> Teknisi
+                            <Wrench class="h-4 w-4" /> Teknisi Pengerjaan
                         </h3>
-                        {#if canAssignTechnician}
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                class="h-7 text-xs"
-                                onclick={() => (showAssignModal = true)}
-                            >
-                                <Repeat class="h-3 w-3 mr-1" /> Ganti
-                            </Button>
-                        {/if}
                     </div>
-                    <div class="flex items-center gap-3">
-                        <div
-                            class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"
-                        >
-                            <User class="h-5 w-5 text-primary" />
+
+                    <div class="flex items-center gap-4">
+                        <div class="relative">
+                            <div
+                                class="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center border-2 border-white shadow-sm overflow-hidden"
+                            >
+                                <User class="h-8 w-8 text-slate-400" />
+                            </div>
+                            <div
+                                class="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-emerald-500 border-2 border-white flex items-center justify-center"
+                            >
+                                <CheckCircle class="h-3 w-3 text-white" />
+                            </div>
                         </div>
-                        <div>
-                            <p class="font-medium">
+                        <div class="flex flex-col">
+                            <p
+                                class="font-black text-lg tracking-tight leading-none mb-1 text-slate-800"
+                            >
                                 {serviceOrder.technician?.name ||
                                     "Belum Ditentukan"}
                             </p>
-                            {#if serviceOrder.technician?.assignedAt}
-                                <p class="text-xs text-muted-foreground">
-                                    Assigned: {serviceOrder.technician
-                                        .assignedAt}
-                                </p>
-                            {/if}
+                            <span
+                                class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter"
+                            >
+                                {serviceOrder.technician?.id
+                                    ? "Teknisi Utama"
+                                    : "Hubungi Admin"}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -946,24 +1060,38 @@
                 <!-- Customer & Device Info -->
                 <div class="grid gap-6 md:grid-cols-2">
                     <!-- Customer Card -->
-                    <div class="bg-card rounded-2xl shadow-sm border p-5">
-                        <h3 class="font-semibold mb-4 flex items-center gap-2">
-                            <User class="h-5 w-5 text-primary" /> Informasi Customer
+                    <div
+                        class="group relative overflow-hidden bg-card rounded-[2rem] shadow-lg border-2 border-slate-100 p-8 hover:border-primary/20 transition-all duration-300"
+                    >
+                        <div
+                            class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"
+                        >
+                            <User class="h-24 w-24" />
+                        </div>
+                        <h3
+                            class="font-bold text-xl mb-6 flex items-center gap-3"
+                        >
+                            <div class="p-2 bg-primary/10 rounded-xl">
+                                <User class="h-6 w-6 text-primary" />
+                            </div>
+                            Data Pelanggan
                         </h3>
-                        <div class="space-y-3 text-sm">
-                            <div class="flex items-start justify-between">
-                                <span class="text-muted-foreground">Nama</span>
-                                <span class="font-medium text-right"
+                        <div class="space-y-4 text-sm relative z-10">
+                            <div class="flex flex-col gap-1">
+                                <span
+                                    class="text-slate-400 font-bold uppercase text-[10px] tracking-widest"
+                                    >Nama Lengkap</span
+                                >
+                                <span class="text-lg font-black"
                                     >{serviceOrder.customer?.name || "-"}</span
                                 >
                             </div>
-                            <div class="flex items-start justify-between">
+                            <div class="flex flex-col gap-1">
                                 <span
-                                    class="text-muted-foreground flex items-center gap-1"
+                                    class="text-slate-400 font-bold uppercase text-[10px] tracking-widest"
+                                    >Nomor Telepon</span
                                 >
-                                    <Phone class="h-3 w-3" /> Telepon
-                                </span>
-                                <span class="font-medium font-mono">
+                                <span class="text-lg font-mono font-bold">
                                     {#if canViewContact}
                                         {serviceOrder.customer?.phone || "-"}
                                     {:else}
@@ -981,22 +1109,18 @@
                                 </span>
                             </div>
                             {#if serviceOrder.customer?.address}
-                                <div class="flex items-start justify-between">
+                                <div class="flex flex-col gap-1">
                                     <span
-                                        class="text-muted-foreground flex items-center gap-1"
+                                        class="text-slate-400 font-bold uppercase text-[10px] tracking-widest"
+                                        >Alamat</span
                                     >
-                                        <MapPin class="h-3 w-3" /> Alamat
-                                    </span>
                                     <span
-                                        class="font-medium text-right max-w-[200px]"
+                                        class="font-medium text-slate-600 italic"
                                     >
                                         {#if canViewContact}
                                             {serviceOrder.customer.address}
                                         {:else}
-                                            <span
-                                                class="text-muted-foreground italic"
-                                                >Hidden</span
-                                            >
+                                            Hidden
                                         {/if}
                                     </span>
                                 </div>
@@ -1005,84 +1129,114 @@
                     </div>
 
                     <!-- Device Card -->
-                    <div class="bg-card rounded-2xl shadow-sm border p-5">
-                        <h3 class="font-semibold mb-4 flex items-center gap-2">
-                            <Smartphone class="h-5 w-5 text-primary" /> Informasi
-                            Perangkat
+                    <div
+                        class="group relative overflow-hidden bg-card rounded-[2rem] shadow-lg border-2 border-slate-100 p-8 hover:border-blue-500/20 transition-all duration-300"
+                    >
+                        <div
+                            class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"
+                        >
+                            <Smartphone class="h-24 w-24" />
+                        </div>
+                        <h3
+                            class="font-bold text-xl mb-6 flex items-center gap-3"
+                        >
+                            <div class="p-2 bg-blue-500/10 rounded-xl">
+                                <Smartphone class="h-6 w-6 text-blue-500" />
+                            </div>
+                            Spesifikasi Unit
                         </h3>
-                        <div class="space-y-3 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-muted-foreground"
-                                    >Merk/Model</span
+                        <div class="space-y-4 text-sm relative z-10">
+                            <div class="flex flex-col gap-1">
+                                <span
+                                    class="text-slate-400 font-bold uppercase text-[10px] tracking-widest"
+                                    >Merk & Model</span
                                 >
-                                <span class="font-medium"
+                                <span class="text-lg font-black uppercase"
                                     >{serviceOrder.phone?.brand || "-"}
                                     {serviceOrder.phone?.model || ""}</span
                                 >
                             </div>
-                            {#if serviceOrder.phone?.imei}
-                                <div class="flex justify-between">
-                                    <span
-                                        class="text-muted-foreground flex items-center gap-1"
-                                    >
-                                        <Hash class="h-3 w-3" /> IMEI
-                                    </span>
-                                    <span class="font-mono text-xs"
-                                        >{serviceOrder.phone.imei}</span
-                                    >
-                                </div>
-                            {/if}
-                            {#if serviceOrder.phone?.status}
-                                <div class="flex justify-between">
-                                    <span class="text-muted-foreground"
-                                        >Status HP</span
-                                    >
-                                    <Badge variant="outline"
-                                        >{serviceOrder.phone.status}</Badge
-                                    >
-                                </div>
-                            {/if}
+                            <div class="grid grid-cols-2 gap-4">
+                                {#if serviceOrder.phone?.imei}
+                                    <div class="flex flex-col gap-1">
+                                        <span
+                                            class="text-slate-400 font-bold uppercase text-[10px] tracking-widest"
+                                            >IMEI / SN</span
+                                        >
+                                        <span class="font-mono font-bold"
+                                            >{serviceOrder.phone.imei}</span
+                                        >
+                                    </div>
+                                {/if}
+                                {#if serviceOrder.phone?.status}
+                                    <div class="flex flex-col gap-1">
+                                        <span
+                                            class="text-slate-400 font-bold uppercase text-[10px] tracking-widest"
+                                            >Status Unit</span
+                                        >
+                                        <div>
+                                            <Badge
+                                                variant="secondary"
+                                                class="font-bold uppercase tracking-tighter bg-slate-100"
+                                            >
+                                                {serviceOrder.phone.status}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                {/if}
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Physical Condition & Completeness -->
                 {#if serviceOrder.phone?.physical?.length || serviceOrder.phone?.completeness?.length}
-                    <div class="bg-card rounded-2xl shadow-sm border p-5">
-                        <h3 class="font-semibold mb-4 flex items-center gap-2">
-                            <FileText class="h-5 w-5 text-primary" /> Kondisi & Kelengkapan
+                    <div
+                        class="bg-card rounded-[2rem] shadow-lg border-2 border-slate-100 p-8"
+                    >
+                        <h3
+                            class="font-bold text-xl mb-6 flex items-center gap-3"
+                        >
+                            <div class="p-2 bg-slate-100 rounded-xl">
+                                <FileText class="h-6 w-6 text-slate-500" />
+                            </div>
+                            Kondisi & Kelengkapan
                         </h3>
-                        <div class="grid gap-4 md:grid-cols-2">
+                        <div class="grid gap-8 md:grid-cols-2">
                             {#if serviceOrder.phone?.physical?.length}
-                                <div>
+                                <div class="space-y-3">
                                     <p
-                                        class="text-xs text-muted-foreground uppercase tracking-wider mb-2"
+                                        class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full w-fit border"
                                     >
-                                        Kondisi Fisik
+                                        Fisik Perangkat
                                     </p>
                                     <div class="flex flex-wrap gap-2">
                                         {#each serviceOrder.phone.physical as p}
-                                            <Badge variant="secondary"
-                                                >{getPhysicalLabel(p)}</Badge
+                                            <Badge
+                                                variant="secondary"
+                                                class="rounded-xl px-4 py-1.5 font-bold uppercase tracking-tighter bg-slate-100 text-slate-600 border-none"
                                             >
+                                                {getPhysicalLabel(p)}
+                                            </Badge>
                                         {/each}
                                     </div>
                                 </div>
                             {/if}
                             {#if serviceOrder.phone?.completeness?.length}
-                                <div>
+                                <div class="space-y-3">
                                     <p
-                                        class="text-xs text-muted-foreground uppercase tracking-wider mb-2"
+                                        class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full w-fit border"
                                     >
-                                        Kelengkapan
+                                        Aksesoris / Kelengkapan
                                     </p>
                                     <div class="flex flex-wrap gap-2">
                                         {#each serviceOrder.phone.completeness as c}
-                                            <Badge variant="outline"
-                                                >{getCompletenessLabel(
-                                                    c,
-                                                )}</Badge
+                                            <Badge
+                                                variant="outline"
+                                                class="rounded-xl px-4 py-1.5 font-bold uppercase tracking-tighter border-slate-200 text-slate-500 bg-white shadow-sm"
                                             >
+                                                {getCompletenessLabel(c)}
+                                            </Badge>
                                         {/each}
                                     </div>
                                 </div>
@@ -1093,37 +1247,48 @@
 
                 <!-- PIN/Pattern Display -->
                 {#if serviceOrder.phone?.pin || serviceOrder.phone?.pattern}
-                    <div class="bg-card rounded-2xl shadow-sm border p-5">
-                        <h3 class="font-semibold mb-4 flex items-center gap-2">
-                            🔐 PIN / Pattern
+                    <div
+                        class="bg-card rounded-[2rem] shadow-lg border-2 border-slate-100 p-8"
+                    >
+                        <h3
+                            class="font-bold text-xl mb-6 flex items-center gap-3"
+                        >
+                            <div class="p-2 bg-slate-100 rounded-xl">
+                                <Shield class="h-6 w-6 text-slate-500" />
+                            </div>
+                            Keamanan Perangkat
                         </h3>
-                        <div class="flex items-center gap-6">
+                        <div class="flex flex-wrap items-center gap-12">
                             {#if serviceOrder.phone?.pin}
-                                <div>
+                                <div class="space-y-2">
                                     <p
-                                        class="text-xs text-muted-foreground mb-1"
+                                        class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full w-fit border"
                                     >
-                                        PIN
+                                        PIN Access
                                     </p>
                                     <p
-                                        class="font-mono text-2xl font-bold tracking-widest"
+                                        class="font-mono text-4xl font-black tracking-[0.2em] text-primary"
                                     >
                                         {serviceOrder.phone.pin}
                                     </p>
                                 </div>
                             {/if}
                             {#if serviceOrder.phone?.pattern && Array.isArray(serviceOrder.phone.pattern)}
-                                <div>
+                                <div class="space-y-4">
                                     <p
-                                        class="text-xs text-muted-foreground mb-1"
+                                        class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full w-fit border"
                                     >
-                                        Pattern
+                                        Pattern Lock
                                     </p>
-                                    <PatternLock
-                                        value={serviceOrder.phone.pattern}
-                                        readonly
-                                        size={120}
-                                    />
+                                    <div
+                                        class="p-4 bg-slate-50 rounded-3xl border shadow-inner"
+                                    >
+                                        <PatternLock
+                                            value={serviceOrder.phone.pattern}
+                                            readonly
+                                            size={140}
+                                        />
+                                    </div>
                                 </div>
                             {/if}
                         </div>
@@ -1132,21 +1297,27 @@
 
                 <!-- Photos -->
                 {#if serviceOrder.photos?.length}
-                    <div class="bg-card rounded-2xl shadow-sm border p-5">
-                        <h3 class="font-semibold mb-4 flex items-center gap-2">
-                            <Camera class="h-5 w-5 text-primary" /> Foto Kondisi
-                            Fisik
+                    <div
+                        class="bg-card rounded-[2rem] shadow-lg border-2 border-slate-100 p-8"
+                    >
+                        <h3
+                            class="font-bold text-xl mb-6 flex items-center gap-3"
+                        >
+                            <div class="p-2 bg-slate-100 rounded-xl">
+                                <Camera class="h-6 w-6 text-slate-500" />
+                            </div>
+                            Dokumentasi Fisik Unit
                         </h3>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {#each serviceOrder.photos as photo, i}
                                 <button
-                                    class="aspect-square rounded-xl overflow-hidden border hover:ring-2 hover:ring-primary focus:ring-2 focus:ring-primary transition-all"
+                                    class="group aspect-square rounded-[1.5rem] overflow-hidden border-2 border-slate-100 hover:border-primary transition-all shadow-sm"
                                     onclick={() => window.open(photo, "_blank")}
                                 >
                                     <img
                                         src={photo}
                                         alt="Kondisi {i + 1}"
-                                        class="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+                                        class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                     />
                                 </button>
                             {/each}
@@ -1156,21 +1327,31 @@
 
                 <!-- Complaint & Diagnosis -->
                 <div class="grid gap-6 md:grid-cols-2">
-                    <div class="bg-card rounded-2xl shadow-sm border p-5">
-                        <h3 class="font-semibold mb-3 flex items-center gap-2">
-                            <AlertTriangle class="h-5 w-5 text-amber-500" /> Keluhan
-                            Customer
+                    <div
+                        class="bg-card rounded-[2rem] shadow-lg border-2 border-slate-100 p-8 border-l-[6px] border-l-amber-400"
+                    >
+                        <h3
+                            class="font-bold text-xl mb-4 flex items-center gap-3"
+                        >
+                            <AlertTriangle class="h-6 w-6 text-amber-500" /> Keluhan
+                            Utama
                         </h3>
-                        <p class="text-sm">{serviceOrder.complaint || "-"}</p>
+                        <div
+                            class="p-4 bg-amber-50 rounded-2xl font-medium text-slate-700 leading-relaxed border border-amber-100"
+                        >
+                            "{serviceOrder.complaint || "-"}"
+                        </div>
                     </div>
 
                     {#if serviceOrder.diagnosis && serviceOrder.diagnosis !== "null" && serviceOrder.diagnosis !== "{}"}
-                        <div class="bg-card rounded-2xl shadow-sm border p-5">
+                        <div
+                            class="bg-card rounded-[2rem] shadow-lg border-2 border-slate-100 p-8 border-l-[6px] border-l-blue-400"
+                        >
                             <h3
-                                class="font-semibold mb-3 flex items-center gap-2"
+                                class="font-bold text-xl mb-4 flex items-center gap-3"
                             >
-                                <Wrench class="h-5 w-5 text-blue-500" /> Diagnosa
-                                Awal
+                                <Wrench class="h-6 w-6 text-blue-500" /> Analisa
+                                Teknisi
                             </h3>
 
                             {#if serviceOrder.diagnosis}
@@ -1182,27 +1363,41 @@
                                         : serviceOrder.diagnosis}
 
                                 {#if diag && typeof diag === "object"}
-                                    <div class="space-y-3 text-sm">
+                                    <div class="space-y-4">
                                         {#if diag.initial}
-                                            <div>
-                                                <p>{diag.initial}</p>
+                                            <div
+                                                class="p-4 bg-blue-50 rounded-2xl border border-blue-100"
+                                            >
+                                                <p
+                                                    class="font-bold text-slate-700"
+                                                >
+                                                    {diag.initial}
+                                                </p>
                                             </div>
                                         {/if}
                                         {#if diag.possibleCauses}
-                                            <div>
+                                            <div class="px-4">
                                                 <h4
-                                                    class="font-medium text-muted-foreground text-xs uppercase tracking-wider mb-1"
+                                                    class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2"
                                                 >
-                                                    Kemungkinan Kerusakan
+                                                    Kemungkinan Penyebab
                                                 </h4>
-                                                <p>{diag.possibleCauses}</p>
+                                                <p
+                                                    class="text-sm font-medium text-slate-600 border-l-2 border-blue-200 pl-4"
+                                                >
+                                                    {diag.possibleCauses}
+                                                </p>
                                             </div>
                                         {/if}
                                     </div>
                                 {:else}
-                                    <p class="text-sm">
-                                        {serviceOrder.diagnosis}
-                                    </p>
+                                    <div
+                                        class="p-4 bg-blue-50 rounded-2xl border border-blue-100"
+                                    >
+                                        <p class="font-bold text-slate-700">
+                                            {serviceOrder.diagnosis}
+                                        </p>
+                                    </div>
                                 {/if}
                             {:else}
                                 <p class="text-sm text-muted-foreground italic">
@@ -1214,24 +1409,37 @@
                                 {@const noteParts = serviceOrder.notes.split(
                                     "\n\nSparepart Perlu Diganti: ",
                                 )}
-                                <div class="mt-4 pt-4 border-t border-dashed">
+                                <div
+                                    class="mt-6 pt-6 border-t border-dashed border-slate-200"
+                                >
                                     <h4
-                                        class="font-medium text-sm mb-2 flex items-center gap-2"
+                                        class="font-black text-xs uppercase tracking-[0.2em] text-emerald-600 mb-4 flex items-center gap-2"
                                     >
-                                        <CheckCircle
-                                            class="h-4 w-4 text-green-600"
-                                        /> Diagnosa Aktual / Pengerjaan
+                                        <CheckCircle class="h-4 w-4" /> Solusi &
+                                        Pengerjaan
                                     </h4>
 
-                                    <div class="text-sm space-y-2">
-                                        <p>{noteParts[0]?.trim() || ""}</p>
+                                    <div class="space-y-4">
+                                        {#if noteParts[0]}
+                                            <div
+                                                class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-emerald-800 font-bold"
+                                            >
+                                                {noteParts[0].trim()}
+                                            </div>
+                                        {/if}
                                         {#if noteParts[1]}
-                                            <div>
+                                            <div
+                                                class="p-4 bg-slate-50 rounded-2xl border border-slate-100"
+                                            >
                                                 <span
-                                                    class="font-medium text-xs text-muted-foreground uppercase tracking-wider block"
-                                                    >Solusi:</span
+                                                    class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1"
+                                                    >Parts Diganti:</span
                                                 >
-                                                <p>{noteParts[1].trim()}</p>
+                                                <p
+                                                    class="font-black text-slate-700"
+                                                >
+                                                    {noteParts[1].trim()}
+                                                </p>
                                             </div>
                                         {/if}
                                     </div>
@@ -1240,185 +1448,335 @@
                         </div>
                     {:else}
                         <div
-                            class="bg-muted/30 rounded-2xl border border-dashed p-5 flex items-center justify-center"
+                            class="bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 p-8 flex flex-col items-center justify-center text-center"
                         >
-                            <p class="text-sm text-muted-foreground italic">
-                                Diagnosa tersedia setelah pengecekan
+                            <div
+                                class="p-3 bg-white rounded-2xl mb-4 shadow-sm"
+                            >
+                                <Search class="h-8 w-8 text-slate-300" />
+                            </div>
+                            <p
+                                class="text-sm font-bold text-slate-400 max-w-[200px]"
+                            >
+                                Menunggu diagnosa teknisi untuk informasi lebih
+                                detail.
                             </p>
                         </div>
                     {/if}
                 </div>
 
-                <!-- QC Section (for walk-in with QC data) -->
+                <!-- QC Section -->
                 {#if serviceOrder.phone?.initialQC || serviceOrder.phone?.qc || (serviceOrder.phone?.status && ["mati_total", "blank", "restart", "bootloop"].includes(serviceOrder.phone.status))}
                     <div
-                        class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-sm border border-blue-200 p-5"
+                        class="bg-card rounded-[2rem] shadow-lg border-2 border-slate-100 p-8"
                     >
                         <h3
-                            class="font-semibold mb-4 flex items-center gap-2 text-blue-800"
+                            class="font-bold text-xl mb-6 flex items-center gap-3"
                         >
-                            <CheckCircle class="h-5 w-5" /> Quality Control
+                            <div class="p-2 bg-blue-500/10 rounded-xl">
+                                <CheckCircle class="h-6 w-6 text-blue-500" />
+                            </div>
+                            Quality Control Perangkat
                         </h3>
-                        <div class="grid gap-4 md:grid-cols-2">
-                            <div class="bg-white/70 rounded-xl p-4">
+                        <div class="grid gap-8 md:grid-cols-2">
+                            <!-- QC Awal -->
+                            <div class="space-y-4">
                                 <p
-                                    class="text-xs text-muted-foreground uppercase tracking-wider mb-2"
+                                    class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full w-fit border"
                                 >
-                                    QC Awal (Sebelum)
+                                    Pengecekan Awal
                                 </p>
                                 {#if serviceOrder.phone?.initialQC && Object.keys(serviceOrder.phone.initialQC).length > 0}
-                                    <div class="space-y-1">
+                                    <div
+                                        class="grid grid-cols-1 gap-2 p-4 bg-slate-50 rounded-2xl border border-slate-100"
+                                    >
                                         {#each Object.entries(serviceOrder.phone.initialQC) as [key, value]}
                                             <div
-                                                class="flex items-center justify-between text-sm"
+                                                class="flex items-center justify-between text-sm group"
                                             >
                                                 <span
-                                                    >{key
+                                                    class="text-slate-500 font-medium group-hover:text-slate-800 transition-colors"
+                                                >
+                                                    {key
                                                         .replace(
                                                             /([A-Z])/g,
                                                             " $1",
                                                         )
-                                                        .trim()}</span
-                                                >
+                                                        .trim()}
+                                                </span>
                                                 {#if value}
-                                                    <CheckCircle
-                                                        class="h-4 w-4 text-green-500"
-                                                    />
+                                                    <div
+                                                        class="flex items-center gap-1.5 text-emerald-600 font-black text-[10px] uppercase"
+                                                    >
+                                                        <span>OK</span>
+                                                        <CheckCircle
+                                                            class="h-4 w-4"
+                                                        />
+                                                    </div>
                                                 {:else}
-                                                    <XCircle
-                                                        class="h-4 w-4 text-red-500"
-                                                    />
+                                                    <div
+                                                        class="flex items-center gap-1.5 text-rose-500 font-black text-[10px] uppercase"
+                                                    >
+                                                        <span>FAIL</span>
+                                                        <XCircle
+                                                            class="h-4 w-4"
+                                                        />
+                                                    </div>
                                                 {/if}
                                             </div>
                                         {/each}
                                     </div>
                                 {:else if serviceOrder.phone?.status && ["mati_total", "blank", "restart", "bootloop"].includes(serviceOrder.phone.status)}
                                     <div
-                                        class="flex items-center gap-2 text-sm text-orange-700 p-2 bg-orange-50 rounded border border-orange-100 border-dashed"
+                                        class="flex flex-col items-center justify-center p-8 bg-amber-50 rounded-2xl border-2 border-dashed border-amber-200 text-center"
                                     >
-                                        <AlertCircle class="h-4 w-4 shrink-0" />
+                                        <AlertCircle
+                                            class="h-8 w-8 text-amber-500 mb-2"
+                                        />
+                                        <p
+                                            class="text-xs font-black text-amber-700 uppercase tracking-tighter"
+                                        >
+                                            QC Dileveri Lewati
+                                        </p>
                                         <span
-                                            >Skipped ({serviceOrder.phone.status
-                                                .replace(/_/g, " ")
-                                                .toUpperCase()})</span
+                                            class="text-[10px] text-amber-600 font-bold uppercase"
+                                            >Unit {serviceOrder.phone?.status?.replace(
+                                                /_/g,
+                                                " ",
+                                            )}</span
                                         >
                                     </div>
                                 {:else}
-                                    <p
-                                        class="text-sm text-muted-foreground italic"
+                                    <div
+                                        class="p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-center"
                                     >
-                                        Tidak ada data
-                                    </p>
+                                        <p
+                                            class="text-xs font-bold text-slate-400 uppercase"
+                                        >
+                                            Tidak ada data QC awal
+                                        </p>
+                                    </div>
                                 {/if}
                             </div>
-                            {#if serviceOrder.phone?.qc?.after}
-                                <div class="bg-white/70 rounded-xl p-4">
-                                    <p
-                                        class="text-xs text-muted-foreground uppercase tracking-wider mb-2"
+
+                            <!-- QC Akhir -->
+                            <div class="space-y-4">
+                                <p
+                                    class="text-[10px] font-black uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full w-fit border border-emerald-100 text-emerald-600"
+                                >
+                                    Hasil Pengerjaan
+                                </p>
+                                {#if serviceOrder.phone?.qc?.after}
+                                    <div
+                                        class="grid grid-cols-1 gap-2 p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100"
                                     >
-                                        QC Akhir (Sesudah)
-                                    </p>
-                                    <div class="space-y-1">
                                         {#each Object.entries(serviceOrder.phone.qc.after) as [key, value]}
                                             <div
-                                                class="flex items-center justify-between text-sm"
+                                                class="flex items-center justify-between text-sm group"
                                             >
-                                                <span>{key}</span>
+                                                <span
+                                                    class="text-emerald-900/70 font-bold group-hover:text-emerald-900 transition-colors lowercase"
+                                                >
+                                                    {key}
+                                                </span>
                                                 {#if value}
-                                                    <CheckCircle
-                                                        class="h-4 w-4 text-green-500"
-                                                    />
+                                                    <div
+                                                        class="p-1 bg-emerald-500 rounded-lg"
+                                                    >
+                                                        <CheckCircle
+                                                            class="h-3 w-3 text-white"
+                                                        />
+                                                    </div>
                                                 {:else}
-                                                    <XCircle
-                                                        class="h-4 w-4 text-red-500"
-                                                    />
+                                                    <div
+                                                        class="p-1 bg-rose-500 rounded-lg"
+                                                    >
+                                                        <XCircle
+                                                            class="h-3 w-3 text-white"
+                                                        />
+                                                    </div>
                                                 {/if}
                                             </div>
                                         {/each}
                                     </div>
-                                </div>
-                            {/if}
+                                {:else}
+                                    <div
+                                        class="p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-center flex flex-col items-center"
+                                    >
+                                        <Loader2
+                                            class="h-8 w-8 text-slate-300 animate-spin mb-2"
+                                        />
+                                        <p
+                                            class="text-xs font-bold text-slate-400 uppercase"
+                                        >
+                                            Menunggu QC Akhir
+                                        </p>
+                                    </div>
+                                {/if}
+                            </div>
                         </div>
+
                         {#if serviceOrder.phone?.qc?.notes}
-                            <div class="mt-4 p-3 bg-white/70 rounded-lg">
-                                <p class="text-xs text-muted-foreground mb-1">
-                                    Catatan QC
-                                </p>
-                                <p class="text-sm">
-                                    {serviceOrder.phone.qc.notes}
-                                </p>
+                            <div
+                                class="mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-100 italic font-medium text-slate-600 text-sm"
+                            >
+                                <span
+                                    class="not-italic text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2"
+                                    >Catatan QC Lapangan:</span
+                                >
+                                "{serviceOrder.phone.qc.notes}"
                             </div>
                         {/if}
                     </div>
                 {/if}
 
-                <!-- Payment Section (for walk-in) -->
+                <!-- Payment Section -->
                 {#if serviceOrder.isWalkin && (serviceOrder.payments || serviceOrder.paymentMethod)}
                     <div
-                        class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl shadow-sm border border-green-200 p-5"
+                        class="bg-card rounded-[2rem] shadow-lg border-2 border-slate-100 p-8 border-l-[6px] border-l-emerald-500"
                     >
-                        <h3
-                            class="font-semibold mb-4 flex items-center gap-2 text-green-800"
-                        >
-                            <CreditCard class="h-5 w-5" /> Pembayaran
-                        </h3>
-                        <div class="grid gap-4 md:grid-cols-2">
-                            <div class="space-y-3 text-sm">
-                                <div class="flex justify-between">
-                                    <span class="text-muted-foreground"
+                        <div class="flex items-center justify-between mb-8">
+                            <h3
+                                class="font-bold text-xl flex items-center gap-3"
+                            >
+                                <div class="p-2 bg-emerald-500/10 rounded-xl">
+                                    <CreditCard
+                                        class="h-6 w-6 text-emerald-600"
+                                    />
+                                </div>
+                                Informasi Pembayaran
+                            </h3>
+                            <div class="flex flex-col items-end">
+                                <span
+                                    class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none"
+                                    >Status</span
+                                >
+                                <Badge
+                                    class="bg-emerald-500 text-white font-black uppercase tracking-widest px-4 border-none shadow-sm shadow-emerald-200"
+                                    >LUNAS</Badge
+                                >
+                            </div>
+                        </div>
+
+                        <div class="grid gap-8 md:grid-cols-2">
+                            <div class="space-y-4">
+                                <div
+                                    class="p-6 bg-slate-50/50 rounded-[1.5rem] border border-slate-100 hover:bg-white transition-colors"
+                                >
+                                    <span
+                                        class="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2"
                                         >Metode</span
                                     >
-                                    <Badge variant="outline" class="capitalize"
-                                        >{serviceOrder.paymentMethod ||
-                                            "cash"}</Badge
-                                    >
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="p-2.5 bg-white rounded-xl shadow-sm border text-slate-400"
+                                        >
+                                            {#if serviceOrder.paymentMethod === "transfer"}
+                                                <RefreshCw class="h-5 w-5" />
+                                            {:else}
+                                                <CreditCard class="h-5 w-5" />
+                                            {/if}
+                                        </div>
+                                        <span
+                                            class="text-2xl font-black text-slate-800 tracking-tight uppercase"
+                                        >
+                                            {serviceOrder.paymentMethod ||
+                                                "CASH"}
+                                        </span>
+                                    </div>
                                 </div>
+
                                 {#if serviceOrder.transferDetails}
                                     <div
-                                        class="p-3 bg-white/70 rounded-lg space-y-1"
+                                        class="p-6 bg-blue-50/50 rounded-[1.5rem] border border-blue-100 relative overflow-hidden group hover:bg-blue-50 transition-colors"
                                     >
-                                        <p
-                                            class="text-xs text-muted-foreground"
+                                        <div
+                                            class="absolute -top-4 -right-4 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity"
                                         >
-                                            Transfer ke:
-                                        </p>
-                                        <p class="font-medium">
-                                            {serviceOrder.transferDetails
-                                                .bankName}
-                                        </p>
-                                        <p class="font-mono text-sm">
-                                            {serviceOrder.transferDetails
-                                                .accountNumber}
-                                        </p>
-                                        <p class="text-muted-foreground">
-                                            a.n. {serviceOrder.transferDetails
-                                                .accountHolder}
-                                        </p>
+                                            <RefreshCw
+                                                class="h-24 w-24 text-blue-500"
+                                            />
+                                        </div>
+                                        <span
+                                            class="text-[10px] font-black uppercase tracking-widest text-blue-400 block mb-3 relative z-10"
+                                            >Konfirmasi Transfer</span
+                                        >
+                                        <div class="space-y-1 relative z-10">
+                                            <p
+                                                class="text-[10px] font-black text-blue-900/40 uppercase tracking-widest"
+                                            >
+                                                Bank {serviceOrder
+                                                    .transferDetails.bankName}
+                                            </p>
+                                            <p
+                                                class="text-2xl font-black text-blue-900 tracking-tighter leading-none"
+                                            >
+                                                {serviceOrder.transferDetails
+                                                    .accountNumber}
+                                            </p>
+                                            <p
+                                                class="text-xs font-bold text-blue-700/60 border-t border-blue-200/50 pt-2 mt-2 uppercase tracking-widest"
+                                            >
+                                                A.N. {serviceOrder
+                                                    .transferDetails
+                                                    .accountHolder}
+                                            </p>
+                                        </div>
                                     </div>
                                 {/if}
                             </div>
-                            <div class="space-y-3 text-sm">
-                                {#if serviceOrder.warranty && serviceOrder.warranty !== "none"}
-                                    <div class="flex justify-between">
+
+                            <div class="space-y-6">
+                                <div
+                                    class="flex flex-col gap-1 p-6 bg-slate-50/50 rounded-[1.5rem] border border-slate-100"
+                                >
+                                    <span
+                                        class="text-[10px] font-black uppercase tracking-widest text-slate-400"
+                                        >Total Nominal</span
+                                    >
+                                    <div class="flex items-baseline gap-1">
                                         <span
-                                            class="text-muted-foreground flex items-center gap-1"
+                                            class="text-sm font-bold text-slate-400 uppercase"
+                                            >Rp</span
                                         >
-                                            <Shield class="h-3 w-3" /> Garansi
+                                        <span
+                                            class="text-4xl font-black text-slate-800 tracking-tighter"
+                                        >
+                                            {(
+                                                serviceOrder.actualCost || 0
+                                            ).toLocaleString("id-ID")}
                                         </span>
-                                        <Badge
-                                            class="bg-green-100 text-green-700"
-                                            >{serviceOrder.warranty}</Badge
-                                        >
                                     </div>
-                                {/if}
-                                {#if serviceOrder.paymentNotes}
-                                    <div>
-                                        <p
-                                            class="text-muted-foreground text-xs mb-1"
+                                </div>
+
+                                {#if serviceOrder.warranty && serviceOrder.warranty !== "none"}
+                                    <div
+                                        class="p-6 bg-indigo-50/50 rounded-[1.5rem] border border-indigo-100 group hover:bg-indigo-50 transition-colors"
+                                    >
+                                        <div
+                                            class="flex items-center gap-3 mb-2"
                                         >
-                                            Catatan Pembayaran
+                                            <Shield
+                                                class="h-5 w-5 text-indigo-500"
+                                            />
+                                            <span
+                                                class="text-[10px] font-black uppercase tracking-widest text-indigo-400"
+                                                >Garansi Toko</span
+                                            >
+                                        </div>
+                                        <p
+                                            class="text-xl font-black text-indigo-900 leading-tight"
+                                        >
+                                            {serviceOrder.warranty}
+                                            {#if serviceOrder.warrantyExpiryDate}
+                                                <span
+                                                    class="block text-[10px] font-bold text-indigo-400/60 uppercase mt-1"
+                                                    >Berlaku s/d {formatDate(
+                                                        serviceOrder.warrantyExpiryDate,
+                                                    ).split(",")[0]}</span
+                                                >
+                                            {/if}
                                         </p>
-                                        <p>{serviceOrder.paymentNotes}</p>
                                     </div>
                                 {/if}
                             </div>
@@ -1428,56 +1786,84 @@
 
                 <!-- Parts Used -->
                 {#if serviceOrder.parts?.length}
-                    <div class="bg-card rounded-2xl shadow-sm border p-5">
-                        <h3 class="font-semibold mb-4 flex items-center gap-2">
-                            📦 Spare Parts yang Digunakan
+                    <div
+                        class="bg-card rounded-[2rem] shadow-lg border-2 border-slate-100 p-8"
+                    >
+                        <h3
+                            class="font-bold text-xl mb-6 flex items-center gap-3"
+                        >
+                            <div class="p-2 bg-slate-100 rounded-xl">
+                                <Wrench class="h-6 w-6 text-slate-500" />
+                            </div>
+                            Suku Cadang / Spareparts
                         </h3>
-                        <div class="overflow-x-auto">
+                        <div
+                            class="overflow-hidden bg-slate-50/50 rounded-2xl border border-slate-100"
+                        >
                             <table class="w-full text-sm">
                                 <thead>
-                                    <tr class="border-b">
-                                        <th class="text-left py-2 font-medium"
-                                            >Nama Parts</th
+                                    <tr class="border-b bg-slate-100/50">
+                                        <th
+                                            class="text-left py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                                            >Nama Part</th
                                         >
-                                        <th class="text-left py-2 font-medium"
+                                        <th
+                                            class="text-center py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400"
                                             >Sumber</th
                                         >
-                                        <th class="text-right py-2 font-medium"
+                                        <th
+                                            class="text-center py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400"
                                             >Qty</th
                                         >
-                                        <th class="text-right py-2 font-medium"
+                                        <th
+                                            class="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400"
                                             >Harga</th
                                         >
-                                        <th class="text-right py-2 font-medium"
-                                            >Subtotal</th
+                                        <th
+                                            class="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                                            >Total</th
                                         >
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {#each serviceOrder.parts as part}
-                                        <tr class="border-b last:border-0">
-                                            <td class="py-2 font-medium"
+                                        <tr
+                                            class="border-b border-slate-100 last:border-none group hover:bg-white transition-colors"
+                                        >
+                                            <td
+                                                class="py-4 px-6 font-bold text-slate-700"
                                                 >{part.name}</td
                                             >
-                                            <td class="py-2"
-                                                ><Badge variant="outline"
-                                                    >{part.source}</Badge
-                                                ></td
+                                            <td class="py-4 px-6 text-center">
+                                                <Badge
+                                                    variant="outline"
+                                                    class="rounded-lg text-[10px] font-black uppercase tracking-tighter {part.source ===
+                                                    'stok'
+                                                        ? 'bg-blue-50 text-blue-600 border-blue-100'
+                                                        : 'bg-amber-50 text-amber-600 border-amber-100'}"
+                                                >
+                                                    {part.source === "stok"
+                                                        ? "STOK UNIT"
+                                                        : "ORDER BARU"}
+                                                </Badge>
+                                            </td>
+                                            <td
+                                                class="py-4 px-6 text-center font-mono font-bold text-slate-400"
+                                                >{part.qty}x</td
                                             >
-                                            <td class="py-2 text-right"
-                                                >{part.qty}</td
-                                            >
-                                            <td class="py-2 text-right"
+                                            <td
+                                                class="py-4 px-6 text-right text-slate-500 font-medium"
                                                 >Rp {part.price?.toLocaleString(
                                                     "id-ID",
                                                 )}</td
                                             >
                                             <td
-                                                class="py-2 text-right font-medium"
-                                                >Rp {part.subtotal?.toLocaleString(
-                                                    "id-ID",
-                                                )}</td
+                                                class="py-4 px-6 text-right font-black text-slate-800"
                                             >
+                                                Rp {part.subtotal?.toLocaleString(
+                                                    "id-ID",
+                                                )}
+                                            </td>
                                         </tr>
                                     {/each}
                                 </tbody>
@@ -1486,41 +1872,95 @@
                     </div>
                 {/if}
 
-                <!-- Cost Summary (Admin/Cashier only, after confirmation) -->
+                <!-- Cost Summary -->
                 {#if canViewFinancials && serviceOrder.status !== "antrian" && serviceOrder.status !== "dicek"}
-                    <div class="bg-card rounded-2xl shadow-sm border p-5">
-                        <h3 class="font-semibold mb-4 flex items-center gap-2">
-                            💰 Rincian Biaya
+                    <div
+                        class="bg-slate-900 rounded-[2rem] shadow-2xl p-8 text-white relative overflow-hidden"
+                    >
+                        <!-- Abstract background flare -->
+                        <div
+                            class="absolute -top-24 -right-24 w-64 h-64 bg-primary/20 rounded-full blur-[100px]"
+                        ></div>
+                        <div
+                            class="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-[100px]"
+                        ></div>
+
+                        <h3
+                            class="font-black text-xs uppercase tracking-[0.3em] text-white/40 mb-8 flex items-center gap-3 relative z-10"
+                        >
+                            <div class="h-px w-8 bg-white/20"></div>
+                            Final Financial Summary
                         </h3>
-                        <div class="space-y-3">
-                            <div class="flex justify-between text-sm">
-                                <span class="text-muted-foreground"
-                                    >Biaya Jasa</span
-                                >
-                                <span
+
+                        <div class="space-y-6 relative z-10">
+                            <div
+                                class="flex justify-between items-center group"
+                            >
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-[10px] font-black uppercase tracking-widest text-white/30 group-hover:text-white/50 transition-colors"
+                                        >Service Fee</span
+                                    >
+                                    <span class="text-xs text-white/50"
+                                        >Biaya Jasa & Pengerjaan</span
+                                    >
+                                </div>
+                                <span class="text-xl font-bold tracking-tight"
                                     >Rp {derivedServiceFee.toLocaleString(
                                         "id-ID",
                                     )}</span
                                 >
                             </div>
-                            <div class="flex justify-between text-sm">
-                                <span class="text-muted-foreground"
-                                    >Biaya Parts</span
-                                >
-                                <span
+
+                            <div
+                                class="flex justify-between items-center group"
+                            >
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-[10px] font-black uppercase tracking-widest text-white/30 group-hover:text-white/50 transition-colors"
+                                        >Replacement Parts</span
+                                    >
+                                    <span class="text-xs text-white/50"
+                                        >Total Biaya Suku Cadang</span
+                                    >
+                                </div>
+                                <span class="text-xl font-bold tracking-tight"
                                     >Rp {totalParts.toLocaleString(
                                         "id-ID",
                                     )}</span
                                 >
                             </div>
-                            <Separator />
-                            <div class="flex justify-between text-lg font-bold">
-                                <span>TOTAL BIAYA</span>
-                                <span class="text-primary"
-                                    >Rp {grandTotal.toLocaleString(
-                                        "id-ID",
-                                    )}</span
-                                >
+
+                            <div
+                                class="pt-6 mt-6 border-t border-white/10 relative"
+                            >
+                                <div class="flex justify-between items-end">
+                                    <div class="flex flex-col">
+                                        <span
+                                            class="text-[10px] font-black uppercase tracking-[0.2em] text-primary"
+                                            >Grand Total Revenue</span
+                                        >
+                                        <span
+                                            class="text-[10px] text-white/30 italic"
+                                            >Total tagihan ke customer</span
+                                        >
+                                    </div>
+                                    <div class="flex flex-col items-end">
+                                        <div class="flex items-baseline gap-1">
+                                            <span
+                                                class="text-sm font-black text-white/40"
+                                                >IDR</span
+                                            >
+                                            <span
+                                                class="text-5xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-white/50"
+                                            >
+                                                {grandTotal.toLocaleString(
+                                                    "id-ID",
+                                                )}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -234,5 +234,123 @@
                 {/if}
             </div>
         </div>
+
+        {#if form.isWalkin}
+            <!-- Service & Warranty Data (Walk-in Only) -->
+            <div class="space-y-4 md:col-span-2">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <span
+                        class="bg-blue-100 text-blue-700 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ring-1 ring-blue-200"
+                        >5</span
+                    >
+                    Detail Layanan & Garansi
+                </h3>
+                <div
+                    class="bg-blue-50/50 border border-blue-100 rounded-3xl p-6 space-y-4 shadow-sm"
+                >
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="space-y-3">
+                            <span
+                                class="text-xs font-bold text-blue-800 uppercase tracking-wider block border-b border-blue-200/50 pb-2"
+                            >
+                                Rincian Biaya
+                            </span>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-muted-foreground"
+                                        >Jasa Service:</span
+                                    >
+                                    <span class="font-medium"
+                                        >Rp {form.walkinServiceFee.toLocaleString(
+                                            "id-ID",
+                                        )}</span
+                                    >
+                                </div>
+                                {#if form.selectedParts.length > 0}
+                                    <div class="flex justify-between">
+                                        <span class="text-muted-foreground"
+                                            >Total Sparepart ({form
+                                                .selectedParts.length}):</span
+                                        >
+                                        <span class="font-medium"
+                                            >Rp {form.totalPartPrice.toLocaleString(
+                                                "id-ID",
+                                            )}</span
+                                        >
+                                    </div>
+                                {/if}
+                                {#if form.extPartBuyPrice > 0}
+                                    <div class="flex justify-between">
+                                        <span class="text-muted-foreground"
+                                            >Part Eksternal:</span
+                                        >
+                                        <span class="font-medium"
+                                            >Rp {parseInt(
+                                                form.extPartBuyPrice || 0,
+                                            ).toLocaleString("id-ID")}</span
+                                        >
+                                    </div>
+                                {/if}
+                                <Separator class="bg-blue-200/30" />
+                                <div
+                                    class="flex justify-between text-base font-bold text-blue-900"
+                                >
+                                    <span>Total Biaya:</span>
+                                    <span
+                                        >Rp {form.grandTotal.toLocaleString(
+                                            "id-ID",
+                                        )}</span
+                                    >
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <span
+                                class="text-xs font-bold text-blue-800 uppercase tracking-wider block border-b border-blue-200/50 pb-2"
+                            >
+                                Garansi & Catatan
+                            </span>
+                            <div class="space-y-4">
+                                <div>
+                                    <span
+                                        class="text-xs text-muted-foreground block mb-1"
+                                        >Durasi Garansi</span
+                                    >
+                                    {#if form.warranty === "none"}
+                                        <Badge
+                                            variant="destructive"
+                                            class="rounded-md"
+                                            >Tanpa Garansi</Badge
+                                        >
+                                    {:else}
+                                        <Badge
+                                            variant="outline"
+                                            class="bg-green-50 text-green-700 border-green-200 rounded-md font-bold px-3 py-1"
+                                        >
+                                            {form.warranty}
+                                        </Badge>
+                                    {/if}
+                                </div>
+
+                                {#if form.serviceDescription}
+                                    <div>
+                                        <span
+                                            class="text-xs text-muted-foreground block mb-1"
+                                            >Keterangan Pengerjaan</span
+                                        >
+                                        <p
+                                            class="text-sm bg-white/50 p-2 rounded-lg border border-blue-100"
+                                        >
+                                            {form.serviceDescription}
+                                        </p>
+                                    </div>
+                                {/if}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {/if}
     </div>
 </div>

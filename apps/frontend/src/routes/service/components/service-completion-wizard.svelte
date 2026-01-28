@@ -932,10 +932,12 @@
                                     <User class="h-4 w-4" /> Customer
                                 </h4>
                                 <div class="text-sm space-y-1">
-                                    <p class="font-medium">
-                                        {customer?.name || "-"}
+                                    <p
+                                        class="font-bold text-slate-800 leading-none"
+                                    >
+                                        {customer?.name || "Customer"}
                                     </p>
-                                    <p class="text-muted-foreground">
+                                    <p class="text-muted-foreground text-xs">
                                         {customer?.phone || "-"}
                                     </p>
                                 </div>

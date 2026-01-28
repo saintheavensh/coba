@@ -312,10 +312,10 @@
                         {#each SPAREPART_SOURCES as src}
                             <label
                                 class={cn(
-                                    "flex flex-col items-center justify-center p-4 rounded-2xl border cursor-pointer transition-all duration-200 text-sm font-semibold gap-2 group/card relative overflow-hidden",
+                                    "relative overflow-hidden flex flex-col items-center justify-center p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 text-sm font-bold gap-3 group/card",
                                     form.sparepartSource === src.v
-                                        ? "bg-primary/5 text-primary border-primary ring-1 ring-primary/20 shadow-sm"
-                                        : "bg-background hover:bg-muted/50 border-muted hover:border-primary/50",
+                                        ? "bg-primary/5 text-primary border-primary shadow-lg shadow-primary/10 scale-[1.02]"
+                                        : "bg-card hover:bg-muted/50 border-muted hover:border-primary/50 hover:shadow-md",
                                 )}
                             >
                                 <input
@@ -488,7 +488,69 @@
                 {/if}
 
                 <!-- Calculation Summary -->
-                <div class="bg-white p-4 rounded-lg border space-y-2 text-sm">
+                <div class="bg-white p-4 rounded-lg border space-y-4 text-sm">
+                    <!-- Warranty Selection -->
+                    <div class="space-y-2">
+                        <Label
+                            class="text-xs font-bold uppercase text-muted-foreground flex justify-between"
+                        >
+                            Garansi Service
+                            <span
+                                class="text-[10px] normal-case font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded"
+                            >
+                                Opsional untuk dicetak
+                            </span>
+                        </Label>
+                        <Select
+                            type="single"
+                            bind:value={form.warranty}
+                            disabled={form.sparepartSource === "customer"}
+                            onValueChange={(v) => {
+                                if (form.sparepartSource === "customer") {
+                                    form.warranty = "none";
+                                    toast.error(
+                                        "Garansi tidak tersedia untuk sparepart bawaan customer",
+                                    );
+                                }
+                            }}
+                        >
+                            <SelectTrigger
+                                class={cn(
+                                    "h-9",
+                                    form.sparepartSource === "customer" &&
+                                        "bg-muted text-muted-foreground opacity-70",
+                                )}
+                            >
+                                {form.sparepartSource === "customer"
+                                    ? "Tanpa Garansi (Bawa Sendiri)"
+                                    : form.warranty || "Pilih Garansi"}
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none"
+                                    >Tanpa Garansi</SelectItem
+                                >
+                                <SelectItem value="1 Minggu"
+                                    >1 Minggu</SelectItem
+                                >
+                                <SelectItem value="1 Bulan">1 Bulan</SelectItem>
+                                <SelectItem value="3 Bulan">3 Bulan</SelectItem>
+                                <SelectItem value="6 Bulan">6 Bulan</SelectItem>
+                                <SelectItem value="1 Tahun">1 Tahun</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {#if form.sparepartSource === "customer"}
+                            <p
+                                class="text-[10px] text-destructive font-medium animate-in slide-in-from-top-1"
+                            >
+                                * Sparepart bawa sendiri otomatis <b
+                                    >Tanpa Garansi</b
+                                >
+                            </p>
+                        {/if}
+                    </div>
+
+                    <Separator class="my-2" />
+
                     <div class="flex justify-between">
                         <span class="text-muted-foreground"
                             >Estimasi Jasa (Profit)</span
