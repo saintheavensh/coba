@@ -173,8 +173,8 @@ export class ServiceService {
         }
         const no = `${prefix}-${String(counter).padStart(3, "0")}`;
 
-        await db.transaction(async (tx) => {
-            await tx.insert(services).values({
+        const transactionResult = await db.transaction(async (tx) => {
+            const result = await tx.insert(services).values({
                 no,
                 customer: data.customer,
                 // Save photos and initialQC inside device JSON to avoid schema migration
@@ -193,7 +193,8 @@ export class ServiceService {
                 qc: data.qc || null,
                 priority: data.priority || "standard",
                 isDirectComplete: data.isDirectComplete || false,
-            });
+                warranty: data.warranty || null, // Added warranty field
+            }).returning({ id: services.id });
 
             // Log
             await ActivityLogService.log({
@@ -204,6 +205,8 @@ export class ServiceService {
                 description: `New Service ${no} created for ${data.customer.name}`,
                 details: { newValue: data }
             });
+
+            return { message: "Service created", no, id: result[0].id };
         });
 
         // Trigger WhatsApp Notification (Fire and forget or await without blocking error)
@@ -218,7 +221,7 @@ export class ServiceService {
             Logger.error("Failed to trigger WA notification", e);
         }
 
-        return { message: "Service created", no };
+        return transactionResult;
     }
 
     async updateStatus(id: number, data: { status: string; notes?: string; actualCost?: number }, userId?: string) {
@@ -236,8 +239,6 @@ export class ServiceService {
             if (data.status === 're-konfirmasi') {
                 updateValues.reconfirmationCount = (srv.reconfirmationCount || 0) + 1;
             }
-
-            await tx.update(services).set(updateValues).where(eq(services.id, id));
 
             await tx.update(services).set(updateValues).where(eq(services.id, id));
 
