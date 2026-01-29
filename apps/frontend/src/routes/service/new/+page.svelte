@@ -11,9 +11,14 @@
         Wrench,
         Clock,
         Loader2,
-        Plus, // Added
+        Plus,
+        ClipboardCheck,
+        FileCheck,
+        Printer,
+        FileText,
+        Sparkles,
     } from "lucide-svelte";
-    import { goto } from "$app/navigation"; // Added
+    import { goto } from "$app/navigation";
     import { createQuery } from "@tanstack/svelte-query";
     import { api } from "$lib/api";
     import { ServiceService } from "$lib/services/service.service";
@@ -25,9 +30,8 @@
         DialogHeader,
         DialogTitle,
     } from "$lib/components/ui/dialog";
-    import { Printer, FileText } from "lucide-svelte";
     import ServiceNotePrint from "../components/service-note-print.svelte";
-    import ServicePickupWizard from "../components/service-pickup-wizard.svelte"; // Added
+    import ServicePickupWizard from "../components/service-pickup-wizard.svelte";
 
     // Logic & State
     import { ServiceFormStore } from "./form.svelte";
@@ -37,10 +41,8 @@
     import Step2Device from "./steps/Step2Device.svelte";
     import Step3Service from "./steps/Step3Service.svelte";
     import Step35QC from "./steps/Step35QC.svelte";
-    import Step4Review from "./steps/Step4Review.svelte"; // Wait, I created Step5Review
     import Step5Review from "./steps/Step5Review.svelte";
-    import { fade, slide } from "svelte/transition";
-    import { ClipboardCheck, FileCheck } from "lucide-svelte";
+    import { fade, fly } from "svelte/transition";
     import { cn } from "$lib/utils";
 
     // Initialize Store
@@ -107,16 +109,9 @@
 
     let totalSteps = 5;
 
-    // Skip QC step if unit is dead - LOGIC MOVED TO form.nextStep/prevStep to avoid navigation loop
-    // $effect(() => {
-    //    if (form.isDead && form.currentStep === 3) {
-    //        form.currentStep = 4;
-    //    }
-    // });
-
     let showPrintSuccessModal = $state(false);
     let createdServiceId = $state<number | string | null>(null);
-    let printedServiceData = $state<any>(null); // Added state
+    let printedServiceData = $state<any>(null);
     let showPrintPreview = $state(false);
     let printMode = $state<"receipt" | "sticker">("receipt");
 
@@ -136,87 +131,73 @@
 </script>
 
 <div
-    class="max-w-[1600px] mx-auto p-4 md:p-6 lg:p-8 animate-in fade-in duration-500"
+    class="min-h-screen w-full bg-gradient-to-br from-slate-50 to-blue-50/50 dark:from-slate-950 dark:to-slate-900 p-4 lg:p-6 flex flex-col relative overflow-hidden"
 >
-    <!-- Mobile Header (Visible only on small screens) -->
-    <div class="lg:hidden mb-6 space-y-4">
+    <!-- Background Accents -->
+    <div
+        class="fixed top-[-10%] right-[-5%] w-[500px] h-[500px] bg-blue-400/10 rounded-full blur-[100px] pointer-events-none"
+    ></div>
+    <div
+        class="fixed bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-cyan-400/10 rounded-full blur-[100px] pointer-events-none"
+    ></div>
+
+    <!-- Header Navigation -->
+    <header class="flex items-center justify-between mb-6 z-10">
         <div class="flex items-center gap-4">
-            <Button variant="ghost" size="icon" href="/service">
-                <ArrowLeft class="h-5 w-5" />
+            <Button
+                variant="ghost"
+                size="icon"
+                href="/service"
+                class="rounded-full hover:bg-white/50 backdrop-blur-sm"
+            >
+                <ArrowLeft class="h-5 w-5 text-muted-foreground" />
             </Button>
             <div>
-                <h1 class="text-xl font-bold">Service Baru</h1>
-                <p class="text-sm text-muted-foreground">
-                    Step {form.currentStep} dari 4
+                <h1
+                    class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-cyan-600 dark:from-blue-400 dark:to-cyan-400"
+                >
+                    Service Baru
+                </h1>
+                <p class="text-sm text-muted-foreground hidden sm:block">
+                    Buat tiket service untuk pelanggan baru
                 </p>
             </div>
         </div>
-        <!-- Mobile Progress Bar -->
-        <div class="h-1 w-full bg-muted rounded-full overflow-hidden">
+
+        <div class="flex items-center gap-2">
             <div
-                class="h-full bg-primary transition-all duration-300"
-                style="width: {(form.currentStep / totalSteps) * 100}%"
-            ></div>
-        </div>
-    </div>
-
-    <div
-        class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 bg-card/60 rounded-[2.5rem] shadow-xl shadow-primary/5 border border-white/20 p-6 sm:p-8 min-h-[850px] backdrop-blur-3xl relative overflow-hidden"
-    >
-        <!-- Background Decor -->
-        <div
-            class="absolute -top-40 -right-40 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none"
-        ></div>
-        <div
-            class="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none"
-        ></div>
-        <!-- Sidebar (Desktop Navigation) -->
-        <aside
-            class="hidden lg:flex flex-col gap-8 h-full pr-8 border-r border-border/40"
-        >
-            <div class="space-y-6">
-                <Button
-                    variant="ghost"
-                    href="/service"
-                    class="-ml-4 justify-start text-muted-foreground hover:text-foreground group rounded-xl"
+                class="hidden md:flex items-center gap-1 bg-white/40 dark:bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-sm"
+            >
+                <Sparkles class="h-3.5 w-3.5 text-amber-500" />
+                <span class="text-xs font-medium text-muted-foreground"
+                    >Premium Mode</span
                 >
-                    <ArrowLeft
-                        class="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform"
-                    />
-                    Kembali ke Daftar
-                </Button>
-                <div>
-                    <h1
-                        class="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent"
-                    >
-                        Service Baru
-                    </h1>
-                    <p
-                        class="text-sm text-muted-foreground mt-2 leading-relaxed"
-                    >
-                        Buat tiket service baru untuk pelanggan dengan mudah.
-                    </p>
-                </div>
             </div>
+        </div>
+    </header>
 
-            <Separator class="bg-border/50" />
-
-            <!-- Service Type Selector -->
-            <div class="space-y-4">
+    <!-- Main Content Layout -->
+    <div
+        class="flex-1 flex flex-col lg:flex-row gap-6 max-w-[1600px] mx-auto w-full z-10"
+    >
+        <!-- Left Sidebar: Stepper & Mode -->
+        <aside class="w-full lg:w-[320px] shrink-0 flex flex-col gap-6">
+            <!-- Mode Selection Card -->
+            <div
+                class="rounded-3xl border border-white/40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl shadow-lg shadow-blue-900/5 p-5 transition-all hover:shadow-xl"
+            >
                 <p
-                    class="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1"
+                    class="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2"
                 >
-                    Mode Layanan
+                    <Clock class="h-3.5 w-3.5" /> Tipe Layanan
                 </p>
-                <div
-                    class="grid grid-cols-2 gap-3 p-1 bg-muted/40 rounded-2xl border border-border/50"
-                >
+                <div class="grid grid-cols-2 gap-3">
                     <button
                         class={cn(
-                            "flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]",
+                            "relative flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all duration-300 overflow-hidden",
                             form.priority === "standard"
-                                ? "bg-background shadow-sm border-primary/20 text-primary ring-1 ring-primary/10"
-                                : "border-transparent text-muted-foreground hover:bg-background/50 hover:text-foreground",
+                                ? "border-blue-500/50 bg-blue-50/50 dark:bg-blue-900/20 shadow-inner"
+                                : "border-transparent bg-muted/30 hover:bg-muted/60",
                         )}
                         onclick={() => {
                             form.priority = "standard";
@@ -224,15 +205,35 @@
                             form.isWalkin = false;
                         }}
                     >
-                        <Clock class="h-5 w-5 mb-2" />
-                        <span class="text-[10px] font-bold">DITINGGAL</span>
+                        {#if form.priority === "standard"}
+                            <div
+                                class="absolute inset-0 bg-blue-500/5 dark:bg-blue-400/5 animate-pulse"
+                            ></div>
+                        {/if}
+                        <Clock
+                            class={cn(
+                                "h-6 w-6 mb-2",
+                                form.priority === "standard"
+                                    ? "text-blue-600"
+                                    : "text-muted-foreground",
+                            )}
+                        />
+                        <span
+                            class={cn(
+                                "text-[10px] font-black tracking-wide",
+                                form.priority === "standard"
+                                    ? "text-blue-700"
+                                    : "text-muted-foreground",
+                            )}>REGULER</span
+                        >
                     </button>
+
                     <button
                         class={cn(
-                            "flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-[0.98]",
+                            "relative flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all duration-300 overflow-hidden",
                             form.priority === "wait"
-                                ? "bg-background shadow-sm border-primary/20 text-primary ring-1 ring-primary/10"
-                                : "border-transparent text-muted-foreground hover:bg-background/50 hover:text-foreground",
+                                ? "border-cyan-500/50 bg-cyan-50/50 dark:bg-cyan-900/20 shadow-inner"
+                                : "border-transparent bg-muted/30 hover:bg-muted/60",
                         )}
                         onclick={() => {
                             form.priority = "wait";
@@ -240,78 +241,104 @@
                             form.isWalkin = true;
                         }}
                     >
-                        <User class="h-5 w-5 mb-2" />
-                        <span class="text-[10px] font-bold">DITUNGGU</span>
+                        {#if form.priority === "wait"}
+                            <div
+                                class="absolute inset-0 bg-cyan-500/5 dark:bg-cyan-400/5 animate-pulse"
+                            ></div>
+                        {/if}
+                        <User
+                            class={cn(
+                                "h-6 w-6 mb-2",
+                                form.priority === "wait"
+                                    ? "text-cyan-600"
+                                    : "text-muted-foreground",
+                            )}
+                        />
+                        <span
+                            class={cn(
+                                "text-[10px] font-black tracking-wide",
+                                form.priority === "wait"
+                                    ? "text-cyan-700"
+                                    : "text-muted-foreground",
+                            )}>DITUNGGU</span
+                        >
                     </button>
                 </div>
-                {#if form.priority === "wait"}
-                    <div
-                        class="px-2 pt-1 animate-in slide-in-from-top-2 duration-300"
-                    >
+
+                <!-- Expandable Options for Priority -->
+                <div
+                    class={cn(
+                        "grid transition-all duration-300 ease-in-out",
+                        form.priority === "wait"
+                            ? "grid-rows-[1fr] opacity-100 mt-3 pt-3 border-t border-dashed"
+                            : "grid-rows-[0fr] opacity-0",
+                    )}
+                >
+                    <div class="overflow-hidden">
                         <label
-                            class="flex items-center gap-3 cursor-pointer group p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                            class="flex items-center gap-3 cursor-pointer group p-2 rounded-xl hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-colors"
                         >
                             <input
                                 type="checkbox"
                                 bind:checked={form.isDirectComplete}
-                                class="w-4 h-4 rounded border-muted text-primary focus:ring-primary accent-primary"
+                                class="w-4 h-4 rounded border-cyan-300 text-cyan-600 focus:ring-cyan-500 accent-cyan-600"
                             />
                             <span
-                                class="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors"
+                                class="text-xs font-semibold text-cyan-700/80 group-hover:text-cyan-800 transition-colors"
                                 >Langsung Selesai & Bayar</span
                             >
                         </label>
                     </div>
-                {/if}
+                </div>
             </div>
 
-            <Separator class="bg-border/50" />
+            <!-- Stepper Container -->
+            <div
+                class="flex-1 rounded-3xl border border-white/40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl shadow-lg shadow-blue-900/5 p-6 hidden lg:flex flex-col justify-center"
+            >
+                <nav class="relative space-y-8">
+                    <!-- Vertical Line -->
+                    <div
+                        class="absolute left-[19px] top-4 bottom-4 w-0.5 bg-slate-200 dark:bg-slate-800 -z-10 rounded-full"
+                    ></div>
+                    <div
+                        class="absolute left-[19px] top-4 w-0.5 bg-gradient-to-b from-blue-500 to-cyan-400 -z-10 rounded-full transition-all duration-700 ease-in-out"
+                        style="height: {((form.currentStep - 1) /
+                            (steps.length - 1)) *
+                            100}%"
+                    ></div>
 
-            <!-- Vertical Stepper -->
-            <nav class="space-y-0 relative">
-                {#each steps as item}
-                    {@const isActive = form.currentStep === item.step}
-                    {@const isCompleted = form.currentStep > item.step}
-                    <div class="relative pl-6 pb-10 last:pb-0 group">
-                        <!-- Connecting Line -->
-                        {#if item.step !== 5}
+                    {#each steps as item}
+                        {@const isActive = form.currentStep === item.step}
+                        {@const isCompleted = form.currentStep > item.step}
+                        <button
+                            class="flex items-center gap-4 group w-full text-left"
+                            onclick={() => {
+                                if (isCompleted) form.currentStep = item.step;
+                            }}
+                            disabled={!isCompleted}
+                        >
                             <div
                                 class={cn(
-                                    "absolute left-[35px] top-10 bottom-0 w-[2px] transition-colors duration-500",
-                                    isCompleted
-                                        ? "bg-primary"
-                                        : "bg-muted/50 group-hover:bg-muted",
-                                )}
-                            ></div>
-                        {/if}
-
-                        <div class="flex items-start gap-4 cursor-default">
-                            <!-- Indicator -->
-                            <div
-                                class={cn(
-                                    "relative z-10 flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all duration-500 shadow-sm",
+                                    "relative w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-500 border-2 z-10 bg-white dark:bg-slate-900",
                                     isActive
-                                        ? "border-primary bg-background ring-4 ring-primary/10 scale-110"
+                                        ? "border-blue-500 text-blue-600 shadow-[0_0_20px_-5px_rgba(59,130,246,0.6)] scale-110"
                                         : isCompleted
-                                          ? "border-primary bg-primary text-primary-foreground scale-100"
-                                          : "border-muted/50 bg-muted/20 text-muted-foreground/50",
+                                          ? "border-cyan-500 bg-cyan-500 text-white border-transparent"
+                                          : "border-slate-200 text-slate-300 dark:border-slate-800",
                                 )}
                             >
                                 {#if isCompleted}
                                     <CheckCircle
-                                        class="h-4 w-4 animate-in zoom-in duration-300"
+                                        class="h-5 w-5 animate-in zoom-in duration-300"
                                     />
                                 {:else}
-                                    <span class="text-xs font-bold font-mono"
-                                        >{item.step}</span
-                                    >
+                                    {item.step}
                                 {/if}
                             </div>
-
-                            <!-- Label -->
                             <div
                                 class={cn(
-                                    "transition-all duration-300 pt-1",
+                                    "flex-1 transition-all duration-300",
                                     isActive
                                         ? "opacity-100 translate-x-1"
                                         : isCompleted
@@ -321,73 +348,83 @@
                             >
                                 <p
                                     class={cn(
-                                        "text-sm font-bold leading-none",
+                                        "text-sm font-bold leading-none mb-1",
                                         isActive
-                                            ? "text-primary"
+                                            ? "text-blue-700 dark:text-blue-400"
                                             : "text-foreground",
                                     )}
                                 >
                                     {item.label}
                                 </p>
                                 <p
-                                    class="text-[11px] font-medium text-muted-foreground mt-1.5 uppercase tracking-wide"
+                                    class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider"
                                 >
                                     {item.desc}
                                 </p>
                             </div>
-                        </div>
-                    </div>
-                {/each}
-            </nav>
+                        </button>
+                    {/each}
+                </nav>
+            </div>
         </aside>
 
-        <!-- Main Content Area -->
-        <main class="flex flex-col h-full justify-between gap-6 relative">
-            <div class="flex-1 min-h-[500px]">
-                <!-- Step Content -->
-                {#key form.currentStep}
-                    <div
-                        in:fade={{ duration: 300, delay: 150 }}
-                        out:fade={{ duration: 150 }}
-                    >
-                        {#if form.currentStep === 1}
-                            <Step1Customer {form} />
-                        {:else if form.currentStep === 2}
-                            <Step2Device {form} />
-                        {:else if form.currentStep === 3}
-                            <!-- QC Step (Using Step35QC component but mapped to step 3) -->
-                            <Step35QC {form} />
-                        {:else if form.currentStep === 4}
-                            <!-- Complaint Step (Using Step3Service component but needs adaptation or Refactor) -->
-                            <!-- Note: Step3Service currently has Cost Estimate etc. We should check if we can reuse or need new component -->
-                            <Step3Service
-                                {form}
-                                {technicians}
-                                {inventoryItems}
-                                {services}
-                            />
-                        {:else if form.currentStep === 5}
-                            <Step5Review {form} />
-                        {/if}
-                    </div>
-                {/key}
-            </div>
-
-            <!-- Floating / Sticky Footer Action Bar -->
+        <!-- Right: Form Area -->
+        <main class="flex-1 flex flex-col relative">
             <div
-                class="sticky bottom-0 bg-background/80 backdrop-blur-md border-t -mx-6 -mb-6 p-6 flex items-center justify-between rounded-b-3xl mt-auto z-40"
+                class="flex-1 rounded-[2.5rem] border border-white/40 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl shadow-xl shadow-blue-900/5 p-6 sm:p-10 relative overflow-hidden flex flex-col"
             >
-                <Button
-                    variant="ghost"
-                    onclick={form.prevStep.bind(form)}
-                    disabled={form.currentStep === 1}
-                    class={form.currentStep === 1 ? "opacity-0" : ""}
-                >
-                    <ArrowLeft class="h-4 w-4 mr-2" />
-                    Sebelumnya
-                </Button>
+                <!-- Inner Glows -->
+                <div
+                    class="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-500/5 to-transparent rounded-bl-[100px] pointer-events-none"
+                ></div>
 
-                <div class="flex items-center gap-2">
+                <!-- Step Content Container -->
+                <div class="flex-1 relative min-h-[500px]">
+                    {#key form.currentStep}
+                        <div
+                            in:fly={{ x: 20, duration: 400, delay: 100 }}
+                            out:fade={{ duration: 200 }}
+                            class="h-full"
+                        >
+                            {#if form.currentStep === 1}
+                                <Step1Customer {form} />
+                            {:else if form.currentStep === 2}
+                                <Step2Device {form} />
+                            {:else if form.currentStep === 3}
+                                <Step35QC {form} />
+                            {:else if form.currentStep === 4}
+                                <Step3Service
+                                    {form}
+                                    {technicians}
+                                    {inventoryItems}
+                                    {services}
+                                />
+                            {:else if form.currentStep === 5}
+                                <Step5Review {form} />
+                            {/if}
+                        </div>
+                    {/key}
+                </div>
+
+                <!-- Action Bar -->
+                <div
+                    class="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between"
+                >
+                    <Button
+                        variant="ghost"
+                        onclick={form.prevStep.bind(form)}
+                        disabled={form.currentStep === 1}
+                        class={cn(
+                            "hover:bg-slate-100 rounded-xl px-6",
+                            form.currentStep === 1
+                                ? "opacity-0 pointer-events-none"
+                                : "opacity-100",
+                        )}
+                    >
+                        <ArrowLeft class="h-4 w-4 mr-2" />
+                        Sebelumnya
+                    </Button>
+
                     {#if form.currentStep < totalSteps}
                         <Button
                             onclick={() => {
@@ -398,28 +435,26 @@
                                 }
                             }}
                             size="lg"
-                            class="px-8 rounded-full shadow-lg shadow-primary/20"
+                            class="px-8 rounded-2xl shadow-lg shadow-blue-600/20 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 border-0 transition-all hover:scale-[1.02] active:scale-[0.98]"
                         >
                             Selanjutnya
                             <ArrowRight class="h-4 w-4 ml-2" />
                         </Button>
                     {:else}
-                        <!-- Finish Buttons -->
-                        <div class="flex gap-2">
+                        <!-- Finish Actions -->
+                        <div class="flex gap-3">
                             <Button
                                 onclick={async () => {
                                     const res = await form.handleSubmit();
                                     if (res?.success) form.resetForNextUnit();
                                 }}
                                 disabled={form.isSubmitting}
-                                size="lg"
                                 variant="outline"
-                                class="px-6 rounded-full border-green-600 text-green-600 hover:bg-green-50"
+                                class="rounded-xl border-dashed border-2 hover:bg-slate-50"
                             >
                                 <Plus class="h-4 w-4 mr-2" />
                                 Simpan & Tambah Unit
                             </Button>
-
                             <Button
                                 onclick={async () => {
                                     const res = await form.handleSubmit();
@@ -440,14 +475,13 @@
                                                 },
                                                 cost: form.grandTotal,
                                                 status: "selesai",
-                                                warranty: form.warranty, // Added warranty
+                                                warranty: form.warranty,
                                             };
                                             showPickupWizard = true;
                                         } else {
                                             if (res.serviceId) {
                                                 createdServiceId =
                                                     res.serviceId;
-                                                // Populate print data for preview
                                                 const currentUser =
                                                     typeof localStorage !==
                                                     "undefined"
@@ -490,7 +524,7 @@
                                 }}
                                 disabled={form.isSubmitting}
                                 size="lg"
-                                class="px-8 rounded-full shadow-lg shadow-green-500/20 bg-green-600 hover:bg-green-700"
+                                class="px-8 rounded-2xl shadow-xl shadow-green-500/20 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 border-0 transition-all hover:scale-[1.02]"
                             >
                                 {#if form.isSubmitting}
                                     <Loader2
@@ -511,43 +545,70 @@
 
     <!-- Print Success Modal -->
     <Dialog open={showPrintSuccessModal} onOpenChange={closeAllAndRedirect}>
-        <DialogContent class="sm:max-w-md">
+        <DialogContent
+            class="sm:max-w-md rounded-3xl border-0 overflow-hidden bg-white/90 backdrop-blur-xl"
+        >
+            <div
+                class="absolute inset-0 bg-gradient-to-br from-green-500/10 to-blue-500/10 -z-10"
+            ></div>
             <DialogHeader>
-                <DialogTitle>Service Berhasil Dibuat!</DialogTitle>
-                <DialogDescription>
-                    Apakah Anda ingin mencetak dokumen untuk service ini?
+                <DialogTitle class="text-2xl text-center pt-4"
+                    >Service Berhasil Dibuat! 🎉</DialogTitle
+                >
+                <DialogDescription class="text-center">
+                    Data service telah tersimpan. Silahkan cetak tanda terima.
                 </DialogDescription>
             </DialogHeader>
-            <div class="grid grid-cols-2 gap-4 py-4">
-                <Button
-                    variant="outline"
-                    class="h-auto py-4 flex flex-col gap-2"
+            <div class="grid grid-cols-2 gap-4 py-6 px-2">
+                <button
+                    class="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-slate-100 bg-white hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/10 transition-all group"
                     onclick={() => openPrintPreview("sticker")}
                 >
-                    <Printer class="h-8 w-8 text-primary" />
-                    <span class="font-semibold">Cetak Label Unit</span>
-                    <span class="text-xs text-muted-foreground text-center"
-                        >Stiker Tempel</span
+                    <div
+                        class="h-14 w-14 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform"
                     >
-                </Button>
-                <Button
-                    variant="outline"
-                    class="h-auto py-4 flex flex-col gap-2"
+                        <Printer class="h-7 w-7" />
+                    </div>
+                    <div class="text-center">
+                        <span class="font-bold text-foreground block"
+                            >Label Unit</span
+                        >
+                        <span class="text-xs text-muted-foreground"
+                            >Stiker Tempel</span
+                        >
+                    </div>
+                </button>
+                <button
+                    class="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-slate-100 bg-white hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/10 transition-all group"
                     onclick={() => openPrintPreview("receipt")}
                 >
-                    <FileText class="h-8 w-8 text-primary" />
-                    <span class="font-semibold">Cetak Nota</span>
-                    <span class="text-xs text-muted-foreground text-center"
-                        >Struk Customer</span
+                    <div
+                        class="h-14 w-14 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform"
                     >
-                </Button>
+                        <FileText class="h-7 w-7" />
+                    </div>
+                    <div class="text-center">
+                        <span class="font-bold text-foreground block"
+                            >Nota Service</span
+                        >
+                        <span class="text-xs text-muted-foreground"
+                            >Untuk Customer</span
+                        >
+                    </div>
+                </button>
             </div>
-            <DialogFooter class="sm:justify-between">
-                <Button variant="ghost" onclick={closeAllAndRedirect}
-                    >Tutup & Ke Daftar</Button
+            <DialogFooter class="sm:justify-center gap-4 pb-4">
+                <Button
+                    variant="ghost"
+                    onclick={closeAllAndRedirect}
+                    class="rounded-full text-muted-foreground hover:text-foreground"
+                    >Tutup</Button
                 >
-                <Button variant="default" onclick={() => goto("/service")}
-                    >Ke Detail Service</Button
+                <Button
+                    variant="default"
+                    onclick={() => goto("/service")}
+                    class="rounded-full bg-blue-600 hover:bg-blue-700"
+                    >Ke Daftar Service</Button
                 >
             </DialogFooter>
         </DialogContent>
@@ -563,7 +624,6 @@
                 showPrintPreview = false;
             }}
         />
-        <!-- Data is now populated from handlePrintPreview logic -->
     {/if}
 
     {#if showPickupWizard && completedService}

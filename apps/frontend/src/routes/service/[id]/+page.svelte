@@ -1,10 +1,13 @@
 <script lang="ts">
     import { page } from "$app/stores";
     import { goto } from "$app/navigation";
-    import { Button } from "$lib/components/ui/button";
+    import { cn } from "$lib/utils";
+    import { Button, buttonVariants } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
+    import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
     import { Separator } from "$lib/components/ui/separator";
     import { toast } from "$lib/components/ui/sonner";
+    import { SettingsService } from "$lib/services/settings.service";
     import PatternLock from "$lib/components/ui/pattern-lock.svelte";
     import {
         Dialog,
@@ -50,6 +53,7 @@
         Search,
         UserPlus,
         Activity,
+        Gavel,
     } from "lucide-svelte";
 
     import { onMount } from "svelte";
@@ -156,6 +160,18 @@
             toast.error("Gagal memuat detail service");
         } finally {
             loading = false;
+        }
+    }
+
+    let serviceSettings = $state<any>(null);
+    let showLiquidateConfirm = $state(false);
+    let liquidationType = $state<"resell" | "cannibalize">("resell");
+
+    async function loadSettings() {
+        try {
+            serviceSettings = await SettingsService.getServiceSettings();
+        } catch (e) {
+            console.error("Failed to load settings", e);
         }
     }
 
@@ -346,6 +362,7 @@
         }
         loadData();
         loadTechnicians();
+        loadSettings();
     });
 
     // Computed properties
@@ -642,6 +659,74 @@
             serviceOrder?.status === "diambil",
     );
 
+    let isArchived = $derived.by(() => {
+        if (!serviceOrder || !serviceSettings?.enableVirtualArchive)
+            return false;
+        const ARCHIVE_STATUSES = ["selesai", "diambil", "batal"];
+        if (!ARCHIVE_STATUSES.includes(serviceOrder.status)) return false;
+
+        const exclusions = serviceSettings.archiveExclusions || [];
+        if (exclusions.includes(serviceOrder.status)) return false;
+
+        const date = serviceOrder.updatedAt
+            ? new Date(serviceOrder.updatedAt)
+            : new Date(serviceOrder.dateIn);
+        const diffTime = Math.abs(new Date().getTime() - date.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        return diffDays > (serviceSettings.autoCloseAfterDays || 60);
+    });
+
+    let canLiquidate = $derived(
+        serviceSettings?.enableLiquidation &&
+            isArchived &&
+            currentUser?.role === "admin",
+    );
+
+    async function handleLiquidate(type: "resell" | "cannibalize") {
+        liquidationType = type;
+        showLiquidateConfirm = true;
+    }
+
+    async function processLiquidation() {
+        isProcessingAction = true;
+        try {
+            const userId =
+                JSON.parse(localStorage.getItem("user") || "{}").id ||
+                "USR-ADMIN";
+
+            let note = "";
+            let newStatus = "diambil";
+
+            if (liquidationType === "resell") {
+                note = `[LIQUIDATION] Unit dijual kembali (Resell). Diproses oleh ${currentUser?.name || "Admin"}.`;
+            } else {
+                note = `[LIQUIDATION] Unit dikanibalisasi untuk sparepart. Diproses oleh ${currentUser?.name || "Admin"}.`;
+            }
+
+            const currentNotes = serviceOrder.notes || "";
+            const finalNotes = currentNotes
+                ? `${currentNotes}\n\n${note}`
+                : note;
+
+            await ServiceService.updateStatus(serviceId, {
+                status: newStatus as any,
+                userId,
+                notes: finalNotes,
+            });
+
+            toast.success(
+                `Unit berhasil dilikuidasi: ${liquidationType === "resell" ? "Jual Unit" : "Kanibalisasi"}`,
+            );
+            loadData();
+        } catch (e) {
+            toast.error("Gagal memproses likuidasi");
+        } finally {
+            isProcessingAction = false;
+            showLiquidateConfirm = false;
+        }
+    }
+
     let statusConfig = $derived(
         getStatusConfig(serviceOrder?.status || "antrian"),
     );
@@ -796,6 +881,43 @@
                             >
                                 <MessageCircle class="h-4 w-4 mr-2" /> WhatsApp
                             </Button>
+                        {/if}
+                        {#if canLiquidate}
+                            <div
+                                class="ml-2 pl-2 border-l border-slate-200 hidden sm:block"
+                            >
+                                <DropdownMenu.Root>
+                                    <DropdownMenu.Trigger
+                                        class={cn(
+                                            buttonVariants({
+                                                variant: "secondary",
+                                                size: "sm",
+                                            }),
+                                            "rounded-full font-black text-[10px] uppercase tracking-widest bg-red-100 text-red-600 hover:bg-red-200 shadow-sm border-none px-4 h-10 transition-all hover:scale-105 active:scale-95",
+                                        )}
+                                    >
+                                        <Gavel class="h-4 w-4 mr-2" /> Likuidasi
+                                    </DropdownMenu.Trigger>
+                                    <DropdownMenu.Content>
+                                        <DropdownMenu.Label
+                                            >Opsi Likuidasi</DropdownMenu.Label
+                                        >
+                                        <DropdownMenu.Separator />
+                                        <DropdownMenu.Item
+                                            onclick={() =>
+                                                handleLiquidate("resell")}
+                                        >
+                                            Jual Unit (Resell)
+                                        </DropdownMenu.Item>
+                                        <DropdownMenu.Item
+                                            onclick={() =>
+                                                handleLiquidate("cannibalize")}
+                                        >
+                                            Kanibalisasi (Sparepart)
+                                        </DropdownMenu.Item>
+                                    </DropdownMenu.Content>
+                                </DropdownMenu.Root>
+                            </div>
                         {/if}
                         {#if canAssignTechnician}
                             <Button
@@ -2484,6 +2606,37 @@
                 class="bg-purple-600 hover:bg-purple-700"
             >
                 {#if isProcessingAction}Memproses...{:else}Ya, Mulai Pengerjaan{/if}
+            </AlertDialog.Action>
+        </AlertDialog.Footer>
+    </AlertDialog.Content>
+</AlertDialog.Root>
+
+<!-- Liquidation Confirm -->
+<AlertDialog.Root bind:open={showLiquidateConfirm}>
+    <AlertDialog.Content>
+        <AlertDialog.Header>
+            <AlertDialog.Title>Konfirmasi Likuidasi</AlertDialog.Title>
+            <AlertDialog.Description>
+                Anda akan melakukan likuidasi unit ini dengan metode
+                <span class="font-bold text-foreground"
+                    >{liquidationType === "resell"
+                        ? "Jual Unit (Resell)"
+                        : "Kanibalisasi"}</span
+                >.
+                <br /><br />
+                Tindakan ini akan mengubah status menjadi 'Sudah Diambil' dan menambahkan
+                catatan likuidasi. Pastikan Anda sudah memproses fisik unit sesuai
+                prosedur.
+            </AlertDialog.Description>
+        </AlertDialog.Header>
+        <AlertDialog.Footer>
+            <AlertDialog.Cancel>Batal</AlertDialog.Cancel>
+            <AlertDialog.Action
+                onclick={processLiquidation}
+                disabled={isProcessingAction}
+                class="bg-red-600 hover:bg-red-700 text-white"
+            >
+                {isProcessingAction ? "Memproses..." : "Ya, Likuidasi"}
             </AlertDialog.Action>
         </AlertDialog.Footer>
     </AlertDialog.Content>

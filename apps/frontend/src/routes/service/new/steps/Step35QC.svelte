@@ -2,13 +2,13 @@
     import { Label } from "$lib/components/ui/label";
     import { Textarea } from "$lib/components/ui/textarea";
     import { Badge } from "$lib/components/ui/badge";
-    import { Separator } from "$lib/components/ui/separator";
     import {
         CheckCircle,
         XCircle,
         ArrowRight,
         AlertCircle,
         ClipboardCheck,
+        Minus,
     } from "lucide-svelte";
     import { ServiceFormStore } from "../form.svelte";
 
@@ -33,76 +33,93 @@
     }
 </script>
 
-<div class="grid gap-6 animate-in slide-in-from-right-4 duration-500">
-    <div class="space-y-4">
-        <h3
-            class="text-xl font-bold flex items-center gap-2 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent"
+<div class="grid gap-8 animate-in fly-in-from-bottom-4 duration-500">
+    <!-- Header -->
+    <div class="space-y-2">
+        <div
+            class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100/50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-bold uppercase tracking-wider mb-2"
         >
-            <ClipboardCheck class="h-6 w-6 text-primary" />
+            <ClipboardCheck class="h-3.5 w-3.5" />
+            Langkah 3
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight text-foreground">
             Quality Control
-        </h3>
-        <p class="text-sm text-muted-foreground">
+        </h2>
+        <p class="text-muted-foreground text-lg">
             {#if form.canDoInitialQC}
-                Bandingkan kondisi sebelum dan sesudah perbaikan.
+                Cek fungsi awal perangkat sebelum diproses.
             {:else}
                 <span
-                    class="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-3 py-1 rounded-full w-fit"
+                    class="flex items-center gap-2 text-amber-600 font-medium"
                 >
-                    <AlertCircle class="h-4 w-4" />
-                    Kondisi awal tidak dapat direkam (HP mati/error).
+                    <AlertCircle class="h-5 w-5" />
+                    Perangkat Mati Total - QC Dilewati
                 </span>
             {/if}
         </p>
     </div>
 
-    <!-- QC Checklist Grid -->
+    <!-- QC Checklist Card -->
     <div
-        class="rounded-3xl border border-muted/60 bg-card/50 shadow-sm overflow-hidden relative group"
+        class="relative group rounded-[2rem] border border-white/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md shadow-xl overflow-hidden p-6 sm:p-8"
     >
-        <!-- Glow Effect -->
-        <div
-            class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -z-10 transition-opacity opacity-0 group-hover:opacity-100"
-        ></div>
-        <div class="bg-muted/50 p-3 border-b">
-            <!-- Headers adapt to mode -->
-            {#if form.currentStep === 3}
-                <div
-                    class="grid grid-cols-[1fr_80px_80px] gap-2 text-xs font-medium text-muted-foreground"
-                >
-                    <span>Fungsi</span>
-                    <span class="text-center">Kondisi</span>
-                    <span class="text-center">Status</span>
+        {#if !form.canDoInitialQC}
+            <div
+                class="flex flex-col items-center justify-center py-12 text-center space-y-4"
+            >
+                <div class="p-4 rounded-full bg-amber-50 text-amber-500">
+                    <AlertCircle class="h-12 w-12" />
                 </div>
-            {:else}
-                <div
-                    class="grid grid-cols-[1fr_80px_80px_80px] gap-2 text-xs font-medium text-muted-foreground"
-                >
-                    <span>Fungsi</span>
-                    {#if form.canDoInitialQC}<span class="text-center"
-                            >Sebelum</span
-                        >{/if}
-                    <span class="text-center">Sesudah</span>
-                    <span class="text-center">Hasil</span>
+                <div class="max-w-md">
+                    <h3 class="text-lg font-bold text-foreground">
+                        QC Tidak Tersedia
+                    </h3>
+                    <p class="text-muted-foreground">
+                        Kondisi perangkat mati total atau error parah sehingga
+                        pengecekan fungsi awal tidak dapat dilakukan.
+                    </p>
                 </div>
-            {/if}
-        </div>
+            </div>
+        {:else}
+            <!-- Headers -->
+            <div
+                class="hidden sm:grid grid-cols-[1fr_repeat(2,100px)] gap-4 px-4 py-3 bg-slate-50/80 rounded-xl mb-4 text-xs font-bold uppercase tracking-wider text-muted-foreground border border-slate-100"
+            >
+                <span>Fungsi Perangkat</span>
+                <span class="text-center">Berfungsi?</span>
+                <span class="text-center">Kondisi?</span>
+            </div>
 
-        <div class="divide-y">
-            {#each qcItems as item}
-                <div
-                    class="grid gap-2 p-3 items-center hover:bg-muted/30 transition-colors
-                    {form.currentStep === 3
-                        ? 'grid-cols-[1fr_80px_80px]'
-                        : 'grid-cols-[1fr_80px_80px_80px]'}"
-                >
-                    <span class="text-sm font-medium">{item.label}</span>
+            <div class="grid gap-3">
+                {#each qcItems as item}
+                    <div
+                        class="group/item relative flex flex-col sm:grid sm:grid-cols-[1fr_repeat(2,100px)] gap-3 items-center p-3 rounded-xl hover:bg-white/60 transition-colors border border-transparent hover:border-indigo-100"
+                    >
+                        <!-- Label -->
+                        <div class="flex items-center gap-3 w-full sm:w-auto">
+                            <div
+                                class={form.initialQC[item.key] === true
+                                    ? "w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"
+                                    : form.initialQC[item.key] === false
+                                      ? "w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"
+                                      : "w-2 h-2 rounded-full bg-slate-200"}
+                            ></div>
+                            <span
+                                class="font-bold text-foreground/80 group-hover/item:text-indigo-700 transition-colors"
+                            >
+                                {item.label}
+                            </span>
+                        </div>
 
-                    {#if form.currentStep === 3}
-                        <!-- INTAKE MODE: Edit Initial QC -->
-                        <div class="flex justify-center gap-1">
+                        <!-- Action Buttons -->
+                        <div class="flex justify-center gap-2 w-full sm:w-auto">
                             <button
                                 type="button"
-                                class={`p-1 rounded-md transition-colors ${form.initialQC[item.key] === true ? "bg-green-100 text-green-600 ring-2 ring-green-500/20" : "hover:bg-muted text-muted-foreground"}`}
+                                class={`flex-1 sm:flex-none p-2 rounded-lg transition-all ${
+                                    form.initialQC[item.key] === true
+                                        ? "bg-green-100 text-green-700 ring-2 ring-green-500/20 shadow-sm font-bold scale-105"
+                                        : "bg-slate-50 text-slate-400 hover:bg-green-50 hover:text-green-600"
+                                }`}
                                 onclick={() =>
                                     (form.initialQC = {
                                         ...form.initialQC,
@@ -110,11 +127,16 @@
                                     })}
                                 title="Berfungsi Baik"
                             >
-                                <CheckCircle class="h-6 w-6" />
+                                <span class="sr-only">OK</span>
+                                <CheckCircle class="h-5 w-5 mx-auto" />
                             </button>
                             <button
                                 type="button"
-                                class={`p-1 rounded-md transition-colors ${form.initialQC[item.key] === false ? "bg-red-100 text-red-600 ring-2 ring-red-500/20" : "hover:bg-muted text-muted-foreground"}`}
+                                class={`flex-1 sm:flex-none p-2 rounded-lg transition-all ${
+                                    form.initialQC[item.key] === false
+                                        ? "bg-red-100 text-red-700 ring-2 ring-red-500/20 shadow-sm font-bold scale-105"
+                                        : "bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                                }`}
                                 onclick={() =>
                                     (form.initialQC = {
                                         ...form.initialQC,
@@ -122,179 +144,49 @@
                                     })}
                                 title="Rusak / Bermasalah"
                             >
-                                <XCircle class="h-6 w-6" />
+                                <span class="sr-only">Rusak</span>
+                                <XCircle class="h-5 w-5 mx-auto" />
                             </button>
                         </div>
 
-                        <!-- Status Label -->
-                        <div class="flex justify-center">
+                        <!-- Status Badge -->
+                        <div
+                            class="flex items-center justify-center w-full sm:w-auto"
+                        >
                             {#if form.initialQC[item.key] === true}
-                                <span
-                                    class="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full"
-                                    >OK</span
+                                <Badge
+                                    variant="outline"
+                                    class="bg-green-50 text-green-700 border-green-200"
+                                    >Normal</Badge
                                 >
                             {:else if form.initialQC[item.key] === false}
-                                <span
-                                    class="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full"
-                                    >Rusak</span
+                                <Badge
+                                    variant="destructive"
+                                    class="bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                                    >Rusak</Badge
                                 >
                             {:else}
-                                <span class="text-xs text-muted-foreground"
-                                    >-</span
-                                >
+                                <div
+                                    class="h-0.5 w-4 bg-slate-200 rounded-full"
+                                ></div>
                             {/if}
                         </div>
-                    {:else}
-                        <!-- REVIEW/WALKIN MODE: Compare Before/After -->
-                        <!-- ... Existing Logic for Review Mode ... -->
-                        {#if form.canDoInitialQC}
-                            <div class="flex justify-center">
-                                {#if form.initialQC[item.key] === true}
-                                    <CheckCircle
-                                        class="h-5 w-5 text-green-500"
-                                    />
-                                {:else if form.initialQC[item.key] === false}
-                                    <XCircle class="h-5 w-5 text-red-500" />
-                                {:else}
-                                    <span class="text-xs text-muted-foreground"
-                                        >-</span
-                                    >
-                                {/if}
-                            </div>
-                        {/if}
-
-                        <!-- After (Editable) -->
-                        <div class="flex justify-center gap-1">
-                            <button
-                                type="button"
-                                class={`p-1 rounded-md transition-colors ${form.qcAfter[item.key] === true ? "bg-green-100 text-green-600" : "hover:bg-muted"}`}
-                                onclick={() => setQCValue(item.key, true)}
-                            >
-                                <CheckCircle class="h-5 w-5" />
-                            </button>
-                            <button
-                                type="button"
-                                class={`p-1 rounded-md transition-colors ${form.qcAfter[item.key] === false ? "bg-red-100 text-red-600" : "hover:bg-muted"}`}
-                                onclick={() => setQCValue(item.key, false)}
-                            >
-                                <XCircle class="h-5 w-5" />
-                            </button>
-                        </div>
-
-                        <!-- Comparison -->
-                        {@const comparison = getComparison(item.key)}
-                        <div class="flex justify-center">
-                            {#if comparison === "improved"}
-                                <Badge
-                                    variant="outline"
-                                    class="bg-green-50 text-green-700 border-green-200 text-[10px]"
-                                    >✅ Baik</Badge
-                                >
-                            {:else if comparison === "degraded"}
-                                <Badge
-                                    variant="outline"
-                                    class="bg-red-50 text-red-700 border-red-200 text-[10px]"
-                                    >⚠️ Turun</Badge
-                                >
-                            {:else if comparison === "same"}
-                                <Badge variant="outline" class="text-[10px]"
-                                    ><ArrowRight class="h-3 w-3" /></Badge
-                                >
-                            {:else}
-                                <span class="text-xs text-muted-foreground"
-                                    >-</span
-                                >
-                            {/if}
-                        </div>
-                    {/if}
-                </div>
-            {/each}
-        </div>
-    </div>
-
-    {#if form.currentStep !== 3}
-        <!-- Post-Repair Checks (Final QC only) -->
-        <div class="rounded-xl border bg-card/50 shadow-sm p-4 space-y-3">
-            <Label class="text-base font-medium">Verifikasi Tambahan</Label>
-            <div class="grid grid-cols-2 gap-2">
-                <label
-                    class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-muted transition-colors"
-                >
-                    <input
-                        type="checkbox"
-                        bind:checked={form.qcAfter["complaintResolved"]}
-                        class="rounded border-primary text-primary focus:ring-primary"
-                    />
-                    <span class="text-sm">Keluhan teratasi</span>
-                </label>
-                <label
-                    class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-muted transition-colors"
-                >
-                    <input
-                        type="checkbox"
-                        bind:checked={form.qcAfter["noNewIssues"]}
-                        class="rounded border-primary text-primary focus:ring-primary"
-                    />
-                    <span class="text-sm">Tidak ada masalah baru</span>
-                </label>
-                <label
-                    class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-muted transition-colors"
-                >
-                    <input
-                        type="checkbox"
-                        bind:checked={form.qcAfter["deviceCleaned"]}
-                        class="rounded border-primary text-primary focus:ring-primary"
-                    />
-                    <span class="text-sm">Perangkat dibersihkan</span>
-                </label>
-                <label
-                    class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-muted transition-colors"
-                >
-                    <input
-                        type="checkbox"
-                        bind:checked={form.qcAfter["allSecured"]}
-                        class="rounded border-primary text-primary focus:ring-primary"
-                    />
-                    <span class="text-sm">Komponen terpasang baik</span>
-                </label>
+                    </div>
+                {/each}
             </div>
-        </div>
+        {/if}
 
-        <!-- QC Notes -->
-        <div class="space-y-3">
-            <Label for="qc-notes" class="text-sm font-semibold"
-                >Catatan QC (Opsional)</Label
+        <!-- Optional Note -->
+        <div class="mt-8 pt-6 border-t border-dashed border-slate-200">
+            <Label
+                class="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1 mb-2 block"
+                >Catatan Tambahan (Opsional)</Label
             >
             <Textarea
-                id="qc-notes"
                 bind:value={form.qcNotes}
-                placeholder="Catatan tambahan hasil quality control..."
-                rows={2}
-                class="rounded-xl bg-background/50 border-muted-foreground/20 focus:bg-background transition-colors"
+                placeholder="Misal: Speaker pecah suaranya, Layar ada shadow..."
+                class="min-h-[80px] rounded-xl bg-slate-50/50 border-slate-200"
             />
         </div>
-
-        <!-- QC Status Summary -->
-        <div
-            class={`p-4 rounded-xl border-2 flex items-center gap-3 ${form.qcPassed ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}`}
-        >
-            {#if form.qcPassed}
-                <CheckCircle class="h-8 w-8 text-green-600" />
-                <div>
-                    <p class="font-bold text-green-800">QC PASS</p>
-                    <p class="text-sm text-green-600">
-                        Semua item terverifikasi OK
-                    </p>
-                </div>
-            {:else}
-                <AlertCircle class="h-8 w-8 text-amber-600" />
-                <div>
-                    <p class="font-bold text-amber-800">QC Belum Lengkap</p>
-                    <p class="text-sm text-amber-600">
-                        Lengkapi checklist untuk melanjutkan
-                    </p>
-                </div>
-            {/if}
-        </div>
-    {/if}
+    </div>
 </div>

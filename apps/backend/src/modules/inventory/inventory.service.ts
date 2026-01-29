@@ -107,4 +107,8 @@ export class InventoryService {
     async getProductCountByCategory(categoryId: string): Promise<number> {
         return await this.repo.countByCategory(categoryId);
     }
+
+    async getStats() {
+        return await this.repo.getInventoryStats();
+    }
 }

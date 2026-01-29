@@ -1,10 +1,4 @@
 <script lang="ts">
-    import {
-        Card,
-        CardContent,
-        CardHeader,
-        CardTitle,
-    } from "$lib/components/ui/card";
     import { Button } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
     import { Separator } from "$lib/components/ui/separator";
@@ -21,7 +15,13 @@
         List,
         Filter,
         GripVertical,
+        Search,
+        Clock,
+        AlertCircle,
+        CheckCircle2,
+        User,
     } from "lucide-svelte";
+    import { Input } from "$lib/components/ui/input";
     import {
         createQuery,
         createMutation,
@@ -29,6 +29,7 @@
     } from "@tanstack/svelte-query";
     import { ServiceService } from "$lib/services/service.service";
     import { toast } from "svelte-sonner";
+    import { cn } from "$lib/utils";
 
     // Types
     interface CalendarService {
@@ -48,11 +49,12 @@
     let currentDate = $state(new Date());
     let selectedTechnician = $state<string>("all");
     let selectedStatus = $state<string>("all");
+    let backlogSearch = $state("");
     let draggedService = $state<CalendarService | null>(null);
 
     const queryClient = useQueryClient();
 
-    // Get current user role from localStorage
+    // User Role
     let userRole = $state<string>("admin");
     let userId = $state<string>("");
 
@@ -79,37 +81,31 @@
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["services"] });
-            toast.success("Service rescheduled successfully");
+            toast.success("Jadwal service diperbarui");
         },
         onError: () => {
-            toast.error("Failed to reschedule service");
+            toast.error("Gagal memperbarui jadwal");
         },
     }));
 
-    // Filter services based on role and filters
+    // Filter Logic
     let filteredServices = $derived(() => {
         let services = (servicesQuery.data ||
             []) as unknown as CalendarService[];
 
-        // Role-based filtering: technician only sees their own services
         if (userRole === "teknisi" && userId) {
             services = services.filter((s) => s.technicianId === userId);
         }
 
-        // Apply technician filter
         if (selectedTechnician !== "all") {
             services = services.filter(
                 (s) => s.technicianId === selectedTechnician,
             );
         }
 
-        // Apply status filter
         if (selectedStatus !== "all") {
             services = services.filter((s) => s.status === selectedStatus);
         } else {
-            // Default: Hide non-working statuses
-            // User requested to hide: selesai, diambil, batal, antrian, konfirmasi
-            // Remaining: dicek, dikerjakan, re-konfirmasi
             services = services.filter(
                 (s) =>
                     ![
@@ -121,21 +117,29 @@
                     ].includes(s.status),
             );
         }
-
         return services;
     });
 
-    // Scheduled services (has estimatedCompletionDate)
     let scheduledServices = $derived(
         filteredServices().filter((s) => s.estimatedCompletionDate),
     );
 
-    // Backlog services (no estimatedCompletionDate)
     let backlogServices = $derived(
-        filteredServices().filter((s) => !s.estimatedCompletionDate),
+        filteredServices()
+            .filter((s) => !s.estimatedCompletionDate)
+            .filter(
+                (s) =>
+                    backlogSearch === "" ||
+                    s.customer.name
+                        .toLowerCase()
+                        .includes(backlogSearch.toLowerCase()) ||
+                    s.device.model
+                        .toLowerCase()
+                        .includes(backlogSearch.toLowerCase()) ||
+                    s.no.toLowerCase().includes(backlogSearch.toLowerCase()),
+            ),
     );
 
-    // Get unique technicians for filter
     let technicians = $derived(() => {
         const services = (servicesQuery.data ||
             []) as unknown as CalendarService[];
@@ -151,13 +155,12 @@
         }));
     });
 
-    // Calendar helpers
+    // Calendar Calculations
     function getWeekDays(date: Date): Date[] {
         const start = new Date(date);
         const day = start.getDay();
         const diff = start.getDate() - day + (day === 0 ? -6 : 1); // Monday
         start.setDate(diff);
-
         const days: Date[] = [];
         for (let i = 0; i < 7; i++) {
             const d = new Date(start);
@@ -172,30 +175,23 @@
         const month = date.getMonth();
         const firstDay = new Date(year, month, 1);
         const lastDay = new Date(year, month + 1, 0);
-
         const days: Date[] = [];
 
-        // Add days from previous month to fill week
         const startDay = firstDay.getDay() || 7;
         for (let i = startDay - 1; i > 0; i--) {
             const d = new Date(firstDay);
             d.setDate(d.getDate() - i);
             days.push(d);
         }
-
-        // Add all days of current month
         for (let i = 1; i <= lastDay.getDate(); i++) {
             days.push(new Date(year, month, i));
         }
-
-        // Add days from next month to complete grid
         const remaining = 42 - days.length;
         for (let i = 1; i <= remaining; i++) {
             const d = new Date(lastDay);
             d.setDate(d.getDate() + i);
             days.push(d);
         }
-
         return days;
     }
 
@@ -213,13 +209,6 @@
         });
     }
 
-    function formatDate(date: Date): string {
-        return date.toLocaleDateString("id-ID", {
-            weekday: "short",
-            day: "numeric",
-        });
-    }
-
     function formatMonth(date: Date): string {
         return date.toLocaleDateString("id-ID", {
             month: "long",
@@ -231,16 +220,16 @@
         return date.toDateString() === new Date().toDateString();
     }
 
-    function isCurrentMonth(date: Date): boolean {
-        return date.getMonth() === currentDate.getMonth();
-    }
-
     function isPastDate(date: Date): boolean {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const checkDate = new Date(date);
         checkDate.setHours(0, 0, 0, 0);
         return checkDate < today;
+    }
+
+    function isCurrentMonth(date: Date): boolean {
+        return date.getMonth() === currentDate.getMonth();
     }
 
     function navigate(direction: number) {
@@ -253,164 +242,281 @@
         currentDate = newDate;
     }
 
-    function goToToday() {
-        currentDate = new Date();
-    }
-
-    // Drag and drop handlers
+    // Drag & Drop
     function handleDragStart(e: DragEvent, service: CalendarService) {
         draggedService = service;
         if (e.dataTransfer) {
             e.dataTransfer.effectAllowed = "move";
             e.dataTransfer.setData("text/plain", String(service.id));
+            // Create a custom drag ghost if needed, or rely on browser default
         }
+    }
+
+    function handleDragEnd() {
+        draggedService = null;
     }
 
     function handleDragOver(e: DragEvent) {
         e.preventDefault();
-        if (e.dataTransfer) {
-            e.dataTransfer.dropEffect = "move";
-        }
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
     }
 
     function handleDrop(e: DragEvent, date: Date) {
         e.preventDefault();
         if (draggedService) {
-            // Validate not a past date
             if (isPastDate(date)) {
-                toast.error(
-                    "Tidak dapat menjadwalkan service pada tanggal yang sudah lewat",
-                );
+                toast.error("Tidak dapat menjadwalkan ke tanggal lampau");
                 draggedService = null;
                 return;
             }
-            // Validate technician is assigned
-            if (!draggedService.technicianId) {
-                toast.error(
-                    "Teknisi harus ditugaskan terlebih dahulu sebelum menjadwalkan service",
-                );
-                draggedService = null;
-                return;
+            if (!draggedService.technicianId && userRole !== "teknisi") {
+                // For admins, maybe assign self or warn? Let's just warn.
+                // Actually, if dragged, it means we are scheduling.
+                // Allow scheduling without tech? The original code blocked it.
+                // Let's block it for consistency.
+                if (!draggedService.technicianId) {
+                    toast.error("Tugaskan teknisi terlebih dahulu!");
+                    draggedService = null;
+                    return;
+                }
             }
+
             rescheduleMutation.mutate({ id: draggedService.id, date });
             draggedService = null;
         }
     }
 
+    // UI Helpers
     function getStatusColor(status: string): string {
         const colors: Record<string, string> = {
-            antrian: "bg-gray-100 text-gray-700",
-            dicek: "bg-blue-100 text-blue-700",
-            konfirmasi: "bg-yellow-100 text-yellow-700",
-            dikerjakan: "bg-purple-100 text-purple-700",
-            selesai: "bg-green-100 text-green-700",
-            diambil: "bg-emerald-100 text-emerald-700",
-            batal: "bg-red-100 text-red-700",
+            antrian: "bg-slate-100 text-slate-600 border-slate-200",
+            dicek: "bg-blue-50 text-blue-600 border-blue-200",
+            konfirmasi: "bg-amber-50 text-amber-600 border-amber-200",
+            dikerjakan: "bg-violet-50 text-violet-600 border-violet-200",
+            selesai: "bg-green-50 text-green-600 border-green-200",
+            diambil: "bg-emerald-50 text-emerald-600 border-emerald-200",
+            batal: "bg-red-50 text-red-600 border-red-200",
         };
-        return colors[status] || "bg-gray-100 text-gray-700";
+        return colors[status] || "bg-slate-50 text-slate-600 border-slate-200";
     }
 
-    function getStatusLabel(status: string): string {
-        const labels: Record<string, string> = {
-            antrian: "Antrian",
-            dicek: "Dicek",
-            konfirmasi: "Konfirmasi",
-            dikerjakan: "Dikerjakan",
-            selesai: "Selesai",
-            diambil: "Diambil",
-            batal: "Batal",
-        };
-        return labels[status] || status;
+    function getStatusLabel(status: string) {
+        return status.charAt(0).toUpperCase() + status.slice(1);
     }
 </script>
 
-<div class="space-y-4">
+<div class="h-full flex flex-col gap-6 animate-in fade-in duration-500">
     <!-- Header -->
-    <div class="flex items-center justify-between">
-        <div>
-            <h3 class="text-2xl font-bold tracking-tight">
-                📅 Kalender Service
-            </h3>
-            <p class="text-sm text-muted-foreground">
-                Jadwal dan kelola service dengan drag-and-drop
-            </p>
-        </div>
-        <div class="flex items-center gap-2">
-            <Button variant="outline" size="sm" onclick={goToToday}>
-                Hari Ini
-            </Button>
-            <div class="flex items-center border rounded-lg">
-                <Button
-                    variant={viewMode === "week" ? "secondary" : "ghost"}
-                    size="sm"
-                    onclick={() => (viewMode = "week")}
-                    class="rounded-r-none"
+    <div
+        class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-sm"
+    >
+        <div class="flex items-center gap-4">
+            <div
+                class="p-3 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl text-white shadow-lg shadow-indigo-500/20"
+            >
+                <CalendarIcon class="h-6 w-6" />
+            </div>
+            <div>
+                <h1
+                    class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400"
                 >
-                    <List class="h-4 w-4 mr-1" />
-                    Minggu
-                </Button>
-                <Button
-                    variant={viewMode === "month" ? "secondary" : "ghost"}
-                    size="sm"
-                    onclick={() => (viewMode = "month")}
-                    class="rounded-l-none"
-                >
-                    <CalendarIcon class="h-4 w-4 mr-1" />
-                    Bulan
-                </Button>
+                    Agenda Service
+                </h1>
+                <p class="text-xs text-muted-foreground font-medium">
+                    Jadwal pengerjaan & teknisi
+                </p>
             </div>
         </div>
-    </div>
-    <Separator />
 
-    <div class="flex gap-4">
-        <!-- Backlog Panel -->
-        <Card class="w-64 shrink-0">
-            <CardHeader class="pb-2">
-                <CardTitle class="text-sm font-medium flex items-center gap-2">
-                    📋 Belum Dijadwal
-                    <Badge variant="secondary">{backlogServices.length}</Badge>
-                </CardTitle>
-            </CardHeader>
-            <CardContent
-                class="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto"
+        <div class="flex items-center gap-3">
+            <div
+                class="flex items-center bg-white/50 dark:bg-slate-800/50 rounded-xl p-1 shadow-sm border border-white/20"
             >
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8 hover:bg-white dark:hover:bg-slate-700 rounded-lg"
+                    onclick={() => navigate(-1)}
+                >
+                    <ChevronLeft class="h-4 w-4" />
+                </Button>
+                <span class="px-4 text-sm font-bold min-w-[140px] text-center"
+                    >{formatMonth(currentDate)}</span
+                >
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8 hover:bg-white dark:hover:bg-slate-700 rounded-lg"
+                    onclick={() => navigate(1)}
+                >
+                    <ChevronRight class="h-4 w-4" />
+                </Button>
+            </div>
+
+            <div class="h-8 w-px bg-border/50"></div>
+
+            <div
+                class="flex items-center p-1 bg-white/50 dark:bg-slate-800/50 rounded-xl border border-white/20"
+            >
+                <button
+                    class={cn(
+                        "px-3 py-1.5 text-xs font-bold rounded-lg transition-all",
+                        viewMode === "week"
+                            ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600"
+                            : "text-muted-foreground hover:bg-white/50",
+                    )}
+                    onclick={() => (viewMode = "week")}
+                >
+                    Minggu
+                </button>
+                <button
+                    class={cn(
+                        "px-3 py-1.5 text-xs font-bold rounded-lg transition-all",
+                        viewMode === "month"
+                            ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-600"
+                            : "text-muted-foreground hover:bg-white/50",
+                    )}
+                    onclick={() => (viewMode = "month")}
+                >
+                    Bulan
+                </button>
+            </div>
+
+            <Button
+                variant="outline"
+                size="sm"
+                class="hidden md:flex bg-white/50"
+                onclick={() => (currentDate = new Date())}
+            >
+                Hari Ini
+            </Button>
+        </div>
+    </div>
+
+    <div
+        class="flex flex-col lg:flex-row gap-6 h-[calc(100vh-220px)] overflow-hidden"
+    >
+        <!-- Backlog Sidebar -->
+        <div
+            class="w-full lg:w-80 flex flex-col gap-4 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md border border-white/20 rounded-3xl p-4 shadow-sm shrink-0 h-full"
+        >
+            <div
+                class="flex items-center justify-between pb-2 border-b border-white/10"
+            >
+                <div class="flex items-center gap-2">
+                    <Clock class="h-4 w-4 text-indigo-500" />
+                    <h3 class="font-bold text-sm text-foreground">
+                        Pending Schedule
+                    </h3>
+                </div>
+                <Badge variant="secondary" class="bg-white/50"
+                    >{backlogServices.length}</Badge
+                >
+            </div>
+
+            <!-- Filters -->
+            <div class="space-y-3">
+                <div class="relative group">
+                    <Search
+                        class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground group-focus-within:text-indigo-500 transition-colors"
+                    />
+                    <Input
+                        placeholder="Cari ticket..."
+                        bind:value={backlogSearch}
+                        class="pl-9 h-9 bg-white/50 border-white/20 focus:bg-white transition-all rounded-xl"
+                    />
+                </div>
+                {#if userRole === "admin"}
+                    <Select type="single" bind:value={selectedTechnician}>
+                        <SelectTrigger
+                            class="h-9 bg-white/50 border-white/20 rounded-xl text-xs"
+                        >
+                            <span class="truncate"
+                                >{selectedTechnician === "all"
+                                    ? "Semua Teknisi"
+                                    : technicians().find(
+                                          (t) => t.id === selectedTechnician,
+                                      )?.name}</span
+                            >
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Semua Teknisi</SelectItem>
+                            {#each technicians() as tech}
+                                <SelectItem value={tech.id}
+                                    >{tech.name}</SelectItem
+                                >
+                            {/each}
+                        </SelectContent>
+                    </Select>
+                {/if}
+            </div>
+
+            <div class="flex-1 overflow-y-auto pr-1 space-y-2.5">
                 {#each backlogServices as service}
                     <div
-                        role="listitem"
+                        role="button"
+                        tabindex="0"
                         draggable="true"
                         ondragstart={(e) => handleDragStart(e, service)}
-                        class={`p-2 bg-muted rounded-lg cursor-grab active:cursor-grabbing border transition-colors ${service.technicianId ? "border-transparent hover:border-primary/50" : "border-dashed border-yellow-400"}`}
+                        ondragend={handleDragEnd}
+                        class={cn(
+                            "group relative p-3 rounded-2xl border bg-white/60 dark:bg-slate-800/60 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing",
+                            !service.technicianId
+                                ? "border-dashed border-amber-300/50 bg-amber-50/30"
+                                : "border-white/40 hover:border-indigo-300/50",
+                        )}
                     >
-                        <div class="flex items-start gap-2">
-                            <GripVertical
-                                class="h-4 w-4 text-muted-foreground mt-0.5 shrink-0"
-                            />
-                            <div class="flex-1 min-w-0">
-                                <div
-                                    class="font-medium text-xs text-primary truncate"
-                                >
-                                    {service.no}
+                        <div class="flex items-start gap-3">
+                            <div
+                                class="mt-1 cursor-grab active:cursor-grabbing text-muted-foreground/50 group-hover:text-indigo-400"
+                            >
+                                <GripVertical class="h-4 w-4" />
+                            </div>
+                            <div class="flex-1 min-w-0 space-y-1">
+                                <div class="flex justify-between items-start">
+                                    <span
+                                        class="text-xs font-bold text-foreground"
+                                        >{service.no}</span
+                                    >
+                                    <Badge
+                                        variant="outline"
+                                        class={cn(
+                                            "text-[10px] px-1.5 py-0 h-auto border",
+                                            getStatusColor(service.status),
+                                        )}
+                                    >
+                                        {getStatusLabel(service.status)}
+                                    </Badge>
                                 </div>
-                                <div class="text-xs truncate">
-                                    {service.customer.name}
-                                </div>
-                                <div
-                                    class="text-xs text-muted-foreground truncate"
-                                >
-                                    {service.device.brand}
+                                <p class="text-sm font-medium truncate">
                                     {service.device.model}
-                                </div>
-                                <Badge
-                                    class={`mt-1 text-[10px] ${getStatusColor(service.status)}`}
+                                </p>
+                                <div
+                                    class="flex items-center gap-1.5 text-xs text-muted-foreground"
                                 >
-                                    {getStatusLabel(service.status)}
-                                </Badge>
+                                    <User class="h-3 w-3" />
+                                    <span class="truncate"
+                                        >{service.customer.name}</span
+                                    >
+                                </div>
+
                                 {#if !service.technicianId}
                                     <div
-                                        class="text-[10px] text-yellow-600 mt-1"
+                                        class="mt-2 flex items-center gap-1.5 text-[10px] text-amber-600 bg-amber-100/50 px-2 py-1 rounded-lg w-fit"
                                     >
-                                        ⚠️ Belum ada teknisi
+                                        <AlertCircle class="h-3 w-3" />
+                                        <span>Belum ada teknisi</span>
+                                    </div>
+                                {:else}
+                                    <div
+                                        class="mt-2 flex items-center gap-1.5 text-[10px] text-indigo-600 bg-indigo-50/50 px-2 py-1 rounded-lg w-fit"
+                                    >
+                                        <div
+                                            class="w-3 h-3 rounded-full bg-indigo-200 flex items-center justify-center text-[8px] font-bold"
+                                        >
+                                            {service.technicianName?.charAt(0)}
+                                        </div>
+                                        <span>{service.technicianName}</span>
                                     </div>
                                 {/if}
                             </div>
@@ -418,168 +524,137 @@
                     </div>
                 {/each}
                 {#if backlogServices.length === 0}
-                    <p class="text-xs text-muted-foreground text-center py-4">
-                        Tidak ada service menunggu jadwal
-                    </p>
-                {/if}
-            </CardContent>
-        </Card>
-
-        <!-- Calendar -->
-        <Card class="flex-1">
-            <CardHeader class="pb-2">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onclick={() => navigate(-1)}
-                        >
-                            <ChevronLeft class="h-4 w-4" />
-                        </Button>
-                        <h4 class="font-semibold text-lg min-w-48 text-center">
-                            {formatMonth(currentDate)}
-                        </h4>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onclick={() => navigate(1)}
-                        >
-                            <ChevronRight class="h-4 w-4" />
-                        </Button>
+                    <div
+                        class="flex flex-col items-center justify-center h-32 text-muted-foreground text-xs text-center p-4 border-2 border-dashed border-white/20 rounded-2xl"
+                    >
+                        <CheckCircle2 class="h-8 w-8 mb-2 opacity-50" />
+                        <p>Semua service sudah dijadwalkan</p>
                     </div>
+                {/if}
+            </div>
+        </div>
 
-                    <!-- Filters (Admin only) -->
-                    {#if userRole === "admin"}
-                        <div class="flex items-center gap-2">
-                            <Filter class="h-4 w-4 text-muted-foreground" />
-                            <Select
-                                type="single"
-                                bind:value={selectedTechnician}
-                            >
-                                <SelectTrigger class="w-40 h-8">
-                                    <span
-                                        >{selectedTechnician === "all"
-                                            ? "Semua Teknisi"
-                                            : technicians().find(
-                                                  (t) =>
-                                                      t.id ===
-                                                      selectedTechnician,
-                                              )?.name || "Teknisi"}</span
-                                    >
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all"
-                                        >Semua Teknisi</SelectItem
-                                    >
-                                    {#each technicians() as tech}
-                                        <SelectItem value={tech.id}
-                                            >{tech.name}</SelectItem
-                                        >
-                                    {/each}
-                                </SelectContent>
-                            </Select>
-                            <Select type="single" bind:value={selectedStatus}>
-                                <SelectTrigger class="w-32 h-8">
-                                    <span
-                                        >{selectedStatus === "all"
-                                            ? "Semua Status"
-                                            : getStatusLabel(
-                                                  selectedStatus,
-                                              )}</span
-                                    >
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all"
-                                        >Semua Status</SelectItem
-                                    >
-                                    <SelectItem value="antrian"
-                                        >Antrian</SelectItem
-                                    >
-                                    <SelectItem value="dicek">Dicek</SelectItem>
-                                    <SelectItem value="konfirmasi"
-                                        >Konfirmasi</SelectItem
-                                    >
-                                    <SelectItem value="dikerjakan"
-                                        >Dikerjakan</SelectItem
-                                    >
-                                    <SelectItem value="selesai"
-                                        >Selesai</SelectItem
-                                    >
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    {/if}
-                </div>
-            </CardHeader>
-            <CardContent>
-                <!-- Calendar Grid -->
-                <div
-                    class={`grid ${viewMode === "week" ? "grid-cols-7" : "grid-cols-7"} gap-1`}
-                >
-                    <!-- Header -->
-                    {#each ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"] as day}
-                        <div
-                            class="text-center text-xs font-medium text-muted-foreground py-2"
-                        >
-                            {day}
-                        </div>
-                    {/each}
+        <!-- Main Calendar -->
+        <div
+            class="flex-1 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md border border-white/20 rounded-3xl shadow-sm flex flex-col overflow-hidden h-full"
+        >
+            <div
+                class={cn(
+                    "grid border-b border-white/10 bg-white/20 font-bold text-xs text-muted-foreground",
+                    viewMode === "week" ? "grid-cols-7" : "grid-cols-7",
+                )}
+            >
+                {#each ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"] as day}
+                    <div class="py-3 text-center uppercase tracking-wider">
+                        {day}
+                    </div>
+                {/each}
+            </div>
 
-                    <!-- Days -->
-                    {#each calendarDays as day}
-                        <div
-                            role="gridcell"
-                            tabindex="0"
-                            ondragover={!isPastDate(day)
-                                ? handleDragOver
-                                : undefined}
-                            ondrop={!isPastDate(day)
-                                ? (e) => handleDrop(e, day)
-                                : undefined}
-                            class={`
-                                min-h-24 p-1 rounded-lg border transition-colors
-                                ${isToday(day) ? "bg-blue-50 border-blue-200" : "bg-background border-border"}
-                                ${!isCurrentMonth(day) && viewMode === "month" ? "opacity-50" : ""}
-                                ${isPastDate(day) ? "bg-muted/50 cursor-not-allowed" : ""}
-                                ${draggedService && !isPastDate(day) ? "hover:bg-primary/5 hover:border-primary" : ""}
-                            `}
-                        >
+            <div
+                class={cn(
+                    "flex-1 grid overflow-y-auto",
+                    viewMode === "week"
+                        ? "grid-cols-7"
+                        : "grid-cols-7 grid-rows-6",
+                )}
+            >
+                {#each calendarDays as day}
+                    {@const isTod = isToday(day)}
+                    {@const isPast = isPastDate(day)}
+                    <div
+                        role="gridcell"
+                        tabindex="0"
+                        ondragover={!isPast ? handleDragOver : undefined}
+                        ondrop={!isPast ? (e) => handleDrop(e, day) : undefined}
+                        class={cn(
+                            "min-h-[120px] p-2 border-b border-r border-white/10 transition-all relative group/cell",
+                            !isCurrentMonth(day) &&
+                                viewMode === "month" &&
+                                "bg-slate-50/30 dark:bg-slate-900/30 text-muted-foreground",
+                            isPast && "bg-slate-100/30 dark:bg-black/20",
+                            isTod && "bg-indigo-50/20",
+                            draggedService &&
+                                !isPast &&
+                                "hover:bg-indigo-50/40 hover:shadow-inner",
+                        )}
+                    >
+                        <!-- Date Number -->
+                        <div class="flex justify-between items-start mb-2">
                             <div
-                                class={`text-xs font-medium mb-1 ${isToday(day) ? "text-blue-600" : ""} ${isPastDate(day) ? "text-muted-foreground" : ""}`}
+                                class={cn(
+                                    "flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold transition-colors",
+                                    isTod
+                                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
+                                        : "text-foreground/70",
+                                    !isCurrentMonth(day) && "opacity-50",
+                                )}
                             >
                                 {day.getDate()}
                             </div>
-                            <div class="space-y-1">
-                                {#each getServicesForDate(day).slice(0, viewMode === "week" ? 5 : 2) as service}
-                                    <a
-                                        href={`/service/${service.id}`}
-                                        draggable="true"
-                                        ondragstart={(e) =>
-                                            handleDragStart(e, service)}
-                                        class={`block p-1 rounded text-[10px] cursor-grab active:cursor-grabbing hover:ring-1 hover:ring-primary ${getStatusColor(service.status)}`}
-                                    >
-                                        <div class="font-medium truncate">
-                                            {service.no}
-                                        </div>
-                                        <div class="truncate opacity-75">
-                                            {service.customer.name}
-                                        </div>
-                                    </a>
-                                {/each}
-                                {#if getServicesForDate(day).length > (viewMode === "week" ? 5 : 2)}
-                                    <div
-                                        class="text-[10px] text-muted-foreground text-center"
-                                    >
-                                        +{getServicesForDate(day).length -
-                                            (viewMode === "week" ? 5 : 2)} lagi
-                                    </div>
-                                {/if}
-                            </div>
                         </div>
-                    {/each}
-                </div>
-            </CardContent>
-        </Card>
+
+                        <!-- Drop Zone Indicator -->
+                        {#if draggedService && !isPast}
+                            <div
+                                class="absolute inset-0 bg-indigo-500/5 border-2 border-indigo-500/20 rounded-xl m-1 opacity-0 group-hover/cell:opacity-100 pointer-events-none flex items-center justify-center"
+                            >
+                                <span
+                                    class="text-xs font-bold text-indigo-600 bg-white/80 px-2 py-1 rounded-full shadow-sm"
+                                    >Pindah ke sini</span
+                                >
+                            </div>
+                        {/if}
+
+                        <!-- Events Stack -->
+                        <div class="space-y-1.5 relative z-10">
+                            {#each getServicesForDate(day) as service}
+                                <a
+                                    href={`/service/${service.id}`}
+                                    draggable="true"
+                                    ondragstart={(e) =>
+                                        handleDragStart(e, service)}
+                                    ondragend={handleDragEnd}
+                                    class={cn(
+                                        "block text-[10px] p-1.5 rounded-lg border shadow-sm transition-all hover:scale-105 active:scale-95 cursor-grab active:cursor-grabbing group/event",
+                                        getStatusColor(service.status),
+                                        "bg-opacity-90 backdrop-blur-sm",
+                                    )}
+                                >
+                                    <div
+                                        class="font-bold truncate group-hover/event:underline decoration-current underline-offset-2"
+                                    >
+                                        {service.no}
+                                    </div>
+                                    <div
+                                        class="truncate opacity-80 font-medium"
+                                    >
+                                        {service.device.model}
+                                    </div>
+                                </a>
+                            {/each}
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        </div>
     </div>
 </div>
+
+<style>
+    /* Custom Scrollbar for nice feel */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(156, 163, 175, 0.3);
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(156, 163, 175, 0.5);
+    }
+</style>

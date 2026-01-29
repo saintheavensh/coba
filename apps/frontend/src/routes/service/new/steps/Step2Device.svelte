@@ -27,7 +27,6 @@
     import { BrandsService } from "$lib/services/brands.service";
     import { createQuery } from "@tanstack/svelte-query";
     import { Badge } from "$lib/components/ui/badge";
-    import Combobox from "$lib/components/ui/combobox.svelte";
     import {
         CheckCircle,
         Smartphone,
@@ -35,13 +34,19 @@
         Camera,
         X,
         Upload,
-        AlertCircle,
         Search,
         Loader2,
-        Plus,
+        Zap,
+        Box,
+        ScanBarcode,
     } from "lucide-svelte";
     import { cn } from "$lib/utils";
     import { toast } from "svelte-sonner";
+    import {
+        DEVICE_STATUS_OPTIONS,
+        PHYSICAL_CONDITIONS,
+        COMPLETENESS_OPTIONS,
+    } from "@repo/shared";
 
     let { form }: { form: ServiceFormStore } = $props();
 
@@ -50,16 +55,16 @@
     let searchTimeout: any;
 
     $effect(() => {
-        const term = deviceSearch; // Capture dependency synchronously
+        const term = deviceSearch;
         if (searchTimeout) clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
             debouncedSearch = term;
-        }, 300); // 300ms debounce
+        }, 300);
     });
 
-    let manualMode = $state(false); // For Model Search
-    let manualBrandMode = $state(false); // For Brand Selection
-    let manualColorMode = $state(false); // For Color Selection
+    let manualMode = $state(false);
+    let manualBrandMode = $state(false);
+    let manualColorMode = $state(false);
 
     $effect(() => {
         if (form.selectedDeviceId) {
@@ -80,9 +85,7 @@
 
     $effect(() => {
         if (devicesQuery.isError) {
-            toast.error(
-                "Gagal mengambil data perangkat. Cek koneksi server atau restart ulang aplikasi.",
-            );
+            toast.error("Gagal mengambil data perangkat.");
         }
     });
 
@@ -91,216 +94,171 @@
         queryFn: BrandsService.getAll,
     }));
 
-    import {
-        DEVICE_STATUS_OPTIONS,
-        PHYSICAL_CONDITIONS,
-        COMPLETENESS_OPTIONS,
-    } from "@repo/shared";
-
     const isErrorStatus = (status: string) =>
         ["mati_total", "restart", "blank_hitam"].includes(status);
 
     function handleSavePattern() {
         form.isPatternOpen = false;
     }
-
-    function handleSearch(term: string) {
-        deviceSearch = term;
-    }
 </script>
 
-<div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-    <!-- Header Section -->
-    <!-- Header Section -->
-    <div class="flex items-start justify-between">
-        <div class="space-y-1">
-            <h3
-                class="text-xl font-bold tracking-tight flex items-center gap-2 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent"
-            >
-                <Smartphone class="h-6 w-6 text-primary" />
-                Identitas Perangkat
-            </h3>
-            <p class="text-sm text-muted-foreground">
-                Rekam detail spesifikasi dan identitas unik perangkat pelanggan.
-            </p>
+<div class="grid gap-8 animate-in fly-in-from-bottom-4 duration-500">
+    <!-- Header -->
+    <div class="space-y-2">
+        <div
+            class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-100/50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 text-xs font-bold uppercase tracking-wider mb-2"
+        >
+            <Smartphone class="h-3.5 w-3.5" />
+            Langkah 2
         </div>
-        {#if form.selectedDeviceId}
-            <Badge
-                variant="outline"
-                class="bg-green-50 text-green-700 border-green-200 py-1"
-            >
-                <CheckCircle class="h-3 w-3 mr-1" /> Terverifikasi
-            </Badge>
-        {/if}
+        <h2 class="text-3xl font-bold tracking-tight text-foreground">
+            Identitas Perangkat
+        </h2>
+        <p class="text-muted-foreground text-lg">
+            Spesifikasi, kondisi fisik, dan kelengkapan unit.
+        </p>
     </div>
 
-    <!-- 1. Identitas Utama (Card & Search) -->
-    <div class="relative group">
-        <!-- Card Background & Glow Style Layer -->
+    <div class="grid gap-6">
+        <!-- 1. Device Selection Card -->
         <div
-            class="absolute inset-0 rounded-3xl border border-muted/60 bg-card/50 shadow-sm overflow-hidden -z-10"
+            class="relative group rounded-[2rem] border border-white/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md shadow-xl overflow-visible p-6 sm:p-8 transition-all hover:border-cyan-200"
         >
-            <!-- Glow Effect -->
-            <div
-                class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl transition-opacity opacity-0 group-hover:opacity-100"
-            ></div>
-        </div>
-
-        <!-- Content Layer (Overflow Visible for Dropdown) -->
-        <div class="grid gap-6 p-6 sm:p-8">
-            <!-- A. Selected Device Card -->
             {#if form.selectedDeviceId || (manualMode && form.phoneModel)}
+                <!-- Selected State -->
                 <div
-                    class="flex items-start gap-5 p-4 bg-muted/30 rounded-xl border border-primary/20 animate-in fade-in slide-in-from-top-2 duration-300"
+                    class="flex flex-col sm:flex-row gap-6 animate-in fade-in slide-in-from-top-4 duration-500"
                 >
-                    <!-- Device Image -->
                     <div
-                        class="w-20 h-24 sm:w-24 sm:h-28 rounded-lg bg-white border flex items-center justify-center overflow-hidden shrink-0 shadow-sm"
+                        class="w-full sm:w-32 aspect-[3/4] rounded-2xl bg-white border-4 border-white shadow-lg overflow-hidden shrink-0 relative group/img"
                     >
                         {#if form.deviceImage}
                             <img
                                 src={form.deviceImage}
                                 alt={form.phoneModel}
-                                class="w-full h-full object-cover"
+                                class="w-full h-full object-cover transition-transform group-hover/img:scale-110"
                             />
                         {:else}
-                            <Smartphone
-                                class="h-8 w-8 text-muted-foreground/30"
-                            />
+                            <div
+                                class="w-full h-full flex flex-col items-center justify-center bg-slate-50 text-slate-300"
+                            >
+                                <Smartphone class="h-10 w-10 mb-2" />
+                                <span class="text-[10px] font-bold uppercase"
+                                    >No Image</span
+                                >
+                            </div>
                         {/if}
                     </div>
 
-                    <!-- Details -->
-                    <div class="flex-1 min-w-0 space-y-1">
-                        <div class="flex items-start justify-between">
+                    <div class="flex-1 space-y-4">
+                        <div class="flex justify-between items-start">
                             <div>
-                                <p
-                                    class="text-xs font-bold text-muted-foreground uppercase tracking-wider"
+                                <Badge
+                                    variant="outline"
+                                    class="mb-2 border-cyan-200 bg-cyan-50 text-cyan-700"
+                                    >Device Terpilih</Badge
                                 >
-                                    Device Terpilih
-                                </p>
-                                <h4
-                                    class="text-lg font-bold text-primary truncate"
+                                <h3
+                                    class="text-3xl font-black text-slate-800 dark:text-white tracking-tight leading-none"
                                 >
-                                    {form.phoneBrand}
-                                    {form.phoneModel}
-                                </h4>
+                                    {form.phoneBrand} <br />
+                                    <span class="text-cyan-600"
+                                        >{form.phoneModel}</span
+                                    >
+                                </h3>
                             </div>
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                class="h-7 text-xs text-muted-foreground hover:text-destructive"
+                                class="h-8 rounded-full hover:bg-red-50 hover:text-red-600 text-muted-foreground"
                                 onclick={() => {
                                     form.selectedDeviceId = null;
-                                    form.phoneBrand = ""; // Reset brand to allow re-selection
+                                    form.phoneBrand = "";
                                     form.phoneModel = "";
                                     manualMode = false;
                                     manualBrandMode = false;
                                     manualColorMode = false;
-                                    form.phoneColor = ""; // Reset color
-                                    form.deviceImage = null; // Reset image
-                                    form.deviceColors = []; // Reset colors
+                                    form.phoneColor = "";
+                                    form.deviceImage = null;
+                                    form.deviceColors = [];
                                 }}
                             >
-                                <span class="mr-2">Ganti</span>
-                                <X class="h-3 w-3" />
+                                <X class="h-4 w-4 mr-1" /> Ganti
                             </Button>
                         </div>
 
-                        <div class="flex items-center gap-2 mt-2">
-                            {#if form.selectedDeviceId && devicesQuery.data?.find((d) => d.id === form.selectedDeviceId)?.code}
-                                <Badge
-                                    variant="secondary"
-                                    class="font-mono text-[10px] h-5"
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Color Selector -->
+                            <div class="space-y-1.5">
+                                <Label
+                                    class="text-xs font-bold text-muted-foreground uppercase tracking-wider"
+                                    >Warna Unit</Label
                                 >
-                                    {devicesQuery.data.find(
-                                        (d) => d.id === form.selectedDeviceId,
-                                    )?.code}
-                                </Badge>
-                            {/if}
-                            {#if manualMode}
-                                <Badge
-                                    variant="outline"
-                                    class="text-orange-600 border-orange-200 bg-orange-50 text-[10px] h-5"
-                                >
-                                    Input Manual
-                                </Badge>
-                            {/if}
-                        </div>
-
-                        <!-- Color Selection inside Card/Context -->
-                        <div class="mt-4 max-w-xs">
-                            <Label class="text-xs font-semibold mb-1.5 block"
-                                >Warna Perangkat</Label
-                            >
-                            {#if form.deviceColors && form.deviceColors.length > 0}
-                                <Select
-                                    type="single"
-                                    value={manualColorMode
-                                        ? "Lainnya"
-                                        : form.phoneColor}
-                                    onValueChange={(v) => {
-                                        if (v === "Lainnya") {
-                                            manualColorMode = true;
-                                            form.phoneColor = ""; // Clear for manual input
-                                        } else {
-                                            manualColorMode = false;
-                                            form.phoneColor = v;
-                                        }
-                                    }}
-                                >
-                                    <SelectTrigger
-                                        class="h-9 text-sm bg-background"
+                                {#if form.deviceColors && form.deviceColors.length > 0}
+                                    <Select
+                                        type="single"
+                                        value={manualColorMode
+                                            ? "Lainnya"
+                                            : form.phoneColor}
+                                        onValueChange={(v) => {
+                                            if (v === "Lainnya") {
+                                                manualColorMode = true;
+                                                form.phoneColor = "";
+                                            } else {
+                                                manualColorMode = false;
+                                                form.phoneColor = v;
+                                            }
+                                        }}
                                     >
-                                        {form.phoneColor || "Pilih Warna"}
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {#each form.deviceColors as color}
-                                            <SelectItem value={color}
-                                                >{color}</SelectItem
-                                            >
-                                        {/each}
-                                        <SelectItem value="Lainnya"
-                                            >Lainnya...</SelectItem
+                                        <SelectTrigger
+                                            class="h-11 rounded-xl bg-white/50 border-slate-200"
                                         >
-                                    </SelectContent>
-                                </Select>
-                                {#if form.phoneColor === "Lainnya" || manualColorMode}
-                                    <input
+                                            {form.phoneColor || "Pilih Warna"}
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {#each form.deviceColors as color}
+                                                <SelectItem value={color}
+                                                    >{color}</SelectItem
+                                                >
+                                            {/each}
+                                            <SelectItem value="Lainnya"
+                                                >Lainnya...</SelectItem
+                                            >
+                                        </SelectContent>
+                                    </Select>
+                                    {#if form.phoneColor === "Lainnya" || manualColorMode}
+                                        <Input
+                                            bind:value={form.phoneColor}
+                                            placeholder="Ketik warna..."
+                                            class="h-11 mt-2 rounded-xl bg-white/50"
+                                        />
+                                    {/if}
+                                {:else}
+                                    <Input
                                         bind:value={form.phoneColor}
-                                        placeholder="Ketik warna..."
-                                        class="mt-2 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 animate-in fade-in slide-in-from-top-1"
+                                        placeholder="Warna (Hitam, Putih...)"
+                                        class="h-11 rounded-xl bg-white/50 border-slate-200"
                                     />
                                 {/if}
-                            {:else}
-                                <input
-                                    bind:value={form.phoneColor}
-                                    placeholder="Warna (Hitam, Putih...)"
-                                    class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                />
-                            {/if}
+                            </div>
                         </div>
                     </div>
                 </div>
             {:else}
-                <!-- B. Search Interface -->
-                <div class="space-y-4 animate-in fade-in duration-300">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- Brand Select -->
+                <!-- Search State -->
+                <div class="space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <!-- Brand -->
                         <div class="space-y-2">
-                            <Label class="text-sm font-semibold"
-                                >Merk Perangkat <span class="text-destructive"
-                                    >*</span
-                                ></Label
+                            <Label class="text-sm font-bold ml-1"
+                                >Merk Perangkat</Label
                             >
                             {#if manualBrandMode}
-                                <div
-                                    class="flex gap-2 animate-in fade-in slide-in-from-left-2"
-                                >
-                                    <input
+                                <div class="flex gap-2 animate-in fade-in">
+                                    <Input
                                         bind:value={form.phoneBrand}
                                         placeholder="Ketik Merk..."
-                                        class="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        class="h-12 rounded-xl"
                                     />
                                     <Button
                                         variant="ghost"
@@ -308,12 +266,9 @@
                                         onclick={() => {
                                             manualBrandMode = false;
                                             form.phoneBrand = "";
-                                            manualMode = false; // Turn off manual model too if cancelling brand
-                                        }}
-                                        title="Batal"
+                                            manualMode = false;
+                                        }}><X class="h-4 w-4" /></Button
                                     >
-                                        <X class="h-4 w-4" />
-                                    </Button>
                                 </div>
                             {:else}
                                 <Select
@@ -322,15 +277,17 @@
                                     onValueChange={(v) => {
                                         if (v === "Lainnya") {
                                             manualBrandMode = true;
-                                            form.phoneBrand = ""; // Clear for manual input
-                                            manualMode = true; // Auto-enable manual model input per user request
+                                            form.phoneBrand = "";
+                                            manualMode = true;
                                         } else {
                                             manualBrandMode = false;
                                             form.phoneBrand = v;
                                         }
                                     }}
                                 >
-                                    <SelectTrigger class="h-11 rounded-xl">
+                                    <SelectTrigger
+                                        class="h-12 rounded-xl bg-white/50 border-slate-200 text-base"
+                                    >
                                         {form.phoneBrand || "Pilih Brand"}
                                     </SelectTrigger>
                                     <SelectContent>
@@ -347,95 +304,74 @@
                                         <Separator class="my-1" />
                                         <SelectItem
                                             value="Lainnya"
-                                            class="font-bold text-primary"
-                                            >Lainnya (Input Manual)</SelectItem
+                                            class="font-bold text-cyan-600"
+                                            >Lainnya (Manual)</SelectItem
                                         >
                                     </SelectContent>
                                 </Select>
                             {/if}
                         </div>
 
-                        <!-- Model Search -->
+                        <!-- Model -->
                         <div class="space-y-2">
-                            <div class="flex items-center justify-between">
-                                <Label class="text-sm font-semibold"
-                                    >Cari Model / Tipe <span
-                                        class="text-destructive">*</span
-                                    ></Label
+                            <div class="flex justify-between items-center px-1">
+                                <Label class="text-sm font-bold"
+                                    >Model / Tipe</Label
                                 >
-                                {#if !manualMode}
-                                    <button
-                                        onclick={() => (manualMode = true)}
-                                        class="text-[10px] font-bold text-primary hover:underline uppercase tracking-wide"
-                                    >
-                                        Input Manual?
-                                    </button>
-                                {:else}
-                                    <button
-                                        onclick={() => (manualMode = false)}
-                                        class="text-[10px] font-bold text-primary hover:underline uppercase tracking-wide"
-                                    >
-                                        Cari Database
-                                    </button>
-                                {/if}
+                                <button
+                                    onclick={() => (manualMode = !manualMode)}
+                                    class="text-[10px] font-bold text-cyan-600 hover:underline uppercase tracking-wider"
+                                >
+                                    {manualMode
+                                        ? "Cari Database?"
+                                        : "Input Manual?"}
+                                </button>
                             </div>
 
                             {#if manualMode}
-                                <input
+                                <Input
                                     bind:value={form.phoneModel}
-                                    placeholder="Ketik tipe lengkap..."
-                                    class="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-orange-50/10 border-orange-200/50"
+                                    placeholder="Tipe Lengkap..."
+                                    class="h-12 rounded-xl bg-orange-50/50 border-orange-200 text-orange-900 placeholder:text-orange-300"
                                 />
                             {:else}
-                                <div class="relative group">
+                                <div class="relative">
                                     <Search
-                                        class="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground"
+                                        class="absolute left-4 top-4 h-4 w-4 text-muted-foreground"
                                     />
                                     <input
                                         bind:value={deviceSearch}
-                                        placeholder={form.phoneBrand
-                                            ? `Cari tipe ${form.phoneBrand}...`
-                                            : "Cari model..."}
-                                        class={cn(
-                                            "flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-9 transition-all duration-200",
-                                            deviceSearch.length > 0 &&
-                                                (devicesQuery.data?.length ||
-                                                    0) > 0
-                                                ? "rounded-b-none border-b-0"
-                                                : "",
-                                        )}
+                                        placeholder="Cari model..."
+                                        class="flex h-12 w-full rounded-xl border border-input bg-white/50 px-3 pl-10 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all border-slate-200/80"
                                     />
                                     {#if devicesQuery.isLoading}
                                         <Loader2
-                                            class="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground animate-spin"
+                                            class="absolute right-4 top-4 h-4 w-4 animate-spin text-muted-foreground"
                                         />
                                     {/if}
 
                                     {#if deviceSearch.length > 0 && devicesQuery.data}
                                         <div
-                                            class="absolute top-11 left-0 right-0 z-50 bg-popover border border-t-0 rounded-b-xl shadow-lg max-h-[300px] overflow-y-auto animate-in slide-in-from-top-2 duration-150"
+                                            class="absolute top-14 left-0 right-0 z-50 bg-white rounded-xl shadow-xl border border-slate-100 max-h-[300px] overflow-y-auto animate-in slide-in-from-top-2"
                                         >
                                             {#if devicesQuery.data.length === 0}
                                                 <div
                                                     class="p-4 text-center text-sm text-muted-foreground"
                                                 >
-                                                    Tidak ditemukan.
-                                                    <button
-                                                        class="text-primary hover:underline font-semibold ml-1"
+                                                    Tidak ditemukan. <button
+                                                        class="text-cyan-600 font-bold hover:underline"
                                                         onclick={() => {
                                                             manualMode = true;
                                                             form.phoneModel =
                                                                 deviceSearch;
                                                             deviceSearch = "";
-                                                        }}
+                                                        }}>Pakai Manual?</button
                                                     >
-                                                        Pakai Manual?
-                                                    </button>
                                                 </div>
                                             {:else}
                                                 {#each devicesQuery.data as device}
                                                     <button
-                                                        class="w-full flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors text-left border-b last:border-0"
+                                                        class="w-full flex items-center gap-3 p-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 last:border-0"
                                                         onclick={() => {
                                                             form.selectedDeviceId =
                                                                 device.id;
@@ -445,18 +381,15 @@
                                                                 device.model;
                                                             form.deviceImage =
                                                                 device.image ||
-                                                                null; // Save Image
+                                                                null;
                                                             form.deviceColors =
                                                                 device.colors ||
-                                                                []; // Save Colors
+                                                                [];
                                                             deviceSearch = "";
-                                                            toast.success(
-                                                                `Terpilih: ${device.brand} ${device.model}`,
-                                                            );
                                                         }}
                                                     >
                                                         <div
-                                                            class="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden shrink-0 border"
+                                                            class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden shrink-0"
                                                         >
                                                             {#if device.image}
                                                                 <img
@@ -466,29 +399,17 @@
                                                                 />
                                                             {:else}
                                                                 <Smartphone
-                                                                    class="h-5 w-5 text-muted-foreground/50"
+                                                                    class="h-5 w-5 text-slate-300"
                                                                 />
                                                             {/if}
                                                         </div>
-                                                        <div
-                                                            class="flex-1 min-w-0"
-                                                        >
+                                                        <div>
                                                             <div
-                                                                class="font-medium text-sm"
+                                                                class="font-bold text-sm text-slate-800"
                                                             >
-                                                                <span
-                                                                    class="font-bold text-primary"
-                                                                    >{device.brand}</span
-                                                                >
+                                                                {device.brand}
                                                                 {device.model}
                                                             </div>
-                                                            {#if device.code}
-                                                                <div
-                                                                    class="text-[10px] text-muted-foreground font-mono"
-                                                                >
-                                                                    {device.code}
-                                                                </div>
-                                                            {/if}
                                                         </div>
                                                     </button>
                                                 {/each}
@@ -499,283 +420,268 @@
                             {/if}
                         </div>
                     </div>
-                    <p class="text-[10px] text-muted-foreground ml-1">
-                        * Pastikan memilih tipe yang sesuai agar data sparepart
-                        sinkron.
-                    </p>
+
+                    <!-- Quick Helper Text -->
+                    <div
+                        class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100/50 text-xs text-muted-foreground"
+                    >
+                        <Box class="h-4 w-4" />
+                        <span
+                            >Database terintegrasi dengan inventory sparepart
+                            untuk estimasi yang lebih akurat.</span
+                        >
+                    </div>
                 </div>
             {/if}
         </div>
-    </div>
 
-    <!-- 2. Status & Kondisi Awal -->
-    <div class="space-y-4">
-        <h4
-            class="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"
+        <!-- 2. Status & Condition Tiles -->
+        <h3
+            class="text-sm font-bold uppercase tracking-wider text-muted-foreground mt-4 ml-1"
         >
-            <Smartphone class="h-4 w-4" /> Kondisi & Status Awal
-        </h4>
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            Status Awal
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             {#each DEVICE_STATUS_OPTIONS as option}
-                <label
+                <button
+                    onclick={() => (form.phoneStatus = option.value)}
                     class={cn(
-                        "cursor-pointer group relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-200",
+                        "relative flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all duration-300 overflow-hidden group",
                         form.phoneStatus === option.value
-                            ? `${option.border} ${option.bg} shadow-sm ring-1 ring-current/10`
-                            : "border-muted bg-card hover:border-primary/30 hover:bg-muted/50",
+                            ? `${option.border} ${option.bg} shadow-md`
+                            : "border-transparent bg-white/60 hover:bg-white/80 hover:scale-[1.02]",
                     )}
                 >
-                    <input
-                        type="radio"
-                        bind:group={form.phoneStatus}
-                        value={option.value}
-                        class="sr-only"
-                    />
-                    <div
-                        class={cn(
-                            "p-2 rounded-full transition-colors",
-                            form.phoneStatus === option.value
-                                ? "bg-white dark:bg-black/20 shadow-sm"
-                                : "bg-muted group-hover:bg-card",
-                        )}
-                    >
-                        <Smartphone class={cn("h-5 w-5", option.color)} />
-                    </div>
-                    <span class="text-sm font-semibold">{option.label}</span>
-
                     {#if form.phoneStatus === option.value}
+                        <div
+                            class="absolute inset-0 bg-current opacity-5 pointer-events-none"
+                        ></div>
                         <CheckCircle
-                            class="absolute top-2 right-2 h-4 w-4 text-primary animate-in zoom-in duration-300"
+                            class="absolute top-3 right-3 h-5 w-5 text-current animate-in zoom-in"
                         />
                     {/if}
-                </label>
+                    <div
+                        class={cn(
+                            "p-2.5 rounded-full transition-colors",
+                            form.phoneStatus === option.value
+                                ? "bg-white shadow-sm"
+                                : "bg-slate-100 group-hover:bg-white",
+                        )}
+                    >
+                        <Smartphone class={cn("h-6 w-6", option.color)} />
+                    </div>
+                    <span class="font-bold text-sm">{option.label}</span>
+                </button>
             {/each}
         </div>
-    </div>
 
-    <!-- 3. Keamanan & Identitas Unik -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div class="space-y-3">
-            <Label for="imei" class="text-sm font-semibold"
-                >IMEI Perangkat (15 digit)</Label
-            >
-            <div class="relative">
-                <Input
-                    id="imei"
-                    bind:value={form.imei}
-                    placeholder={isErrorStatus(form.phoneStatus)
-                        ? "IMEI Tidak Wajib (HP Error)"
-                        : "Cek di *#06#..."}
-                    maxlength={15}
-                    disabled={isErrorStatus(form.phoneStatus)}
-                    class="h-11 rounded-xl font-mono tracking-wider focus:ring-2"
-                />
-                <Smartphone
-                    class="absolute right-3 top-3 h-5 w-5 text-muted-foreground/30"
-                />
-            </div>
-        </div>
-
-        <div class="space-y-3">
-            <Label for="pin" class="text-sm font-semibold"
-                >PIN / Password / Pola</Label
-            >
-            <div class="flex gap-2">
-                <Input
-                    id="pin"
-                    bind:value={form.pinPattern}
-                    placeholder={isErrorStatus(form.phoneStatus)
-                        ? "PIN Tidak Wajib"
-                        : "Input PIN atau Pola..."}
-                    class="h-11 rounded-xl font-mono"
-                    disabled={isErrorStatus(form.phoneStatus)}
-                />
-                <Button
-                    variant="outline"
-                    size="icon"
-                    class="h-11 w-11 rounded-xl shadow-sm hover:bg-primary hover:text-white transition-colors"
-                    disabled={isErrorStatus(form.phoneStatus)}
-                    onclick={() => (form.isPatternOpen = true)}
+        <!-- 3. Security & Identifiers -->
+        <div
+            class="grid md:grid-cols-2 gap-6 p-6 rounded-[2rem] bg-slate-50/50 border border-slate-100/60"
+        >
+            <div class="space-y-3">
+                <Label class="text-xs font-bold uppercase tracking-wider ml-1"
+                    >IMEI / S/N (15 Digit)</Label
                 >
-                    <Grid3X3 class="h-5 w-5" />
-                </Button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 4. Kondisi Fisik & Kelengkapan -->
-    <div
-        class="grid md:grid-cols-2 gap-8 p-6 sm:p-8 border rounded-3xl bg-card/30 border-dashed"
-    >
-        <div class="space-y-4">
-            <Label
-                class="text-base font-bold text-primary flex items-center gap-2"
-            >
-                <div class="w-2 h-2 rounded-full bg-primary"></div>
-                Kondisi Fisik
-            </Label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {#each PHYSICAL_CONDITIONS as item}
-                    <label
-                        class="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-white dark:hover:bg-card transition-all active:scale-[0.98]"
-                    >
-                        <input
-                            type="checkbox"
-                            bind:group={form.physicalConditions}
-                            value={item.v}
-                            class="w-4 h-4 rounded-md border-muted text-primary focus:ring-primary"
-                        />
-                        <span class="text-sm font-medium">{item.l}</span>
-                    </label>
-                {/each}
-            </div>
-        </div>
-
-        <div class="space-y-4">
-            <Label
-                class="text-base font-bold text-primary flex items-center gap-2"
-            >
-                <div class="w-2 h-2 rounded-full bg-primary"></div>
-                Kelengkapan Unit
-            </Label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {#each COMPLETENESS_OPTIONS as item}
-                    <label
-                        class="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-white dark:hover:bg-card transition-all active:scale-[0.98]"
-                    >
-                        <input
-                            type="checkbox"
-                            bind:group={form.completeness}
-                            value={item.v}
-                            class="w-4 h-4 rounded-md border-muted text-primary focus:ring-primary"
-                        />
-                        <span class="text-sm font-medium">{item.l}</span>
-                    </label>
-                {/each}
-            </div>
-        </div>
-
-        <div class="md:col-span-2 space-y-3 pt-2">
-            <Label for="notes" class="text-sm font-semibold"
-                >Catatan Kondisi Tambahan</Label
-            >
-            <Input
-                id="notes"
-                bind:value={form.physicalNotes}
-                placeholder="Misal: Tombol power mendem, layar ada shadow tipis..."
-                class="h-11 rounded-xl"
-            />
-        </div>
-    </div>
-
-    <!-- 5. Foto Dokumentasi -->
-    <div
-        class="space-y-4 p-6 sm:p-8 border rounded-3xl bg-muted/30 border-dashed"
-    >
-        <div class="flex items-center justify-between">
-            <Label
-                class="flex items-center gap-2 text-base font-bold text-primary"
-            >
-                <Camera class="h-5 w-5" /> Dokumentasi Foto
-            </Label>
-            <span
-                class="text-[10px] text-muted-foreground uppercase font-bold tracking-widest"
-                >{form.photos.length} / 10 Foto</span
-            >
-        </div>
-
-        <div class="flex flex-wrap gap-4">
-            {#each form.photos as photo, index}
-                <div
-                    class="relative group w-24 h-24 sm:w-28 sm:h-28 animate-in zoom-in-50 duration-300"
-                >
-                    <img
-                        src={`${API_URL}${photo}`}
-                        alt="Preview"
-                        class="w-full h-full object-cover rounded-2xl border-2 border-white shadow-md transition-transform group-hover:scale-105"
+                <div class="relative">
+                    <ScanBarcode
+                        class="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground"
                     />
-                    <button
-                        type="button"
-                        onclick={() => form.removePhoto(index)}
-                        class="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/90"
+                    <Input
+                        bind:value={form.imei}
+                        placeholder={isErrorStatus(form.phoneStatus)
+                            ? "Boleh kosong (HP Mati)"
+                            : "Scan atau ketik..."}
+                        disabled={isErrorStatus(form.phoneStatus)}
+                        class="pl-12 h-12 rounded-xl border-slate-200 bg-white font-mono tracking-wider focus:ring-cyan-500/20"
+                        maxlength={15}
+                    />
+                </div>
+            </div>
+            <div class="space-y-3">
+                <Label class="text-xs font-bold uppercase tracking-wider ml-1"
+                    >Kunci Layar</Label
+                >
+                <div class="flex gap-2">
+                    <Input
+                        bind:value={form.pinPattern}
+                        placeholder={isErrorStatus(form.phoneStatus)
+                            ? "-"
+                            : "PIN / Password"}
+                        disabled={isErrorStatus(form.phoneStatus)}
+                        class="h-12 rounded-xl bg-white border-slate-200 font-mono"
+                    />
+                    <Button
+                        size="icon"
+                        class="h-12 w-12 rounded-xl bg-slate-800 text-white hover:bg-slate-700 shadow-sm"
+                        disabled={isErrorStatus(form.phoneStatus)}
+                        onclick={() => (form.isPatternOpen = true)}
                     >
-                        <X class="h-3 w-3" />
-                    </button>
+                        <Grid3X3 class="h-5 w-5" />
+                    </Button>
                 </div>
-            {/each}
-
-            <label
-                class={cn(
-                    "w-24 h-24 sm:w-28 sm:h-28 flex flex-col items-center justify-center border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300 group shadow-sm",
-                    form.isUploading
-                        ? "bg-muted animate-pulse border-muted"
-                        : "bg-card border-primary/20 hover:border-primary hover:bg-primary/5 hover:scale-[1.02]",
-                )}
-            >
-                <div
-                    class="p-2 rounded-full bg-primary/5 group-hover:bg-primary/10 transition-colors"
-                >
-                    <Upload class="h-6 w-6 text-primary" />
-                </div>
-                <span
-                    class="text-[10px] font-bold text-muted-foreground mt-2 group-hover:text-primary transition-colors text-center px-2"
-                >
-                    {form.isUploading ? "UPLOAD..." : "UNGGAH FOTO"}
-                </span>
-                <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    class="sr-only"
-                    onchange={form.handleFileUpload.bind(form)}
-                    disabled={form.isUploading}
-                />
-            </label>
+            </div>
         </div>
-        <p class="text-[11px] text-muted-foreground italic">
-            Pastikan kondisi HP terlihat jelas. Foto akan tercetak di nota
-            servis.
-        </p>
+
+        <!-- 4. Physical & Completeness -->
+        <div class="grid md:grid-cols-2 gap-8">
+            <div class="space-y-4">
+                <h4 class="text-sm font-bold flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-cyan-500"></div>
+                     Kondisi Fisik
+                </h4>
+                <div class="grid grid-cols-2 gap-2">
+                    {#each PHYSICAL_CONDITIONS as item}
+                        <label
+                            class={cn(
+                                "cursor-pointer flex items-center gap-3 p-3 rounded-xl border transition-all",
+                                form.physicalConditions.includes(item.v)
+                                    ? "bg-cyan-50 border-cyan-200 text-cyan-800 font-medium"
+                                    : "bg-white/50 border-transparent hover:bg-white",
+                            )}
+                        >
+                            <input
+                                type="checkbox"
+                                bind:group={form.physicalConditions}
+                                value={item.v}
+                                class="rounded border-cyan-300 text-cyan-600 focus:ring-cyan-500"
+                            />
+                            <span class="text-sm">{item.l}</span>
+                        </label>
+                    {/each}
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <h4 class="text-sm font-bold flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                     Kelengkapan
+                </h4>
+                <div class="grid grid-cols-2 gap-2">
+                    {#each COMPLETENESS_OPTIONS as item}
+                        <label
+                            class={cn(
+                                "cursor-pointer flex items-center gap-3 p-3 rounded-xl border transition-all",
+                                form.completeness.includes(item.v)
+                                    ? "bg-blue-50 border-blue-200 text-blue-800 font-medium"
+                                    : "bg-white/50 border-transparent hover:bg-white",
+                            )}
+                        >
+                            <input
+                                type="checkbox"
+                                bind:group={form.completeness}
+                                value={item.v}
+                                class="rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span class="text-sm">{item.l}</span>
+                        </label>
+                    {/each}
+                </div>
+            </div>
+
+            <div class="md:col-span-2">
+                <Input
+                    bind:value={form.physicalNotes}
+                    placeholder="Catatan tambahan kondisi fisik..."
+                    class="h-12 rounded-xl bg-white/50 border-slate-200"
+                />
+            </div>
+        </div>
+
+        <!-- 5. Documentation -->
+        <div
+            class="p-6 rounded-[2rem] border-2 border-dashed border-slate-200 bg-slate-50/50"
+        >
+            <div class="flex justify-between items-center mb-4">
+                <h4 class="font-bold flex items-center gap-2 text-slate-700">
+                    <Camera class="h-5 w-5" /> Foto Dokumentasi
+                </h4>
+                <Badge variant="secondary" class="font-mono text-[10px]"
+                    >{form.photos.length}/10</Badge
+                >
+            </div>
+
+            <div class="flex flex-wrap gap-4">
+                <label
+                    class="w-24 h-24 sm:w-28 sm:h-28 flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white cursor-pointer hover:bg-cyan-50 hover:border-cyan-200 hover:text-cyan-600 transition-all shadow-sm group"
+                >
+                    <div
+                        class="p-2.5 rounded-full bg-slate-100 group-hover:bg-cyan-100 transition-colors mb-2"
+                    >
+                        <Upload class="h-5 w-5" />
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-wide"
+                        >Upload</span
+                    >
+                    <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        class="hidden"
+                        onchange={form.handleFileUpload.bind(form)}
+                        disabled={form.isUploading}
+                    />
+                </label>
+
+                {#each form.photos as photo, index}
+                    <div
+                        class="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden shadow-sm group animate-in zoom-in-50"
+                    >
+                        <img
+                            src={`${API_URL}${photo}`}
+                            alt="Evidence"
+                            class="w-full h-full object-cover"
+                        />
+                        <button
+                            onclick={() => form.removePhoto(index)}
+                            class="absolute top-1 right-1 p-1.5 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                            <X class="h-3 w-3" />
+                        </button>
+                    </div>
+                {/each}
+            </div>
+        </div>
     </div>
 </div>
 
 <!-- Pattern Lock Dialog -->
 <Dialog bind:open={form.isPatternOpen}>
-    <DialogContent class="sm:max-w-[425px] rounded-3xl">
+    <DialogContent
+        class="sm:max-w-[400px] rounded-3xl border-0 bg-slate-900/95 text-white backdrop-blur-xl"
+    >
         <DialogHeader>
-            <DialogTitle class="text-xl">Input Pola Kunci</DialogTitle>
-            <DialogDescription
-                >Gambarkan pola kunci layar perangkat pelanggan di sini.</DialogDescription
+            <DialogTitle class="text-xl text-center pt-2"
+                >Input Pola</DialogTitle
+            >
+            <DialogDescription class="text-center text-slate-400"
+                >Gambarkan pola kunci layar</DialogDescription
             >
         </DialogHeader>
-        <div
-            class="flex flex-col items-center justify-center py-10 bg-muted/30 rounded-3xl border-2 border-dashed border-muted"
-        >
+        <div class="flex flex-col items-center justify-center py-8">
             <PatternLock
-                size={280}
+                size={260}
                 on:change={(e) => form.handlePatternChange(e.detail)}
                 bind:value={form.patternPoints}
             />
-            <div class="mt-8 px-6 py-2 bg-primary/10 rounded-full">
-                <p
-                    class="text-center font-mono tracking-[0.2em] text-lg font-black text-primary"
-                >
-                    {form.patternString || "MULAI GAMBAR"}
-                </p>
+            <div
+                class="mt-6 px-4 py-1.5 rounded-full bg-white/10 text-xs font-mono tracking-[0.2em] font-bold text-cyan-400"
+            >
+                {form.patternString || "..."}
             </div>
         </div>
-        <DialogFooter class="flex gap-3 sm:gap-2">
+        <DialogFooter class="flex gap-2 w-full">
             <Button
-                variant="outline"
-                class="flex-1 rounded-xl h-11"
+                variant="ghost"
+                class="flex-1 rounded-xl hover:bg-white/10 hover:text-white"
                 onclick={() => {
                     form.patternPoints = [];
                     form.pinPattern = "";
-                }}>Reset Ulang</Button
+                }}>Reset</Button
             >
-            <Button class="flex-1 rounded-xl h-11" onclick={handleSavePattern}
-                >Simpan & Selesai</Button
+            <Button
+                class="flex-1 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white border-0"
+                onclick={handleSavePattern}>Simpan</Button
             >
         </DialogFooter>
     </DialogContent>

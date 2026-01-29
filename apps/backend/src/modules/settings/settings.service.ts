@@ -99,12 +99,16 @@ export interface ServiceSettings {
     // Workflow
     defaultStatus: "antrian" | "proses";
     autoNotifyOnStatusChange: boolean;
+    commissionModel: "completion" | "collection";
     // Warranty
     warrantyPresets: WarrantyPreset[];
     defaultWarrantyDays: number;
     gracePeriodDays: number;
     // Automation
     autoCloseAfterDays: number;
+    enableVirtualArchive: boolean;
+    archiveExclusions: string[];
+    enableLiquidation: boolean;
     reminderBeforePickup: boolean;
     reminderDays: number;
 }
@@ -169,6 +173,7 @@ const DEFAULT_SERVICE_SETTINGS: ServiceSettings = {
     resetCounterYearly: true,
     defaultStatus: "antrian",
     autoNotifyOnStatusChange: false,
+    commissionModel: "completion", // Owner Risk
     warrantyPresets: [
         { label: "Tanpa Garansi", days: 0 },
         { label: "1 Minggu", days: 7 },
@@ -179,6 +184,9 @@ const DEFAULT_SERVICE_SETTINGS: ServiceSettings = {
     defaultWarrantyDays: 7,
     gracePeriodDays: 3,
     autoCloseAfterDays: 30,
+    enableVirtualArchive: true,
+    archiveExclusions: ["dikerjakan"],
+    enableLiquidation: false,
     reminderBeforePickup: true,
     reminderDays: 7,
 };

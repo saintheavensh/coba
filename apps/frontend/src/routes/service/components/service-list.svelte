@@ -37,15 +37,20 @@
         MessageSquare,
         Trash2,
         ScanBarcode,
-        Camera, // Keep if used, though not seen in use in logic, maybe in modal
-        Upload, // Keep if used
+        Camera,
+        Upload,
         Plus,
+        Filter,
+        RefreshCw,
+        Archive,
     } from "lucide-svelte";
     import { goto } from "$app/navigation";
     import { Separator } from "$lib/components/ui/separator";
     import { page } from "$app/stores";
     import { refreshServiceList } from "$lib/stores/events";
     import { toast } from "svelte-sonner";
+    import { fade, fly } from "svelte/transition";
+    import { cn } from "$lib/utils";
 
     // Modals
     import ReassignTechnicianModal from "./reassign-technician-modal.svelte";
@@ -65,9 +70,16 @@
     import { Textarea } from "$lib/components/ui/textarea";
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
 
+    import {
+        SettingsService,
+        type ServiceSettings,
+    } from "$lib/services/settings.service";
+    import { Switch } from "$lib/components/ui/switch";
+
     // Data State
     let serviceOrders = $state<any[]>([]);
     let loading = $state(false);
+    let settings = $state<ServiceSettings | null>(null);
 
     // User State for RBAC
     let userRole = $state("admin");
@@ -77,6 +89,7 @@
     let searchQuery = $state("");
     let filterStatus = $state("all");
     let filterTechnician = $state("all");
+    let showArchived = $state(false);
     let technicians = $state<{ id: string; name: string }[]>([]);
 
     // Component States
@@ -158,6 +171,14 @@
         }
     }
 
+    async function loadSettings() {
+        try {
+            settings = await SettingsService.getServiceSettings();
+        } catch (e) {
+            console.error("Failed to load settings", e);
+        }
+    }
+
     onMount(() => {
         try {
             const u = JSON.parse(localStorage.getItem("user") || "{}");
@@ -172,6 +193,7 @@
             filterStatus = urlStatus;
         }
         loadTechnicians();
+        loadSettings();
         loadData();
     });
 
@@ -195,6 +217,19 @@
         loadData();
     });
 
+    function isArchived(order: any) {
+        if (!settings || !settings.enableVirtualArchive) return false;
+
+        // Check exclusions first
+        if (settings.archiveExclusions?.includes(order.status)) return false;
+
+        const lastUpdate = new Date(order.updatedAt || order.dateIn);
+        const diffTime = Math.abs(new Date().getTime() - lastUpdate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        return diffDays > settings.autoCloseAfterDays;
+    }
+
     // Filtering logic (Client-side fallback)
     let filteredOrders = $derived(
         serviceOrders.filter((order) => {
@@ -204,6 +239,12 @@
                 order.customer.name.toLowerCase().includes(term) ||
                 order.device.brand.toLowerCase().includes(term) ||
                 (order.technician?.name || "").toLowerCase().includes(term);
+
+            // Virtual Archive Logic
+            // If searching, we INCLUDE archives (implicit search).
+            // If NOT searching, we respect the toggle.
+            const archived = isArchived(order);
+            if (!searchQuery && !showArchived && archived) return false;
 
             // Technician isolation
             let matchesTechnician = true;
@@ -228,29 +269,29 @@
                 return {
                     label: "Antrian",
                     variant: "outline",
-                    className: "",
+                    className: "border-blue-200 text-blue-700 bg-blue-50",
                     icon: "🕒",
                 };
             case "dicek":
                 return {
                     label: "Sedang Dicek",
                     variant: "secondary",
-                    className: "bg-blue-100 text-blue-700 hover:bg-blue-100",
+                    className:
+                        "bg-indigo-100 text-indigo-700 hover:bg-indigo-100",
                     icon: "🔍",
                 };
             case "konfirmasi":
                 return {
                     label: "Tunggu Konfirmasi",
                     variant: "secondary",
-                    className:
-                        "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
+                    className: "bg-amber-100 text-amber-700 hover:bg-amber-100",
                     icon: "💬",
                 };
             case "dikerjakan":
                 return {
                     label: "Sedang Dikerjakan",
                     variant: "default",
-                    className: "",
+                    className: "bg-purple-600 hover:bg-purple-700",
                     icon: "🔧",
                 };
             case "selesai":
@@ -258,14 +299,14 @@
                     label: "Selesai",
                     variant: "outline",
                     className:
-                        "bg-green-100 text-green-700 border-green-200 hover:bg-green-100",
+                        "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100",
                     icon: "✅",
                 };
             case "diambil":
                 return {
                     label: "Sudah Diambil",
                     variant: "outline",
-                    className: "text-muted-foreground",
+                    className: "text-muted-foreground bg-muted",
                     icon: "👋",
                 };
             case "batal":
@@ -310,7 +351,7 @@
                 return {
                     label: "Konfirmasi",
                     icon: ChevronRight,
-                    color: "bg-yellow-600 hover:bg-yellow-700 text-white",
+                    color: "bg-amber-600 hover:bg-amber-700 text-white",
                     needsModal: false,
                 };
             case "konfirmasi":
@@ -324,7 +365,7 @@
                 return {
                     label: "Selesai",
                     icon: CheckCircle,
-                    color: "bg-green-600 hover:bg-green-700 text-white",
+                    color: "bg-emerald-600 hover:bg-emerald-700 text-white",
                     needsModal: false,
                 };
             case "selesai":
@@ -332,7 +373,7 @@
                 return {
                     label: "Diambil",
                     icon: Package,
-                    color: "bg-teal-600 hover:bg-teal-700 text-white",
+                    color: "bg-slate-600 hover:bg-slate-700 text-white",
                     needsModal: true,
                 };
             default:
@@ -561,7 +602,7 @@
             count: statusCounts.antrian,
             icon: "🕒",
             color: "text-blue-600",
-            bg: "bg-blue-50",
+            bg: "bg-blue-50/50 backdrop-blur-sm border-blue-200",
         },
         {
             id: "dicek",
@@ -569,7 +610,7 @@
             count: statusCounts.dicek,
             icon: "🔍",
             color: "text-indigo-600",
-            bg: "bg-indigo-50",
+            bg: "bg-indigo-50/50 backdrop-blur-sm border-indigo-200",
         },
         {
             id: "konfirmasi",
@@ -577,7 +618,7 @@
             count: statusCounts.konfirmasi,
             icon: "💬",
             color: "text-amber-600",
-            bg: "bg-amber-50",
+            bg: "bg-amber-50/50 backdrop-blur-sm border-amber-200",
         },
         {
             id: "dikerjakan",
@@ -585,7 +626,7 @@
             count: statusCounts.dikerjakan,
             icon: "🔧",
             color: "text-purple-600",
-            bg: "bg-purple-50",
+            bg: "bg-purple-50/50 backdrop-blur-sm border-purple-200",
         },
         {
             id: "selesai",
@@ -593,402 +634,551 @@
             count: statusCounts.selesai,
             icon: "✅",
             color: "text-emerald-600",
-            bg: "bg-emerald-50",
+            bg: "bg-emerald-50/50 backdrop-blur-sm border-emerald-200",
         },
     ]);
 </script>
 
-<Card>
-    <CardHeader class="flex flex-row items-center justify-between pb-2">
-        <div>
-            <CardTitle class="text-2xl font-bold">Service Order</CardTitle>
-            <CardDescription>
-                Monitor dan kelola alur kerja reparasi secara real-time.
-            </CardDescription>
-        </div>
-        <div class="flex gap-2">
-            <Button
-                variant="outline"
-                size="sm"
-                onclick={loadData}
-                disabled={loading}
+<div class="space-y-6">
+    <!-- Dashboard Tiles -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        {#each statusTiles as tile}
+            <button
+                class={`p-4 rounded-xl border transition-all text-left relative overflow-hidden group hover:shadow-md ${filterStatus === tile.id ? "ring-2 ring-offset-2 " + tile.color.replace("text-", "ring-") : "border-transparent bg-background/60 shadow-sm"}`}
+                class:ring-2={filterStatus === tile.id}
+                onclick={() => (filterStatus = tile.id)}
             >
-                <Play class={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                Update Data
-            </Button>
-            <Button size="sm" href="/service/new">
-                <Plus class="h-4 w-4 mr-2" /> Service Baru
-            </Button>
-        </div>
-    </CardHeader>
-    <CardContent class="space-y-6">
-        <!-- Dashboard Tiles -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {#each statusTiles as tile}
-                <button
-                    class={`p-4 rounded-2xl border-2 transition-all text-left group ${filterStatus === tile.id ? "border-primary shadow-md ring-2 ring-primary/10" : "border-transparent bg-muted/30 hover:bg-muted hover:border-muted-foreground/20"}`}
-                    onclick={() => (filterStatus = tile.id)}
-                >
-                    <div class="flex justify-between items-start">
-                        <div
-                            class={`p-2 rounded-xl ${tile.bg} ${tile.color} text-lg`}
-                        >
-                            {tile.icon}
-                        </div>
-                        <span class="text-2xl font-black">{tile.count}</span>
+                <div class={`absolute inset-0 opacity-20 ${tile.bg}`}></div>
+                <div class="relative z-10 flex justify-between items-start">
+                    <div
+                        class={`p-2 rounded-lg bg-white/50 backdrop-blur shadow-sm ${tile.color}`}
+                    >
+                        <span class="text-xl leading-none">{tile.icon}</span>
                     </div>
-                    <div class="mt-4">
-                        <p
-                            class="text-xs font-bold text-muted-foreground uppercase tracking-tight"
-                        >
-                            {tile.label}
-                        </p>
-                        <div
-                            class="h-1 w-8 bg-primary/20 rounded-full mt-1 group-hover:w-12 transition-all"
-                        ></div>
-                    </div>
-                </button>
-            {/each}
-        </div>
-
-        <Separator />
-        <!-- Filters -->
-        <div class="flex flex-col sm:flex-row gap-4">
-            <div class="relative flex-1 md:max-w-sm flex gap-2">
-                <div class="relative flex-1">
-                    <Search
-                        class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
-                    />
-                    <Input
-                        type="search"
-                        placeholder="Cari Service No, Customer, Device..."
-                        class="pl-8"
-                        bind:ref={searchInput}
-                        bind:value={searchQuery}
-                        onkeydown={(e) => {
-                            if (e.key === "Enter") {
-                                if (filteredOrders.length === 1) {
-                                    viewServiceDetail(filteredOrders[0].id);
-                                    searchQuery = "";
-                                }
-                            }
-                        }}
-                    />
+                    <span class={`text-3xl font-black ${tile.color}`}
+                        >{tile.count}</span
+                    >
                 </div>
+                <div class="relative z-10 mt-3">
+                    <p
+                        class="text-xs font-bold text-muted-foreground uppercase tracking-wider"
+                    >
+                        {tile.label}
+                    </p>
+                </div>
+            </button>
+        {/each}
+    </div>
+
+    <!-- Main Card -->
+    <div class="rounded-xl border bg-card/60 backdrop-blur-sm shadow-sm">
+        <div
+            class="p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b"
+        >
+            <div class="space-y-1">
+                <h2 class="text-xl font-bold tracking-tight">Daftar Service</h2>
+                <p class="text-sm text-muted-foreground">
+                    Monitor semua aktifitas service di toko anda.
+                </p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                <Button
+                    size="sm"
+                    href="/service/new"
+                    class="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
+                >
+                    <Plus class="h-4 w-4 mr-2" /> Service Baru
+                </Button>
                 <Button
                     variant="outline"
-                    size="icon"
-                    title="Mode Scan Barcode"
-                    class="md:hidden"
-                    onclick={() => {
-                        showScanner = true;
-                    }}
+                    size="sm"
+                    onclick={loadData}
+                    disabled={loading}
+                    class="w-full sm:w-auto"
                 >
-                    <ScanBarcode class="h-4 w-4" />
+                    <RefreshCw
+                        class={`h-3.5 w-3.5 mr-2 ${loading ? "animate-spin" : ""}`}
+                    />
+                    Refresh
                 </Button>
             </div>
-            {#if isAllDataView}
-                <Select type="single" name="status" bind:value={filterStatus}>
-                    <SelectTrigger class="w-full sm:w-[180px]">
-                        {filterStatus === "all" ? "Semua Status" : filterStatus}
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Status</SelectItem>
-                        <SelectItem value="antrian">Antrian</SelectItem>
-                        <SelectItem value="dicek">Sedang Dicek</SelectItem>
-                        <SelectItem value="konfirmasi">Konfirmasi</SelectItem>
-                        <SelectItem value="dikerjakan">Dikerjakan</SelectItem>
-                        <SelectItem value="re-konfirmasi"
-                            >Re-konfirmasi</SelectItem
-                        >
-                        <SelectItem value="selesai">Selesai</SelectItem>
-                        <SelectItem value="diambil">Sudah Diambil</SelectItem>
-                        <SelectItem value="batal">Dibatalkan</SelectItem>
-                    </SelectContent>
-                </Select>
-                {#if userRole !== "teknisi"}
-                    <Select
-                        type="single"
-                        name="technician"
-                        bind:value={filterTechnician}
-                    >
-                        <SelectTrigger class="w-full sm:w-[180px]">
-                            {filterTechnician === "all"
-                                ? "Semua Teknisi"
-                                : filterTechnician === "unassigned"
-                                  ? "Belum Assign"
-                                  : technicians.find(
-                                        (t) => t.id === filterTechnician,
-                                    )?.name || filterTechnician}
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Semua Teknisi</SelectItem>
-                            <SelectItem value="unassigned"
-                                >Belum Assign</SelectItem
-                            >
-                            {#each technicians as tech}
-                                <SelectItem value={tech.id}
-                                    >{tech.name}</SelectItem
-                                >
-                            {/each}
-                        </SelectContent>
-                    </Select>
-                {/if}
-            {/if}
         </div>
 
-        <!-- Mobile Card List -->
-        <div class="grid gap-4 md:hidden">
-            {#if loading}
-                <div class="text-center p-4">Loading...</div>
-            {:else if filteredOrders.length === 0}
-                <div class="text-center p-4 text-muted-foreground">
-                    Tidak ada data service.
+        <div class="p-6 space-y-6">
+            <!-- Filters -->
+            <div
+                class="flex flex-col sm:flex-row gap-4 bg-muted/40 p-4 rounded-xl border"
+            >
+                <div class="relative flex-1 md:max-w-md flex gap-2">
+                    <div class="relative flex-1">
+                        <Search
+                            class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                        />
+                        <Input
+                            type="search"
+                            placeholder="Cari Service No, Customer, Device..."
+                            class="pl-9 bg-background border-input/60"
+                            bind:ref={searchInput}
+                            bind:value={searchQuery}
+                            onkeydown={(e) => {
+                                if (e.key === "Enter") {
+                                    if (filteredOrders.length === 1) {
+                                        viewServiceDetail(filteredOrders[0].id);
+                                        searchQuery = "";
+                                    }
+                                }
+                            }}
+                        />
+                    </div>
                 </div>
-            {:else}
-                {#each filteredOrders as order}
-                    {@const statusInfo = getStatusBadge(order.status)}
+                {#if isAllDataView}
                     <div
-                        class="rounded-lg border p-4 space-y-3 bg-card text-card-foreground shadow-sm"
+                        class="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0"
                     >
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <div class="font-medium text-primary">
-                                    {order.no}
-                                </div>
-                                <div class="text-xs text-muted-foreground">
-                                    {new Date(
-                                        order.dateIn,
-                                    ).toLocaleDateString()}
-                                </div>
-                            </div>
-                            <Badge
-                                variant={statusInfo.variant as any}
-                                class={statusInfo.className}
+                        <Select
+                            type="single"
+                            name="status"
+                            bind:value={filterStatus}
+                        >
+                            <SelectTrigger
+                                class="w-[160px] bg-background border-input/60"
                             >
-                                {statusInfo.icon}
-                                {statusInfo.label}
-                            </Badge>
-                        </div>
-                        <Separator />
-                        <div class="grid grid-cols-2 gap-2 text-sm">
-                            <div>
-                                <div class="text-muted-foreground text-xs">
-                                    Customer
-                                </div>
-                                <div class="font-medium">
-                                    {order.customer.name}
-                                </div>
-                                <div class="text-xs text-muted-foreground">
-                                    {order.customer.phone}
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-muted-foreground text-xs">
-                                    Handphone
-                                </div>
-                                <div class="font-medium">
-                                    {order.device.brand}
-                                    {order.device.model}
-                                </div>
-                                <div
-                                    class="text-xs text-muted-foreground truncate"
-                                    title={order.device.imei}
+                                <Filter
+                                    class="w-3.5 h-3.5 mr-2 text-muted-foreground"
+                                />
+                                <span class="truncate"
+                                    >{filterStatus === "all"
+                                        ? "Semua Status"
+                                        : filterStatus}</span
                                 >
-                                    {order.device.imei || "-"}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex justify-between items-center pt-2">
-                            <div class="text-sm">
-                                <span
-                                    class="text-muted-foreground text-xs block"
-                                    >Teknisi</span
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Status</SelectItem
                                 >
-                                {#if order.technician}
-                                    <span class="font-medium"
-                                        >{order.technician.name}</span
-                                    >
-                                {:else}
-                                    <span class="text-muted-foreground italic"
-                                        >Unassigned</span
-                                    >
-                                {/if}
-                            </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onclick={() => viewServiceDetail(order.id)}
+                                <SelectItem value="antrian">Antrian</SelectItem>
+                                <SelectItem value="dicek"
+                                    >Sedang Dicek</SelectItem
+                                >
+                                <SelectItem value="konfirmasi"
+                                    >Konfirmasi</SelectItem
+                                >
+                                <SelectItem value="dikerjakan"
+                                    >Dikerjakan</SelectItem
+                                >
+                                <SelectItem value="re-konfirmasi"
+                                    >Re-konfirmasi</SelectItem
+                                >
+                                <SelectItem value="selesai">Selesai</SelectItem>
+                                <SelectItem value="diambil"
+                                    >Sudah Diambil</SelectItem
+                                >
+                                <SelectItem value="batal">Dibatalkan</SelectItem
+                                >
+                            </SelectContent>
+                        </Select>
+                        {#if userRole !== "teknisi"}
+                            <Select
+                                type="single"
+                                name="technician"
+                                bind:value={filterTechnician}
                             >
-                                <Eye class="mr-2 h-3 w-3" /> Detail
-                            </Button>
+                                <SelectTrigger
+                                    class="w-[160px] bg-background border-input/60"
+                                >
+                                    <UserPlus
+                                        class="w-3.5 h-3.5 mr-2 text-muted-foreground"
+                                    />
+                                    <span class="truncate"
+                                        >{filterTechnician === "all"
+                                            ? "Semua Teknisi"
+                                            : filterTechnician === "unassigned"
+                                              ? "Belum Assign"
+                                              : technicians.find(
+                                                    (t) =>
+                                                        t.id ===
+                                                        filterTechnician,
+                                                )?.name ||
+                                                filterTechnician}</span
+                                    >
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all"
+                                        >Semua Teknisi</SelectItem
+                                    >
+                                    <SelectItem value="unassigned"
+                                        >Belum Assign</SelectItem
+                                    >
+                                    {#each technicians as tech}
+                                        <SelectItem value={tech.id}
+                                            >{tech.name}</SelectItem
+                                        >
+                                    {/each}
+                                </SelectContent>
+                            </Select>
+                        {/if}
+                    </div>
+                {/if}
+
+                {#if isAllDataView && settings?.enableVirtualArchive}
+                    <div class="flex items-center gap-2 pl-2 border-l ml-2">
+                        <div class="flex items-center gap-2">
+                            <Switch
+                                id="show-archived"
+                                bind:checked={showArchived}
+                            />
+                            <Label
+                                for="show-archived"
+                                class="text-xs cursor-pointer select-none flex items-center gap-1.5 whitespace-nowrap"
+                            >
+                                <Archive
+                                    class="h-3.5 w-3.5 text-muted-foreground"
+                                />
+                                {showArchived
+                                    ? "Sembunyikan Arsip"
+                                    : "Tampilkan Arsip"}
+                            </Label>
                         </div>
                     </div>
-                {/each}
-            {/if}
-        </div>
+                {/if}
+            </div>
 
-        <!-- Desktop Table -->
-        <div class="hidden md:block rounded-md border">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>No. Service</TableHead>
-                        <TableHead>Tanggal</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Handphone</TableHead>
-                        <TableHead>Warna</TableHead>
-                        <TableHead>Teknisi</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead class="text-right">Aksi</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {#if loading}
+            <!-- Desktop Table -->
+            <div
+                class="hidden md:block rounded-xl border bg-background/50 overflow-hidden"
+            >
+                <Table>
+                    <TableHeader class="bg-muted/50">
                         <TableRow>
-                            <TableCell colspan={7} class="text-center h-24"
-                                >Loading...</TableCell
-                            >
+                            <TableHead class="w-[120px]">No. Service</TableHead>
+                            <TableHead class="w-[140px]">Tanggal</TableHead>
+                            <TableHead>Customer</TableHead>
+                            <TableHead>Handphone</TableHead>
+                            <TableHead>Teknisi</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead class="text-right">Aksi</TableHead>
                         </TableRow>
-                    {:else if filteredOrders.length === 0}
-                        <TableRow>
-                            <TableCell
-                                colspan={7}
-                                class="text-center h-24 text-muted-foreground"
-                                >Tidak ada data service.</TableCell
-                            >
-                        </TableRow>
-                    {:else}
-                        {#each filteredOrders as order}
+                    </TableHeader>
+                    <TableBody>
+                        {#if loading}
                             <TableRow>
-                                <TableCell class="font-medium text-primary"
-                                    >{order.no}</TableCell
-                                >
-                                <TableCell
-                                    >{new Date(
-                                        order.dateIn,
-                                    ).toLocaleDateString()}</TableCell
-                                >
-                                <TableCell>
-                                    <div class="flex flex-col">
-                                        <span class="font-medium"
-                                            >{order.customer.name}</span
-                                        >
-                                        <span
-                                            class="text-xs text-muted-foreground"
-                                            >{order.customer.phone}</span
-                                        >
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <div class="flex flex-col">
-                                        <span
-                                            >{order.device.brand}
-                                            {order.device.model}</span
-                                        >
-                                        <span
-                                            class="text-xs text-muted-foreground"
-                                            >IMEI: {order.device.imei ||
-                                                "-"}</span
-                                        >
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <span class="text-sm"
-                                        >{order.device.color || "-"}</span
+                                <TableCell colspan={7} class="text-center h-32">
+                                    <div
+                                        class="flex flex-col items-center justify-center gap-2 text-muted-foreground"
                                     >
-                                </TableCell>
-                                <TableCell>
-                                    <div class="flex items-center gap-2">
-                                        {#if order.technician}
-                                            <Badge variant="outline"
-                                                >{order.technician.name}</Badge
-                                            >
-                                        {:else}
-                                            <span
-                                                class="text-sm text-muted-foreground italic"
-                                                >Belum assign</span
-                                            >
-                                        {/if}
+                                        <span
+                                            class="loading loading-spinner loading-sm"
+                                        ></span>
+                                        Memuat data...
                                     </div>
-                                </TableCell>
-                                <TableCell>
-                                    {@const statusInfo = getStatusBadge(
-                                        order.status,
-                                    )}
-                                    <Badge
-                                        variant={statusInfo.variant as any}
-                                        class={statusInfo.className}
-                                    >
-                                        {statusInfo.icon}
-                                        {statusInfo.label}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell class="text-right">
-                                    {@const nextAction = getNextAction(
-                                        order.status,
-                                        !!order.technician,
-                                    )}
-                                    {#if nextAction}
-                                        <Button
-                                            size="sm"
-                                            class="{nextAction.color} h-7 px-2 text-xs"
-                                            onclick={() =>
-                                                handleQuickAction(order)}
-                                            title={nextAction.label}
-                                        >
-                                            {@const IconComponent =
-                                                nextAction.icon}
-                                            <IconComponent
-                                                class="h-3 w-3 mr-1"
-                                            />
-                                            {nextAction.label}
-                                        </Button>
-                                    {/if}
-                                    {#if order.status === "dikerjakan"}
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            class="h-7 px-2 text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
-                                            onclick={() =>
-                                                openReconfirmModal(order)}
-                                            title="Rekonfirmasi ke Customer"
-                                        >
-                                            <MessageSquare
-                                                class="h-3 w-3 mr-1"
-                                            /> Rekon
-                                        </Button>
-                                    {/if}
-                                    {#if userRole !== "teknisi"}
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            class="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                            onclick={() =>
-                                                handleDelete(order.id)}
-                                            title="Hapus"
-                                        >
-                                            <Trash2 class="h-4 w-4" />
-                                        </Button>
-                                    {/if}
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-8 w-8"
-                                        onclick={() =>
-                                            viewServiceDetail(order.id)}
-                                    >
-                                        <Eye class="h-4 w-4" />
-                                    </Button>
                                 </TableCell>
                             </TableRow>
-                        {/each}
-                    {/if}
-                </TableBody>
-            </Table>
+                        {:else if filteredOrders.length === 0}
+                            <TableRow>
+                                <TableCell
+                                    colspan={7}
+                                    class="text-center h-32 text-muted-foreground"
+                                >
+                                    <div
+                                        class="flex flex-col items-center justify-center gap-2 opacity-60"
+                                    >
+                                        <Package class="h-8 w-8" />
+                                        Tidak ada data service ditemukan.
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        {:else}
+                            {#each filteredOrders as order}
+                                {@const statusInfo = getStatusBadge(
+                                    order.status,
+                                )}
+                                {@const nextAction = getNextAction(
+                                    order.status,
+                                    !!order.technician,
+                                )}
+                                <TableRow
+                                    class={cn(
+                                        "hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors",
+                                        isArchived(order) &&
+                                            "bg-slate-50/50 dark:bg-slate-900/50 opacity-75 grayscale-[0.8]",
+                                    )}
+                                >
+                                    <TableCell>
+                                        <span
+                                            class="font-mono font-bold text-blue-600"
+                                            >{order.no}</span
+                                        >
+                                    </TableCell>
+                                    <TableCell class="text-muted-foreground">
+                                        {new Date(
+                                            order.dateIn,
+                                        ).toLocaleDateString()}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div class="flex flex-col">
+                                            <span class="font-medium"
+                                                >{order.customer.name}</span
+                                            >
+                                            <span
+                                                class="text-xs text-muted-foreground"
+                                                >{order.customer.phone}</span
+                                            >
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div class="flex flex-col">
+                                            <span class="font-medium"
+                                                >{order.device.brand}
+                                                {order.device.model}</span
+                                            >
+                                            <span
+                                                class="text-xs text-muted-foreground flex gap-1 items-center"
+                                                ><span
+                                                    class="w-2 h-2 rounded-full bg-slate-200 inline-block"
+                                                ></span>
+                                                {order.device.color ||
+                                                    "No Color"}</span
+                                            >
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        {#if order.technician}
+                                            <div
+                                                class="flex items-center gap-2"
+                                            >
+                                                <div
+                                                    class="h-6 w-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold"
+                                                >
+                                                    {order.technician.name
+                                                        .substring(0, 2)
+                                                        .toUpperCase()}
+                                                </div>
+                                                <span class="text-sm"
+                                                    >{order.technician
+                                                        .name}</span
+                                                >
+                                            </div>
+                                        {:else}
+                                            <Badge
+                                                variant="outline"
+                                                class="text-xs font-normal text-muted-foreground border-dashed"
+                                                >Unassigned</Badge
+                                            >
+                                        {/if}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div
+                                            class="flex flex-col gap-1 items-start"
+                                        >
+                                            {#if isArchived(order)}
+                                                <Badge
+                                                    variant="secondary"
+                                                    class="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700 px-1.5 h-5 pointer-events-none"
+                                                >
+                                                    <Archive
+                                                        class="h-3 w-3 mr-1"
+                                                    />
+                                                    Arsip
+                                                </Badge>
+                                            {/if}
+
+                                            <Badge
+                                                variant={statusInfo.variant as any}
+                                                class={`whitespace-nowrap ${statusInfo.className}`}
+                                            >
+                                                <span class="mr-1.5"
+                                                    >{statusInfo.icon}</span
+                                                >
+                                                {statusInfo.label}
+                                            </Badge>
+                                        </div></TableCell
+                                    >
+                                    <TableCell class="text-right">
+                                        <div
+                                            class="flex items-center justify-end gap-1"
+                                        >
+                                            {#if nextAction}
+                                                <Button
+                                                    size="sm"
+                                                    class="{nextAction.color} h-8 px-3 text-xs shadow-sm"
+                                                    onclick={() =>
+                                                        handleQuickAction(
+                                                            order,
+                                                        )}
+                                                    title={nextAction.label}
+                                                >
+                                                    {@const IconComponent =
+                                                        nextAction.icon}
+                                                    <IconComponent
+                                                        class="h-3.5 w-3.5 mr-1.5"
+                                                    />
+                                                    {nextAction.label}
+                                                </Button>
+                                            {/if}
+                                            {#if order.status === "dikerjakan"}
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    class="h-8 px-2 text-xs text-orange-600 border-orange-200 hover:bg-orange-50"
+                                                    onclick={() =>
+                                                        openReconfirmModal(
+                                                            order,
+                                                        )}
+                                                    title="Rekonfirmasi"
+                                                >
+                                                    <MessageSquare
+                                                        class="h-3.5 w-3.5"
+                                                    />
+                                                </Button>
+                                            {/if}
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                class="h-8 w-8"
+                                                onclick={() =>
+                                                    viewServiceDetail(order.id)}
+                                            >
+                                                <Eye
+                                                    class="h-4 w-4 text-muted-foreground"
+                                                />
+                                            </Button>
+                                            {#if userRole !== "teknisi"}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    class="h-8 w-8 hover:text-red-600 hover:bg-red-50"
+                                                    onclick={() =>
+                                                        handleDelete(order.id)}
+                                                    title="Hapus"
+                                                >
+                                                    <Trash2
+                                                        class="h-4 w-4 text-muted-foreground/60"
+                                                    />
+                                                </Button>
+                                            {/if}
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            {/each}
+                        {/if}
+                    </TableBody>
+                </Table>
+            </div>
+
+            <!-- Mobile Card List -->
+            <div class="grid gap-4 md:hidden">
+                {#if loading}
+                    <div class="text-center p-4">Loading...</div>
+                {:else if filteredOrders.length === 0}
+                    <div
+                        class="text-center p-4 text-muted-foreground border rounded-lg border-dashed"
+                    >
+                        Tidak ada data service.
+                    </div>
+                {:else}
+                    {#each filteredOrders as order}
+                        {@const statusInfo = getStatusBadge(order.status)}
+                        {@const nextAction = getNextAction(
+                            order.status,
+                            !!order.technician,
+                        )}
+                        <div
+                            class="rounded-xl border p-4 space-y-3 bg-card shadow-sm active:scale-[0.99] transition-transform"
+                        >
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div
+                                        class="font-bold text-blue-600 text-lg"
+                                    >
+                                        {order.no}
+                                    </div>
+                                    <div
+                                        class="text-xs text-muted-foreground flex items-center gap-1"
+                                    >
+                                        <div
+                                            class="h-1.5 w-1.5 rounded-full bg-muted-foreground"
+                                        ></div>
+                                        {new Date(
+                                            order.dateIn,
+                                        ).toLocaleDateString()}
+                                    </div>
+                                </div>
+                                <Badge
+                                    variant={statusInfo.variant as any}
+                                    class={statusInfo.className}
+                                >
+                                    {statusInfo.icon}
+                                </Badge>
+                            </div>
+
+                            <div
+                                class="flex gap-2 text-sm bg-muted/30 p-2 rounded-lg"
+                            >
+                                <span class="font-medium flex-1 truncate"
+                                    >{order.device.brand}
+                                    {order.device.model}</span
+                                >
+                                <span
+                                    class="text-muted-foreground text-xs border-l pl-2"
+                                    >{order.device.color || "-"}</span
+                                >
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                    <span
+                                        class="text-muted-foreground block mb-0.5"
+                                        >Customer</span
+                                    >
+                                    <span class="font-medium truncate block"
+                                        >{order.customer.name}</span
+                                    >
+                                </div>
+                                <div>
+                                    <span
+                                        class="text-muted-foreground block mb-0.5"
+                                        >Teknisi</span
+                                    >
+                                    <span class="font-medium truncate block"
+                                        >{order.technician?.name ||
+                                            "Unassigned"}</span
+                                    >
+                                </div>
+                            </div>
+
+                            <Separator />
+
+                            <div class="flex gap-2">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    class="flex-1"
+                                    onclick={() => viewServiceDetail(order.id)}
+                                >
+                                    Detail
+                                </Button>
+                                {#if nextAction}
+                                    <Button
+                                        size="sm"
+                                        class={`flex-1 ${nextAction.color}`}
+                                        onclick={() => handleQuickAction(order)}
+                                    >
+                                        {@const IconComponent = nextAction.icon}
+                                        <IconComponent
+                                            class="h-3.5 w-3.5 mr-1.5"
+                                        />
+                                        {nextAction.label}
+                                    </Button>
+                                {/if}
+                            </div>
+                        </div>
+                    {/each}
+                {/if}
+            </div>
         </div>
-    </CardContent>
-</Card>
+    </div>
+</div>
+
+<!-- Modal Logic components below remain unchanged in functionality but likely share styles with global theme -->
 
 {#if selectedServiceForReassign}
     <ReassignTechnicianModal
@@ -1339,7 +1529,3 @@
         </AlertDialog.Footer>
     </AlertDialog.Content>
 </AlertDialog.Root>
-
-<style>
-    /* Styling for the component */
-</style>

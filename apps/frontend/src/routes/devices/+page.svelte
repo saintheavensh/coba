@@ -29,6 +29,13 @@
         Tags,
         Boxes,
         Database,
+        Network,
+        Calendar,
+        Cpu,
+        Camera,
+        Battery,
+        QrCode,
+        Palette,
     } from "lucide-svelte";
     import { Checkbox } from "$lib/components/ui/checkbox";
     import { cn } from "$lib/utils";
@@ -1294,160 +1301,201 @@
 
     <!-- Dialog -->
     <Dialog bind:open onOpenChange={(isOpen) => !isOpen && resetForm()}>
-        <DialogContent class="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-                <DialogTitle>
-                    {editingId ? "Edit Device" : "Tambah Device Baru"}
-                </DialogTitle>
-                <DialogDescription>
-                    Isi informasi detail spesifikasi device handphone.
-                </DialogDescription>
-            </DialogHeader>
+        <DialogContent
+            class="sm:max-w-[750px] max-h-[90vh] overflow-y-auto p-0 gap-0 overflow-x-hidden"
+        >
+            <div
+                class="px-6 py-4 border-b bg-background/95 backdrop-blur z-10 sticky top-0"
+            >
+                <DialogHeader>
+                    <DialogTitle
+                        class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
+                    >
+                        {editingId ? "Edit Device" : "Tambah Device Baru"}
+                    </DialogTitle>
+                    <DialogDescription>
+                        Isi informasi detail spesifikasi device handphone.
+                    </DialogDescription>
+                </DialogHeader>
+            </div>
 
-            <div class="grid gap-4 py-4">
+            <div class="p-6 space-y-6">
                 <!-- Scraper Input -->
                 <div
-                    class="flex items-end gap-2 p-3 bg-muted/20 border rounded-lg mb-2"
+                    class="rounded-xl border border-blue-200/50 bg-blue-50/30 dark:bg-blue-900/10 p-4 space-y-3"
                 >
-                    <div class="grid gap-2 flex-1">
-                        <Label
-                            class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
-                        >
-                            Import from GSMArena
-                        </Label>
-                        <div class="relative">
+                    <div
+                        class="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-semibold text-sm"
+                    >
+                        <Download class="h-4 w-4" />
+                        <span>Import dari GSMArena</span>
+                    </div>
+                    <div class="flex gap-3">
+                        <div class="relative flex-1">
                             <Link
-                                class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
+                                class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
                             />
                             <Input
                                 bind:value={scrapeUrl}
                                 placeholder="Paste Link (https://www.gsmarena.com/...)"
-                                class="pl-9"
+                                class="pl-9 bg-background/50 border-blue-200/50 focus:border-blue-400 focus:ring-blue-400/20"
                                 disabled={isScraping}
                             />
                         </div>
-                    </div>
-                    <Button
-                        variant="secondary"
-                        onclick={handleScrape}
-                        disabled={isScraping || !scrapeUrl}
-                    >
-                        {#if isScraping}
-                            <Loader2 class="h-4 w-4 animate-spin" />
-                        {:else}
-                            Fetch
-                        {/if}
-                    </Button>
-                </div>
-
-                <div class="flex justify-center mb-2">
-                    <ImageUpload
-                        bind:value={image}
-                        folder={brand
-                            ? brandMap[brand]?.name || brand
-                            : "devices"}
-                    />
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="grid gap-2">
-                        <Label
-                            class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
-                            >Brand</Label
+                        <Button
+                            onclick={handleScrape}
+                            disabled={isScraping || !scrapeUrl}
+                            class="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 transition-all"
                         >
-                        <Select type="single" bind:value={brand}>
-                            <SelectTrigger>
-                                <span
-                                    >{brand
-                                        ? brandMap[brand]?.name || brand
-                                        : "Pilih Brand"}</span
+                            {#if isScraping}
+                                <Loader2 class="h-4 w-4 animate-spin mr-2" />
+                                Analyzing...
+                            {:else}
+                                Fetch Data
+                            {/if}
+                        </Button>
+                    </div>
+                </div>
+
+                <!-- Basic Info -->
+                <div class="space-y-4">
+                    <h4
+                        class="text-sm font-semibold text-foreground/70 border-b pb-2"
+                    >
+                        Informasi Utama
+                    </h4>
+
+                    <div class="flex justify-center py-2">
+                        <ImageUpload
+                            bind:value={image}
+                            folder={brand
+                                ? brandMap[brand]?.name || brand
+                                : "devices"}
+                        />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="grid gap-2">
+                            <Label
+                                class="text-xs font-semibold uppercase text-muted-foreground"
+                                >Brand</Label
+                            >
+                            <Select type="single" bind:value={brand}>
+                                <SelectTrigger
+                                    class="bg-secondary/10 border-border/50"
                                 >
-                            </SelectTrigger>
-                            <SelectContent>
-                                {#each brandList as b}
-                                    <SelectItem value={b.id}
-                                        >{b.name}</SelectItem
+                                    <span
+                                        >{brand
+                                            ? brandMap[brand]?.name || brand
+                                            : "Pilih Brand"}</span
                                     >
-                                {/each}
-                            </SelectContent>
-                        </Select>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {#each brandList as b}
+                                        <SelectItem value={b.id}
+                                            >{b.name}</SelectItem
+                                        >
+                                    {/each}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div class="grid gap-2">
+                            <Label
+                                class="text-xs font-semibold uppercase text-muted-foreground"
+                                >Series (Optional)</Label
+                            >
+                            <Input
+                                bind:value={series}
+                                placeholder="Ex: S Series"
+                                class="bg-secondary/10 border-border/50"
+                            />
+                        </div>
                     </div>
 
                     <div class="grid gap-2">
                         <Label
-                            class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
-                            >Series (Optional)</Label
+                            class="text-xs font-semibold uppercase text-muted-foreground"
+                            >Model / Tipe</Label
                         >
-                        <Input bind:value={series} placeholder="Ex: S Series" />
+                        <div class="relative">
+                            <Smartphone
+                                class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
+                            />
+                            <Input
+                                bind:value={model}
+                                placeholder="Contoh: Galaxy S24 Ultra"
+                                class="pl-9 bg-secondary/10 border-border/50 font-medium"
+                            />
+                        </div>
                     </div>
-                </div>
-
-                <div class="grid gap-2">
-                    <Label
-                        class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
-                        >Model / Tipe</Label
-                    >
-                    <Input
-                        bind:value={model}
-                        placeholder="Contoh: Galaxy S24 Ultra"
-                    />
                 </div>
 
                 <!-- Network & Launch -->
-                <div class="border rounded-lg p-3 space-y-3 bg-muted/10">
-                    <h4 class="text-sm font-semibold flex items-center gap-2">
-                        <Smartphone class="h-3.5 w-3.5" /> Network & Launch
+                <div class="space-y-4">
+                    <h4
+                        class="text-sm font-semibold text-foreground/70 border-b pb-2 flex items-center gap-2"
+                    >
+                        <Network class="h-4 w-4" /> Network & Launch
                     </h4>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="grid gap-2">
                             <Label
-                                class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
+                                class="text-xs font-semibold uppercase text-muted-foreground"
+                                >Technology</Label
                             >
-                                Network
-                            </Label>
                             <Input
                                 bind:value={network}
                                 placeholder="GSM / HSPA / LTE / 5G"
+                                class="bg-secondary/10 border-border/50"
                             />
                         </div>
                         <div class="grid gap-2">
                             <Label
-                                class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
+                                class="text-xs font-semibold uppercase text-muted-foreground"
+                                >Announced</Label
                             >
-                                Announced
-                            </Label>
-                            <Input
-                                bind:value={release}
-                                placeholder="2024, January 17"
-                            />
+                            <div class="relative">
+                                <Calendar
+                                    class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
+                                />
+                                <Input
+                                    bind:value={release}
+                                    placeholder="2024, January 17"
+                                    class="pl-9 bg-secondary/10 border-border/50"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Hardware Specs -->
-                <div class="border rounded-lg p-3 space-y-3 bg-muted/10">
-                    <h4 class="text-sm font-semibold flex items-center gap-2">
-                        <Smartphone class="h-3.5 w-3.5" /> Hardware & Platform
+                <div class="space-y-4">
+                    <h4
+                        class="text-sm font-semibold text-foreground/70 border-b pb-2 flex items-center gap-2"
+                    >
+                        <Cpu class="h-4 w-4" /> Hardware & Platform
                     </h4>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="grid gap-2">
                             <Label
-                                class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
+                                class="text-xs font-semibold uppercase text-muted-foreground"
                                 >Chipset</Label
                             >
                             <Input
                                 bind:value={chipset}
                                 placeholder="Snapdragon 8 Gen 3"
+                                class="bg-secondary/10 border-border/50"
                             />
                         </div>
                         <div class="grid gap-2">
                             <Label
-                                class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
+                                class="text-xs font-semibold uppercase text-muted-foreground"
                                 >OS</Label
                             >
                             <Input
                                 bind:value={os}
                                 placeholder="Android 14, One UI 6.1"
+                                class="bg-secondary/10 border-border/50"
                             />
                         </div>
                     </div>
@@ -1455,136 +1503,170 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div class="grid gap-2">
                             <Label
-                                class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
-                                >Internal Storage/RAM</Label
+                                class="text-xs font-semibold uppercase text-muted-foreground"
+                                >Storage/RAM</Label
                             >
-                            <Input
-                                bind:value={specs}
-                                placeholder="128GB/256GB"
-                            />
+                            <div class="relative">
+                                <Database
+                                    class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
+                                />
+                                <Input
+                                    bind:value={specs}
+                                    placeholder="128GB/256GB"
+                                    class="pl-9 bg-secondary/10 border-border/50"
+                                />
+                            </div>
                         </div>
                         <div class="grid gap-2">
                             <Label
-                                class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
+                                class="text-xs font-semibold uppercase text-muted-foreground"
+                                >USB Type</Label
                             >
-                                USB
-                            </Label>
                             <Input
                                 bind:value={usb}
                                 placeholder="USB Type-C 3.2"
+                                class="bg-secondary/10 border-border/50"
                             />
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="grid gap-2">
-                            <Label
-                                class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
-                                >Display Size</Label
-                            >
+                    <div class="grid gap-2">
+                        <Label
+                            class="text-xs font-semibold uppercase text-muted-foreground"
+                            >Display</Label
+                        >
+                        <div class="grid grid-cols-2 gap-4">
                             <Input
                                 bind:value={display}
-                                placeholder="6.8 inches"
+                                placeholder="Size (6.8 inches)"
+                                class="bg-secondary/10 border-border/50"
                             />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label
-                                class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
-                            >
-                                Display Type
-                            </Label>
                             <Input
                                 bind:value={displayType}
-                                placeholder="Dynamic LTPO AMOLED 2X"
+                                placeholder="Type (AMOLED 2X)"
+                                class="bg-secondary/10 border-border/50"
                             />
                         </div>
                     </div>
                 </div>
 
                 <!-- Camera & Battery -->
-                <div class="border rounded-lg p-3 space-y-3 bg-muted/10">
-                    <h4 class="text-sm font-semibold flex items-center gap-2">
-                        <Smartphone class="h-3.5 w-3.5" /> Camera & Battery
+                <div class="space-y-4">
+                    <h4
+                        class="text-sm font-semibold text-foreground/70 border-b pb-2 flex items-center gap-2"
+                    >
+                        <Camera class="h-4 w-4" /> Camera & Battery
                     </h4>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="grid gap-2">
                             <Label
-                                class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
+                                class="text-xs font-semibold uppercase text-muted-foreground"
                                 >Main Camera</Label
                             >
                             <Input
                                 bind:value={mainCamera}
                                 placeholder="200 MP + 50 MP + ..."
+                                class="bg-secondary/10 border-border/50"
                             />
                         </div>
                         <div class="grid gap-2">
                             <Label
-                                class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
+                                class="text-xs font-semibold uppercase text-muted-foreground"
                                 >Selfie Camera</Label
                             >
                             <Input
                                 bind:value={selfieCamera}
                                 placeholder="12 MP"
+                                class="bg-secondary/10 border-border/50"
                             />
                         </div>
                     </div>
                     <div class="grid gap-2">
                         <Label
-                            class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
+                            class="text-xs font-semibold uppercase text-muted-foreground"
                             >Battery</Label
                         >
-                        <Input
-                            bind:value={battery}
-                            placeholder="5000 mAh, 45W wired"
-                        />
+                        <div class="relative">
+                            <Battery
+                                class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
+                            />
+                            <Input
+                                bind:value={battery}
+                                placeholder="5000 mAh, 45W wired"
+                                class="pl-9 bg-secondary/10 border-border/50"
+                            />
+                        </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="grid gap-2">
-                        <Label
-                            class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
-                            >Kode Mesin</Label
-                        >
-                        <Input
-                            bind:value={code}
-                            placeholder="SM-S928B"
-                            class="font-mono"
-                        />
-                        <p class="text-[10px] text-muted-foreground">
-                            Pisahkan dengan koma jika banyak
-                        </p>
-                    </div>
-                    <div class="grid gap-2">
-                        <Label
-                            class="text-xs uppercase text-muted-foreground font-bold tracking-wider"
-                            >Warna</Label
-                        >
-                        <Input
-                            bind:value={colors}
-                            placeholder="Hitam, Putih (koma)"
-                        />
-                        <p class="text-[10px] text-muted-foreground">
-                            Pisahkan dengan koma
-                        </p>
+                <!-- Other -->
+                <div class="space-y-4">
+                    <h4
+                        class="text-sm font-semibold text-foreground/70 border-b pb-2"
+                    >
+                        Lainnya
+                    </h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="grid gap-2">
+                            <Label
+                                class="text-xs font-semibold uppercase text-muted-foreground"
+                                >Kode Mesin</Label
+                            >
+                            <div class="relative">
+                                <QrCode
+                                    class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
+                                />
+                                <Input
+                                    bind:value={code}
+                                    placeholder="SM-S928B"
+                                    class="pl-9 font-mono bg-secondary/10 border-border/50"
+                                />
+                            </div>
+                        </div>
+                        <div class="grid gap-2">
+                            <Label
+                                class="text-xs font-semibold uppercase text-muted-foreground"
+                                >Warna</Label
+                            >
+                            <div class="relative">
+                                <Palette
+                                    class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
+                                />
+                                <Input
+                                    bind:value={colors}
+                                    placeholder="Hitam, Putih"
+                                    class="pl-9 bg-secondary/10 border-border/50"
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <DialogFooter>
-                <Button variant="ghost" onclick={() => (open = false)}
-                    >Batal</Button
-                >
-                <Button
-                    onclick={handleSubmit}
-                    disabled={createDeviceMutation.isPending ||
-                        updateMutation.isPending}
-                >
-                    {createDeviceMutation.isPending || updateMutation.isPending
-                        ? "Menyimpan..."
-                        : "Simpan"}
-                </Button>
-            </DialogFooter>
+            <div
+                class="p-6 border-t bg-background/95 backdrop-blur z-10 sticky bottom-0"
+            >
+                <DialogFooter>
+                    <Button
+                        variant="outline"
+                        onclick={() => (open = false)}
+                        class="mr-2">Batal</Button
+                    >
+                    <Button
+                        onclick={handleSubmit}
+                        disabled={createDeviceMutation.isPending ||
+                            updateMutation.isPending}
+                        class="bg-blue-600 hover:bg-blue-700 min-w-[120px]"
+                    >
+                        {#if createDeviceMutation.isPending || updateMutation.isPending}
+                            <Loader2 class="h-4 w-4 animate-spin mr-2" />
+                            Saving...
+                        {:else}
+                            Simpan Data
+                        {/if}
+                    </Button>
+                </DialogFooter>
+            </div>
         </DialogContent>
     </Dialog>
 

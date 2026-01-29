@@ -2,9 +2,18 @@
     import { createQuery } from "@tanstack/svelte-query";
     import { api } from "$lib/api";
     import { Button } from "$lib/components/ui/button";
-    import { Search, Eye } from "lucide-svelte";
+    import {
+        Search,
+        Eye,
+        FileText,
+        Calendar,
+        Box,
+        ChevronRight,
+    } from "lucide-svelte";
     import { Input } from "$lib/components/ui/input";
+    import { Badge } from "$lib/components/ui/badge";
     import { formatCurrency } from "$lib/utils";
+    import { fade } from "svelte/transition";
 
     const query = createQuery(() => ({
         queryKey: ["purchase-returns"],
@@ -26,117 +35,162 @@
     );
 </script>
 
-<div class="space-y-4">
-    <div class="flex items-center justify-between">
+<div class="space-y-6 p-6">
+    <div
+        class="flex flex-col md:flex-row md:items-center justify-between gap-4"
+    >
         <div class="space-y-1">
-            <h3 class="text-xl font-semibold tracking-tight">Riwayat Retur</h3>
+            <h3
+                class="text-xl font-bold tracking-tight flex items-center gap-2 text-fuchsia-700 dark:text-fuchsia-400"
+            >
+                <FileText class="h-5 w-5" /> Riwayat Retur
+            </h3>
             <p class="text-sm text-muted-foreground">
-                Dokumen pengembalian yang telah diproses.
+                Arsip dokumen pengembalian barang yang telah diproses.
             </p>
         </div>
-        <div class="flex items-center">
-            <div class="relative w-full max-w-sm">
+        <div class="flex items-center w-full md:w-auto">
+            <div class="relative w-full md:w-[300px]">
                 <Search
-                    class="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"
+                    class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                 />
                 <Input
                     placeholder="Cari ID atau Supplier..."
                     bind:value={searchQuery}
-                    class="pl-8"
+                    class="pl-9 bg-background/50 border-fuchsia-100 focus:border-fuchsia-500 transition-all rounded-lg"
                 />
             </div>
         </div>
     </div>
 
-    <div class="rounded-md border">
+    <div class="rounded-xl border bg-background shadow-sm overflow-hidden">
         <div class="relative w-full overflow-auto">
             <table class="w-full caption-bottom text-sm">
-                <thead class="[&_tr]:border-b">
-                    <tr
-                        class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
-                    >
+                <thead class="bg-muted/40">
+                    <tr class="border-b">
                         <th
-                            class="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
+                            class="h-12 px-4 text-left align-middle font-semibold text-muted-foreground"
                             >ID Retur</th
                         >
                         <th
-                            class="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
+                            class="h-12 px-4 text-left align-middle font-semibold text-muted-foreground"
                             >Tanggal</th
                         >
                         <th
-                            class="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
+                            class="h-12 px-4 text-left align-middle font-semibold text-muted-foreground"
                             >Supplier</th
                         >
                         <th
-                            class="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
+                            class="h-12 px-4 text-left align-middle font-semibold text-muted-foreground"
                             >Items</th
                         >
                         <th
-                            class="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
+                            class="h-12 px-4 text-left align-middle font-semibold text-muted-foreground"
                             >Catatan</th
                         >
                         <th
-                            class="h-12 px-4 text-right align-middle font-medium text-muted-foreground w-[50px]"
-                        ></th>
+                            class="h-12 px-4 text-right align-middle font-semibold text-muted-foreground w-[50px]"
+                            >Action</th
+                        >
                     </tr>
                 </thead>
-                <tbody class="[&_tr:last-child]:border-0">
+                <tbody class="divide-y">
                     {#if query.isLoading}
-                        <tr
-                            ><td colspan="6" class="p-8 text-center"
-                                >Loading...</td
-                            ></tr
-                        >
-                    {:else if filtered.length === 0}
                         <tr
                             ><td
                                 colspan="6"
-                                class="p-8 text-center text-muted-foreground"
-                                >Tidak ada data retur.</td
+                                class="p-12 text-center text-muted-foreground animate-pulse"
+                                >Memuat data retur...</td
                             ></tr
                         >
+                    {:else if filtered.length === 0}
+                        <tr>
+                            <td
+                                colspan="6"
+                                class="p-16 text-center text-muted-foreground"
+                            >
+                                <div
+                                    class="flex flex-col items-center gap-2 opacity-60"
+                                >
+                                    <FileText class="h-10 w-10" />
+                                    <p>Tidak ada data retur ditemukan.</p>
+                                </div>
+                            </td>
+                        </tr>
                     {:else}
                         {#each filtered as ret}
                             <tr
-                                class="border-b transition-colors hover:bg-muted/50"
+                                class="group hover:bg-fuchsia-50/30 dark:hover:bg-fuchsia-900/10 transition-colors"
                             >
                                 <td class="p-4 font-medium">
                                     <a
                                         href="/purchase-returns/{ret.id}"
-                                        class="hover:underline font-semibold text-primary"
+                                        class="hover:underline hover:text-fuchsia-600 font-bold font-mono text-foreground"
                                     >
                                         {ret.id}
                                     </a>
                                 </td>
-                                <td class="p-4"
-                                    >{new Date(
-                                        ret.date,
-                                    ).toLocaleDateString()}</td
+                                <td
+                                    class="p-4 whitespace-nowrap text-muted-foreground"
                                 >
-                                <td class="p-4">{ret.supplier.name}</td>
-                                <td class="p-4">
-                                    <ul
-                                        class="list-disc list-inside text-xs text-muted-foreground"
-                                    >
-                                        {#each ret.items as item}
-                                            <li>
-                                                {item.product.name} ({item.batch
-                                                    .variant}) x{item.qty}
-                                            </li>
-                                        {/each}
-                                    </ul>
+                                    <div class="flex items-center gap-2">
+                                        <Calendar class="h-3.5 w-3.5" />
+                                        {new Date(ret.date).toLocaleDateString(
+                                            "id-ID",
+                                            {
+                                                day: "numeric",
+                                                month: "short",
+                                                year: "numeric",
+                                            },
+                                        )}
+                                    </div>
                                 </td>
-                                <td class="p-4 text-muted-foreground"
-                                    >{ret.notes || "-"}</td
+                                <td class="p-4">
+                                    <div class="font-medium">
+                                        {ret.supplier.name}
+                                    </div>
+                                </td>
+                                <td class="p-4">
+                                    <div class="flex flex-col gap-1">
+                                        {#each ret.items.slice(0, 2) as item}
+                                            <div
+                                                class="flex items-center gap-2 text-xs"
+                                            >
+                                                <Box
+                                                    class="h-3 w-3 text-muted-foreground"
+                                                />
+                                                <span class="font-medium"
+                                                    >{item.product.name}</span
+                                                >
+                                                <Badge
+                                                    variant="outline"
+                                                    class="h-4 px-1 text-[10px] font-normal"
+                                                    >{item.qty}</Badge
+                                                >
+                                            </div>
+                                        {/each}
+                                        {#if ret.items.length > 2}
+                                            <span
+                                                class="text-[10px] text-muted-foreground pl-5"
+                                                >+ {ret.items.length - 2} items lainnya</span
+                                            >
+                                        {/if}
+                                    </div>
+                                </td>
+                                <td
+                                    class="p-4 text-muted-foreground italic text-xs max-w-[200px] truncate"
                                 >
+                                    {ret.notes || "-"}
+                                </td>
                                 <td class="p-4 text-right">
                                     <Button
                                         variant="ghost"
                                         size="icon"
                                         href="/purchase-returns/{ret.id}"
                                         title="Lihat Detail"
+                                        class="text-muted-foreground hover:text-fuchsia-600 hover:bg-fuchsia-50"
                                     >
-                                        <Eye class="h-4 w-4" />
+                                        <ChevronRight class="h-5 w-5" />
                                     </Button>
                                 </td>
                             </tr>

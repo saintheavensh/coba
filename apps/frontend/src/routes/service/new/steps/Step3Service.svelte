@@ -16,11 +16,12 @@
         Package,
         Search,
         Trash2,
-        Calendar as CalendarIcon,
         AlertCircle,
-        ChevronRight,
         X,
         CheckCircle,
+        Plus,
+        ShoppingBag,
+        Hammer,
     } from "lucide-svelte";
     import { Switch } from "$lib/components/ui/switch";
     import { createQuery } from "@tanstack/svelte-query";
@@ -28,7 +29,6 @@
     import { SPAREPART_SOURCES } from "@repo/shared";
     import { cn } from "$lib/utils";
 
-    // The original file used: import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import type { ServiceFormStore } from "../form.svelte";
     import { toast } from "svelte-sonner";
@@ -36,8 +36,6 @@
     let {
         form,
         technicians = [],
-        inventoryItems = [],
-        services = [],
     }: {
         form: ServiceFormStore;
         technicians: any[];
@@ -48,14 +46,8 @@
     // Local UI State
     let showInventoryModal = $state(false);
     let searchTerm = $state("");
-    let showCalendar = $state(false);
-    let calendarDate = $state(new Date());
-
-    // Derived
-    // Filter Logic
     let filterCompatible = $state(false);
 
-    // Auto-enable filter when modal opens if device selected
     $effect(() => {
         if (showInventoryModal && form.selectedDeviceId) {
             filterCompatible = true;
@@ -69,23 +61,6 @@
             filterCompatible ? form.selectedDeviceId : null,
         ],
         queryFn: async () => {
-            const params: any = {};
-            // If API supports search query param? The repo findAll didn't seem to explicitly handle "name" search in findAll args?
-            // Actually repo findAll only takes deviceId.
-            // But controller likely handles search?
-            // I'll assume client side filtering of the "Compatible" batch or Server Side if I updated controller.
-            // Let's check repository again. Only deviceId.
-            // So I will fetch by deviceId (if filterCompatible) OR all (if not).
-            // THEN filter by searchTerm client side reducers if the API doesn't support ?search or ?q.
-            // Wait, standard CRUD usually supports it.
-            // Assuming I'll fetch and filter client side for now to be safe, but minimal fetch.
-            // If I filter by deviceId, the result list is small.
-            // If I fetch ALL, it's large.
-
-            // Re-reading repository: findAll(deviceId?: string).
-            // It filters by device compatibility if deviceId is passed.
-            // It does NOT filter by name.
-
             const res = await InventoryService.getProducts(
                 filterCompatible && form.selectedDeviceId
                     ? form.selectedDeviceId
@@ -104,542 +79,492 @@
         ),
     );
 
-    let calendarDays = $derived(getMonthDays(calendarDate));
-
-    // Calendar Helpers
-    function getMonthDays(date: Date): Date[] {
-        const year = date.getFullYear();
-        const month = date.getMonth();
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
-
-        const days: Date[] = [];
-        const startDay = firstDay.getDay() || 7;
-        for (let i = startDay - 1; i > 0; i--) {
-            const d = new Date(firstDay);
-            d.setDate(d.getDate() - i);
-            days.push(d);
-        }
-        for (let i = 1; i <= lastDay.getDate(); i++) {
-            days.push(new Date(year, month, i));
-        }
-        const remaining = 42 - days.length;
-        for (let i = 1; i <= remaining; i++) {
-            const d = new Date(lastDay);
-            d.setDate(d.getDate() + i);
-            days.push(d);
-        }
-        return days;
-    }
-
-    function isPastDate(date: Date): boolean {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const checkDate = new Date(date);
-        checkDate.setHours(0, 0, 0, 0);
-        return checkDate < today;
-    }
-
-    function isToday(date: Date): boolean {
-        return date.toDateString() === new Date().toDateString();
-    }
-
-    function isCurrentMonth(date: Date): boolean {
-        return date.getMonth() === calendarDate.getMonth();
-    }
-
-    function getServicesForDate(date: Date): number {
-        return services.filter((s) => {
-            if (!s.estimatedCompletionDate) return false;
-            const sDate = new Date(s.estimatedCompletionDate);
-            return sDate.toDateString() === date.toDateString();
-        }).length;
-    }
-
-    function selectDate(date: Date) {
-        if (isPastDate(date)) {
-            toast.error("Tidak dapat memilih tanggal yang sudah lewat");
-            return;
-        }
-        if (!form.isWalkin && !form.technician) {
-            toast.error("Teknisi harus ditugaskan terlebih dahulu");
-            return;
-        }
-        // Validation: Must ensure price is entered
-        if (!form.isWalkin && !form.isPriceRange && !form.estimatedCost) {
-            toast.error("Estimasi biaya harus diisi terlebih dahulu");
-            return;
-        }
-        if (
-            !form.isWalkin &&
-            form.isPriceRange &&
-            !form.minPrice &&
-            !form.maxPrice
-        ) {
-            toast.error("Range biaya harus diisi terlebih dahulu");
-            return;
-        }
-
-        // Fix: Use local date string construction to avoid UTC shift
-        // date is already a Date object at 00:00 local time (from getMonthDays)
-        // We just need YYYY-MM-DD
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        form.estimatedCompletionDate = `${year}-${month}-${day}`;
-
-        showCalendar = false;
-    }
-
-    function navigateMonth(dir: number) {
-        const newDate = new Date(calendarDate);
-        newDate.setMonth(newDate.getMonth() + dir);
-        calendarDate = newDate;
-    }
-
-    // Helper for Modal
     function handleAddPart(item: any) {
         form.addInventoryPart(item);
         showInventoryModal = false;
+        toast.success("Sparepart ditambahkan");
     }
 </script>
 
-<div class="grid gap-6 animate-in slide-in-from-right-4 duration-500">
-    <div class="space-y-4">
-        <h3
-            class="text-xl font-bold flex items-center gap-2 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent"
+<div class="grid gap-8 animate-in fly-in-from-bottom-4 duration-500">
+    <!-- Header -->
+    <div class="space-y-2">
+        <div
+            class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100/50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-bold uppercase tracking-wider mb-2"
         >
-            {form.isWalkin ? "Service & Sparepart (Walk-in)" : "Detail Service"}
-        </h3>
-        <p class="text-sm text-muted-foreground">
+            <Wrench class="h-3.5 w-3.5" />
+            Langkah 4
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight text-foreground">
+            Detail Pengerjaan
+        </h2>
+        <p class="text-muted-foreground text-lg">
             {form.isWalkin
-                ? "Input layanan dan sparepart untuk service ditunggu."
-                : "Diagnosa awal dan estimasi pengerjaan untuk service ditinggal."}
+                ? "Estimasi biaya dan sparepart untuk service ditunggu."
+                : "Keluhan kerusakan dan jenis layanan."}
         </p>
     </div>
 
-    <div
-        class="space-y-6 p-6 sm:p-8 border border-muted/60 rounded-3xl bg-card/50 shadow-sm relative overflow-hidden group"
-    >
-        <!-- Glow Effect -->
+    <div class="space-y-6">
+        <!-- 1. Complaint / Issue Card -->
         <div
-            class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -z-10 transition-opacity opacity-0 group-hover:opacity-100"
-        ></div>
-        <!-- Complaint -->
-        <!-- Complaint -->
-        <div class="space-y-3">
-            <Label
-                for="complaint"
-                class="text-sm font-semibold text-foreground/80"
-            >
-                {form.isWalkin
-                    ? "Kerusakan yang Diperbaiki"
-                    : "Keluhan Customer"}
-                <span class="text-red-500">*</span>
-            </Label>
-            <div class="relative group/input">
-                <div
-                    class="absolute top-3.5 left-3 flex items-start pointer-events-none"
-                >
-                    <AlertCircle
-                        class="h-4 w-4 text-muted-foreground transition-colors group-focus-within/input:text-primary"
-                    />
-                </div>
-                <Textarea
-                    id="complaint"
-                    bind:value={form.complaint}
-                    placeholder={form.isWalkin
-                        ? "Contoh: Ganti LCD, Ganti Baterai"
-                        : "Contoh: HP sering restart sendiri saat panas..."}
-                    rows={3}
-                    class="pl-10 min-h-[100px] rounded-2xl bg-background/50 border-muted-foreground/20 focus:bg-background transition-all focus:ring-4 focus:ring-primary/10 resize-none"
-                />
-            </div>
-        </div>
-
-        <!-- Technician (Hidden for Intake Mode based on user request to simplify) -->
-        {#if form.isWalkin}
-            <div class="space-y-2">
-                <Label class="flex justify-between">
-                    <span>Teknisi <span class="text-red-500">*</span></span>
-                </Label>
-                <Select type="single" bind:value={form.technician}>
-                    <SelectTrigger>
-                        {technicians.find((t) => t.id === form.technician)
-                            ?.name || "Pilih Teknisi"}
-                    </SelectTrigger>
-                    <SelectContent>
-                        {#each technicians as tech}
-                            <SelectItem value={tech.id}>{tech.name}</SelectItem>
-                        {/each}
-                    </SelectContent>
-                </Select>
-            </div>
-        {/if}
-
-        {#if form.isWalkin}
-            <!-- Walk-in Specific UI -->
-            <div
-                class="p-6 bg-blue-50/30 border border-blue-100/50 rounded-3xl space-y-6"
-            >
-                <div class="flex items-center gap-3 text-blue-800">
-                    <div class="p-2 bg-blue-100 rounded-lg">
-                        <Package class="h-5 w-5" />
+            class="relative group rounded-[2rem] border border-white/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md shadow-xl overflow-hidden p-6 sm:p-8"
+        >
+            <div class="grid md:grid-cols-[1fr_2px_1fr] gap-8">
+                <!-- A. Left Column: Complaint -->
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="p-2 rounded-lg bg-red-50 text-red-600">
+                            <AlertCircle class="h-5 w-5" />
+                        </div>
+                        <Label class="text-base font-bold text-foreground">
+                            {form.isWalkin
+                                ? "Kerusakan Utama"
+                                : "Keluhan Pelanggan"}
+                            <span class="text-red-500">*</span>
+                        </Label>
                     </div>
-                    <h4 class="font-bold text-base">Biaya & Sparepart</h4>
-                </div>
-
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div class="space-y-2">
-                        <Label for="serviceFee"
-                            >Total Biaya Service (Jasa + Part) <span
-                                class="text-red-500">*</span
-                            ></Label
-                        >
-                        <CurrencyInput
-                            bind:value={form.serviceFee}
-                            placeholder="Contoh: 150000"
-                            class="bg-white"
+                    <div class="relative group/input">
+                        <Textarea
+                            bind:value={form.complaint}
+                            placeholder={form.isWalkin
+                                ? "Contoh: Ganti LCD, Ganti Baterai..."
+                                : "Contoh: HP restart saat panas, layar blank..."}
+                            rows={4}
+                            class="min-h-[140px] rounded-2xl bg-white/50 border-slate-200 focus:bg-white text-base leading-relaxed p-4 resize-none shadow-sm"
                         />
                     </div>
                 </div>
 
-                <div class="space-y-4">
-                    <Label class="text-sm font-semibold text-foreground/80"
-                        >Sumber Sparepart</Label
-                    >
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {#each SPAREPART_SOURCES as src}
-                            <label
-                                class={cn(
-                                    "relative overflow-hidden flex flex-col items-center justify-center p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 text-sm font-bold gap-3 group/card",
-                                    form.sparepartSource === src.v
-                                        ? "bg-primary/5 text-primary border-primary shadow-lg shadow-primary/10 scale-[1.02]"
-                                        : "bg-card hover:bg-muted/50 border-muted hover:border-primary/50 hover:shadow-md",
-                                )}
+                <!-- Divider (visible on md+) -->
+                <div
+                    class="hidden md:block bg-gradient-to-b from-transparent via-slate-200 to-transparent"
+                ></div>
+                <Separator class="md:hidden" />
+
+                <!-- B. Right Column: Technician & Settings -->
+                <div class="space-y-6">
+                    {#if form.isWalkin}
+                        <div class="space-y-4">
+                            <Label
+                                class="text-sm font-bold flex items-center justify-between"
                             >
-                                <input
-                                    type="radio"
-                                    bind:group={form.sparepartSource}
-                                    value={src.v}
-                                    class="sr-only"
-                                    onchange={() => {
-                                        if (src.v === "customer") {
-                                            form.warranty = "none";
-                                            toast.info(
-                                                "Mode 'Bawa Sendiri' aktif. Estimasi biaya hanya mencakup jasa pasang/labor.",
-                                            );
-                                        }
-                                    }}
-                                />
-                                <div
-                                    class={cn(
-                                        "p-2 rounded-full transition-colors",
-                                        form.sparepartSource === src.v
-                                            ? "bg-white shadow-sm"
-                                            : "bg-muted group-hover/card:bg-white",
-                                    )}
+                                <span
+                                    >Teknisi Penanggung Jawab <span
+                                        class="text-red-500">*</span
+                                    ></span
                                 >
-                                    {#if src.v === "none"}
-                                        <X class="h-5 w-5" />
-                                    {:else if src.v === "inventory"}
-                                        <Package class="h-5 w-5" />
-                                    {:else if src.v === "external"}
-                                        <Search class="h-5 w-5" />
-                                    {:else if src.v === "customer"}
-                                        <Wrench class="h-5 w-5" />
-                                    {/if}
-                                </div>
-                                <span>{src.l}</span>
+                                <Badge variant="outline" class="text-[10px] h-5"
+                                    >Wajib</Badge
+                                >
+                            </Label>
 
-                                {#if form.sparepartSource === src.v}
-                                    <div
-                                        class="absolute inset-0 border-2 border-primary rounded-2xl pointer-events-none"
-                                    ></div>
-                                {/if}
-                            </label>
-                        {/each}
-                    </div>
-                </div>
-
-                {#if form.sparepartSource === "inventory"}
-                    <div class="space-y-2 animate-in slide-in-from-top-2">
-                        <Button
-                            variant="outline"
-                            class="w-full justify-between h-11 rounded-xl border-dashed hover:border-primary hover:bg-primary/5"
-                            onclick={() => (showInventoryModal = true)}
-                        >
-                            <span class="flex items-center">
-                                <Search class="h-4 w-4 mr-2 text-primary" />
-                                Cari dari Inventory
-                            </span>
-                            <span
-                                class="text-[10px] uppercase font-bold text-muted-foreground"
-                                >Klik untuk buka katalog</span
-                            >
-                        </Button>
-                        {#if form.selectedParts.length > 0}
-                            <div
-                                class="border rounded-xl overflow-hidden bg-white shadow-sm"
-                            >
-                                {#each form.selectedParts as part, index}
-                                    <div
-                                        class="flex items-center justify-between p-3 border-b last:border-0 hover:bg-muted/30 transition-colors"
+                            <div class="grid grid-cols-1 gap-2">
+                                <Select
+                                    type="single"
+                                    bind:value={form.technician}
+                                >
+                                    <SelectTrigger
+                                        class="h-12 rounded-xl bg-white/50 border-slate-200"
                                     >
-                                        <div>
-                                            <p class="text-sm font-bold">
-                                                {part.name}
-                                            </p>
-                                            <p
-                                                class="text-xs text-muted-foreground flex items-center gap-1"
+                                        <div class="flex items-center gap-2">
+                                            <div
+                                                class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs"
                                             >
-                                                <Package class="h-3 w-3" /> Stok:
-                                                {part.stock}
-                                            </p>
+                                                {technicians
+                                                    .find(
+                                                        (t) =>
+                                                            t.id ===
+                                                            form.technician,
+                                                    )
+                                                    ?.name?.charAt(0) || "?"}
+                                            </div>
+                                            {technicians.find(
+                                                (t) => t.id === form.technician,
+                                            )?.name || "Pilih Teknisi..."}
                                         </div>
-                                        <div class="flex items-center gap-3">
-                                            <Badge
-                                                variant="outline"
-                                                class="bg-primary/5 text-primary border-primary/10"
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {#each technicians as tech}
+                                            <SelectItem
+                                                value={tech.id}
+                                                class="cursor-pointer font-medium"
+                                                >{tech.name}</SelectItem
                                             >
-                                                Rp {parseInt(
-                                                    part.sellPrice || 0,
-                                                ).toLocaleString("id-ID")}
-                                            </Badge>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                class="h-8 w-8 text-destructive hover:text-white hover:bg-destructive transition-all rounded-lg"
-                                                onclick={() =>
-                                                    form.removePart(index)}
-                                            >
-                                                <X class="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                {/each}
+                                        {/each}
+                                    </SelectContent>
+                                </Select>
                             </div>
-                        {/if}
-                    </div>
-                {:else if form.sparepartSource === "external"}
-                    <div
-                        class="grid md:grid-cols-2 gap-4 animate-in slide-in-from-top-2 p-4 bg-white border rounded-xl shadow-sm"
-                    >
-                        <div class="space-y-2 text-left">
-                            <Label
-                                class="text-xs font-bold uppercase text-muted-foreground"
-                                >Nama Sparepart</Label
-                            >
-                            <Input
-                                bind:value={form.extPartName}
-                                placeholder="Contoh: LCD KW Super"
-                                class="h-11 rounded-lg"
-                            />
                         </div>
-                        <div class="space-y-2 text-left">
-                            <Label
-                                class="text-xs font-bold uppercase text-muted-foreground"
-                                >Harga Beli (Modal)</Label
-                            >
-                            <CurrencyInput
-                                bind:value={form.extPartBuyPrice}
-                                class="h-11 rounded-lg"
-                            />
-                        </div>
-                    </div>
-                {:else if form.sparepartSource === "customer"}
-                    <div
-                        class="space-y-3 animate-in slide-in-from-top-2 p-4 bg-orange-50/50 border border-orange-200 border-dashed rounded-xl"
-                    >
-                        <div class="flex items-start gap-3">
-                            <div class="p-2 bg-orange-100 rounded-lg">
-                                <AlertCircle class="h-5 w-5 text-orange-600" />
+                    {:else}
+                        <div
+                            class="flex flex-col items-center justify-center h-full text-center space-y-3 opacity-60"
+                        >
+                            <div class="p-3 bg-slate-100 rounded-full">
+                                <Hammer class="h-6 w-6 text-slate-400" />
                             </div>
-                            <div class="space-y-1">
-                                <h5 class="text-sm font-bold text-orange-800">
-                                    Part Disediakan Pelanggan
-                                </h5>
-                                <p
-                                    class="text-xs text-orange-700 leading-relaxed"
-                                >
-                                    Customer membawa sparepart sendiri. Pastikan
-                                    "Total Biaya" di atas <b
-                                        >hanya jasa pasang/labor</b
-                                    >. <br />
-                                    Sesuai kebijakan: <b>Tanpa Garansi</b> untuk
-                                    sparepart yang dibawa sendiri.
+                            <div>
+                                <h4 class="font-bold text-sm">Mode Reguler</h4>
+                                <p class="text-xs text-muted-foreground">
+                                    Teknisi akan ditugaskan oleh admin setelah
+                                    unit diterima.
                                 </p>
                             </div>
                         </div>
-                    </div>
-                {:else}
-                    <div class="space-y-2 animate-in slide-in-from-top-2">
-                        <Label
-                            class="text-xs font-bold uppercase text-muted-foreground"
-                            >Keterangan Pengerjaan</Label
-                        >
-                        <Textarea
-                            bind:value={form.serviceDescription}
-                            placeholder="Jumper, Cleaning, Software, Re-flek, dll..."
-                            rows={2}
-                            class="bg-white rounded-xl"
-                        />
-                    </div>
-                {/if}
-
-                <!-- Calculation Summary -->
-                <div class="bg-white p-4 rounded-lg border space-y-4 text-sm">
-                    <!-- Warranty Selection -->
-                    <div class="space-y-2">
-                        <Label
-                            class="text-xs font-bold uppercase text-muted-foreground flex justify-between"
-                        >
-                            Garansi Service
-                            <span
-                                class="text-[10px] normal-case font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded"
-                            >
-                                Opsional untuk dicetak
-                            </span>
-                        </Label>
-                        <Select
-                            type="single"
-                            bind:value={form.warranty}
-                            disabled={form.sparepartSource === "customer"}
-                            onValueChange={(v) => {
-                                if (form.sparepartSource === "customer") {
-                                    form.warranty = "none";
-                                    toast.error(
-                                        "Garansi tidak tersedia untuk sparepart bawaan customer",
-                                    );
-                                }
-                            }}
-                        >
-                            <SelectTrigger
-                                class={cn(
-                                    "h-9",
-                                    form.sparepartSource === "customer" &&
-                                        "bg-muted text-muted-foreground opacity-70",
-                                )}
-                            >
-                                {form.sparepartSource === "customer"
-                                    ? "Tanpa Garansi (Bawa Sendiri)"
-                                    : form.warranty || "Pilih Garansi"}
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="none"
-                                    >Tanpa Garansi</SelectItem
-                                >
-                                <SelectItem value="1 Minggu"
-                                    >1 Minggu</SelectItem
-                                >
-                                <SelectItem value="1 Bulan">1 Bulan</SelectItem>
-                                <SelectItem value="3 Bulan">3 Bulan</SelectItem>
-                                <SelectItem value="6 Bulan">6 Bulan</SelectItem>
-                                <SelectItem value="1 Tahun">1 Tahun</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        {#if form.sparepartSource === "customer"}
-                            <p
-                                class="text-[10px] text-destructive font-medium animate-in slide-in-from-top-1"
-                            >
-                                * Sparepart bawa sendiri otomatis <b
-                                    >Tanpa Garansi</b
-                                >
-                            </p>
-                        {/if}
-                    </div>
-
-                    <Separator class="my-2" />
-
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground"
-                            >Estimasi Jasa (Profit)</span
-                        >
-                        <span class="font-medium text-blue-600"
-                            >Rp {form.walkinServiceFee.toLocaleString(
-                                "id-ID",
-                            )}</span
-                        >
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-muted-foreground"
-                            >Total Modal Part</span
-                        >
-                        <span class="font-medium"
-                            >Rp {form.totalPartPrice.toLocaleString(
-                                "id-ID",
-                            )}</span
-                        >
-                    </div>
-                    <Separator class="my-2" />
-                    <div class="flex justify-between text-base font-bold">
-                        <span>Grand Total</span>
-                        <span class="text-green-600"
-                            >Rp {form.grandTotal.toLocaleString("id-ID")}</span
-                        >
-                    </div>
+                    {/if}
                 </div>
             </div>
-        {:else if !form.isWalkin && false}
-            <!-- Hiding Diagnosis/Cost for Intake as per request. "Remove Diagnosis/Cost fields from initial creation" -->
-            <!-- Regular Service UI (Diagnosis/Cost) - NOW HIDDEN/REMOVED for Intake Phase -->
-            <!-- Use 'false' to effectively comment it out but keep code for reference if needed later or delete -->
-            <div class="space-y-4">
-                <Separator />
-                <h4
-                    class="font-medium flex items-center gap-2 text-sm text-muted-foreground uppercase tracking-wider"
+        </div>
+
+        <!-- 2. Cost & Parts (Walk-in Only) -->
+        {#if form.isWalkin}
+            <div class="animate-in slide-in-from-bottom-8 duration-700">
+                <div
+                    class="relative group rounded-[2rem] border border-blue-100 bg-gradient-to-br from-blue-50/50 to-white backdrop-blur-md shadow-xl overflow-hidden p-6 sm:p-8"
                 >
-                    Diagnosa Awal (Opsional)
-                </h4>
-                <!-- ... Content hidden ... -->
+                    <!-- Header Section -->
+                    <div
+                        class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8"
+                    >
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="p-3 rounded-2xl bg-blue-500 text-white shadow-lg shadow-blue-500/30"
+                            >
+                                <ShoppingBag class="h-6 w-6" />
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold text-blue-950">
+                                    Estimasi Biaya
+                                </h3>
+                                <p class="text-sm text-blue-700/60">
+                                    Hitung total biaya service & sparepart.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Source Selector Tiles -->
+                        <div
+                            class="flex bg-white/60 p-1.5 rounded-xl border border-blue-100/50 backdrop-blur-sm self-stretch sm:self-auto"
+                        >
+                            {#each SPAREPART_SOURCES as src}
+                                <button
+                                    class={cn(
+                                        "flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all",
+                                        form.sparepartSource === src.v
+                                            ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                                            : "text-blue-900/40 hover:bg-blue-50",
+                                    )}
+                                    onclick={() => {
+                                        form.sparepartSource = src.v;
+                                        if (src.v === "customer") {
+                                            form.warranty = "none";
+                                            toast.info(
+                                                "Mode 'Bawa Sendiri' aktif. Garansi otomatis non-aktif.",
+                                            );
+                                        }
+                                    }}
+                                >
+                                    {src.l}
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-[1.5fr_1fr] gap-8">
+                        <!-- Left: Inputs -->
+                        <div class="space-y-6">
+                            <!-- Service Fee -->
+                            <div class="space-y-2">
+                                <Label
+                                    class="text-sm font-bold text-blue-900/80 uppercase tracking-wide"
+                                    >Jasa Service (Labor)</Label
+                                >
+                                <CurrencyInput
+                                    bind:value={form.serviceFee}
+                                    placeholder="0"
+                                    class="h-14 rounded-2xl border-blue-100 bg-white shadow-sm text-xl font-bold text-blue-900"
+                                />
+                            </div>
+
+                            <!-- Dynamic Content based on Source -->
+                            {#if form.sparepartSource === "inventory"}
+                                <div class="space-y-3 pt-2">
+                                    <div
+                                        class="flex items-center justify-between"
+                                    >
+                                        <Label
+                                            class="text-sm font-bold text-blue-900/80 uppercase tracking-wide"
+                                            >Sparepart (Inventory)</Label
+                                        >
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onclick={() =>
+                                                (showInventoryModal = true)}
+                                            class="h-8 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg"
+                                        >
+                                            <Plus class="h-3.5 w-3.5 mr-1" /> Tambah
+                                        </Button>
+                                    </div>
+
+                                    {#if form.selectedParts.length === 0}
+                                        <button
+                                            onclick={() =>
+                                                (showInventoryModal = true)}
+                                            class="w-full py-8 border-2 border-dashed border-blue-200 rounded-2xl flex flex-col items-center justify-center text-blue-300 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50/50 transition-all gap-2"
+                                        >
+                                            <Search class="h-6 w-6" />
+                                            <span class="font-bold text-sm"
+                                                >Pilih dari Database</span
+                                            >
+                                        </button>
+                                    {:else}
+                                        <div class="space-y-2">
+                                            {#each form.selectedParts as part, i}
+                                                <div
+                                                    class="flex items-center justify-between p-3 bg-white rounded-xl border border-blue-100 shadow-sm animate-in zoom-in-50"
+                                                >
+                                                    <div>
+                                                        <p
+                                                            class="font-bold text-sm text-blue-950"
+                                                        >
+                                                            {part.name}
+                                                        </p>
+                                                        <p
+                                                            class="text-xs text-blue-400"
+                                                        >
+                                                            Stok: {part.stock} |
+                                                            @ Rp {Number(
+                                                                part.sellPrice,
+                                                            ).toLocaleString()}
+                                                        </p>
+                                                    </div>
+                                                    <div
+                                                        class="flex items-center gap-3"
+                                                    >
+                                                        <span
+                                                            class="font-bold text-blue-700"
+                                                            >Rp {Number(
+                                                                part.sellPrice,
+                                                            ).toLocaleString()}</span
+                                                        >
+                                                        <button
+                                                            onclick={() =>
+                                                                form.removePart(
+                                                                    i,
+                                                                )}
+                                                            class="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                                                        >
+                                                            <Trash2
+                                                                class="h-4 w-4"
+                                                            />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            {/each}
+                                        </div>
+                                    {/if}
+                                </div>
+                            {:else if form.sparepartSource === "external"}
+                                <div
+                                    class="p-4 bg-orange-50/50 border border-orange-100 rounded-2xl space-y-4"
+                                >
+                                    <div class="space-y-2">
+                                        <Label
+                                            class="text-xs font-bold uppercase text-orange-800/60"
+                                            >Nama Barang</Label
+                                        >
+                                        <Input
+                                            bind:value={form.extPartName}
+                                            placeholder="Detail sparepart..."
+                                            class="h-11 bg-white border-orange-200"
+                                        />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label
+                                            class="text-xs font-bold uppercase text-orange-800/60"
+                                            >Harga Beli (Modal)</Label
+                                        >
+                                        <CurrencyInput
+                                            bind:value={form.extPartBuyPrice}
+                                            class="h-11 bg-white border-orange-200"
+                                        />
+                                    </div>
+                                </div>
+                            {:else if form.sparepartSource === "customer"}
+                                <div
+                                    class="p-4 bg-yellow-50/50 border border-yellow-200 border-dashed rounded-2xl flex items-start gap-4"
+                                >
+                                    <div
+                                        class="p-2 bg-yellow-100 text-yellow-700 rounded-lg"
+                                    >
+                                        <AlertCircle class="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <h5
+                                            class="font-bold text-yellow-800 text-sm"
+                                        >
+                                            Sparepart Bawaan Customer
+                                        </h5>
+                                        <p class="text-xs text-yellow-700 mt-1">
+                                            Hanya dikenakan biaya jasa. Tidak
+                                            ada garansi untuk part ini.
+                                        </p>
+                                    </div>
+                                </div>
+                            {/if}
+                        </div>
+
+                        <!-- Right: Summary Panel -->
+                        <div
+                            class="bg-indigo-900 text-white p-6 rounded-[1.5rem] shadow-xl shadow-indigo-900/20 flex flex-col justify-between h-full relative overflow-hidden"
+                        >
+                            <!-- Bg Decoration -->
+                            <div
+                                class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"
+                            ></div>
+
+                            <div class="space-y-6 relative z-10">
+                                <h4
+                                    class="font-bold text-indigo-200 tracking-wider text-xs uppercase"
+                                >
+                                    Rincian Pembayaran
+                                </h4>
+
+                                <div class="space-y-3">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-indigo-300"
+                                            >Biaya Jasa</span
+                                        >
+                                        <span class="font-bold"
+                                            >Rp {form.walkinServiceFee.toLocaleString(
+                                                "id-ID",
+                                            )}</span
+                                        >
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-indigo-300"
+                                            >Total Part</span
+                                        >
+                                        <span class="font-bold"
+                                            >Rp {form.totalPartPrice.toLocaleString(
+                                                "id-ID",
+                                            )}</span
+                                        >
+                                    </div>
+                                    <Separator class="bg-white/10" />
+                                    <div
+                                        class="flex justify-between items-center pt-2"
+                                    >
+                                        <span
+                                            class="text-lg font-bold text-indigo-100"
+                                            >Total</span
+                                        >
+                                        <span
+                                            class="text-2xl font-black tracking-tight text-white"
+                                        >
+                                            Rp {form.grandTotal.toLocaleString(
+                                                "id-ID",
+                                            )}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4 pt-8 relative z-10">
+                                <div class="space-y-2">
+                                    <Label
+                                        class="text-xs font-bold text-indigo-300 uppercase"
+                                        >Opsi Garansi</Label
+                                    >
+                                    <Select
+                                        type="single"
+                                        bind:value={form.warranty}
+                                        disabled={form.sparepartSource ===
+                                            "customer"}
+                                        onValueChange={(v) => {
+                                            if (
+                                                form.sparepartSource ===
+                                                "customer"
+                                            ) {
+                                                form.warranty = "none";
+                                            }
+                                        }}
+                                    >
+                                        <SelectTrigger
+                                            class="h-10 bg-white/10 border-transparent text-white focus:ring-0 focus:ring-offset-0"
+                                        >
+                                            {form.warranty === "none"
+                                                ? "Tanpa Garansi"
+                                                : form.warranty ||
+                                                  "Pilih Garansi"}
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none"
+                                                >Tanpa Garansi</SelectItem
+                                            >
+                                            <SelectItem value="1 Minggu"
+                                                >1 Minggu</SelectItem
+                                            >
+                                            <SelectItem value="1 Bulan"
+                                                >1 Bulan</SelectItem
+                                            >
+                                            <SelectItem value="3 Bulan"
+                                                >3 Bulan</SelectItem
+                                            >
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         {/if}
     </div>
 </div>
 
-<!-- Global Inventory Modal -->
+<!-- Simplified Inventory Search Modal -->
 {#if showInventoryModal}
     <div
-        class="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 backdrop-blur-sm animate-in fade-in duration-200"
+        class="fixed inset-0 bg-slate-900/60 flex items-start sm:items-center justify-center z-[100] p-4 backdrop-blur-sm animate-in fade-in duration-200"
     >
         <div
-            class="bg-background w-full max-w-lg rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]"
+            class="bg-white dark:bg-slate-950 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh] mt-10 sm:mt-0"
         >
-            <div class="p-4 border-b flex items-center justify-between">
-                <h3 class="font-semibold text-lg">Pilih Sparepart</h3>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onclick={() => (showInventoryModal = false)}
-                >
-                    <X class="h-5 w-5" />
-                </Button>
-            </div>
+            <div class="p-6 pb-2">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-xl">Pilih Sparepart</h3>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        class="rounded-full"
+                        onclick={() => (showInventoryModal = false)}
+                    >
+                        <X class="h-5 w-5" />
+                    </Button>
+                </div>
 
-            <!-- Search & Filter bar -->
-            <div class="p-4 border-b bg-muted/30 space-y-3">
                 <div class="relative">
                     <Search
-                        class="absolute left-3 top-3 h-4 w-4 text-muted-foreground"
+                        class="absolute left-4 top-3.5 h-4 w-4 text-muted-foreground"
                     />
                     <Input
                         bind:value={searchTerm}
                         placeholder="Cari nama barang..."
-                        class="pl-9"
+                        class="pl-11 h-12 rounded-xl bg-slate-50 border-slate-200 shadow-sm"
                     />
                 </div>
 
                 {#if form.selectedDeviceId}
-                    <div class="flex items-center space-x-2">
-                        <Switch
-                            id="filter-compatible"
-                            bind:checked={filterCompatible}
-                        />
+                    <div class="mt-3 flex items-center gap-2">
+                        <Switch id="filter" bind:checked={filterCompatible} />
                         <Label
-                            for="filter-compatible"
-                            class="cursor-pointer flex items-center gap-2"
+                            for="filter"
+                            class="text-xs font-medium cursor-pointer text-muted-foreground"
                         >
-                            Filter Kompatibel: <span class="font-bold"
+                            Hanya kompatibel dengan <span
+                                class="font-bold text-foreground"
                                 >{form.phoneBrand} {form.phoneModel}</span
                             >
                         </Label>
@@ -647,53 +572,51 @@
                 {/if}
             </div>
 
-            <div class="flex-1 overflow-y-auto p-2 space-y-1">
+            <div class="flex-1 overflow-y-auto p-4 pt-2 space-y-2">
                 {#if inventorySearchQuery.isLoading}
-                    <div class="text-center py-8">Loading...</div>
+                    <div class="py-12 flex justify-center">
+                        <div
+                            class="animate-spin h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full"
+                        ></div>
+                    </div>
                 {:else if filteredInventory.length === 0}
-                    <div class="text-center py-12 text-muted-foreground">
-                        <p>Tidak ada barang ditemukan</p>
-                        {#if filterCompatible}
-                            <p class="text-xs mt-2">
-                                Coba matikan filter kompatibilitas
-                            </p>
-                        {/if}
+                    <div
+                        class="flex flex-col items-center justify-center py-12 text-center opacity-50 space-y-2"
+                    >
+                        <Package class="h-10 w-10 text-slate-300" />
+                        <p class="text-sm font-medium">
+                            Tidak ada barang ditemukan
+                        </p>
                     </div>
                 {:else}
                     {#each filteredInventory as item}
                         <button
-                            class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors text-left group"
+                            class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-indigo-50 hover:border-indigo-100 border border-transparent transition-all group text-left"
                             onclick={() => handleAddPart(item)}
                         >
                             <div>
-                                <p
-                                    class="font-medium group-hover:text-primary transition-colors"
+                                <h4
+                                    class="font-bold text-sm group-hover:text-indigo-700"
                                 >
                                     {item.name}
-                                </p>
-                                <div
-                                    class="flex gap-2 text-xs text-muted-foreground"
-                                >
+                                </h4>
+                                <div class="flex gap-2 mt-1">
                                     <Badge
-                                        variant="outline"
-                                        class="text-[10px] px-1 h-5"
+                                        variant="secondary"
+                                        class="h-5 text-[10px]"
                                         >Stok: {item.stock}</Badge
                                     >
-                                    <span>#{item.id.substring(0, 6)}</span>
                                 </div>
                             </div>
                             <div class="text-right">
-                                <p class="font-medium text-sm">
-                                    Rp {parseInt(
-                                        (item as any).batches?.[0]?.sellPrice ||
-                                            0,
-                                    ).toLocaleString("id-ID")}
+                                <p class="font-bold text-indigo-600">
+                                    Rp {(
+                                        item.batches?.[0]?.sellPrice || 0
+                                    ).toLocaleString()}
                                 </p>
-                                <span
-                                    class="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                                <span class="text-[10px] text-muted-foreground"
+                                    >per unit</span
                                 >
-                                    Pilih
-                                </span>
                             </div>
                         </button>
                     {/each}

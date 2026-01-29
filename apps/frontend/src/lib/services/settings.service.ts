@@ -90,12 +90,19 @@ export interface WarrantyPreset {
 export interface ServiceSettings {
     numberFormat: string;
     resetCounterYearly: boolean;
+    // Workflow
     defaultStatus: "antrian" | "dicek" | "menunggu_sparepart" | "proses" | "selesai" | "diambil" | "batal";
     autoNotifyOnStatusChange: boolean;
+    commissionModel: "completion" | "collection";
+    // Warranty
     warrantyPresets: WarrantyPreset[];
     defaultWarrantyDays: number;
     gracePeriodDays: number;
+    // Automation & Archiving
     autoCloseAfterDays: number;
+    enableVirtualArchive: boolean;
+    archiveExclusions: string[];
+    enableLiquidation: boolean;
     reminderBeforePickup: boolean;
     reminderDays: number;
 }

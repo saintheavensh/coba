@@ -13,6 +13,19 @@
         X,
         Package,
         Filter,
+        Check,
+        ChevronsUpDown,
+        User,
+        Wallet,
+        Banknote,
+        Receipt,
+        ShoppingBag,
+        ScanBarcode,
+        ChevronLeft,
+        History,
+        Percent,
+        MoreHorizontal,
+        CircleDollarSign,
     } from "lucide-svelte";
     import { Badge } from "$lib/components/ui/badge";
     import { Separator } from "$lib/components/ui/separator";
@@ -49,7 +62,6 @@
     } from "$lib/components/ui/dialog";
     import * as Popover from "$lib/components/ui/popover";
     import * as Command from "$lib/components/ui/command";
-    import { Check, ChevronsUpDown } from "lucide-svelte";
     import { cn } from "$lib/utils";
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import { formatCurrency } from "$lib/utils";
@@ -69,6 +81,7 @@
         price: number;
         qty: number;
         maxQty: number; // Total available stock across batches
+        code?: string;
     };
 
     type PaymentItem = {
@@ -236,6 +249,7 @@
                     price: variant.price,
                     qty: 1,
                     maxQty: variant.stock,
+                    code: product.code,
                 },
             ];
         }
@@ -296,7 +310,6 @@
         const method = getSelectedMethod(newMethodId);
 
         // Strict Rule: If 1st Payment is Cash -> It must be single payment.
-        // Wait, with dynamic ID, "cash" check needs type check
         if (index === 0 && method?.type === "cash") {
             payments = [{ methodId: newMethodId, amount: payments[0].amount }];
             return;
@@ -388,30 +401,66 @@
     }
 </script>
 
-<div class="flex h-[calc(100vh-80px)] overflow-hidden gap-4 p-4">
+<div class="h-screen flex bg-background overflow-hidden font-sans">
     <!-- Left: Product Catalog -->
-    <div class="flex-1 flex flex-col gap-4 min-w-0">
-        <!-- Header: Search & Category Filter -->
-        <div class="flex flex-col gap-3 flex-shrink-0">
-            <div class="flex gap-2 items-center">
-                <div class="relative flex-1">
+    <div class="flex-1 flex flex-col min-w-0 bg-muted/5 relative">
+        <!-- Decoration Background -->
+        <div
+            class="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none"
+        ></div>
+
+        <!-- Header -->
+        <div
+            class="px-6 py-4 flex flex-col gap-4 border-b bg-background/80 backdrop-blur-xl z-20"
+        >
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1
+                        class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
+                    >
+                        Point of Sales
+                    </h1>
+                    <p class="text-muted-foreground text-sm">
+                        Kelola transaksi penjualan dengan mudah
+                    </p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        href="/sales/history"
+                        class="gap-2 hidden md:flex"
+                    >
+                        <History class="h-4 w-4" />
+                        Riwayat Transaksi
+                    </Button>
+                </div>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="flex gap-3">
+                <div class="relative flex-1 max-w-md">
                     <Search
                         class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                     />
                     <Input
                         type="search"
-                        placeholder="Cari produk (Nama / SKU)..."
-                        class="pl-9 h-10 w-full"
+                        placeholder="Cari produk (Nama atau SKU)..."
+                        class="pl-9 bg-secondary/10 border-muted-foreground/20 focus:bg-background transition-all"
                         bind:value={searchTerm}
                     />
                 </div>
                 <Select type="single" bind:value={selectedCategory}>
-                    <SelectTrigger class="w-[180px]">
-                        <Filter class="w-4 h-4 mr-2" />
-                        <span class="truncate">
-                            {categories.find((c) => c.id === selectedCategory)
-                                ?.name || "Semua Kategori"}
-                        </span>
+                    <SelectTrigger
+                        class="w-[180px] bg-secondary/10 border-muted-foreground/20"
+                    >
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            <Filter class="w-3.5 h-3.5 flex-shrink-0" />
+                            <span class="truncate">
+                                {categories.find(
+                                    (c) => c.id === selectedCategory,
+                                )?.name || "Semua Kategori"}
+                            </span>
+                        </div>
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Semua Kategori</SelectItem>
@@ -423,118 +472,163 @@
             </div>
         </div>
 
-        <!-- Product Grid -->
-        <div class="flex-1 -mr-2 pr-2 overflow-y-auto">
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto p-6 scroll-smooth">
             {#if filteredProducts.length === 0}
                 <div
-                    class="flex flex-col items-center justify-center h-64 text-muted-foreground"
+                    class="h-full flex flex-col items-center justify-center text-muted-foreground animate-in fade-in zoom-in-95 duration-300"
                 >
-                    <Package class="h-12 w-12 mb-3 opacity-20" />
-                    <p>Tidak ada produk ditemukan</p>
+                    <div
+                        class="h-20 w-20 bg-muted/30 rounded-full flex items-center justify-center mb-4"
+                    >
+                        <Search class="h-10 w-10 opacity-20" />
+                    </div>
+                    <h3 class="font-medium text-lg text-foreground/80">
+                        Tidak ada produk ditemukan
+                    </h3>
+                    <p class="text-sm">
+                        Coba kata kunci lain atau ubah filter kategori
+                    </p>
                 </div>
             {:else}
                 <div
-                    class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-8"
+                    class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 pb-20"
                 >
                     {#each filteredProducts as product}
                         <div
-                            class="group border rounded-lg bg-card hover:border-primary/50 transition-all hover:shadow-sm flex flex-col h-full overflow-hidden"
+                            class="group relative flex flex-col bg-card border rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/30"
                         >
-                            <!-- Image Placeholder / Thumbnail -->
+                            <!-- Image Thumbnail -->
                             <div
-                                class="aspect-video bg-muted/30 flex items-center justify-center text-muted-foreground/20"
+                                class="aspect-[4/3] bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center relative overflow-hidden"
                             >
-                                <Package class="h-8 w-8" />
+                                {#if product.image}
+                                    <img
+                                        src={product.image}
+                                        alt={product.name}
+                                        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                    />
+                                {:else}
+                                    <Package
+                                        class="h-10 w-10 text-muted-foreground/20"
+                                    />
+                                {/if}
+
+                                <!-- Code Badge -->
+                                {#if product.code}
+                                    <div class="absolute top-2 left-2">
+                                        <Badge
+                                            variant="secondary"
+                                            class="bg-background/80 backdrop-blur text-[10px] font-mono shadow-sm px-1.5 h-5 border-0"
+                                        >
+                                            {product.code}
+                                        </Badge>
+                                    </div>
+                                {/if}
                             </div>
 
-                            <div class="p-3 flex flex-col flex-1 gap-2">
-                                <div>
-                                    <h3
-                                        class="font-medium text-sm line-clamp-2 leading-tight min-h-[2.5em] group-hover:text-primary transition-colors"
-                                    >
-                                        {product.name}
-                                    </h3>
-                                    <div class="flex gap-2 mt-1">
-                                        {#if product.code}
-                                            <Badge
-                                                variant="outline"
-                                                class="text-[10px] px-1 h-5"
-                                                >{product.code}</Badge
-                                            >
-                                        {/if}
-                                    </div>
-                                </div>
+                            <div class="p-3 flex flex-col flex-1 gap-1.5">
+                                <h3
+                                    class="font-semibold text-sm line-clamp-2 leading-tight min-h-[2.5em] group-hover:text-blue-600 transition-colors"
+                                >
+                                    {product.name}
+                                </h3>
 
-                                <div class="mt-auto space-y-2">
+                                <div class="mt-auto pt-2 space-y-2">
                                     {#if !product.variants || product.variants.length === 0}
                                         <Button
                                             variant="secondary"
                                             size="sm"
                                             disabled
-                                            class="w-full h-8 text-xs text-red-500 bg-red-50"
+                                            class="w-full h-8 text-xs bg-red-50 text-red-600 dark:bg-red-900/20"
                                         >
                                             Stok Habis
                                         </Button>
-                                    {:else if product.variants.length === 1}
-                                        {@const v = product.variants[0]}
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            class="w-full h-9 flex justify-between px-2 text-xs"
-                                            onclick={() =>
-                                                addToCart(product, v)}
-                                        >
-                                            <span>Stok: {v.stock}</span>
-                                            <span class="font-bold"
-                                                >{formatCurrency(v.price)}</span
-                                            >
-                                        </Button>
                                     {:else}
-                                        <div class="space-y-1">
-                                            <p
-                                                class="text-[10px] text-muted-foreground font-medium"
-                                            >
-                                                Pilih Varian:
-                                            </p>
-                                            <div class="grid gap-1">
-                                                {#each product.variants.slice(0, 3) as v}
-                                                    <button
-                                                        class="flex items-center justify-between w-full px-2 py-1.5 text-xs border rounded hover:bg-accent text-left"
-                                                        onclick={() =>
-                                                            addToCart(
-                                                                product,
-                                                                v,
-                                                            )}
+                                        <div class="space-y-1.5">
+                                            {#each product.variants.slice(0, 2) as v}
+                                                <button
+                                                    class="w-full flex items-center justify-between p-2 rounded-lg border border-transparent bg-secondary/30 hover:bg-blue-50 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:border-blue-800 transition-all group/btn text-left"
+                                                    onclick={() =>
+                                                        addToCart(product, v)}
+                                                >
+                                                    <div
+                                                        class="flex flex-col min-w-0"
                                                     >
-                                                        <div
-                                                            class="flex flex-col"
-                                                        >
-                                                            <span
-                                                                class="font-medium"
-                                                                >{v.name}</span
-                                                            >
-                                                            <span
-                                                                class="text-[9px] text-muted-foreground"
-                                                                >Stok: {v.stock}</span
-                                                            >
-                                                        </div>
                                                         <span
-                                                            class="font-semibold"
+                                                            class="text-xs font-medium truncate"
+                                                            >{v.name}</span
+                                                        >
+                                                        <span
+                                                            class="text-[10px] text-muted-foreground"
+                                                            >Stok: {v.stock}</span
+                                                        >
+                                                    </div>
+                                                    <div
+                                                        class="flex flex-col items-end pl-2"
+                                                    >
+                                                        <span
+                                                            class="text-xs font-bold text-blue-700 dark:text-blue-400"
                                                             >{formatCurrency(
                                                                 v.price,
                                                             )}</span
                                                         >
-                                                    </button>
-                                                {/each}
-                                                {#if product.variants.length > 3}
-                                                    <div
-                                                        class="text-[10px] text-center text-muted-foreground italic"
-                                                    >
-                                                        + {product.variants
-                                                            .length - 3} varian lainnya
+                                                        <Plus
+                                                            class="h-3 w-3 opacity-0 group-hover/btn:opacity-100 transition-opacity text-blue-500"
+                                                        />
                                                     </div>
-                                                {/if}
-                                            </div>
+                                                </button>
+                                            {/each}
+
+                                            {#if product.variants.length > 2}
+                                                <Popover.Root>
+                                                    <Popover.Trigger
+                                                        class="w-full"
+                                                    >
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            class="w-full h-7 text-[10px] text-muted-foreground"
+                                                        >
+                                                            +{product.variants
+                                                                .length - 2} Varian
+                                                            Lainnya
+                                                        </Button>
+                                                    </Popover.Trigger>
+                                                    <Popover.Content
+                                                        class="w-56 p-2"
+                                                    >
+                                                        <div class="space-y-1">
+                                                            <p
+                                                                class="text-xs font-semibold px-2 mb-2 text-muted-foreground"
+                                                            >
+                                                                Pilih Varian {product.name}
+                                                            </p>
+                                                            {#each product.variants.slice(2) as v}
+                                                                <button
+                                                                    class="w-full flex items-center justify-between p-2 rounded-md hover:bg-accent text-left text-xs"
+                                                                    onclick={() =>
+                                                                        addToCart(
+                                                                            product,
+                                                                            v,
+                                                                        )}
+                                                                >
+                                                                    <span
+                                                                        >{v.name}
+                                                                        ({v.stock})</span
+                                                                    >
+                                                                    <span
+                                                                        class="font-bold"
+                                                                        >{formatCurrency(
+                                                                            v.price,
+                                                                        )}</span
+                                                                    >
+                                                                </button>
+                                                            {/each}
+                                                        </div>
+                                                    </Popover.Content>
+                                                </Popover.Root>
+                                            {/if}
                                         </div>
                                     {/if}
                                 </div>
@@ -546,149 +640,23 @@
         </div>
     </div>
 
-    <!-- Right: Cart & Checkout -->
-    {#snippet cartContent()}
-        <div
-            class="p-3 border-b bg-muted/10 flex items-center justify-between flex-shrink-0"
-        >
-            <h2 class="font-semibold flex items-center gap-2">
-                <ShoppingCart class="h-4 w-4" /> Keranjang
-            </h2>
-            <div class="flex items-center gap-2">
-                <Badge variant="secondary" class="text-xs"
-                    >{cart.length} Item</Badge
-                >
-                {#if cart.length > 0}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        class="h-6 w-6 text-muted-foreground hover:text-red-500"
-                        onclick={() => (cart = [])}
-                        title="Kosongkan"
-                    >
-                        <Trash2 class="h-3 w-3" />
-                    </Button>
-                {/if}
-            </div>
-        </div>
-
-        <div class="flex-1 p-3 overflow-y-auto">
-            <div class="flex flex-col gap-2">
-                {#if cart.length === 0}
-                    <div
-                        class="h-64 flex flex-col items-center justify-center text-muted-foreground space-y-3 opacity-50"
-                    >
-                        <ShoppingCart class="h-10 w-10" />
-                        <p class="text-sm">Keranjang kosong</p>
-                    </div>
-                {:else}
-                    {#each cart as item, i}
-                        <div
-                            class="flex flex-col bg-background p-3 rounded-lg border gap-2 shadow-sm"
-                        >
-                            <div class="flex justify-between items-start gap-2">
-                                <div>
-                                    <h4
-                                        class="font-medium text-sm line-clamp-2 leading-tight"
-                                    >
-                                        {item.name}
-                                    </h4>
-                                    <div class="flex items-center gap-1 mt-1">
-                                        <Badge
-                                            variant="outline"
-                                            class="text-[10px] px-1 h-4 font-normal text-muted-foreground"
-                                            >{item.variant}</Badge
-                                        >
-                                    </div>
-                                </div>
-                                <div class="font-semibold text-sm">
-                                    {formatCurrency(item.price * item.qty)}
-                                </div>
-                            </div>
-
-                            <Separator class="bg-border/50" />
-
-                            <div class="flex items-center justify-between">
-                                <div
-                                    class="text-xs text-muted-foreground font-mono"
-                                >
-                                    @ {formatCurrency(item.price)}
-                                </div>
-                                <div
-                                    class="flex items-center gap-1 bg-muted/30 rounded-md p-0.5"
-                                >
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-7 w-7 rounded-sm active:scale-90"
-                                        onclick={() => updateQty(i, -1)}
-                                    >
-                                        <Minus class="h-3 w-3" />
-                                    </Button>
-                                    <span
-                                        class="w-8 text-center text-sm font-medium"
-                                        >{item.qty}</span
-                                    >
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-7 w-7 rounded-sm active:scale-90"
-                                        onclick={() => updateQty(i, 1)}
-                                    >
-                                        <Plus class="h-3 w-3" />
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    {/each}
-                {/if}
-            </div>
-        </div>
-
-        <div class="p-4 bg-muted/20 border-t space-y-4 flex-shrink-0">
-            <div class="space-y-1.5">
-                <div class="flex justify-between text-sm">
-                    <span class="text-muted-foreground">Subtotal</span>
-                    <span>{formatCurrency(totalAmount)}</span>
-                </div>
-                <Separator />
-                <div class="flex justify-between font-bold text-lg pt-1">
-                    <span>Total Tagihan</span>
-                    <span class="text-primary"
-                        >{formatCurrency(totalAmount)}</span
-                    >
-                </div>
-            </div>
-
-            <Button
-                size="lg"
-                class="w-full text-base font-semibold shadow-sm"
-                disabled={cart.length === 0}
-                onclick={openCheckout}
-            >
-                <CreditCard class="mr-2 h-4 w-4" />
-                Bayar Sekarang
-            </Button>
-        </div>
-    {/snippet}
-
     <!-- Right: Cart & Checkout (Desktop) -->
     <div
-        class="hidden lg:flex w-[380px] flex-shrink-0 flex-col bg-card border rounded-lg shadow-sm h-full overflow-hidden"
+        class="hidden lg:flex w-[400px] flex-col border-l bg-background/95 backdrop-blur shadow-2xl z-30 relative"
     >
         {@render cartContent()}
     </div>
 
-    <!-- Mobile Cart Trigger (FAB) -->
+    <!-- Mobile Cart Trigger -->
     <div class="lg:hidden fixed bottom-6 right-6 z-50">
         <Sheet>
             <SheetTrigger
-                class="h-14 w-14 rounded-full shadow-xl bg-primary text-primary-foreground hover:bg-primary/90 relative inline-flex items-center justify-center transition-colors"
+                class="h-14 w-14 rounded-full shadow-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:scale-105 transition-all flex items-center justify-center relative"
             >
-                <ShoppingCart class="h-6 w-6" />
+                <ShoppingBag class="h-6 w-6" />
                 {#if cart.length > 0}
                     <span
-                        class="absolute -top-1 -right-1 h-6 w-6 bg-red-600 text-white text-xs font-bold rounded-full flex items-center justify-center border-2 border-background"
+                        class="absolute -top-1 -right-1 h-6 w-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-900 shadow-sm"
                     >
                         {cart.length}
                     </span>
@@ -696,7 +664,7 @@
             </SheetTrigger>
             <SheetContent
                 side="right"
-                class="w-[90vw] sm:w-[400px] p-0 flex flex-col h-full bg-card"
+                class="w-full sm:w-[450px] p-0 flex flex-col h-full border-l shadow-2xl"
             >
                 {@render cartContent()}
             </SheetContent>
@@ -706,145 +674,194 @@
     <!-- Payment Dialog -->
     <Dialog bind:open={paymentOpen}>
         <DialogContent
-            class="max-w-[700px] p-0 overflow-hidden flex flex-col max-h-[90vh]"
+            class="max-w-[800px] p-0 gap-0 overflow-hidden shadow-2xl sm:rounded-2xl border-0"
         >
-            <DialogHeader class="p-6 pb-2">
-                <DialogTitle class="text-xl">Checkout & Pembayaran</DialogTitle>
-                <DialogDescription
-                    >Selesaikan transaksi penjualan.</DialogDescription
+            <div
+                class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white text-center relative overflow-hidden"
+            >
+                <div
+                    class="absolute inset-0 bg-white/10 pattern-dots opacity-20"
+                ></div>
+                <h2
+                    class="text-2xl font-bold relative z-10 flex items-center justify-center gap-2"
                 >
-            </DialogHeader>
+                    <CreditCard class="h-6 w-6" />
+                    Checkout & Pembayaran
+                </h2>
+                <p class="text-blue-100 relative z-10 mt-1">
+                    Selesaikan pembayaran untuk {cart.length} item
+                </p>
+            </div>
 
-            <div class="flex-1 overflow-y-auto px-6 py-2">
+            <div
+                class="flex-1 overflow-y-auto max-h-[70vh] p-6 bg-zinc-50/50 dark:bg-zinc-900/50"
+            >
                 <div class="grid md:grid-cols-2 gap-8">
-                    <!-- Left: Summary -->
+                    <!-- Bill & Customer Info -->
                     <div class="space-y-6">
                         <div
-                            class="bg-muted/30 p-4 rounded-lg border text-center space-y-1"
+                            class="bg-card rounded-xl border shadow-sm p-4 text-center"
                         >
-                            <span
-                                class="text-sm text-muted-foreground uppercase tracking-wider font-medium"
-                                >Total Tagihan</span
+                            <p
+                                class="text-xs uppercase tracking-wider text-muted-foreground font-semibold"
                             >
+                                Total Tagihan
+                            </p>
                             <div
-                                class="text-4xl font-bold font-mono tracking-tight text-primary"
+                                class="text-4xl font-bold text-foreground mt-1 tracking-tight"
                             >
                                 {formatCurrency(totalAmount)}
                             </div>
                         </div>
 
-                        <div class="space-y-3">
-                            <Label>Data Pelanggan</Label>
-                            <div class="space-y-2">
-                                <!-- Replaced Legacy Combobox with Popover+Command -->
-                                <Popover.Root bind:open={customerOpen}>
-                                    <Popover.Trigger
-                                        class={cn(
-                                            buttonVariants({
-                                                variant: "outline",
-                                            }),
-                                            "w-full justify-between",
-                                        )}
-                                        role="combobox"
-                                        aria-expanded={customerOpen}
+                        <div class="space-y-4">
+                            <h3
+                                class="text-sm font-semibold flex items-center gap-2 text-muted-foreground border-b pb-2"
+                            >
+                                <User class="h-4 w-4" /> Informasi Pelanggan
+                            </h3>
+
+                            <div class="space-y-3">
+                                <div class="space-y-1.5">
+                                    <Label class="text-xs"
+                                        >Pilih Pelanggan</Label
                                     >
-                                        {#if selectedCustomerId}
-                                            {customerOptions.find(
-                                                (c) =>
-                                                    c.value ===
-                                                    selectedCustomerId,
-                                            )?.label}
-                                        {:else}
-                                            Cari Pelanggan...
-                                        {/if}
-                                        <ChevronsUpDown
-                                            class="ml-2 h-4 w-4 opacity-50"
-                                        />
-                                    </Popover.Trigger>
-                                    <Popover.Content class="w-[300px] p-0">
-                                        <Command.Root>
-                                            <Command.Input
-                                                placeholder="Cari nama..."
+                                    <Popover.Root bind:open={customerOpen}>
+                                        <Popover.Trigger
+                                            class={cn(
+                                                buttonVariants({
+                                                    variant: "outline",
+                                                }),
+                                                "w-full justify-between bg-card",
+                                            )}
+                                            role="combobox"
+                                            aria-expanded={customerOpen}
+                                        >
+                                            {#if selectedCustomerId}
+                                                <span
+                                                    class="font-medium text-foreground"
+                                                    >{customerOptions.find(
+                                                        (c) =>
+                                                            c.value ===
+                                                            selectedCustomerId,
+                                                    )?.label}</span
+                                                >
+                                            {:else}
+                                                <span
+                                                    class="text-muted-foreground"
+                                                    >Pilih / Cari Pelanggan...</span
+                                                >
+                                            {/if}
+                                            <ChevronsUpDown
+                                                class="ml-2 h-4 w-4 opacity-50"
                                             />
-                                            <Command.Empty
-                                                >Pelanggan tidak ditemukan.</Command.Empty
-                                            >
-                                            <Command.Group>
-                                                {#each customerOptions as customer}
-                                                    <Command.Item
-                                                        value={customer.label}
-                                                        onSelect={() => {
-                                                            selectedCustomerId =
-                                                                customer.value;
-                                                            customerOpen = false;
-                                                        }}
-                                                    >
-                                                        <Check
-                                                            class={cn(
-                                                                "mr-2 h-4 w-4",
-                                                                selectedCustomerId ===
-                                                                    customer.value
-                                                                    ? "opacity-100"
-                                                                    : "opacity-0",
-                                                            )}
-                                                        />
-                                                        {customer.label}
-                                                    </Command.Item>
-                                                {/each}
-                                            </Command.Group>
-                                        </Command.Root>
-                                    </Popover.Content>
-                                </Popover.Root>
+                                        </Popover.Trigger>
+                                        <Popover.Content
+                                            class="w-[300px] p-0"
+                                            align="start"
+                                        >
+                                            <Command.Root>
+                                                <Command.Input
+                                                    placeholder="Cari nama..."
+                                                />
+                                                <Command.Empty
+                                                    >Pelanggan tidak ditemukan.</Command.Empty
+                                                >
+                                                <Command.Group
+                                                    class="max-h-[200px] overflow-y-auto"
+                                                >
+                                                    {#each customerOptions as customer}
+                                                        <Command.Item
+                                                            value={customer.label}
+                                                            onSelect={() => {
+                                                                selectedCustomerId =
+                                                                    customer.value;
+                                                                customerOpen = false;
+                                                            }}
+                                                        >
+                                                            <Check
+                                                                class={cn(
+                                                                    "mr-2 h-4 w-4",
+                                                                    selectedCustomerId ===
+                                                                        customer.value
+                                                                        ? "opacity-100"
+                                                                        : "opacity-0",
+                                                                )}
+                                                            />
+                                                            {customer.label}
+                                                        </Command.Item>
+                                                    {/each}
+                                                </Command.Group>
+                                            </Command.Root>
+                                        </Popover.Content>
+                                    </Popover.Root>
+                                </div>
+
                                 {#if !selectedCustomerId}
-                                    <div class="pl-2 border-l-2 border-muted">
-                                        <Input
-                                            placeholder="Nama Guest / Umum (Opsional)"
-                                            bind:value={customerNameManual}
-                                            class="h-9 text-sm"
-                                        />
+                                    <div
+                                        class="flex items-center gap-3 pl-3 border-l-2 border-blue-200 dark:border-blue-800"
+                                    >
+                                        <div class="flex-1 space-y-1.5">
+                                            <Label
+                                                class="text-xs text-muted-foreground"
+                                                >Nama Manual (Walk-in)</Label
+                                            >
+                                            <Input
+                                                placeholder="Nama Pelanggan / Guest"
+                                                bind:value={customerNameManual}
+                                                class="h-9 bg-card"
+                                            />
+                                        </div>
                                     </div>
                                 {/if}
-                            </div>
-                        </div>
 
-                        <div class="space-y-2">
-                            <Label>Catatan Transaksi</Label>
-                            <Input
-                                placeholder="Contoh: No. Faktur Referensi..."
-                                bind:value={notes}
-                            />
+                                <div class="space-y-1.5 pt-2">
+                                    <Label class="text-xs"
+                                        >Catatan (Opsional)</Label
+                                    >
+                                    <Input
+                                        placeholder="Invoice ref, keterangan..."
+                                        bind:value={notes}
+                                        class="h-9 bg-card"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Right: Payment Methods -->
-                    <div class="space-y-4">
+                    <!-- Payment Methods -->
+                    <div class="space-y-5">
                         <div
-                            class="flex justify-between items-center pb-2 border-b"
+                            class="flex items-center justify-between border-b pb-2"
                         >
-                            <Label class="text-base font-semibold"
-                                >Metode Pembayaran</Label
+                            <h3
+                                class="text-sm font-semibold flex items-center gap-2 text-muted-foreground"
                             >
+                                <Wallet class="h-4 w-4" /> Metode Pembayaran
+                            </h3>
                             <Button
                                 variant="ghost"
                                 size="sm"
+                                class="h-7 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                                 onclick={addPaymentRow}
                                 disabled={payments.length >= 2 ||
                                     (payments[0] &&
                                         getSelectedMethod(payments[0].methodId)
                                             ?.type === "cash") ||
                                     availableMethods.length === 0}
-                                class="h-8 text-xs"
                             >
-                                <Plus class="h-3 w-3 mr-1" /> Tambah Split
+                                <Plus class="h-3 w-3 mr-1" /> Split Payment
                             </Button>
                         </div>
 
                         <div class="space-y-3">
                             {#if availableMethods.length === 0}
                                 <div
-                                    class="text-center p-4 text-muted-foreground text-sm"
+                                    class="text-center p-6 bg-muted/30 rounded-lg text-sm text-muted-foreground"
                                 >
-                                    Memuat metode pembayaran...
+                                    <div class="animate-pulse">
+                                        Memuat metode pembayaran...
+                                    </div>
                                 </div>
                             {:else}
                                 {#each payments as payment, i}
@@ -852,49 +869,57 @@
                                         payment.methodId,
                                     )}
                                     <div
-                                        class="p-3 border rounded-lg bg-card space-y-3"
+                                        class="p-3 border rounded-xl bg-card shadow-sm space-y-3 animate-in slide-in-from-right duration-300"
                                     >
                                         <div
-                                            class="flex justify-between items-center"
+                                            class="flex justify-between items-center text-xs text-muted-foreground"
                                         >
                                             <span
-                                                class="text-xs font-semibold text-muted-foreground uppercase"
+                                                class="font-bold uppercase tracking-wider"
                                                 >Pembayaran #{i + 1}</span
                                             >
                                             {#if payments.length > 1}
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    class="h-6 w-6 -mr-2 text-muted-foreground hover:text-red-500"
+                                                <button
+                                                    class="text-red-500 hover:text-red-600 transition-colors"
                                                     onclick={() =>
                                                         removePaymentRow(i)}
                                                 >
-                                                    <X class="h-3 w-3" />
-                                                </Button>
+                                                    <X class="h-3.5 w-3.5" />
+                                                </button>
                                             {/if}
                                         </div>
 
-                                        <div class="grid gap-2">
+                                        <div class="grid gap-3">
                                             <Select
                                                 type="single"
                                                 value={payment.methodId}
                                                 onValueChange={(val) =>
                                                     handleMethodChange(i, val)}
                                             >
-                                                <SelectTrigger>
-                                                    <span>
-                                                        {getSelectedMethod(
-                                                            payment.methodId,
-                                                        )?.name ||
-                                                            "Pilih Metode"}
-                                                    </span>
+                                                <SelectTrigger
+                                                    class="bg-secondary/10 border-muted"
+                                                >
+                                                    <div
+                                                        class="flex items-center gap-2"
+                                                    >
+                                                        {#if selectedMethod?.icon}
+                                                            <span
+                                                                class="text-lg"
+                                                                >{selectedMethod.icon}</span
+                                                            >
+                                                        {/if}
+                                                        <span class="truncate"
+                                                            >{selectedMethod?.name ||
+                                                                "Pilih Metode"}</span
+                                                        >
+                                                    </div>
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {#each availableMethods as method}
-                                                        <!-- Hide Tempo if no customer selected -->
                                                         {#if (method.type !== "custom" && method.id !== "PM-TEMPO") || selectedCustomerId}
                                                             <SelectItem
                                                                 value={method.id}
+                                                                class="cursor-pointer"
                                                             >
                                                                 <span
                                                                     class="mr-2"
@@ -907,8 +932,6 @@
                                                 </SelectContent>
                                             </Select>
 
-                                            <!-- Sub-method / Variant Selector -->
-                                            <!-- Sub-method / Variant Selector -->
                                             {#if selectedMethod?.variants && selectedMethod.variants.length > 0}
                                                 <Select
                                                     type="single"
@@ -920,16 +943,16 @@
                                                         )}
                                                 >
                                                     <SelectTrigger
-                                                        class="bg-muted/50"
+                                                        class="bg-secondary/10 border-muted border-dashed"
                                                     >
-                                                        <span>
-                                                            {selectedMethod.variants.find(
+                                                        <span
+                                                            >{selectedMethod.variants.find(
                                                                 (v) =>
                                                                     v.id ===
                                                                     payment.variantId,
                                                             )?.name ||
-                                                                "Pilih Bank / Opsi"}
-                                                        </span>
+                                                                "Pilih Bank / Akun"}</span
+                                                        >
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         {#each selectedMethod.variants as variant}
@@ -947,12 +970,13 @@
                                             {/if}
 
                                             <div class="relative">
-                                                <span
-                                                    class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium"
-                                                    >Rp</span
+                                                <div
+                                                    class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground font-semibold"
                                                 >
+                                                    Rp
+                                                </div>
                                                 <CurrencyInput
-                                                    class="pl-9 font-semibold text-right"
+                                                    class="pl-10 text-right font-mono font-bold text-lg h-11 bg-secondary/10 border-muted focus:border-blue-500 transition-colors"
                                                     bind:value={payment.amount}
                                                     placeholder="0"
                                                 />
@@ -963,25 +987,29 @@
                             {/if}
                         </div>
 
-                        <!-- Payment Summary Box -->
-                        <div class="bg-muted p-4 rounded-lg space-y-2 text-sm">
+                        <!-- Summary Calculation -->
+                        <div
+                            class="bg-muted/40 p-4 rounded-xl space-y-2 text-sm border"
+                        >
                             <div
-                                class="flex justify-between items-center text-muted-foreground"
+                                class="flex justify-between text-muted-foreground"
                             >
-                                <span>Terbayar</span>
-                                <span>{formatCurrency(totalPaid)}</span>
+                                <span>Total Dibayar</span>
+                                <span class="font-medium text-foreground"
+                                    >{formatCurrency(totalPaid)}</span
+                                >
                             </div>
-                            <Separator />
+                            <Separator class="bg-border/50" />
                             {#if remaining > 0}
                                 <div
-                                    class="flex justify-between items-center font-bold text-red-600 text-base"
+                                    class="flex justify-between items-center text-red-600 font-bold text-lg"
                                 >
-                                    <span>Kurang Bayar</span>
+                                    <span>Kurang</span>
                                     <span>{formatCurrency(remaining)}</span>
                                 </div>
                             {:else}
                                 <div
-                                    class="flex justify-between items-center font-bold text-green-600 text-base"
+                                    class="flex justify-between items-center text-green-600 font-bold text-lg"
                                 >
                                     <span>Kembalian</span>
                                     <span>{formatCurrency(change)}</span>
@@ -992,25 +1020,170 @@
                 </div>
             </div>
 
-            <DialogFooter
-                class="p-6 border-t bg-muted/50 sm:justify-between items-center"
-            >
+            <DialogFooter class="p-4 border-t bg-background">
                 <Button
-                    variant="ghost"
+                    variant="outline"
                     onclick={() => (paymentOpen = false)}
                     disabled={loading}
+                    class="w-full sm:w-auto"
                 >
                     Batal
                 </Button>
                 <Button
-                    size="lg"
                     onclick={processCheckout}
                     disabled={loading || remaining > 0}
-                    class="w-full sm:w-auto min-w-[150px]"
+                    class="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/20"
                 >
-                    {loading ? "Memproses..." : "Konfirmasi Pembayaran"}
+                    {#if loading}
+                        <div
+                            class="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"
+                        ></div>
+                        Memproses...
+                    {:else}
+                        Konfirmasi Pembayaran
+                    {/if}
                 </Button>
             </DialogFooter>
         </DialogContent>
     </Dialog>
 </div>
+
+{#snippet cartContent()}
+    <div class="flex flex-col h-full">
+        <!-- Cart Header -->
+        <div
+            class="p-5 border-b bg-background/95 backdrop-blur z-10 flex-shrink-0 flex items-center justify-between"
+        >
+            <div>
+                <h2
+                    class="font-bold text-lg flex items-center gap-2 text-foreground"
+                >
+                    <ShoppingBag class="h-5 w-5 text-blue-600" /> Current Order
+                </h2>
+                <p class="text-xs text-muted-foreground mt-0.5">
+                    {cart.length} items added
+                </p>
+            </div>
+
+            {#if cart.length > 0}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-50"
+                    onclick={() => (cart = [])}
+                    title="Hapus Semua"
+                >
+                    <Trash2 class="h-4 w-4" />
+                </Button>
+            {/if}
+        </div>
+
+        <!-- Cart Items -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/10">
+            {#if cart.length === 0}
+                <div
+                    class="h-full flex flex-col items-center justify-center text-muted-foreground text-center p-8 opacity-60"
+                >
+                    <div
+                        class="h-16 w-16 bg-muted rounded-full flex items-center justify-center mb-4"
+                    >
+                        <ShoppingBag class="h-8 w-8 opacity-40" />
+                    </div>
+                    <p class="font-medium">Keranjang Kosong</p>
+                    <p class="text-xs mt-1">
+                        Pilih produk dari katalog untuk memulai pesanan.
+                    </p>
+                </div>
+            {:else}
+                {#each cart as item, i (item.uniqueId)}
+                    <div
+                        class="group bg-background p-3 rounded-xl border shadow-sm hover:shadow-md transition-all border-l-4 border-l-blue-500 flex flex-col gap-2 relative animate-in slide-in-from-right-2 duration-300"
+                    >
+                        <div class="flex justify-between items-start gap-3">
+                            <div class="min-w-0">
+                                <h4
+                                    class="font-semibold text-sm leading-tight text-foreground"
+                                >
+                                    {item.name}
+                                </h4>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <Badge
+                                        variant="secondary"
+                                        class="h-4 px-1 text-[10px] font-normal bg-blue-50 text-blue-700 hover:bg-blue-100"
+                                        >{item.variant}</Badge
+                                    >
+                                    {#if item.code}
+                                        <span
+                                            class="text-[10px] text-muted-foreground font-mono"
+                                            >{item.code}</span
+                                        >
+                                    {/if}
+                                </div>
+                            </div>
+                            <div class="font-bold text-sm text-right">
+                                {formatCurrency(item.price * item.qty)}
+                            </div>
+                        </div>
+
+                        <div
+                            class="flex items-center justify-between pt-1 border-t border-dashed mt-1"
+                        >
+                            <div class="text-[10px] text-muted-foreground">
+                                @ {formatCurrency(item.price)}
+                            </div>
+                            <div
+                                class="flex items-center bg-secondary/30 rounded-lg p-0.5"
+                            >
+                                <button
+                                    class="h-6 w-6 flex items-center justify-center rounded-md hover:bg-background text-foreground transition-colors active:scale-95 disabled:opacity-50"
+                                    onclick={() => updateQty(i, -1)}
+                                >
+                                    <Minus class="h-3 w-3" />
+                                </button>
+                                <span
+                                    class="w-8 text-center text-xs font-semibold tabular-nums"
+                                    >{item.qty}</span
+                                >
+                                <button
+                                    class="h-6 w-6 flex items-center justify-center rounded-md hover:bg-background text-foreground transition-colors active:scale-95 disabled:opacity-50"
+                                    onclick={() => updateQty(i, 1)}
+                                    disabled={item.qty >= item.maxQty}
+                                >
+                                    <Plus class="h-3 w-3" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                {/each}
+            {/if}
+        </div>
+
+        <!-- Cart Footer -->
+        <div
+            class="p-5 bg-background border-t shadow-[0_-5px_20px_-10px_rgba(0,0,0,0.1)] z-20 space-y-4"
+        >
+            <div class="space-y-2">
+                <div class="flex justify-between text-sm text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(totalAmount)}</span>
+                </div>
+                <div class="flex justify-between items-end">
+                    <span class="font-bold text-base">Total Tagihan</span>
+                    <span class="font-bold text-xl text-blue-600"
+                        >{formatCurrency(totalAmount)}</span
+                    >
+                </div>
+            </div>
+
+            <Button
+                size="lg"
+                class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-all"
+                disabled={cart.length === 0}
+                onclick={openCheckout}
+            >
+                <CreditCard class="mr-2 h-4 w-4" />
+                Bayar Sekarang
+            </Button>
+        </div>
+    </div>
+{/snippet}

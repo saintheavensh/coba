@@ -19,23 +19,7 @@
     const statsQuery = createQuery(() => ({
         queryKey: ["productStats"],
         queryFn: async () => {
-            // In a real app we'd have a dedicated endpoint, but here we can improvise or assume data
-            // For now, these might be placeholders or computed from a lightweight fetch if needed.
-            // Let's assume we can get basic count from the products list query logic or a separate small call.
-            // Since we don't have a specific stats endpoint in the plan, I'll mock realistic behavior or use available stores if any.
-            // Actually, sticking to the plan: "Add 3-4 cards... Total Products, Low Stock..."
-            // We can fetch all products (lightweight) or just use placeholder zero loading state if the real data is in the list component.
-            // Better: Pass a signal/prop from ProductList? Or simply fetch 'dashboard' stats again?
-            // Let's use `InventoryService.getProducts` with a small limit? No, that returns array.
-            // Let's defer to loading state and maybe allow ProductList to bubble up stats?
-            // Or better: Just fetch all products for the count? It might be heavy.
-            // Let's assume we can render the layout and the stats might need a future endpoint update.
-            // For now, I will use static/mock data for the visual structure OR if I can, calculate from the list data if I bind it.
-            return {
-                total: 0,
-                lowStock: 0,
-                value: 0,
-            };
+            return await InventoryService.getStats();
         },
     }));
 </script>
@@ -105,7 +89,7 @@
                     <h3
                         class="text-2xl font-bold text-slate-900 dark:text-white"
                     >
-                        --
+                        {statsQuery.data?.totalProducts ?? "--"}
                     </h3>
                 </div>
             </CardContent>
@@ -125,7 +109,7 @@
                     <h3
                         class="text-2xl font-bold text-slate-900 dark:text-white"
                     >
-                        --
+                        {statsQuery.data?.lowStock ?? "--"}
                     </h3>
                 </div>
             </CardContent>
@@ -147,7 +131,11 @@
                     <h3
                         class="text-2xl font-bold text-slate-900 dark:text-white"
                     >
-                        --
+                        {new Intl.NumberFormat("id-ID", {
+                            style: "currency",
+                            currency: "IDR",
+                            maximumFractionDigits: 0,
+                        }).format(statsQuery.data?.totalValue ?? 0)}
                     </h3>
                 </div>
             </CardContent>
@@ -167,7 +155,7 @@
                     <h3
                         class="text-2xl font-bold text-slate-900 dark:text-white"
                     >
-                        --
+                        {statsQuery.data?.totalCategories ?? "--"}
                     </h3>
                 </div>
             </CardContent>

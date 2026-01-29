@@ -19,6 +19,15 @@ app.get("/suppliers/:id/variants", async (c) => {
     return apiSuccess(c, variants);
 });
 
+app.get("/stats", async (c) => {
+    try {
+        const stats = await service.getStats();
+        return apiSuccess(c, stats, "Inventory stats retrieved");
+    } catch (e) {
+        return apiError(c, e, "Failed to retrieve inventory stats");
+    }
+});
+
 app.get("/", async (c) => {
     try {
         const deviceId = c.req.query("deviceId");

@@ -181,6 +181,68 @@
                     </div>
                 </div>
             </div>
+
+            <Separator class="my-6" />
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Realized Summary -->
+                <div
+                    class="space-y-1 p-4 bg-green-50 dark:bg-green-900/10 rounded-xl border border-green-100 dark:border-green-900/20"
+                >
+                    <p
+                        class="text-xs text-muted-foreground uppercase font-bold flex items-center gap-2"
+                    >
+                        <DollarSign class="h-4 w-4 text-green-600" />
+                        Laba Bersih (Cash)
+                    </p>
+                    <div class="text-2xl font-black {profitColor}">
+                        {formatCurrency(data.netProfit)}
+                    </div>
+                    <p class="text-xs text-muted-foreground">
+                        Keuntungan tunai masuk kas
+                    </p>
+                </div>
+
+                <!-- Pending Summary -->
+                <div
+                    class="space-y-1 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/20"
+                >
+                    <p
+                        class="text-xs text-muted-foreground uppercase font-bold flex items-center gap-2"
+                    >
+                        <Activity class="h-4 w-4 text-blue-600" />
+                        Potensi Piutang
+                    </p>
+                    <div
+                        class="text-2xl font-bold text-blue-600 dark:text-blue-400"
+                    >
+                        {formatCurrency(data.pendingProfit || 0)}
+                    </div>
+                    <p class="text-xs text-muted-foreground">
+                        Laba dari service 'Selesai'
+                    </p>
+                </div>
+
+                <!-- Capital Exposure -->
+                <div
+                    class="space-y-1 p-4 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-100 dark:border-orange-900/20"
+                >
+                    <p
+                        class="text-xs text-muted-foreground uppercase font-bold flex items-center gap-2"
+                    >
+                        <PieChart class="h-4 w-4 text-orange-600" />
+                        Modal Tertahan
+                    </p>
+                    <div
+                        class="text-2xl font-bold text-orange-600 dark:text-orange-400"
+                    >
+                        {formatCurrency(data.cogs.servicesPending || 0)}
+                    </div>
+                    <p class="text-xs text-muted-foreground">
+                        Nilai sparepart di rak
+                    </p>
+                </div>
+            </div>
         {/if}
     </CardContent>
 </Card>

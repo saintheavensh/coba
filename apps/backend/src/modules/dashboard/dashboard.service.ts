@@ -1,14 +1,17 @@
 
 import { ReportsService } from "../reports/reports.service";
+import { SettingsService } from "../settings/settings.service";
 import { db } from "../../db";
 import { activityLogs, saleItems, products, sales, services, users } from "../../db/schema";
 import { desc, eq, sql, and, gte, lte } from "drizzle-orm";
 
 export class DashboardService {
     private reports: ReportsService;
+    private settings: SettingsService;
 
     constructor() {
         this.reports = new ReportsService();
+        this.settings = new SettingsService();
     }
 
     async getDashboardData() {
@@ -262,6 +265,8 @@ export class DashboardService {
     }
 
     async getProfitAndLoss(startDate?: string, endDate?: string) {
-        return await this.reports.getProfitAndLoss({ startDate, endDate });
+        const settings = await this.settings.getServiceSettings();
+        const commissionModel = settings?.commissionModel || 'completion';
+        return await this.reports.getProfitAndLoss({ startDate, endDate, commissionModel });
     }
 }

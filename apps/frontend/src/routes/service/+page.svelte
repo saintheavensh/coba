@@ -1,17 +1,41 @@
 <script lang="ts">
-    import { Separator } from "$lib/components/ui/separator";
     import ServiceList from "./components/service-list.svelte";
+    import { Wrench, Sparkles } from "lucide-svelte";
+    import { fade } from "svelte/transition";
 </script>
 
-<div class="space-y-6">
-    <div>
-        <h3 class="text-lg font-medium">Service & Reparasi</h3>
-        <p class="text-sm text-muted-foreground">
-            Kelola service handphone customer, dari penerimaan hingga
-            pengambilan.
-        </p>
-    </div>
-    <Separator />
+<div class="min-h-screen space-y-8 p-6 pb-20">
+    <!-- Header with Gradient -->
+    <div
+        class="relative bg-gradient-to-r from-blue-600 to-cyan-500 rounded-3xl p-8 text-white overflow-hidden shadow-2xl"
+    >
+        <div
+            class="absolute inset-0 bg-white/10 opacity-20 pattern-grid-lg pointer-events-none"
+        ></div>
+        <div
+            class="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6"
+        >
+            <div>
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                        <Wrench class="h-6 w-6 text-white" />
+                    </div>
+                    <h1 class="text-3xl font-bold tracking-tight text-white">
+                        Service & Reparasi
+                    </h1>
+                </div>
+                <p class="text-white/80 max-w-xl text-lg font-light">
+                    Kelola antrian service, pantau progress teknisi, dan update
+                    status reparasi.
+                </p>
+            </div>
 
-    <ServiceList />
+            <!-- Optional: Add a high-level action or stat if needed directly in header -->
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div in:fade={{ duration: 500 }}>
+        <ServiceList />
+    </div>
 </div>

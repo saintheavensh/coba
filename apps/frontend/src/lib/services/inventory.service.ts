@@ -46,6 +46,10 @@ export const InventoryService = {
         });
         return res.data?.data ?? [];
     },
+    getStats: async (): Promise<{ totalProducts: number; lowStock: number; totalValue: number; totalCategories: number }> => {
+        const res = await api.get<ApiResponse<{ totalProducts: number; lowStock: number; totalValue: number; totalCategories: number }>>("/inventory/stats");
+        return res.data?.data!;
+    },
     getProduct: async (id: string): Promise<Product> => {
         const res = await api.get<ApiResponse<Product>>(`/inventory/${id}`);
         return res.data?.data!;

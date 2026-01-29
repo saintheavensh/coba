@@ -208,4 +208,23 @@ export class InventoryRepository {
     async deleteVariant(id: string) {
         return await db.delete(productVariants).where(eq(productVariants.id, id));
     }
+
+    async getInventoryStats() {
+        const [totalProducts] = await db.select({ count: sql<number>`count(*)` }).from(products);
+        const [lowStock] = await db.select({ count: sql<number>`count(*)` })
+            .from(products)
+            .where(sql`${products.stock} <= ${products.minStock}`);
+
+        const [totalValue] = await db.select({ value: sql<number>`sum(${productBatches.currentStock} * ${productBatches.buyPrice})` })
+            .from(productBatches);
+
+        const [totalCategories] = await db.select({ count: sql<number>`count(*)` }).from(categories);
+
+        return {
+            totalProducts: Number(totalProducts?.count || 0),
+            lowStock: Number(lowStock?.count || 0),
+            totalValue: Number(totalValue?.value || 0),
+            totalCategories: Number(totalCategories?.count || 0)
+        };
+    }
 }

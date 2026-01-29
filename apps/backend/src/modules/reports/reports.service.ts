@@ -1,10 +1,11 @@
-import { db } from "../../db";
+﻿import { db } from "../../db";
 import { sales, saleItems, productBatches, services, purchases, users, activityLogs, operationalCosts } from "../../db/schema";
 import { sql, eq, gte, lte, and, count, sum, desc } from "drizzle-orm";
 
 export interface ReportFilters {
     startDate?: string;
     endDate?: string;
+    commissionModel?: 'completion' | 'collection';
 }
 
 export interface SalesSummary {
@@ -19,21 +20,25 @@ export interface SalesSummary {
 export interface ProfitAndLoss {
     revenue: {
         sales: number;
-        services: number;
-        total: number;
+        services: number; // Realized (Diambil)
+        servicesPending: number; // Potential (Selesai)
+        total: number; // Realized Total
     };
     cogs: {
         sales: number;
-        services: number;
-        total: number;
+        services: number; // Realized
+        servicesPending: number; // Potential
+        total: number; // Realized Total
     };
-    grossProfit: number;
+    grossProfit: number; // Realized
     expenses: {
         operational: number;
-        commissions: number;
+        commissions: number; // Realized (paid) based on model
+        commissionsPending: number; // Unpaid/Accrued commissions
         total: number;
     };
-    netProfit: number;
+    netProfit: number; // Realized
+    pendingProfit: number; // Potential Net Profit from Selesai services
 }
 
 export interface TransactionReport {
@@ -605,21 +610,36 @@ export class ReportsService {
      */
     async getProfitAndLoss(filters: ReportFilters = {}): Promise<ProfitAndLoss> {
         let salesConditions = [];
-        let serviceConditions = [];
         let expenseConditions = [];
+        let serviceConditions = []; // Base conditions (e.g. technician filter if any)
+
+        // Date Filtering Logic
+        // For Sales: createdAt
+        // For Expenses: date
+        // For Services: 
+        //   - If Diambil: dateOut
+        //   - If Selesai: updatedAt (Approximation of completion)
+
+        let serviceDateCondition = undefined;
 
         if (filters.startDate) {
             const start = new Date(filters.startDate);
             salesConditions.push(gte(sales.createdAt, start));
-            serviceConditions.push(gte(services.dateOut, start)); // Profit counted on completion
             expenseConditions.push(gte(operationalCosts.date, start));
+
+            // Complex condition for services
+            // (status='diambil' AND dateOut >= start) OR (status='selesai' AND updatedAt >= start)
+            serviceDateCondition = gte(sql`COALESCE(${services.dateOut}, ${services.updatedAt}, ${services.dateIn})`, start);
         }
+
         if (filters.endDate) {
             const end = new Date(filters.endDate);
             end.setHours(23, 59, 59, 999);
             salesConditions.push(lte(sales.createdAt, end));
-            serviceConditions.push(lte(services.dateOut, end));
             expenseConditions.push(lte(operationalCosts.date, end));
+
+            const endCond = lte(sql`COALESCE(${services.dateOut}, ${services.updatedAt}, ${services.dateIn})`, end);
+            serviceDateCondition = serviceDateCondition ? and(serviceDateCondition, endCond) : endCond;
         }
 
         // 1. Sales Revenue & COGS
@@ -645,27 +665,53 @@ export class ReportsService {
         }
 
         // 2. Service Revenue & COGS & Commissions
+        // Fetch both 'diambil' and 'selesai'
         const servicesData = await db.query.services.findMany({
             where: and(
-                eq(services.status, "diambil"), // Only count if picked up/paid
-                ...serviceConditions
+                sql`${services.status} IN ('diambil', 'selesai')`,
+                serviceDateCondition
             ),
             with: {
                 technician: true
             }
         });
 
-        let serviceRevenue = 0;
-        let serviceCOGS = 0;
-        let totalCommissions = 0;
+        let serviceRevenueRealized = 0;
+        let serviceRevenuePending = 0;
+
+        let serviceCOGSRealized = 0;
+        let serviceCOGSPending = 0;
+
+        let commissionsRealized = 0;
+        let commissionsPending = 0;
+
+        const commissionModel = filters.commissionModel || 'completion'; // Default to 'completion' (Owner Risk) if not specified
 
         for (const svc of servicesData) {
-            serviceRevenue += svc.actualCost || 0;
+            const isRealized = svc.status === 'diambil';
+            const cost = svc.actualCost || 0;
+
+            if (isRealized) {
+                serviceRevenueRealized += cost;
+            } else {
+                serviceRevenuePending += cost;
+            }
 
             // a. Calculate COGS
             const parts = (svc.parts as any[]) || [];
+            let partsCost = 0;
+            let partsSellingPrice = 0;
+
             for (const p of parts) {
-                serviceCOGS += (p.buyPrice || 0) * (p.qty || 1);
+                const c = (p.buyPrice || 0) * (p.qty || 1);
+                partsCost += c;
+                partsSellingPrice += (p.price || 0) * (p.qty || 1);
+            }
+
+            if (isRealized) {
+                serviceCOGSRealized += partsCost;
+            } else {
+                serviceCOGSPending += partsCost;
             }
 
             // b. Calculate Commission
@@ -674,15 +720,27 @@ export class ReportsService {
                 if (config && config.enabled) {
                     let comm = 0;
                     // Jasa = actualCost - partsSellingPrice
-                    const partsSellingPrice = parts.reduce((sum, p) => sum + (p.price || 0) * (p.qty || 1), 0);
-                    const jasaValue = Math.max(0, (svc.actualCost || 0) - partsSellingPrice);
+                    const jasaValue = Math.max(0, cost - partsSellingPrice);
 
                     if (config.type === 'percent') {
                         comm = (jasaValue * config.value) / 100;
                     } else if (config.type === 'fixed') {
                         comm = config.value;
                     }
-                    totalCommissions += comm;
+
+                    // Logic based on Commission Model
+                    if (commissionModel === 'completion') {
+                        // Owner Risk: Commission is due upon Completion (Selesai)
+                        // So if status is 'selesai' OR 'diambil', it is a Realized Expense (Accrued Liability)
+                        commissionsRealized += comm;
+                    } else {
+                        // Tech Risk: Commission is due upon Collection (Diambil)
+                        if (isRealized) {
+                            commissionsRealized += comm;
+                        } else {
+                            commissionsPending += comm;
+                        }
+                    }
                 }
             }
         }
@@ -694,149 +752,39 @@ export class ReportsService {
 
         const operationalExpense = expensesData.reduce((sum, e) => sum + e.amount, 0);
 
-        const totalRevenue = salesRevenue + serviceRevenue;
-        const totalCOGS = salesCOGS + serviceCOGS;
+        // Realized Calculations
+        const totalRevenue = salesRevenue + serviceRevenueRealized;
+        const totalCOGS = salesCOGS + serviceCOGSRealized;
         const grossProfit = totalRevenue - totalCOGS;
-        const totalExpenses = operationalExpense + totalCommissions;
+        const totalExpenses = operationalExpense + commissionsRealized;
         const netProfit = grossProfit - totalExpenses;
+
+        // Pending Calculations (Only Service related)
+        const pendingProfit = serviceRevenuePending - serviceCOGSPending - commissionsPending;
 
         return {
             revenue: {
                 sales: salesRevenue,
-                services: serviceRevenue,
+                services: serviceRevenueRealized,
+                servicesPending: serviceRevenuePending,
                 total: totalRevenue
             },
             cogs: {
                 sales: salesCOGS,
-                services: serviceCOGS,
+                services: serviceCOGSRealized,
+                servicesPending: serviceCOGSPending,
                 total: totalCOGS
             },
             grossProfit,
             expenses: {
                 operational: operationalExpense,
-                commissions: totalCommissions,
+                commissions: commissionsRealized,
+                commissionsPending: commissionsPending,
                 total: totalExpenses
             },
-            netProfit
+            netProfit,
+            pendingProfit
         };
     }
 
-    /**
-     * Get Stock Value Report
-     */
-    async getStockValueReport(): Promise<StockValueReport> {
-        const batches = await db.query.productBatches.findMany({
-            with: {
-                product: {
-                    with: {
-                        category: true
-                    }
-                }
-            }
-        });
-
-        let totalItems = new Set();
-        let totalStock = 0;
-        let totalValueHPP = 0;
-        let totalValueSell = 0;
-        const categoryMap = new Map<string, { stock: number; value: number }>();
-
-        for (const b of batches) {
-            const stock = Math.max(0, b.currentStock);
-            const valueHPP = stock * b.buyPrice;
-            const valueSell = stock * b.sellPrice;
-
-            totalItems.add(b.productId);
-            totalStock += stock;
-            totalValueHPP += valueHPP;
-            totalValueSell += valueSell;
-
-            const catName = (b.product as any)?.category?.name || "Uncategorized";
-            const current = categoryMap.get(catName) || { stock: 0, value: 0 };
-            categoryMap.set(catName, {
-                stock: current.stock + stock,
-                value: current.value + valueHPP
-            });
-        }
-
-        return {
-            totalItems: totalItems.size,
-            totalStock,
-            totalValueHPP,
-            totalValueSell,
-            potentialProfit: totalValueSell - totalValueHPP,
-            categories: Array.from(categoryMap.entries()).map(([name, data]) => ({
-                name,
-                ...data
-            }))
-        };
-    }
 }
-
-export interface PartsUsageReport {
-    serviceId: number;
-    serviceNo: string;
-    date: Date;
-    partName: string;
-    source: string;
-    variant?: string;
-    qty: number;
-    price: number;
-    subtotal: number;
-}
-
-export interface ActivityLogReport {
-    id: number;
-    timestamp: Date | null;
-    user: { id: string; name: string; role: string };
-    action: string;
-    entityType: string;
-    entityId: string;
-    description: string | null;
-    details: {
-        oldValue: any;
-        newValue: any;
-    };
-}
-
-// Additional interfaces
-export interface PurchasesSummary {
-    totalAmount: number;
-    totalTransactions: number;
-    totalItems: number;
-}
-
-export interface PurchaseReport {
-    id: string;
-    date: Date;
-    supplierId: string;
-    supplierName: string | null;
-    items: number;
-    totalAmount: number;
-    notes: string | null;
-}
-
-export interface ServiceReport {
-    id: number;
-    no: string;
-    date: Date;
-    customerName: string;
-    deviceInfo: string;
-    status: string;
-    estimatedCost: number;
-    actualCost: number;
-}
-
-export interface TechnicianReport {
-    id: string;
-    name: string;
-    image: string | null;
-    totalServices: number;
-    completed: number;
-    inProgress: number;
-    cancelled: number;
-    revenue: number;
-    completionRate: number;
-}
-
-

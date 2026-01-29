@@ -2,82 +2,89 @@
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
     import { Textarea } from "$lib/components/ui/textarea";
-    import { User, Phone, MapPin } from "lucide-svelte";
+    import { User, Phone, MapPin, Contact } from "lucide-svelte";
     import type { ServiceFormStore } from "../form.svelte";
     import { Badge } from "$lib/components/ui/badge";
 
     let { form }: { form: ServiceFormStore } = $props();
 </script>
 
-<div class="grid gap-6 animate-in slide-in-from-right-4 duration-500">
-    <div class="space-y-4">
-        <h3 class="text-lg font-semibold flex items-center gap-2">
-            <User class="h-5 w-5 text-primary" />
-            Informasi Pelanggan
-        </h3>
-        <p class="text-sm text-muted-foreground">
-            Lengkapi data diri pelanggan untuk keperluan administrasi dan
-            komunikasi.
+<div class="grid gap-8 animate-in fly-in-from-bottom-4 duration-500">
+    <div class="space-y-2">
+        <div
+            class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100/50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-bold uppercase tracking-wider mb-2"
+        >
+            <User class="h-3.5 w-3.5" />
+            Langkah 1
+        </div>
+        <h2 class="text-3xl font-bold tracking-tight text-foreground">
+            Data Pelanggan
+        </h2>
+        <p class="text-muted-foreground text-lg">
+            Siapa yang akan menerima layanan ini?
         </p>
     </div>
 
+    <!-- Glass Card Form -->
     <div
-        class="grid gap-6 p-6 sm:p-8 border border-muted/60 rounded-3xl bg-card/50 shadow-sm relative overflow-hidden group"
+        class="relative group rounded-[2rem] border border-white/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md shadow-xl overflow-hidden p-8 transition-all hover:shadow-2xl hover:shadow-blue-500/5"
     >
-        <!-- Glow Effect -->
+        <!-- Decoration -->
         <div
-            class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -z-10 transition-opacity opacity-0 group-hover:opacity-100"
+            class="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-500/10 to-transparent rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform duration-700"
         ></div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="space-y-3">
+        <div class="grid md:grid-cols-2 gap-8">
+            <!-- Name Input -->
+            <div class="space-y-4">
                 <Label
                     for="name"
-                    class="flex items-center gap-2 text-sm font-semibold text-foreground/80"
+                    class="text-sm font-bold text-foreground/80 uppercase tracking-wider ml-1"
                 >
                     Nama Lengkap <span class="text-red-500">*</span>
                 </Label>
                 <div class="relative group/input">
                     <div
-                        class="absolute inset-y-0 left-3 flex items-center pointer-events-none"
+                        class="absolute inset-y-0 left-4 flex items-center pointer-events-none"
                     >
                         <User
-                            class="h-4 w-4 text-muted-foreground transition-colors group-focus-within/input:text-primary"
+                            class="h-5 w-5 text-muted-foreground transition-colors group-focus-within/input:text-blue-600"
                         />
                     </div>
                     <Input
                         id="name"
                         bind:value={form.customerName}
                         placeholder="Contoh: Budi Santoso"
-                        class="pl-10 h-12 rounded-xl bg-background/50 border-muted-foreground/20 focus:bg-background transition-all focus:ring-4 focus:ring-primary/10"
+                        class="pl-12 h-14 rounded-2xl bg-white/50 dark:bg-slate-950/50 border-slate-200/60 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-950 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-lg shadow-sm"
                     />
                 </div>
             </div>
 
-            <div class="space-y-3">
-                <div class="flex items-center justify-between">
+            <!-- Phone Input -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between ml-1">
                     <Label
                         for="phone"
-                        class="flex items-center gap-2 text-sm font-semibold text-foreground/80"
+                        class="text-sm font-bold text-foreground/80 uppercase tracking-wider"
                     >
-                        No. Telepon / WA
+                        No. WhatsApp / HP
                         {#if !form.isWalkin}<span class="text-red-500">*</span
                             >{/if}
                     </Label>
                     {#if form.isWalkin}
                         <Badge
                             variant="secondary"
-                            class="text-[10px] h-5 px-2 font-normal text-muted-foreground"
-                            >Opsional (Walk-in)</Badge
+                            class="h-5 px-2 text-[10px] font-medium bg-slate-100 text-slate-500"
+                            >Opsional</Badge
                         >
                     {/if}
                 </div>
                 <div class="relative group/input">
                     <div
-                        class="absolute inset-y-0 left-3 flex items-center pointer-events-none"
+                        class="absolute inset-y-0 left-4 flex items-center pointer-events-none"
                     >
                         <Phone
-                            class="h-4 w-4 text-muted-foreground transition-colors group-focus-within/input:text-primary"
+                            class="h-5 w-5 text-muted-foreground transition-colors group-focus-within/input:text-blue-600"
                         />
                     </div>
                     <Input
@@ -85,39 +92,54 @@
                         type="tel"
                         bind:value={form.customerPhone}
                         placeholder="0812-3456-7890"
-                        class="pl-10 h-12 rounded-xl bg-background/50 border-muted-foreground/20 focus:bg-background transition-all focus:ring-4 focus:ring-primary/10"
+                        class="pl-12 h-14 rounded-2xl bg-white/50 dark:bg-slate-950/50 border-slate-200/60 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-950 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-lg shadow-sm font-mono tracking-wide"
                     />
                 </div>
             </div>
-        </div>
 
-        <div class="space-y-3 pt-2">
-            <Label
-                for="address"
-                class="flex items-center gap-2 text-sm font-semibold text-foreground/80"
-            >
-                Alamat {#if form.isWalkin}<span
-                        class="text-muted-foreground font-normal text-xs"
-                        >(Opsional)</span
-                    >{/if}
-            </Label>
-            <div class="relative group/input">
-                <div
-                    class="absolute top-3.5 left-3 flex items-start pointer-events-none"
-                >
-                    <MapPin
-                        class="h-4 w-4 text-muted-foreground transition-colors group-focus-within/input:text-primary"
+            <!-- Address Input (Full Width) -->
+            <div class="md:col-span-2 space-y-4">
+                <div class="flex items-center justify-between ml-1">
+                    <Label
+                        for="address"
+                        class="text-sm font-bold text-foreground/80 uppercase tracking-wider"
+                    >
+                        Alamat Domisili
+                        {#if form.isWalkin}
+                            <span
+                                class="text-muted-foreground font-normal text-xs normal-case tracking-normal ml-1"
+                                >(Tidak wajib untuk walk-in)</span
+                            >
+                        {/if}
+                    </Label>
+                </div>
+                <div class="relative group/input">
+                    <div
+                        class="absolute top-4 left-4 flex items-start pointer-events-none"
+                    >
+                        <MapPin
+                            class="h-5 w-5 text-muted-foreground transition-colors group-focus-within/input:text-blue-600"
+                        />
+                    </div>
+                    <Textarea
+                        id="address"
+                        bind:value={form.customerAddress}
+                        placeholder="Jl. Merdeka No. 45, Kecamatan..."
+                        disabled={form.isWalkin}
+                        class="pl-12 min-h-[120px] rounded-2xl bg-white/50 dark:bg-slate-950/50 border-slate-200/60 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-950 focus:ring-4 focus:ring-blue-500/10 transition-all -visible:ring-offset-0 text-base shadow-sm resize-none py-4 leading-relaxed"
                     />
                 </div>
-                <Textarea
-                    id="address"
-                    bind:value={form.customerAddress}
-                    placeholder="Jl. Merdeka No. 45, Jakarta..."
-                    rows={3}
-                    disabled={form.isWalkin}
-                    class="pl-10 min-h-[100px] rounded-2xl bg-background/50 border-muted-foreground/20 focus:bg-background transition-all focus:ring-4 focus:ring-primary/10 resize-none"
-                />
             </div>
         </div>
+    </div>
+
+    <div
+        class="flex items-start gap-4 p-4 rounded-xl bg-blue-50/50 border border-blue-100 text-blue-700 text-sm"
+    >
+        <Contact class="h-5 w-5 shrink-0 mt-0.5" />
+        <p>
+            Pastikan nomor WhatsApp aktif untuk pengiriman notifikasi status
+            service otomatis.
+        </p>
     </div>
 </div>

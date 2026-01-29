@@ -25,7 +25,17 @@
         SelectItem,
         SelectTrigger,
     } from "$lib/components/ui/select";
-    import { Search, Plus, Trash2, Loader2, Calendar } from "lucide-svelte";
+    import {
+        Search,
+        Plus,
+        Trash2,
+        Loader2,
+        Calendar,
+        Wallet,
+        TrendingUp,
+        Receipt,
+        ArrowUpRight,
+    } from "lucide-svelte";
     import {
         OperationalCostsService,
         type OperationalCost,
@@ -33,6 +43,14 @@
     import { toast } from "svelte-sonner";
     import DateTimePicker from "$lib/components/custom/date-time-picker.svelte";
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
+    import {
+        Card,
+        CardContent,
+        CardHeader,
+        CardTitle,
+    } from "$lib/components/ui/card";
+    import { fade, fly } from "svelte/transition";
+    import { formatCurrency } from "$lib/utils";
 
     let costs = $state<OperationalCost[]>([]);
     let isLoading = $state(false);
@@ -142,13 +160,6 @@
         ),
     );
 
-    function formatPrice(amount: number) {
-        return new Intl.NumberFormat("id-ID", {
-            style: "currency",
-            currency: "IDR",
-        }).format(amount);
-    }
-
     function formatDate(date: string | Date) {
         return new Date(date).toLocaleDateString("id-ID", {
             day: "numeric",
@@ -163,137 +174,302 @@
             (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
         ),
     );
+
+    // Stats Calculation
+    let totalExpenses = $derived(
+        costs.reduce((sum, item) => sum + item.amount, 0),
+    );
+    let currentMonthExpenses = $derived(
+        costs
+            .filter((c) => {
+                const date = new Date(c.date);
+                const now = new Date();
+                return (
+                    date.getMonth() === now.getMonth() &&
+                    date.getFullYear() === now.getFullYear()
+                );
+            })
+            .reduce((sum, item) => sum + item.amount, 0),
+    );
 </script>
 
-<div class="space-y-6">
-    <div class="flex items-center justify-between">
-        <div>
-            <h2 class="text-3xl font-bold tracking-tight">Biaya Operasional</h2>
-            <p class="text-muted-foreground">
-                Catat dan kelola pengeluaran operasional toko.
-            </p>
+<div class="min-h-screen space-y-8 p-6 pb-20">
+    <!-- Header with Gradient -->
+    <div
+        class="relative bg-gradient-to-r from-red-600 to-rose-600 rounded-3xl p-8 text-white overflow-hidden shadow-2xl"
+    >
+        <div
+            class="absolute inset-0 bg-white/10 opacity-20 pattern-dots pointer-events-none"
+        ></div>
+        <div
+            class="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6"
+        >
+            <div>
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                        <Wallet class="h-6 w-6 text-white" />
+                    </div>
+                    <h1 class="text-3xl font-bold tracking-tight text-white">
+                        Biaya Operasional
+                    </h1>
+                </div>
+                <p class="text-white/80 max-w-xl text-lg font-light">
+                    Kelola pengeluaran dan operasional toko agar keuangan tetap
+                    sehat.
+                </p>
+            </div>
+            <Button
+                onclick={openAddDialog}
+                size="lg"
+                class="bg-white text-red-600 hover:bg-white/90 shadow-lg font-bold"
+            >
+                <Plus class="mr-2 h-5 w-5" />
+                Catat Pengeluaran
+            </Button>
         </div>
-        <Button onclick={openAddDialog}>
-            <Plus class="mr-2 h-4 w-4" />
-            Catat Pengeluaran
-        </Button>
     </div>
 
-    <!-- Toolbar -->
-    <div class="flex items-center gap-4">
-        <div class="relative flex-1 max-w-sm">
-            <Search
-                class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
-            />
-            <Input
-                placeholder="Cari pengeluaran..."
-                class="pl-8"
-                bind:value={searchQuery}
-            />
-        </div>
-    </div>
+    <!-- Stats Cards -->
+    <div class="grid gap-4 md:grid-cols-3">
+        <Card
+            class="bg-card/50 backdrop-blur border-l-4 border-l-red-500 shadow-sm"
+        >
+            <CardHeader
+                class="flex flex-row items-center justify-between space-y-0 pb-2"
+            >
+                <CardTitle class="text-sm font-medium text-muted-foreground"
+                    >Total Pengeluaran (Semua)</CardTitle
+                >
+                <Wallet class="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+                <div class="text-2xl font-bold text-red-600">
+                    {formatCurrency(totalExpenses)}
+                </div>
+                <p class="text-xs text-muted-foreground mt-1">
+                    Akumulasi semua data
+                </p>
+            </CardContent>
+        </Card>
 
-    <!-- Content -->
-    <div class="rounded-md border">
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead>Kategori</TableHead>
-                    <TableHead>Keterangan</TableHead>
-                    <TableHead class="text-right">Jumlah</TableHead>
-                    <TableHead class="text-right">Aksi</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {#if isLoading}
-                    <TableRow>
-                        <TableCell colspan={5} class="h-24 text-center">
-                            <div class="flex justify-center items-center">
-                                <Loader2
-                                    class="h-6 w-6 animate-spin text-muted-foreground"
-                                />
-                            </div>
-                        </TableCell>
-                    </TableRow>
-                {:else if sortedCosts.length === 0}
-                    <TableRow>
-                        <TableCell
-                            colspan={5}
-                            class="h-24 text-center text-muted-foreground"
-                        >
-                            Belum ada data biaya operasional.
-                        </TableCell>
-                    </TableRow>
+        <Card
+            class="bg-card/50 backdrop-blur border-l-4 border-l-rose-500 shadow-sm"
+        >
+            <CardHeader
+                class="flex flex-row items-center justify-between space-y-0 pb-2"
+            >
+                <CardTitle class="text-sm font-medium text-muted-foreground"
+                    >Pengeluaran Bulan Ini</CardTitle
+                >
+                <Calendar class="h-4 w-4 text-rose-500" />
+            </CardHeader>
+            <CardContent>
+                <div class="text-2xl font-bold text-rose-600">
+                    {formatCurrency(currentMonthExpenses)}
+                </div>
+                <p class="text-xs text-muted-foreground mt-1">
+                    {new Date().toLocaleDateString("id-ID", {
+                        month: "long",
+                        year: "numeric",
+                    })}
+                </p>
+            </CardContent>
+        </Card>
+
+        <Card
+            class="bg-card/50 backdrop-blur border-l-4 border-l-orange-500 shadow-sm"
+        >
+            <CardHeader
+                class="flex flex-row items-center justify-between space-y-0 pb-2"
+            >
+                <CardTitle class="text-sm font-medium text-muted-foreground"
+                    >Transaksi Terakhir</CardTitle
+                >
+                <Receipt class="h-4 w-4 text-orange-500" />
+            </CardHeader>
+            <CardContent>
+                {#if sortedCosts.length > 0}
+                    <div class="text-lg font-bold truncate">
+                        {sortedCosts[0].category}
+                    </div>
+                    <p class="text-xs text-muted-foreground mt-1">
+                        {formatCurrency(sortedCosts[0].amount)} • {new Date(
+                            sortedCosts[0].date,
+                        ).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                        })}
+                    </p>
                 {:else}
-                    {#each sortedCosts as cost}
+                    <div class="text-sm text-muted-foreground italic">
+                        Belum ada data
+                    </div>
+                {/if}
+            </CardContent>
+        </Card>
+    </div>
+
+    <!-- Main Content -->
+    <div class="space-y-4">
+        <!-- Toolbar -->
+        <div
+            class="flex items-center gap-4 bg-background/50 p-1 rounded-xl backdrop-blur-sm"
+        >
+            <div class="relative flex-1 max-w-sm">
+                <Search
+                    class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                />
+                <Input
+                    placeholder="Cari berdasarkan kategori atau keterangan..."
+                    class="pl-9 bg-card border-none shadow-sm focus-visible:ring-1 focus-visible:ring-red-500"
+                    bind:value={searchQuery}
+                />
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div
+            class="rounded-xl border bg-card/50 backdrop-blur-sm shadow-sm overflow-hidden"
+        >
+            <Table>
+                <TableHeader class="bg-muted/50">
+                    <TableRow>
+                        <TableHead class="w-[200px]">Tanggal</TableHead>
+                        <TableHead>Kategori</TableHead>
+                        <TableHead>Keterangan</TableHead>
+                        <TableHead class="text-right">Jumlah</TableHead>
+                        <TableHead class="text-right w-[100px]">Aksi</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {#if isLoading}
                         <TableRow>
-                            <TableCell>
-                                <div class="flex items-center gap-2">
-                                    <Calendar
-                                        class="h-4 w-4 text-muted-foreground"
-                                    />
-                                    {formatDate(cost.date)}
+                            <TableCell colspan={5} class="h-32 text-center">
+                                <div
+                                    class="flex flex-col items-center justify-center gap-2 text-muted-foreground"
+                                >
+                                    <Loader2 class="h-6 w-6 animate-spin" />
+                                    <p class="text-xs">Memuat data...</p>
                                 </div>
                             </TableCell>
-                            <TableCell>
-                                <span
-                                    class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                                >
-                                    {cost.category}
-                                </span>
-                            </TableCell>
-                            <TableCell>{cost.description || "-"}</TableCell>
-                            <TableCell class="text-right font-medium"
-                                >{formatPrice(cost.amount)}</TableCell
+                        </TableRow>
+                    {:else if sortedCosts.length === 0}
+                        <TableRow>
+                            <TableCell
+                                colspan={5}
+                                class="h-32 text-center text-muted-foreground"
                             >
-                            <TableCell class="text-right">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    class="text-red-500 hover:text-red-600"
-                                    onclick={() => deleteCost(cost.id)}
+                                <div
+                                    class="flex flex-col items-center justify-center gap-2 opacity-50"
                                 >
-                                    <Trash2 class="h-4 w-4" />
-                                </Button>
+                                    <Wallet class="h-8 w-8" />
+                                    <p>Belum ada data biaya operasional.</p>
+                                </div>
                             </TableCell>
                         </TableRow>
-                    {/each}
-                {/if}
-            </TableBody>
-        </Table>
+                    {:else}
+                        {#each sortedCosts as cost (cost.id)}
+                            <TableRow
+                                class="hover:bg-red-50/50 dark:hover:bg-red-900/10 transition-colors"
+                            >
+                                <TableCell>
+                                    <div
+                                        class="flex items-center gap-2 font-medium"
+                                    >
+                                        <div
+                                            class="h-8 w-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 dark:text-red-400"
+                                        >
+                                            <Calendar class="h-4 w-4" />
+                                        </div>
+                                        {formatDate(cost.date)}
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <span
+                                        class="inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold border-transparent bg-secondary text-secondary-foreground"
+                                    >
+                                        {cost.category}
+                                    </span>
+                                </TableCell>
+                                <TableCell
+                                    class="text-muted-foreground max-w-[300px] truncate"
+                                    title={cost.description}
+                                >
+                                    {cost.description || "-"}
+                                </TableCell>
+                                <TableCell
+                                    class="text-right font-bold font-mono text-base"
+                                >
+                                    {formatCurrency(cost.amount)}
+                                </TableCell>
+                                <TableCell class="text-right">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                        onclick={() => deleteCost(cost.id)}
+                                    >
+                                        <Trash2 class="h-4 w-4" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        {/each}
+                    {/if}
+                </TableBody>
+            </Table>
+        </div>
     </div>
 </div>
 
 <Dialog bind:open={isDialogOpen}>
-    <DialogContent class="sm:max-w-[500px]">
-        <DialogHeader>
-            <DialogTitle>Catat Pengeluaran Baru</DialogTitle>
+    <DialogContent
+        class="sm:max-w-[500px] p-0 overflow-hidden gap-0 rounded-2xl"
+    >
+        <DialogHeader
+            class="p-6 bg-gradient-to-r from-red-600 to-rose-600 text-white"
+        >
+            <DialogTitle class="flex items-center gap-2 text-xl">
+                <Receipt class="h-5 w-5" /> Catat Pengeluaran
+            </DialogTitle>
+            <p class="text-red-100 text-sm mt-1">
+                Masukkan detail biaya operasional baru.
+            </p>
         </DialogHeader>
 
-        <div class="grid gap-4 py-4">
-            <div class="grid gap-2">
-                <Label>Tanggal</Label>
-                <DateTimePicker bind:value={formData.date} />
-            </div>
-
-            <div class="grid gap-2">
-                <Label>Kategori</Label>
-                <Select type="single" bind:value={formData.category}>
-                    <SelectTrigger class="w-full">
-                        {formData.category}
-                    </SelectTrigger>
-                    <SelectContent>
-                        {#each categories as cat}
-                            <SelectItem value={cat}>{cat}</SelectItem>
-                        {/each}
-                    </SelectContent>
-                </Select>
+        <div class="grid gap-5 p-6 bg-background">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="grid gap-2">
+                    <Label>Tanggal</Label>
+                    <DateTimePicker bind:value={formData.date} />
+                </div>
+                <div class="grid gap-2">
+                    <Label>Kategori</Label>
+                    <Select type="single" bind:value={formData.category}>
+                        <SelectTrigger class="w-full">
+                            {formData.category}
+                        </SelectTrigger>
+                        <SelectContent class="max-h-[300px]">
+                            {#each categories as cat}
+                                <SelectItem value={cat}>{cat}</SelectItem>
+                            {/each}
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
 
             <div class="grid gap-2">
                 <Label>Jumlah (Rp)</Label>
-                <CurrencyInput bind:value={formData.amount} />
+                <div class="relative">
+                    <CurrencyInput
+                        bind:value={formData.amount}
+                        class="pl-10 text-lg font-bold"
+                    />
+                    <div
+                        class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold"
+                    >
+                        Rp
+                    </div>
+                </div>
             </div>
 
             <div class="grid gap-2">
@@ -301,20 +477,28 @@
                 <Textarea
                     id="description"
                     bind:value={formData.description}
-                    placeholder="Detail pengeluaran..."
+                    placeholder="Contoh: Pembayaran listrik bulan Januari..."
+                    class="resize-none h-[100px]"
                 />
             </div>
         </div>
 
-        <DialogFooter>
-            <Button variant="outline" onclick={() => (isDialogOpen = false)}
+        <DialogFooter class="p-4 bg-muted/20 border-t">
+            <Button variant="ghost" onclick={() => (isDialogOpen = false)}
                 >Batal</Button
             >
-            <Button onclick={saveCost} disabled={isSaving}>
+            <Button
+                onclick={saveCost}
+                disabled={isSaving}
+                class="bg-red-600 hover:bg-red-700 text-white"
+            >
                 {#if isSaving}
                     <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+                    Menyimpan...
+                {:else}
+                    <ArrowUpRight class="mr-2 h-4 w-4" />
+                    Simpan Pengeluaran
                 {/if}
-                Simpan
             </Button>
         </DialogFooter>
     </DialogContent>
