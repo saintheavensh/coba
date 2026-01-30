@@ -40,6 +40,7 @@
         OperationalCostsService,
         type OperationalCost,
     } from "$lib/services/operational-costs.service";
+    import { api } from "$lib/api";
     import { toast } from "svelte-sonner";
     import DateTimePicker from "$lib/components/custom/date-time-picker.svelte";
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
@@ -53,6 +54,7 @@
     import { formatCurrency } from "$lib/utils";
 
     let costs = $state<OperationalCost[]>([]);
+    let accounts = $state<any[]>([]);
     let isLoading = $state(false);
     let searchQuery = $state("");
 
@@ -66,6 +68,8 @@
         amount: 0,
         date: getCurrentLocalISO(),
         description: "",
+        sourceAccountId: "1-1001", // Default to Kas Toko
+        expenseAccountId: "",
     });
 
     const categories = [
@@ -91,7 +95,82 @@
 
     onMount(() => {
         loadData();
+        fetchAccounts();
     });
+
+    async function fetchAccounts() {
+        try {
+            const res = await api.get("/accounting/accounts");
+            accounts = res.data;
+        } catch (error) {
+            console.error("Failed to fetch accounts", error);
+        }
+    }
+
+    // Smart Auto-fill Logic
+    function handleCategoryChange() {
+        if (!accounts.length) return;
+
+        const category = formData.category.toLowerCase();
+        let targetCode = "";
+
+        // Map categories to likely account codes/names
+        if (category.includes("listrik"))
+            targetCode = "5100"; // adjust based on actual data
+        else if (category.includes("air")) targetCode = "5200";
+        else if (category.includes("gaji")) targetCode = "5204";
+        else if (category.includes("sewa")) targetCode = "5203";
+        else if (category.includes("internet")) targetCode = "5202";
+        else targetCode = "5200"; // Fallback to Beban Operasional
+
+        // Find account that matches specific code or name
+        // We look for strict code match first
+        let found = accounts.find(
+            (a) =>
+                a.name.toLowerCase().includes(category) &&
+                a.typeId === "EXPENSE",
+        );
+
+        // If specific text match fails, try hardcoded map
+        if (!found) {
+            if (category === "listrik")
+                found = accounts.find((a) =>
+                    a.name.toLowerCase().includes("listrik"),
+                );
+            if (category === "air")
+                found = accounts.find(
+                    (a) =>
+                        a.name.toLowerCase().includes("air") ||
+                        a.name.toLowerCase().includes("pam"),
+                );
+            if (category === "internet")
+                found = accounts.find(
+                    (a) =>
+                        a.name.toLowerCase().includes("internet") ||
+                        a.name.toLowerCase().includes("wifi"),
+                );
+            if (category === "sewa ruko")
+                found = accounts.find((a) =>
+                    a.name.toLowerCase().includes("sewa"),
+                );
+            if (category === "gaji karyawan")
+                found = accounts.find((a) =>
+                    a.name.toLowerCase().includes("gaji"),
+                );
+        }
+
+        if (found) {
+            formData.expenseAccountId = found.id;
+        } else {
+            // Fallback to general operational expense if exists
+            const general = accounts.find(
+                (a) =>
+                    a.name.toLowerCase() === "beban operasional" ||
+                    a.code === "5200",
+            );
+            if (general) formData.expenseAccountId = general.id;
+        }
+    }
 
     async function loadData() {
         try {
@@ -110,6 +189,8 @@
             amount: 0,
             date: getCurrentLocalISO(),
             description: "",
+            sourceAccountId: "1-1001",
+            expenseAccountId: "",
         };
     }
 
@@ -190,6 +271,34 @@
                 );
             })
             .reduce((sum, item) => sum + item.amount, 0),
+    );
+
+    let assetAccounts = $derived(
+        accounts.filter(
+            (a) =>
+                a.typeId === "ASSET" &&
+                (a.code.startsWith("10") || a.code.startsWith("11")),
+        ),
+    ); // Simple filter for Cash/Bank if structure known, or just ASSET
+    // Better to filter by what seems like Cash/Bank.
+    // Based on seed: 1-1000 Kas & Bank, 1-1001 Kas Toko, 1-1002 Bank BCA.
+    // So filtering by code starting with "10" (mapped from 1-10xx) or just showing all ASSETS is safer but maybe too many?
+    // Let's filter by typeId="ASSET" and maybe name/description keywords?
+    // Or just all ASSET for flexibility. The user might pay with "Piutang" (rare)?
+    // Let's assume strict Cash/Bank usually starts with certain codes.
+    // Seed says: 1-1000, 1-1001.
+    // Let's use filter: typeId === 'ASSET'
+
+    let cashBankAccounts = $derived(
+        accounts.filter(
+            (a) =>
+                a.typeId === "ASSET" &&
+                (a.name.toLowerCase().includes("kas") ||
+                    a.name.toLowerCase().includes("bank")),
+        ),
+    );
+    let expenseAccounts = $derived(
+        accounts.filter((a) => a.typeId === "EXPENSE"),
     );
 </script>
 
@@ -444,7 +553,11 @@
                 </div>
                 <div class="grid gap-2">
                     <Label>Kategori</Label>
-                    <Select type="single" bind:value={formData.category}>
+                    <Select
+                        type="single"
+                        bind:value={formData.category}
+                        onValueChange={handleCategoryChange}
+                    >
                         <SelectTrigger class="w-full">
                             {formData.category}
                         </SelectTrigger>
@@ -456,6 +569,66 @@
                     </Select>
                 </div>
             </div>
+
+            <!-- Dynamic Account Selection -->
+            {#if accounts.length > 0}
+                <div
+                    class="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2"
+                >
+                    <div class="grid gap-2">
+                        <Label>Sumber Dana (Kredit)</Label>
+                        <Select
+                            type="single"
+                            bind:value={formData.sourceAccountId}
+                        >
+                            <SelectTrigger class="w-full">
+                                {accounts.find(
+                                    (a) => a.id === formData.sourceAccountId,
+                                )?.name || "Pilih Akun"}
+                            </SelectTrigger>
+                            <SelectContent class="max-h-[300px]">
+                                {#each cashBankAccounts as account}
+                                    <SelectItem
+                                        value={account.id}
+                                        label={account.name}
+                                    >
+                                        <span class="font-medium"
+                                            >{account.code}</span
+                                        >
+                                        - {account.name}
+                                    </SelectItem>
+                                {/each}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div class="grid gap-2">
+                        <Label>Akun Biaya (Debit)</Label>
+                        <Select
+                            type="single"
+                            bind:value={formData.expenseAccountId}
+                        >
+                            <SelectTrigger class="w-full">
+                                {accounts.find(
+                                    (a) => a.id === formData.expenseAccountId,
+                                )?.name || "Pilih Akun"}
+                            </SelectTrigger>
+                            <SelectContent class="max-h-[300px]">
+                                {#each expenseAccounts as account}
+                                    <SelectItem
+                                        value={account.id}
+                                        label={account.name}
+                                    >
+                                        <span class="font-medium"
+                                            >{account.code}</span
+                                        >
+                                        - {account.name}
+                                    </SelectItem>
+                                {/each}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+            {/if}
 
             <div class="grid gap-2">
                 <Label>Jumlah (Rp)</Label>

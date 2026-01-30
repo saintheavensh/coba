@@ -194,122 +194,117 @@ export const InventoryService = {
             throw e;
         }
     },
-    importDevices: async (file: File): Promise<{ imported: number; skipped: number; errors: string[] }> => {
+    parseImportFile: async (file: File): Promise<any[]> => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-
-            reader.onload = async (e) => {
+            reader.onload = (e) => {
                 try {
                     const data = new Uint8Array(e.target?.result as ArrayBuffer);
                     const workbook = XLSX.read(data, { type: 'array' });
-
-                    // Get first sheet
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
-
-                    // Convert to JSON
                     const rows = XLSX.utils.sheet_to_json<any>(worksheet);
 
-                    const result = { imported: 0, skipped: 0, errors: [] as string[] };
+                    // Normalize keys immediately
+                    const normalizedRows = rows.map(row => {
+                        const normalized: any = {};
+                        Object.keys(row).forEach(key => {
+                            normalized[key.toLowerCase()] = row[key];
+                        });
+                        return normalized;
+                    });
 
-                    // fetch existing brands to minimize requests
-                    const existingBrands = await BrandsService.getAll();
-                    const brandMap = new Set(existingBrands.map(b => b.name.toLowerCase().trim()));
-
-                    for (const row of rows) {
-                        try {
-                            // Normalize keys (Brand, brand, BRAND -> brand)
-                            const normalizedRow: any = {};
-                            Object.keys(row).forEach(key => {
-                                normalizedRow[key.toLowerCase()] = row[key];
-                            });
-
-                            const brandName = normalizedRow.brand;
-                            const modelName = normalizedRow.model;
-
-                            if (!brandName || !modelName) {
-                                result.skipped++;
-                                continue;
-                            }
-
-                            // 1. Handle Brand - normalize to capitalize first letter
-                            const normalizeBrandName = (name: string): string => {
-                                if (!name || name.trim().length === 0) return name;
-                                const trimmed = name.trim();
-                                return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
-                            };
-
-                            const normalizedBrandName = normalizeBrandName(brandName);
-                            const brandKey = normalizedBrandName.toLowerCase().trim();
-
-                            if (!brandMap.has(brandKey)) {
-                                try {
-                                    // Check if brand exists (case-insensitive)
-                                    const allBrands = await BrandsService.getAll();
-                                    const exists = allBrands.find(b =>
-                                        b.name.toLowerCase().trim() === brandKey
-                                    );
-
-                                    if (!exists) {
-                                        await BrandsService.create({
-                                            id: brandKey.replace(/\s+/g, "-"),
-                                            name: normalizedBrandName // Use normalized name
-                                        });
-                                        // Refresh map
-                                        brandMap.add(brandKey);
-                                    } else {
-                                        brandMap.add(brandKey);
-                                    }
-                                } catch (err) {
-                                    console.warn(`Brand creation warning for ${brandName}`, err);
-                                    // Proceed anyway, backend might handle it or it failed
-                                }
-                            }
-
-                            // Parse colors
-                            let colorsArray: string[] = [];
-                            if (normalizedRow.colors && typeof normalizedRow.colors === 'string') {
-                                colorsArray = normalizedRow.colors.split(",").map((c: string) => c.trim()).filter((c: string) => c);
-                            }
-
-                            // Parse specs json if exists
-                            let specifications = {};
-                            if (normalizedRow.specifications) {
-                                try {
-                                    specifications = JSON.parse(normalizedRow.specifications);
-                                } catch { }
-                            }
-
-                            // 2. Create Device - use normalized brand name
-                            await InventoryService.createDevice({
-                                brand: normalizedBrandName, // Use normalized brand name
-                                model: modelName.trim(),
-                                code: normalizedRow.code?.toString(),
-                                image: normalizedRow.image,
-                                // @ts-ignore
-                                series: normalizedRow.series,
-                                colors: colorsArray.length > 0 ? colorsArray : undefined,
-                                specs: normalizedRow.specs,
-                                chipset: normalizedRow.chipset,
-                                specifications: Object.keys(specifications).length > 0 ? specifications : undefined
-                            });
-
-                            result.imported++;
-                        } catch (err: any) {
-                            result.errors.push(`Failed to import ${row.brand || '?'} ${row.model || '?'}: ${err.message}`);
-                            result.skipped++;
-                        }
-                    }
-
-                    resolve(result);
+                    resolve(normalizedRows);
                 } catch (err) {
                     reject(err);
                 }
             };
-
             reader.onerror = (err) => reject(err);
             reader.readAsArrayBuffer(file);
         });
+    },
+
+    importDeviceRow: async (normalizedRow: any): Promise<void> => {
+        const brandName = normalizedRow.brand;
+        const modelName = normalizedRow.model;
+
+        if (!brandName || !modelName) {
+            throw new Error("Brand and Model are required");
+        }
+
+        // 1. Handle Brand - normalize to capitalize first letter
+        const normalizeBrandName = (name: string): string => {
+            if (!name || name.trim().length === 0) return name;
+            const trimmed = name.trim();
+            return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+        };
+
+        const normalizedBrandName = normalizeBrandName(brandName);
+
+        // Ensure brand exists
+        try {
+            const brandKey = normalizedBrandName.toLowerCase().trim();
+            const allBrands = await BrandsService.getAll();
+            const exists = allBrands.find(b => b.name.toLowerCase().trim() === brandKey);
+
+            if (!exists) {
+                await BrandsService.create({
+                    id: brandKey.replace(/\s+/g, "-"),
+                    name: normalizedBrandName
+                });
+            }
+        } catch (err) {
+            console.warn(`Brand creation warning for ${brandName}`, err);
+        }
+
+        // Parse colors
+        let colorsArray: string[] = [];
+        if (normalizedRow.colors && typeof normalizedRow.colors === 'string') {
+            colorsArray = normalizedRow.colors.split(",").map((c: string) => c.trim()).filter((c: string) => c);
+        }
+
+        // Parse specs json if exists
+        let specifications = {};
+        if (normalizedRow.specifications) {
+            try {
+                specifications = JSON.parse(normalizedRow.specifications);
+            } catch { }
+        }
+
+        // 2. Create Device
+        await InventoryService.createDevice({
+            brand: normalizedBrandName,
+            model: modelName.trim(),
+            code: normalizedRow.code?.toString(),
+            image: normalizedRow.image,
+            // @ts-ignore
+            series: normalizedRow.series,
+            colors: colorsArray.length > 0 ? colorsArray : undefined,
+            specs: normalizedRow.specs,
+            chipset: normalizedRow.chipset,
+            specifications: Object.keys(specifications).length > 0 ? specifications : undefined
+        });
+    },
+
+    importDevices: async (file: File): Promise<{ imported: number; skipped: number; errors: string[] }> => {
+        // Validation wrapper reusing the new methods
+        try {
+            const rows = await InventoryService.parseImportFile(file);
+            const result = { imported: 0, skipped: 0, errors: [] as string[] };
+
+            for (const row of rows) {
+                try {
+                    await InventoryService.importDeviceRow(row);
+                    result.imported++;
+                } catch (err: any) {
+                    result.errors.push(`Failed: ${err.message}`);
+                    result.skipped++;
+                }
+            }
+            return result;
+        } catch (err: any) {
+            return { imported: 0, skipped: 0, errors: [err.message] };
+        }
     },
 
     // Suppliers

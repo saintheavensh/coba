@@ -33,6 +33,7 @@ import devicesController from "./modules/devices/devices.controller";
 import { brandsController } from "./modules/brands/brands.controller";
 import { serviceToolsController } from "./modules/service-tools/service-tools.controller";
 import { operationalCostsController } from "./modules/operational-costs/operational-costs.controller";
+import accountingController from "./modules/accounting/accounting.controller";
 
 // Create WebSocket upgrader for Bun
 const { upgradeWebSocket, websocket } = createBunWebSocket();
@@ -80,6 +81,7 @@ app.route("/devices", devicesController);
 app.route("/brands", brandsController);
 app.route("/service-tools", serviceToolsController);
 app.route("/operational-costs", operationalCostsController);
+app.route("/accounting", accountingController);
 
 // WebSocket endpoint for real-time updates
 app.get(

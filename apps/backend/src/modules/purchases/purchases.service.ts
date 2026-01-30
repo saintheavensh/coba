@@ -3,6 +3,7 @@ import { purchases, purchaseItems, productBatches, products, activityLogs } from
 import { ActivityLogService } from "../../lib/activity-log.service";
 import { eq, sql, and } from "drizzle-orm";
 import { PurchasesRepository } from "./purchases.repository";
+import { JournalService } from "../accounting/journal.service";
 
 // Service handles the Transaction + Logic
 export class PurchasesService {
@@ -139,6 +140,32 @@ export class PurchasesService {
                 });
             }
         });
+
+        // 6. Create Accounting Journal
+        try {
+            // Purchase increases inventory (Asset) and increases Accounts Payable (Liability)
+            await JournalService.create({
+                description: `Pembelian ${purchaseId}`,
+                referenceType: "purchase",
+                referenceId: purchaseId,
+                lines: [
+                    {
+                        accountId: "1-3000", // Persediaan (using simplified account)
+                        debit: totalAmount,
+                        credit: 0,
+                        description: `Pembelian barang ${purchaseId}`
+                    },
+                    {
+                        accountId: "2-1000", // Hutang Dagang
+                        debit: 0,
+                        credit: totalAmount,
+                        description: `Hutang ${purchaseId}`
+                    }
+                ],
+            }, data.userId);
+        } catch (e) {
+            console.error("Failed to create accounting journal for purchase", e);
+        }
 
         return { message: "Purchase created", id: purchaseId };
     }

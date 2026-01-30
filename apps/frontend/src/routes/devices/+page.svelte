@@ -146,14 +146,15 @@
         return Object.entries(brands).sort((a, b) => a[0].localeCompare(b[0]));
     });
 
-    // Stats Calculations
-    let totalDevices = $derived(devices.length);
+    // Stats Calculations - Use global data (unfiltered)
+    let allDevices = $derived(devicesQuery.data || []);
+    let totalDevices = $derived(allDevices.length);
     let topBrand = $derived.by(() => {
-        if (devices.length === 0) return "-";
+        if (allDevices.length === 0) return "-";
         const counts: Record<string, number> = {};
         let max = 0;
         let best = "-";
-        devices.forEach((d) => {
+        allDevices.forEach((d) => {
             const b = d.brand || "Unknown";
             counts[b] = (counts[b] || 0) + 1;
             if (counts[b] > max) {
@@ -163,9 +164,17 @@
         });
         return best;
     });
-    let totalBrands = $derived(Object.keys(groupedDevices).length);
+    // totalBrands comes from groupedDevices which IS filtered? No, totalBrands usually means all brands in DB.
+    // Actually groupedDevices is for the list view, so it should respect filter.
+    // But the "Brands" card should probably show total brands in system.
+    // The current code uses Object.keys(groupedDevices).length.
+    // If I filter by Samsung, groupedDevices only has Samsung.
+    // So "Brands" card shows 1.
+    // Correct logic for "Brands" card: Use brandList.length (from BrandsService).
+    let totalBrands = $derived(brandList.length);
+
     let withSpecsCount = $derived(
-        devices.filter(
+        allDevices.filter(
             (d) => d.specifications && Object.keys(d.specifications).length > 0,
         ).length,
     );
@@ -483,10 +492,12 @@
     let bulkImportList = $state<
         {
             name: string;
-            url: string;
+            url?: string;
+            data?: any; // Raw data from file
             selected: boolean;
             existing?: boolean;
             status?: "pending" | "success" | "error";
+            error?: string;
         }[]
     >([]);
     let bulkImportStep = $state<"input" | "selection" | "progress" | "summary">(
@@ -619,16 +630,18 @@
             item.status = "pending";
 
             try {
-                // Wait random time (6s to 10s) - faster but still polite
-                const waitTime = Math.floor(Math.random() * 4000) + 6000;
-                await delay(waitTime);
+                if (item.url) {
+                    // URL Import - Wait random time to be polite
+                    const waitTime = Math.floor(Math.random() * 4000) + 6000;
+                    await delay(waitTime);
 
-                const res = await InventoryService.importDeviceFromUrl(
-                    item.url,
-                );
-
-                if (res && res.error) {
-                    throw new Error(res.error);
+                    const res = await InventoryService.importDeviceFromUrl(
+                        item.url,
+                    );
+                    if (res && res.error) throw new Error(res.error);
+                } else if (item.data) {
+                    // File Row Import - No delay
+                    await InventoryService.importDeviceRow(item.data);
                 }
 
                 item.status = "success";
@@ -636,12 +649,14 @@
             } catch (e: any) {
                 console.error(e);
                 item.status = "error";
+                item.error = e.message;
                 bulkImportProgress.failed++;
 
-                // If 429 (rate limit), wait 60 seconds before continuing
+                // If 429 (rate limit), wait 60 seconds before continuing (only for URL import)
                 if (
-                    e.message?.includes("429") ||
-                    e.message?.includes("Too Many Requests")
+                    item.url &&
+                    (e.message?.includes("429") ||
+                        e.message?.includes("Too Many Requests"))
                 ) {
                     toast.warning("Rate limit hit, pausing for 60s...");
                     await delay(60000);
@@ -1106,25 +1121,44 @@
                 const file = e.currentTarget.files?.[0];
                 if (file) {
                     try {
-                        const res = await InventoryService.importDevices(file);
-                        if (res.skipped > 0 || res.errors.length > 0) {
-                            toast.warning(
-                                `Import: ${res.imported} sukses, ${res.skipped} dilewati`,
-                            );
-                        } else {
-                            toast.success(
-                                `Import sukses: ${res.imported} device`,
-                            );
+                        const rows =
+                            await InventoryService.parseImportFile(file);
+
+                        if (rows.length === 0) {
+                            toast.error("File is empty or invalid format");
+                            return;
                         }
-                        if (res.errors.length > 0) {
-                            console.error(res.errors);
-                            toast.error("Cek console untuk detail error");
-                        }
-                        devicesQuery.refetch();
-                    } catch (e) {
-                        toast.error("Gagal import file");
+
+                        // Check duplicates
+                        const existingDevices = devicesQuery.data || [];
+                        const existingModels = new Set(
+                            existingDevices.map((d) =>
+                                d.model.toLowerCase().trim(),
+                            ),
+                        );
+
+                        bulkImportList = rows.map((row) => {
+                            const modelName =
+                                row.model?.toString().trim() || "Unknown";
+                            const isExisting = existingModels.has(
+                                modelName.toLowerCase(),
+                            );
+                            return {
+                                name: `${row.brand || "?"} ${modelName}`,
+                                data: row,
+                                selected: !isExisting,
+                                existing: isExisting,
+                                status: undefined,
+                            };
+                        });
+
+                        bulkImportOpen = true;
+                        bulkImportStep = "selection";
+                        e.currentTarget.value = ""; // Reset
+                    } catch (err) {
+                        toast.error("Failed to parse file");
+                        console.error(err);
                     }
-                    e.currentTarget.value = ""; // Reset
                 }
             }}
         />

@@ -5,6 +5,8 @@ import { eq, desc } from "drizzle-orm";
 import { ServiceRepository } from "./service.repository";
 import { SettingsService } from "../settings/settings.service";
 import { Logger } from "../../lib/logger";
+import { JournalService } from "../accounting/journal.service";
+import { CashRegisterService } from "../accounting/cash-register.service";
 
 export class ServiceService {
     private repo: ServiceRepository;
@@ -289,6 +291,75 @@ export class ServiceService {
             }
 
         });
+
+        // Create accounting entries when service is picked up
+        if (data.status === "diambil" && srv.status !== "diambil") {
+            const serviceNo = srv.no;
+            const amount = data.actualCost || srv.actualCost || srv.costEstimate || 0;
+
+            // Calculate parts cost (COGS)
+            let partsCost = 0;
+            const parts = (srv.parts as any[]) || [];
+            for (const part of parts) {
+                if (part.source === "inventory" && part.buyPrice) {
+                    partsCost += (part.buyPrice || 0) * (part.qty || 1);
+                }
+            }
+
+            if (amount > 0) {
+                try {
+                    // Create journal: Debit Cash, Credit Service Revenue
+                    const journalLines: Array<{ accountId: string; debit: number; credit: number; description: string }> = [
+                        {
+                            accountId: "1-1000", // Kas
+                            debit: amount,
+                            credit: 0,
+                            description: `Pembayaran service ${serviceNo}`
+                        },
+                        {
+                            accountId: "4-2000", // Pendapatan Service
+                            debit: 0,
+                            credit: amount,
+                            description: `Pendapatan service ${serviceNo}`
+                        }
+                    ];
+
+                    // Add COGS if parts were used
+                    if (partsCost > 0) {
+                        journalLines.push({
+                            accountId: "5-1002", // HPP Service  
+                            debit: partsCost,
+                            credit: 0,
+                            description: `HPP sparepart ${serviceNo}`
+                        });
+                        journalLines.push({
+                            accountId: "1-3000", // Persediaan
+                            debit: 0,
+                            credit: partsCost,
+                            description: `Pengurangan persediaan ${serviceNo}`
+                        });
+                    }
+
+                    await JournalService.create({
+                        description: `Service ${serviceNo} - Diambil`,
+                        referenceType: "service",
+                        referenceId: serviceNo,
+                        lines: journalLines,
+                    }, userId);
+
+                    // Record in Cash Register  
+                    await CashRegisterService.recordTransaction({
+                        transactionType: "service",
+                        transactionId: serviceNo,
+                        paymentMethod: "cash",
+                        amount,
+                        description: `Service ${serviceNo}`
+                    });
+                } catch (e) {
+                    Logger.error("Failed to create accounting journal for service", e);
+                }
+            }
+        }
 
         // Trigger WhatsApp Notification
         try {

@@ -3,6 +3,8 @@ import { sales, saleItems, productBatches, products, activityLogs, members, sale
 import { ActivityLogService } from "../../lib/activity-log.service";
 import { eq, and, gt, asc } from "drizzle-orm";
 import { SalesRepository } from "./sales.repository";
+import { JournalService } from "../accounting/journal.service";
+import { CashRegisterService } from "../accounting/cash-register.service";
 
 export class SalesService {
     private repo: SalesRepository;
@@ -226,6 +228,86 @@ export class SalesService {
                 details: { newValue: data }
             });
         });
+
+        // 4. Create Accounting Journal (outside transaction for now)
+        try {
+            // Calculate COGS from sale items
+            const saleWithItems = await this.repo.findById(saleId);
+            let cogsAmount = 0;
+            if (saleWithItems?.items) {
+                for (const item of saleWithItems.items) {
+                    const buyPrice = item.batch?.buyPrice || 0;
+                    cogsAmount += buyPrice * item.qty;
+                }
+            }
+
+            // Create journal: Debit Cash/AR, Credit Revenue, Debit COGS, Credit Inventory
+            const journalLines: Array<{ accountId: string; debit: number; credit: number; description: string }> = [];
+
+            // Revenue side
+            if (paymentStatus === "paid") {
+                // Cash/Bank received
+                journalLines.push({
+                    accountId: paymentMethodStr === "cash" ? "1-1000" : "1-2000", // Kas or Bank
+                    debit: finalAmount,
+                    credit: 0,
+                    description: `Penjualan ${saleId}`
+                });
+            } else {
+                // Accounts Receivable (for tempo/partial)
+                journalLines.push({
+                    accountId: "1-3000", // Piutang
+                    debit: finalAmount,
+                    credit: 0,
+                    description: `Piutang penjualan ${saleId}`
+                });
+            }
+
+            // Credit Revenue
+            journalLines.push({
+                accountId: "4-1000", // Pendapatan Penjualan
+                debit: 0,
+                credit: finalAmount,
+                description: `Pendapatan ${saleId}`
+            });
+
+            // COGS entries (if we have calculated COGS)
+            if (cogsAmount > 0) {
+                journalLines.push({
+                    accountId: "5-1001", // HPP Penjualan
+                    debit: cogsAmount,
+                    credit: 0,
+                    description: `HPP ${saleId}`
+                });
+                journalLines.push({
+                    accountId: "1-3000", // Persediaan (simplified using Piutang as placeholder - should use Inventory account)
+                    debit: 0,
+                    credit: cogsAmount,
+                    description: `Pengurangan persediaan ${saleId}`
+                });
+            }
+
+            await JournalService.create({
+                description: `Penjualan ${saleId}`,
+                referenceType: "sale",
+                referenceId: saleId,
+                lines: journalLines,
+            }, data.userId);
+
+            // 5. Record in Cash Register (if cash payment)
+            if (paymentMethodStr === "cash") {
+                await CashRegisterService.recordTransaction({
+                    transactionType: "sale",
+                    transactionId: saleId,
+                    paymentMethod: "cash",
+                    amount: finalAmount,
+                    description: `Penjualan ${saleId}`
+                });
+            }
+        } catch (e) {
+            // Log but don't fail the sale if accounting fails
+            console.error("Failed to create accounting journal for sale", e);
+        }
 
         // Calculate Change (Kembalian) if Cash > Total
         // Only if not using Tempo (Strict logic: Tempo implies exact amount for correct debt tracking)

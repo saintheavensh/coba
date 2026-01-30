@@ -205,6 +205,16 @@
       ],
     },
     {
+      label: "Keuangan",
+      items: [
+        {
+          title: "Akuntansi",
+          href: "/accounting",
+          icon: Receipt,
+        },
+      ],
+    },
+    {
       label: "Pengaturan",
       items: [
         {

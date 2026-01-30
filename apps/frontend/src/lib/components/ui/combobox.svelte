@@ -3,7 +3,7 @@
     import * as Command from "$lib/components/ui/command";
     import { Check, ChevronsUpDown } from "lucide-svelte";
     import { cn } from "$lib/utils";
-    import { Button } from "$lib/components/ui/button";
+    import { buttonVariants } from "$lib/components/ui/button";
 
     let {
         items = [],
@@ -77,20 +77,18 @@
 </script>
 
 <Popover.Root bind:open>
-    <Popover.Trigger>
-        {#snippet child({ props })}
-            <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={open}
-                class={cn("w-full justify-between", className)}
-                {disabled}
-                {...props}
-            >
-                <span class="truncate">{selectedLabel}</span>
-                <ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-        {/snippet}
+    <Popover.Trigger
+        class={cn(
+            buttonVariants({ variant: "outline" }),
+            "w-full justify-between",
+            className,
+        )}
+        role="combobox"
+        aria-expanded={open}
+        {disabled}
+    >
+        <span class="truncate">{selectedLabel}</span>
+        <ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
     </Popover.Trigger>
     <Popover.Content
         class="w-[--radix-popover-trigger-width] p-0"
