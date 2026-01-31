@@ -657,6 +657,15 @@
                     <Package class="h-4 w-4 mr-2" />
                     Stok
                 </TabsTrigger>
+                {#if accountingMode === "professional"}
+                    <TabsTrigger
+                        value="accounting"
+                        class="rounded-lg px-4 h-10 data-[state=active]:bg-white data-[state=active]:text-purple-600 data-[state=active]:shadow-sm transition-all hover:text-purple-600 border border-purple-200 bg-purple-50/50"
+                    >
+                        <Calculator class="h-4 w-4 mr-2" />
+                        Akuntansi
+                    </TabsTrigger>
+                {/if}
             </TabsList>
         </div>
 
@@ -1446,5 +1455,252 @@
                 </Card>
             {/if}
         </TabsContent>
+
+        <!-- Akuntansi Tab (Pro Mode Only) -->
+        {#if accountingMode === "professional"}
+            <TabsContent
+                value="accounting"
+                class="space-y-6 animate-in fade-in-50 slide-in-from-bottom-5 duration-500"
+            >
+                <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <!-- Quick Links Card -->
+                    <Card
+                        class="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20"
+                    >
+                        <CardHeader>
+                            <CardTitle
+                                class="flex items-center gap-2 text-purple-700 dark:text-purple-300"
+                            >
+                                <Calculator class="h-5 w-5" />
+                                Modul Akuntansi
+                            </CardTitle>
+                            <CardDescription
+                                >Akses fitur akuntansi profesional</CardDescription
+                            >
+                        </CardHeader>
+                        <CardContent class="space-y-3">
+                            <a
+                                href="/accounting/accounts"
+                                class="flex items-center gap-3 p-3 rounded-xl bg-white/60 dark:bg-zinc-800/60 hover:bg-white dark:hover:bg-zinc-800 transition-all border border-purple-100 dark:border-purple-800"
+                            >
+                                <div
+                                    class="p-2 rounded-lg bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300"
+                                >
+                                    <ClipboardList class="h-4 w-4" />
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-sm">
+                                        Chart of Accounts
+                                    </p>
+                                    <p class="text-xs text-muted-foreground">
+                                        Kelola daftar akun
+                                    </p>
+                                </div>
+                            </a>
+                            <a
+                                href="/accounting/journals"
+                                class="flex items-center gap-3 p-3 rounded-xl bg-white/60 dark:bg-zinc-800/60 hover:bg-white dark:hover:bg-zinc-800 transition-all border border-purple-100 dark:border-purple-800"
+                            >
+                                <div
+                                    class="p-2 rounded-lg bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300"
+                                >
+                                    <Briefcase class="h-4 w-4" />
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-sm">
+                                        Jurnal Umum
+                                    </p>
+                                    <p class="text-xs text-muted-foreground">
+                                        Lihat entri jurnal
+                                    </p>
+                                </div>
+                            </a>
+                            <a
+                                href="/accounting/assets"
+                                class="flex items-center gap-3 p-3 rounded-xl bg-white/60 dark:bg-zinc-800/60 hover:bg-white dark:hover:bg-zinc-800 transition-all border border-purple-100 dark:border-purple-800"
+                            >
+                                <div
+                                    class="p-2 rounded-lg bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300"
+                                >
+                                    <Package class="h-4 w-4" />
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-sm">
+                                        Aset Tetap
+                                    </p>
+                                    <p class="text-xs text-muted-foreground">
+                                        Kelola & penyusutan
+                                    </p>
+                                </div>
+                            </a>
+                            <a
+                                href="/settings/accounting"
+                                class="flex items-center gap-3 p-3 rounded-xl bg-white/60 dark:bg-zinc-800/60 hover:bg-white dark:hover:bg-zinc-800 transition-all border border-purple-100 dark:border-purple-800"
+                            >
+                                <div
+                                    class="p-2 rounded-lg bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300"
+                                >
+                                    <DollarSign class="h-4 w-4" />
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-sm">
+                                        Mapping Akun
+                                    </p>
+                                    <p class="text-xs text-muted-foreground">
+                                        Konfigurasi akun default
+                                    </p>
+                                </div>
+                            </a>
+                        </CardContent>
+                    </Card>
+
+                    <!-- P&L Summary Card (Pro) -->
+                    <Card class="lg:col-span-2 border-0 shadow-lg">
+                        <CardHeader>
+                            <CardTitle class="flex items-center gap-2">
+                                <Wallet class="h-5 w-5 text-green-600" />
+                                Ringkasan Laba Rugi (Pro)
+                            </CardTitle>
+                            <CardDescription
+                                >Laporan lengkap dengan breakdown kategori</CardDescription
+                            >
+                        </CardHeader>
+                        <CardContent>
+                            {#if profitLoss}
+                                <div class="grid grid-cols-3 gap-4">
+                                    <div
+                                        class="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800"
+                                    >
+                                        <p
+                                            class="text-xs font-medium text-green-600 uppercase tracking-wider"
+                                        >
+                                            Pendapatan
+                                        </p>
+                                        <p
+                                            class="text-xl font-bold text-green-700 dark:text-green-400 mt-1"
+                                        >
+                                            {formatCurrency(
+                                                profitLoss.revenue.total,
+                                            )}
+                                        </p>
+                                        <div
+                                            class="mt-2 text-xs text-green-600/70 space-y-0.5"
+                                        >
+                                            <p>
+                                                Penjualan: {formatCurrency(
+                                                    profitLoss.revenue.sales,
+                                                )}
+                                            </p>
+                                            <p>
+                                                Service: {formatCurrency(
+                                                    profitLoss.revenue.services,
+                                                )}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="p-4 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800"
+                                    >
+                                        <p
+                                            class="text-xs font-medium text-orange-600 uppercase tracking-wider"
+                                        >
+                                            HPP
+                                        </p>
+                                        <p
+                                            class="text-xl font-bold text-orange-700 dark:text-orange-400 mt-1"
+                                        >
+                                            {formatCurrency(
+                                                profitLoss.cogs.total,
+                                            )}
+                                        </p>
+                                        <div
+                                            class="mt-2 text-xs text-orange-600/70 space-y-0.5"
+                                        >
+                                            <p>
+                                                Penjualan: {formatCurrency(
+                                                    profitLoss.cogs.sales,
+                                                )}
+                                            </p>
+                                            <p>
+                                                Service: {formatCurrency(
+                                                    profitLoss.cogs.services,
+                                                )}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800"
+                                    >
+                                        <p
+                                            class="text-xs font-medium text-blue-600 uppercase tracking-wider"
+                                        >
+                                            Laba Bersih
+                                        </p>
+                                        <p
+                                            class="text-xl font-bold {profitLoss.netProfit >=
+                                            0
+                                                ? 'text-green-600'
+                                                : 'text-red-600'} mt-1"
+                                        >
+                                            {formatCurrency(
+                                                profitLoss.netProfit,
+                                            )}
+                                        </p>
+                                        <div
+                                            class="mt-2 text-xs text-blue-600/70"
+                                        >
+                                            <p>
+                                                Margin: {(
+                                                    (profitLoss.netProfit /
+                                                        profitLoss.revenue
+                                                            .total) *
+                                                    100
+                                                ).toFixed(1)}%
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            {:else}
+                                <p
+                                    class="text-muted-foreground text-center py-8"
+                                >
+                                    Memuat data...
+                                </p>
+                            {/if}
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <!-- Pro Mode Info Banner -->
+                <Card
+                    class="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/20"
+                >
+                    <CardContent class="py-4">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="p-2 rounded-lg bg-purple-100 dark:bg-purple-800 text-purple-600 dark:text-purple-300"
+                            >
+                                <Calculator class="h-5 w-5" />
+                            </div>
+                            <div class="flex-1">
+                                <p
+                                    class="font-semibold text-sm text-purple-800 dark:text-purple-200"
+                                >
+                                    Mode Profesional Aktif
+                                </p>
+                                <p
+                                    class="text-xs text-purple-600/70 dark:text-purple-300/70"
+                                >
+                                    Anda memiliki akses ke fitur akuntansi
+                                    lengkap. Gunakan menu Akuntansi di sidebar
+                                    untuk mengakses Chart of Accounts, Jurnal,
+                                    dan Laporan Neraca.
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+        {/if}
     </Tabs>
 </div>
