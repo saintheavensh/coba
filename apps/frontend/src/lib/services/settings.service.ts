@@ -11,6 +11,7 @@ export interface PaymentVariant {
     name: string;
     accountNumber?: string | null;
     accountHolder?: string | null;
+    accountId?: string | null; // Linked GL Account
     enabled: boolean;
     createdAt?: Date;
 }
@@ -22,6 +23,7 @@ export interface PaymentMethod {
     icon: string;
     enabled: boolean;
     variants?: PaymentVariant[];
+    accountId?: string | null; // Linked GL Account
     createdAt?: Date;
 }
 

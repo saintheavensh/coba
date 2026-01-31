@@ -20,6 +20,7 @@ export interface PaymentVariant {
     name: string;
     accountNumber?: string;
     accountHolder?: string;
+    accountId?: string; // Linked Accounting Account ID
 }
 
 export interface PaymentMethod {
@@ -29,6 +30,7 @@ export interface PaymentMethod {
     icon: string;
     enabled: boolean;
     variants?: PaymentVariant[];
+    accountId?: string; // Default Linked Accounting Account ID
 }
 
 export interface PaymentMethodConfig {

@@ -66,12 +66,14 @@
         type GeneralSettings,
         type AccountingMode,
     } from "$lib/services/settings.service";
+    import { api } from "$lib/api";
 
     // New Components
     import SalesTrendChart from "./components/SalesTrendChart.svelte";
     import ProfitCostChart from "./components/ProfitCostChart.svelte";
     import ServiceStatusChart from "./components/ServiceStatusChart.svelte";
     import ProModeSetupDialog from "./components/ProModeSetupDialog.svelte";
+    import ProfitLossTree from "./components/ProfitLossTree.svelte";
     import DateTimePicker from "$lib/components/custom/date-time-picker.svelte";
     import * as XLSX from "xlsx";
 
@@ -150,6 +152,23 @@
     const stockAdjustmentsQuery = createQuery(() => ({
         queryKey: ["reports", "stock-adjustments"],
         queryFn: () => ReportsService.getStockAdjustments(),
+    }));
+
+    // Account Tree (for Pro Mode P&L)
+    const accountTreeQuery = createQuery(() => ({
+        queryKey: ["accounting", "tree"],
+        queryFn: async () => {
+            const res = await api.get("/accounting/accounts/tree");
+            return res.data;
+        },
+        enabled: !!(accountingMode === "professional"),
+    }));
+
+    // Account Mappings (for Pro Mode P&L)
+    const mappingSettingsQuery = createQuery(() => ({
+        queryKey: ["settings", "account-mappings"],
+        queryFn: () => SettingsService.getAccountMappings(),
+        enabled: !!(accountingMode === "professional"),
     }));
 
     // Derived from queries - Sales
@@ -1555,7 +1574,19 @@
                     </Card>
 
                     <!-- P&L Summary Card (Pro) -->
-                    <Card class="lg:col-span-2 border-0 shadow-lg">
+                    <div class="lg:col-span-2">
+                        <ProfitLossTree
+                            {profitLoss}
+                            accountTree={accountTreeQuery.data || []}
+                            mappingSettings={mappingSettingsQuery.data || null}
+                        />
+                    </div>
+                </div>
+
+                <!-- Previous Summary Cards (Optional to keep for quick view) or replace entirely -->
+                <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <Card class="lg:col-span-3 border-0 shadow-lg hidden">
+                        <!-- Hiding old one -->
                         <CardHeader>
                             <CardTitle class="flex items-center gap-2">
                                 <Wallet class="h-5 w-5 text-green-600" />

@@ -229,9 +229,9 @@ export class SalesService {
             });
         });
 
-        // 4. Create Accounting Journal (outside transaction for now)
+        // 4. Create Accounting Journal
         try {
-            // Calculate COGS from sale items
+            // Calculate COGS
             const saleWithItems = await this.repo.findById(saleId);
             let cogsAmount = 0;
             if (saleWithItems?.items) {
@@ -241,37 +241,65 @@ export class SalesService {
                 }
             }
 
-            // Create journal: Debit Cash/AR, Credit Revenue, Debit COGS, Credit Inventory
+            // A. Determine Payment Account
+            let debitAccountId = "1-1000"; // Fallback to generic Cash (Kas Induk) if setup is missing
+
+            // If Paid, try to find specific account from Payment Method Settings
+            if (paymentStatus === "paid") {
+                // Get Settings
+                const { SettingsService } = await import("../settings/settings.service");
+                const settingsService = new SettingsService();
+                const methodConfig = await settingsService.getPaymentMethods();
+
+                // Find the method used (Use the first one if multiple for now, or fallback)
+                // In future: handle split payments with multiple journal lines.
+                // Current implementation: takes the first payment method to determine the debit account.
+                const payment = data.payments[0];
+                const methodDef = methodConfig?.methods.find(m => m.id === payment.methodId || m.name === payment.method); // Lookup by ID or Name
+
+                if (methodDef) {
+                    // Check Variant Level
+                    const variantDef = methodDef.variants?.find(v => v.id === payment.variantId || v.name === payment.variantName);
+
+                    if (variantDef?.accountId) {
+                        debitAccountId = variantDef.accountId;
+                    } else if (methodDef.accountId) {
+                        debitAccountId = methodDef.accountId;
+                    } else {
+                        // Fallback logic if no link found but known type
+                        if (methodDef.type === "cash") {
+                            debitAccountId = "1-1001"; // Kas Toko
+                        } else if (methodDef.type === "transfer" || methodDef.type === "qris" || methodDef.type === "ewallet") {
+                            // Default to Generic Bank/Cash Parent if not linked?
+                            // For now keeping 1-1000 or could be 1-1002 (Bank)
+                            debitAccountId = "1-1000";
+                        }
+                    }
+                }
+            } else {
+                // Not paid = Piutang
+                debitAccountId = "1-2000"; // Default Piutang Usaha
+            }
+
             const journalLines: Array<{ accountId: string; debit: number; credit: number; description: string }> = [];
 
-            // Revenue side
-            if (paymentStatus === "paid") {
-                // Cash/Bank received
-                journalLines.push({
-                    accountId: paymentMethodStr === "cash" ? "1-1000" : "1-2000", // Kas or Bank
-                    debit: finalAmount,
-                    credit: 0,
-                    description: `Penjualan ${saleId}`
-                });
-            } else {
-                // Accounts Receivable (for tempo/partial)
-                journalLines.push({
-                    accountId: "1-3000", // Piutang
-                    debit: finalAmount,
-                    credit: 0,
-                    description: `Piutang penjualan ${saleId}`
-                });
-            }
+            // Debit Side (Cash/Bank/AR)
+            journalLines.push({
+                accountId: debitAccountId,
+                debit: finalAmount,
+                credit: 0,
+                description: paymentStatus === 'paid' ? `Penerimaan ${paymentMethodStr}` : `Piutang Penjualan`
+            });
 
             // Credit Revenue
             journalLines.push({
-                accountId: "4-1000", // Pendapatan Penjualan
+                accountId: "4-1000", // Pendapatan Penjualan (Should be mapped too ideally, but defaulting to Sales Rev)
                 debit: 0,
                 credit: finalAmount,
                 description: `Pendapatan ${saleId}`
             });
 
-            // COGS entries (if we have calculated COGS)
+            // COGS entries
             if (cogsAmount > 0) {
                 journalLines.push({
                     accountId: "5-1001", // HPP Penjualan
@@ -280,7 +308,7 @@ export class SalesService {
                     description: `HPP ${saleId}`
                 });
                 journalLines.push({
-                    accountId: "1-3000", // Persediaan (simplified using Piutang as placeholder - should use Inventory account)
+                    accountId: "1-3000", // Persediaan
                     debit: 0,
                     credit: cogsAmount,
                     description: `Pengurangan persediaan ${saleId}`
@@ -294,7 +322,7 @@ export class SalesService {
                 lines: journalLines,
             }, data.userId);
 
-            // 5. Record in Cash Register (if cash payment)
+            // 5. Record in Cash Register (ONLY if actual CASH method)
             if (paymentMethodStr === "cash") {
                 await CashRegisterService.recordTransaction({
                     transactionType: "sale",

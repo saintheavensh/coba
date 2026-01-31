@@ -87,6 +87,13 @@ accounting.post("/accounts/seed", async (c) => {
     return c.json(result, result.skipped ? 200 : 201);
 });
 
+// Reset all accounts (for Custom mode - start from scratch)
+accounting.delete("/accounts/reset", async (c) => {
+    const userId = getUserId(c);
+    const result = await AccountsService.resetAllAccounts(userId);
+    return c.json(result);
+});
+
 const transferFundsSchema = z.object({
     fromAccountId: z.string(),
     toAccountId: z.string(),

@@ -186,61 +186,6 @@ export class AccountsService {
     }
 
     /**
-     * Recalculate and sync balance for a specific account based on journal lines
-     */
-    static async recalculateBalance(accountId: string): Promise<number> {
-        // Sum all debit and credit from posted journals for this account
-        const result = await db
-            .select({
-                debit: sql<number>`COALESCE(SUM(debit), 0)`,
-                credit: sql<number>`COALESCE(SUM(credit), 0)`,
-            })
-            .from(journalLines)
-            .innerJoin(journals, eq(journalLines.journalId, journals.id))
-            .where(
-                and(
-                    eq(journalLines.accountId, accountId),
-                    eq(journals.status, "posted")
-                )
-            );
-
-        const debit = Number(result[0]?.debit || 0);
-        const credit = Number(result[0]?.credit || 0);
-
-        // Calculate balance based on account type
-        // ASSET, EXPENSE: Debit - Credit
-        // LIABILITY, EQUITY, REVENUE: Credit - Debit
-        const account = await this.getById(accountId);
-        if (!account) return 0;
-
-        let balance = 0;
-        const typeId = account.typeId;
-
-        if (typeId === "ASSET" || typeId === "EXPENSE") {
-            balance = debit - credit;
-        } else {
-            balance = credit - debit;
-        }
-
-        await db
-            .update(accounts)
-            .set({ balance, updatedAt: new Date() })
-            .where(eq(accounts.id, accountId));
-
-        return balance;
-    }
-
-    /**
-     * Sync all account balances
-     */
-    static async syncAllBalances(): Promise<void> {
-        const allAccounts = await db.select().from(accounts);
-        for (const account of allAccounts) {
-            await this.recalculateBalance(account.id);
-        }
-    }
-
-    /**
      * Recalculate balance for an account based on journal entries
      */
     static async recalculateBalance(accountId: string): Promise<number> {
@@ -288,6 +233,44 @@ export class AccountsService {
     }
 
     /**
+     * Reset all accounts (delete all) - used for Custom setup from scratch
+     * WARNING: This will delete ALL accounts and related journal data.
+     */
+    static async resetAllAccounts(userId?: string): Promise<{ deleted: number }> {
+        // Get count before delete
+        const existing = await db.select({ count: sql<number>`count(*)` }).from(accounts);
+        const count = Number(existing[0]?.count || 0);
+
+        if (count === 0) {
+            return { deleted: 0 };
+        }
+
+        // 1. Clear FK references in nullable columns
+        await db.execute(sql`UPDATE assets SET account_id = NULL, depreciation_account_id = NULL`);
+        await db.execute(sql`UPDATE purchase_payments SET account_id = NULL`);
+        await db.execute(sql`UPDATE commission_payments SET account_id = NULL`);
+
+        // 2. Delete journals (cascades to journal_lines)
+        await db.execute(sql`DELETE FROM journals`);
+
+        // 3. Delete all accounts
+        await db.delete(accounts);
+
+        // Log the action
+        await AuditService.log({
+            userId,
+            action: "DELETE",
+            entityType: "account",
+            entityId: "ALL",
+            tableName: "accounts",
+            oldValues: { totalDeleted: count },
+            newValues: { reason: "Pro Mode custom setup - start from scratch" },
+        });
+
+        return { deleted: count };
+    }
+
+    /**
      * Get type prefix for account ID generation
      */
     private static getTypePrefix(typeId: string): string {
@@ -315,60 +298,75 @@ export class AccountsService {
         // Standard Chart of Accounts for Phone/Electronics Repair Shop
         const standardAccounts = [
             // ========== ASSETS (1-xxxx) ==========
-            // Current Assets
-            { code: "1001", name: "Kas Toko", typeId: "ASSET", description: "Kas tunai di toko" },
-            { code: "1002", name: "Kas Kecil", typeId: "ASSET", description: "Petty cash untuk pengeluaran kecil" },
-            { code: "1010", name: "Bank BCA", typeId: "ASSET", description: "Rekening bank BCA" },
-            { code: "1011", name: "Bank Mandiri", typeId: "ASSET", description: "Rekening bank Mandiri" },
-            { code: "1012", name: "Bank BRI", typeId: "ASSET", description: "Rekening bank BRI" },
-            { code: "2000", name: "Piutang Usaha", typeId: "ASSET", description: "Piutang dari pelanggan" },
-            { code: "2001", name: "Piutang Karyawan", typeId: "ASSET", description: "Piutang dipinjam karyawan" },
-            { code: "3000", name: "Persediaan Barang", typeId: "ASSET", description: "Stok barang dagang" },
-            { code: "3001", name: "Persediaan Sparepart", typeId: "ASSET", description: "Stok sparepart service" },
-            // Fixed Assets
-            { code: "4001", name: "Peralatan Kerja", typeId: "ASSET", description: "Peralatan servis (solder, multimeter, dll)" },
-            { code: "4002", name: "Inventaris Toko", typeId: "ASSET", description: "Meja, kursi, etalase, dll" },
-            { code: "4003", name: "Kendaraan", typeId: "ASSET", description: "Kendaraan operasional" },
-            { code: "4004", name: "Bangunan", typeId: "ASSET", description: "Bangunan toko (jika milik sendiri)" },
-            { code: "4005", name: "Tanah", typeId: "ASSET", description: "Tanah (tidak disusutkan)" },
-            { code: "4090", name: "Aset Tetap Lainnya", typeId: "ASSET", description: "Aset tetap lainnya" },
-            { code: "4099", name: "Akumulasi Penyusutan", typeId: "ASSET", description: "Akun kontra untuk penyusutan aset" },
+            // 1. Current Assets
+            { code: "1100", name: "Kas & Bank", typeId: "ASSET", description: "Akun induk kas dan bank" }, // Parent
+            { code: "1101", name: "Kas Toko", typeId: "ASSET", parentId: "1-1100", description: "Kas tunai di toko" },
+            { code: "1102", name: "Kas Kecil", typeId: "ASSET", parentId: "1-1100", description: "Petty cash untuk pengeluaran kecil" },
+            { code: "1110", name: "Bank BCA", typeId: "ASSET", parentId: "1-1100", description: "Rekening bank BCA" },
+            { code: "1111", name: "Bank Mandiri", typeId: "ASSET", parentId: "1-1100", description: "Rekening bank Mandiri" },
+            { code: "1112", name: "Bank BRI", typeId: "ASSET", parentId: "1-1100", description: "Rekening bank BRI" },
+
+            { code: "1200", name: "Piutang", typeId: "ASSET", description: "Akun induk piutang" }, // Parent
+            { code: "1201", name: "Piutang Usaha", typeId: "ASSET", parentId: "1-1200", description: "Piutang dari pelanggan" },
+            { code: "1202", name: "Piutang Karyawan", typeId: "ASSET", parentId: "1-1200", description: "Piutang dipinjam karyawan" },
+
+            { code: "1300", name: "Persediaan", typeId: "ASSET", description: "Akun induk persediaan" }, // Parent
+            { code: "1301", name: "Persediaan Barang", typeId: "ASSET", parentId: "1-1300", description: "Stok barang dagang" },
+            { code: "1302", name: "Persediaan Sparepart", typeId: "ASSET", parentId: "1-1300", description: "Stok sparepart service" },
+
+            // 2. Fixed Assets
+            { code: "1400", name: "Aset Tetap", typeId: "ASSET", description: "Akun induk aset tetap" }, // Parent
+            { code: "1401", name: "Peralatan Kerja", typeId: "ASSET", parentId: "1-1400", description: "Peralatan servis (solder, multimeter, dll)" },
+            { code: "1402", name: "Inventaris Toko", typeId: "ASSET", parentId: "1-1400", description: "Meja, kursi, etalase, dll" },
+            { code: "1403", name: "Kendaraan", typeId: "ASSET", parentId: "1-1400", description: "Kendaraan operasional" },
+            { code: "1404", name: "Bangunan", typeId: "ASSET", parentId: "1-1400", description: "Bangunan toko (jika milik sendiri)" },
+            { code: "1405", name: "Tanah", typeId: "ASSET", parentId: "1-1400", description: "Tanah (tidak disusutkan)" },
+            { code: "1490", name: "Aset Tetap Lainnya", typeId: "ASSET", parentId: "1-1400", description: "Aset tetap lainnya" },
+            { code: "1499", name: "Akumulasi Penyusutan", typeId: "ASSET", parentId: "1-1400", description: "Akun kontra untuk penyusutan aset" },
 
             // ========== LIABILITIES (2-xxxx) ==========
-            { code: "1000", name: "Hutang Usaha", typeId: "LIABILITY", description: "Hutang ke supplier" },
-            { code: "1001", name: "Hutang Bank", typeId: "LIABILITY", description: "Pinjaman bank" },
-            { code: "1002", name: "Hutang Karyawan", typeId: "LIABILITY", description: "Gaji/komisi yang belum dibayar" },
-            { code: "2000", name: "Deposit Pelanggan", typeId: "LIABILITY", description: "Uang muka dari pelanggan" },
+            { code: "2100", name: "Hutang Jangka Pendek", typeId: "LIABILITY", description: "Kewajiban < 1 tahun" }, // Parent
+            { code: "2101", name: "Hutang Usaha", typeId: "LIABILITY", parentId: "2-2100", description: "Hutang ke supplier" },
+            { code: "2102", name: "Hutang Gaji", typeId: "LIABILITY", parentId: "2-2100", description: "Gaji/komisi yang belum dibayar" },
+            { code: "2103", name: "Deposit Pelanggan", typeId: "LIABILITY", parentId: "2-2100", description: "Uang muka dari pelanggan" },
+
+            { code: "2200", name: "Hutang Jangka Panjang", typeId: "LIABILITY", description: "Kewajiban > 1 tahun" }, // Parent
+            { code: "2201", name: "Hutang Bank", typeId: "LIABILITY", parentId: "2-2200", description: "Pinjaman bank jangka panjang" },
 
             // ========== EQUITY (3-xxxx) ==========
-            { code: "1000", name: "Modal Pemilik", typeId: "EQUITY", description: "Modal awal pemilik" },
-            { code: "2000", name: "Laba Ditahan", typeId: "EQUITY", description: "Laba tahun-tahun sebelumnya" },
-            { code: "3000", name: "Prive/Pengambilan", typeId: "EQUITY", description: "Pengambilan pribadi pemilik" },
+            { code: "3100", name: "Modal", typeId: "EQUITY", description: "Akun induk modal" }, // Parent
+            { code: "3101", name: "Modal Pemilik", typeId: "EQUITY", parentId: "3-3100", description: "Modal awal pemilik" },
+            { code: "3102", name: "Prive/Pengambilan", typeId: "EQUITY", parentId: "3-3100", description: "Pengambilan pribadi pemilik" },
+            { code: "3200", name: "Laba Ditahan", typeId: "EQUITY", description: "Laba tahun-tahun sebelumnya" },
 
             // ========== REVENUE (4-xxxx) ==========
-            { code: "1000", name: "Pendapatan Penjualan", typeId: "REVENUE", description: "Penjualan barang" },
-            { code: "2000", name: "Pendapatan Service", typeId: "REVENUE", description: "Jasa perbaikan/servis" },
-            { code: "3000", name: "Pendapatan Lainnya", typeId: "REVENUE", description: "Pendapatan diluar usaha utama" },
-            { code: "4000", name: "Diskon Penjualan", typeId: "REVENUE", description: "Potongan harga ke pelanggan (pengurang)" },
-            { code: "5000", name: "Retur Penjualan", typeId: "REVENUE", description: "Barang yang dikembalikan pelanggan" },
+            { code: "4100", name: "Pendapatan Usaha", typeId: "REVENUE", description: "Pendapatan operasional utama" }, // Parent
+            { code: "4101", name: "Pendapatan Penjualan", typeId: "REVENUE", parentId: "4-4100", description: "Penjualan barang" },
+            { code: "4102", name: "Pendapatan Service", typeId: "REVENUE", parentId: "4-4100", description: "Jasa perbaikan/servis" },
+            { code: "4103", name: "Pendapatan Lainnya", typeId: "REVENUE", parentId: "4-4100", description: "Pendapatan diluar usaha utama" },
+
+            { code: "4200", name: "Kontra Pendapatan", typeId: "REVENUE", description: "Pengurang pendapatan" }, // Parent
+            { code: "4201", name: "Diskon Penjualan", typeId: "REVENUE", parentId: "4-4200", description: "Potongan harga ke pelanggan" },
+            { code: "4202", name: "Retur Penjualan", typeId: "REVENUE", parentId: "4-4200", description: "Barang yang dikembalikan pelanggan" },
 
             // ========== EXPENSE (5-xxxx) ==========
-            // Cost of Goods Sold
-            { code: "1001", name: "HPP Penjualan", typeId: "EXPENSE", description: "Harga pokok barang terjual" },
-            { code: "1002", name: "HPP Service", typeId: "EXPENSE", description: "Sparepart untuk service" },
-            // Operating Expenses
-            { code: "2000", name: "Beban Gaji", typeId: "EXPENSE", description: "Gaji karyawan" },
-            { code: "2001", name: "Komisi Teknisi", typeId: "EXPENSE", description: "Komisi untuk teknisi" },
-            { code: "2100", name: "Beban Sewa", typeId: "EXPENSE", description: "Sewa tempat usaha" },
-            { code: "2200", name: "Beban Listrik", typeId: "EXPENSE", description: "Tagihan listrik" },
-            { code: "2201", name: "Beban Air", typeId: "EXPENSE", description: "Tagihan air (PDAM)" },
-            { code: "2202", name: "Beban Internet", typeId: "EXPENSE", description: "Tagihan internet/wifi" },
-            { code: "2300", name: "Beban Perlengkapan", typeId: "EXPENSE", description: "ATK dan perlengkapan kantor" },
-            { code: "2400", name: "Beban Transportasi", typeId: "EXPENSE", description: "Ongkos kirim, bensin, dll" },
-            { code: "2500", name: "Beban Iklan", typeId: "EXPENSE", description: "Promosi dan marketing" },
-            { code: "2600", name: "Beban Pemeliharaan", typeId: "EXPENSE", description: "Maintenance alat & gedung" },
-            { code: "3000", name: "Beban Penyusutan", typeId: "EXPENSE", description: "Penyusutan aset tetap bulanan" },
-            { code: "9000", name: "Beban Lain-lain", typeId: "EXPENSE", description: "Beban operasional lainnya" },
+            { code: "5100", name: "Harga Pokok Penjualan", typeId: "EXPENSE", description: "Biaya langsung produk/jasa" }, // Parent
+            { code: "5101", name: "HPP Penjualan", typeId: "EXPENSE", parentId: "5-5100", description: "Harga pokok barang terjual" },
+            { code: "5102", name: "HPP Service", typeId: "EXPENSE", parentId: "5-5100", description: "Sparepart untuk service" },
+
+            { code: "5200", name: "Beban Operasional", typeId: "EXPENSE", description: "Biaya operasional sehari-hari" }, // Parent
+            { code: "5201", name: "Beban Gaji", typeId: "EXPENSE", parentId: "5-5200", description: "Gaji karyawan" },
+            { code: "5202", name: "Komisi Teknisi", typeId: "EXPENSE", parentId: "5-5200", description: "Komisi untuk teknisi" },
+            { code: "5203", name: "Beban Sewa", typeId: "EXPENSE", parentId: "5-5200", description: "Sewa tempat usaha" },
+            { code: "5204", name: "Beban Listrik", typeId: "EXPENSE", parentId: "5-5200", description: "Tagihan listrik" },
+            { code: "5205", name: "Beban Air", typeId: "EXPENSE", parentId: "5-5200", description: "Tagihan air (PDAM)" },
+            { code: "5206", name: "Beban Internet", typeId: "EXPENSE", parentId: "5-5200", description: "Tagihan internet/wifi" },
+            { code: "5207", name: "Beban Perlengkapan", typeId: "EXPENSE", parentId: "5-5200", description: "ATK dan perlengkapan kantor" },
+            { code: "5208", name: "Beban Transportasi", typeId: "EXPENSE", parentId: "5-5200", description: "Ongkos kirim, bensin, dll" },
+            { code: "5209", name: "Beban Iklan", typeId: "EXPENSE", parentId: "5-5200", description: "Promosi dan marketing" },
+            { code: "5210", name: "Beban Pemeliharaan", typeId: "EXPENSE", parentId: "5-5200", description: "Maintenance alat & gedung" },
+            { code: "5211", name: "Beban Penyusutan", typeId: "EXPENSE", parentId: "5-5200", description: "Penyusutan aset tetap bulanan" },
+            { code: "5900", name: "Beban Lain-lain", typeId: "EXPENSE", parentId: "5-5200", description: "Beban operasional lainnya" },
         ];
 
         let created = 0;

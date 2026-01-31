@@ -34,7 +34,13 @@
         Loader2,
         FolderOpen,
         FileText,
+        BookOpen,
+        Settings,
     } from "lucide-svelte";
+    import {
+        SettingsService,
+        type AccountMappingSettings,
+    } from "$lib/services/settings.service";
     import { api } from "$lib/api";
 
     let loading = $state(true);
@@ -55,6 +61,14 @@
         parentId: "",
         description: "",
     });
+
+    // Guide State
+    let showGuide = $state(false);
+
+    // Configuration State
+    let showConfigDialog = $state(false);
+    let mappingSettings = $state<AccountMappingSettings | null>(null);
+    let savingConfig = $state(false);
 
     // Transfer State
     let showTransferDialog = $state(false);
@@ -107,6 +121,64 @@
         } finally {
             loading = false;
         }
+    }
+
+    async function loadMappings() {
+        try {
+            mappingSettings = await SettingsService.getAccountMappings();
+        } catch (e) {
+            console.error("Failed to load mappings", e);
+        }
+    }
+
+    async function saveMappings() {
+        if (!mappingSettings) return;
+        try {
+            savingConfig = true;
+            await SettingsService.setAccountMappings(mappingSettings);
+            showConfigDialog = false;
+            alert("Konfigurasi berhasil disimpan");
+        } catch (e) {
+            console.error("Failed to save mappings", e);
+            alert("Gagal menyimpan konfigurasi");
+        } finally {
+            savingConfig = false;
+        }
+    }
+
+    function getMappingGroups() {
+        if (!mappingSettings) return {};
+
+        const groups: Record<string, any[]> = {
+            "Kas & Bank": [],
+            Pendapatan: [],
+            "Beban & HPP": [],
+            "Hutang/Piutang & Modal": [],
+            "Aset Tetap": [],
+        };
+
+        for (const m of mappingSettings.mappings) {
+            if (m.type === "default_cash") groups["Kas & Bank"].push(m);
+            else if (["sales_revenue", "service_revenue"].includes(m.type))
+                groups["Pendapatan"].push(m);
+            else if (
+                ["cogs_sales", "cogs_service", "depreciation_expense"].includes(
+                    m.type,
+                )
+            )
+                groups["Beban & HPP"].push(m);
+            else if (
+                [
+                    "accounts_payable",
+                    "accounts_receivable",
+                    "owner_equity",
+                ].includes(m.type)
+            )
+                groups["Hutang/Piutang & Modal"].push(m);
+            else groups["Aset Tetap"].push(m);
+        }
+
+        return groups;
     }
 
     async function handleCreateAccount() {
@@ -230,6 +302,456 @@
                     List
                 </button>
             </div>
+
+            <Button
+                variant="outline"
+                class="gap-2"
+                onclick={() => {
+                    loadMappings();
+                    showConfigDialog = true;
+                }}
+            >
+                <Settings class="h-4 w-4" />
+                Konfigurasi
+            </Button>
+
+            <Button
+                variant="outline"
+                class="gap-2"
+                onclick={() => (showGuide = true)}
+            >
+                <BookOpen class="h-4 w-4" />
+                Panduan
+            </Button>
+
+            <Dialog bind:open={showGuide}>
+                <DialogContent class="max-w-3xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Panduan Setup Akun</DialogTitle>
+                    </DialogHeader>
+
+                    <div
+                        class="prose prose-sm max-w-none space-y-6 pt-4 text-slate-600"
+                    >
+                        <!-- 1. Cara Membuat Akun -->
+                        <section class="space-y-3">
+                            <h3
+                                class="text-lg font-bold text-slate-900 border-b pb-2"
+                            >
+                                🚀 Cara Membuat Akun Baru
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="bg-slate-50 p-4 rounded-xl border">
+                                    <div class="font-bold text-blue-600 mb-1">
+                                        Langkah 1
+                                    </div>
+                                    <p>
+                                        Klik tombol <span
+                                            class="font-semibold text-slate-900"
+                                            >+ Tambah Akun</span
+                                        > di pojok kanan atas.
+                                    </p>
+                                </div>
+                                <div class="bg-slate-50 p-4 rounded-xl border">
+                                    <div class="font-bold text-blue-600 mb-1">
+                                        Langkah 2
+                                    </div>
+                                    <p>
+                                        Isi form dengan lengkap. Tanda <span
+                                            class="text-red-500">*</span
+                                        > artinya wajib diisi.
+                                    </p>
+                                </div>
+                                <div class="bg-slate-50 p-4 rounded-xl border">
+                                    <div class="font-bold text-blue-600 mb-1">
+                                        Langkah 3
+                                    </div>
+                                    <p>
+                                        Klik <span
+                                            class="font-semibold text-slate-900"
+                                            >Simpan Akun</span
+                                        >. Akun akan muncul di daftar.
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- 2. Tipe Akun -->
+                        <section class="space-y-3">
+                            <h3
+                                class="text-lg font-bold text-slate-900 border-b pb-2"
+                            >
+                                📂 Tipe-Tipe Akun
+                            </h3>
+                            <div
+                                class="border rounded-xl bg-white overflow-hidden"
+                            >
+                                <Table>
+                                    <TableHeader class="bg-slate-50">
+                                        <TableRow>
+                                            <TableHead class="font-bold"
+                                                >Tipe Akun</TableHead
+                                            >
+                                            <TableHead class="font-bold"
+                                                >Prefix</TableHead
+                                            >
+                                            <TableHead class="font-bold"
+                                                >Fungsi</TableHead
+                                            >
+                                            <TableHead class="font-bold"
+                                                >Contoh</TableHead
+                                            >
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        <TableRow>
+                                            <TableCell
+                                                class="font-bold text-blue-600"
+                                                >ASSET</TableCell
+                                            >
+                                            <TableCell
+                                                ><code
+                                                    class="bg-slate-100 px-1 py-0.5 rounded text-xs"
+                                                    >1-xxxx</code
+                                                ></TableCell
+                                            >
+                                            <TableCell
+                                                >Harta / Kekayaan Perusahaan</TableCell
+                                            >
+                                            <TableCell
+                                                >Kas, Bank, Piutang, Stok,
+                                                Inventaris</TableCell
+                                            >
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell
+                                                class="font-bold text-red-600"
+                                                >LIABILITY</TableCell
+                                            >
+                                            <TableCell
+                                                ><code
+                                                    class="bg-slate-100 px-1 py-0.5 rounded text-xs"
+                                                    >2-xxxx</code
+                                                ></TableCell
+                                            >
+                                            <TableCell
+                                                >Kewajiban / Hutang</TableCell
+                                            >
+                                            <TableCell
+                                                >Hutang Supplier, Pinjaman Bank</TableCell
+                                            >
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell
+                                                class="font-bold text-purple-600"
+                                                >EQUITY</TableCell
+                                            >
+                                            <TableCell
+                                                ><code
+                                                    class="bg-slate-100 px-1 py-0.5 rounded text-xs"
+                                                    >3-xxxx</code
+                                                ></TableCell
+                                            >
+                                            <TableCell>Modal Pemilik</TableCell>
+                                            <TableCell
+                                                >Modal Awal, Laba Ditahan, Prive</TableCell
+                                            >
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell
+                                                class="font-bold text-green-600"
+                                                >REVENUE</TableCell
+                                            >
+                                            <TableCell
+                                                ><code
+                                                    class="bg-slate-100 px-1 py-0.5 rounded text-xs"
+                                                    >4-xxxx</code
+                                                ></TableCell
+                                            >
+                                            <TableCell
+                                                >Pendapatan / Pemasukan</TableCell
+                                            >
+                                            <TableCell
+                                                >Penjualan, Jasa Service</TableCell
+                                            >
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell
+                                                class="font-bold text-orange-600"
+                                                >EXPENSE</TableCell
+                                            >
+                                            <TableCell
+                                                ><code
+                                                    class="bg-slate-100 px-1 py-0.5 rounded text-xs"
+                                                    >5-xxxx</code
+                                                ></TableCell
+                                            >
+                                            <TableCell
+                                                >Beban / Pengeluaran</TableCell
+                                            >
+                                            <TableCell
+                                                >HPP, Gaji, Sewa, Listrik</TableCell
+                                            >
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </section>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- 3. Tips Penomoran -->
+                            <section class="space-y-3">
+                                <h3
+                                    class="text-lg font-bold text-slate-900 border-b pb-2"
+                                >
+                                    💡 Tips Penomoran Kode
+                                </h3>
+                                <div
+                                    class="bg-slate-50 p-4 rounded-xl border text-sm space-y-2"
+                                >
+                                    <div class="flex justify-between">
+                                        <span>Kas & Bank:</span>
+                                        <span class="font-mono font-bold"
+                                            >1001, 1010...</span
+                                        >
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Piutang:</span>
+                                        <span class="font-mono font-bold"
+                                            >2000, 2001...</span
+                                        >
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Persediaan:</span>
+                                        <span class="font-mono font-bold"
+                                            >3000, 3001...</span
+                                        >
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Hutang:</span>
+                                        <span class="font-mono font-bold"
+                                            >1000, 1001...</span
+                                        >
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Modal:</span>
+                                        <span class="font-mono font-bold"
+                                            >1000, 2000...</span
+                                        >
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Pendapatan:</span>
+                                        <span class="font-mono font-bold"
+                                            >1000, 2000...</span
+                                        >
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Beban (HPP):</span>
+                                        <span class="font-mono font-bold"
+                                            >1000, 1001...</span
+                                        >
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Beban Operasional:</span>
+                                        <span class="font-mono font-bold"
+                                            >2000, 2100...</span
+                                        >
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- 4. Akun Wajib -->
+                            <section class="space-y-3">
+                                <h3
+                                    class="text-lg font-bold text-slate-900 border-b pb-2"
+                                >
+                                    ✅ Akun Wajib (Toko Service)
+                                </h3>
+                                <ul class="space-y-2 text-sm">
+                                    <li class="flex gap-2">
+                                        <span
+                                            class="text-blue-600 font-bold w-12 shrink-0"
+                                            >1001</span
+                                        >
+                                        <span>Kas Toko (Utama)</span>
+                                    </li>
+                                    <li class="flex gap-2">
+                                        <span
+                                            class="text-blue-600 font-bold w-12 shrink-0"
+                                            >1010</span
+                                        >
+                                        <span>Bank BCA / Transfer</span>
+                                    </li>
+                                    <li class="flex gap-2">
+                                        <span
+                                            class="text-green-600 font-bold w-12 shrink-0"
+                                            >4-1000</span
+                                        >
+                                        <span>Pendapatan Penjualan</span>
+                                    </li>
+                                    <li class="flex gap-2">
+                                        <span
+                                            class="text-green-600 font-bold w-12 shrink-0"
+                                            >4-2000</span
+                                        >
+                                        <span>Pendapatan Service</span>
+                                    </li>
+                                    <li class="flex gap-2">
+                                        <span
+                                            class="text-orange-600 font-bold w-12 shrink-0"
+                                            >5-1001</span
+                                        >
+                                        <span>HPP Penjualan (Modal Barang)</span
+                                        >
+                                    </li>
+                                    <li class="flex gap-2">
+                                        <span
+                                            class="text-orange-600 font-bold w-12 shrink-0"
+                                            >5-1002</span
+                                        >
+                                        <span
+                                            >HPP Service (Modal Sparepart)</span
+                                        >
+                                    </li>
+                                </ul>
+                            </section>
+                        </div>
+
+                        <!-- 5. FAQ -->
+                        <section class="space-y-3">
+                            <h3
+                                class="text-lg font-bold text-slate-900 border-b pb-2"
+                            >
+                                ❓ FAQ (Tanya Jawab)
+                            </h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="font-bold text-slate-900">
+                                        Apa itu Tree vs List?
+                                    </div>
+                                    <p class="text-sm">
+                                        <b>Tree</b> menampilkan struktur
+                                        folder/induk-anak. <b>List</b> menampilkan
+                                        tabel biasa. Gunakan tombol di atas untuk
+                                        mengganti tampilan.
+                                    </p>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-900">
+                                        Bagaimana jika salah buat akun?
+                                    </div>
+                                    <p class="text-sm">
+                                        Selama belum ada transaksi, akun bisa
+                                        dihapus. Jika sudah ada transaksi, Anda
+                                        harus membuat jurnal koreksi atau
+                                        membiarkannya.
+                                    </p>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-900">
+                                        Apa fungsi Transfer Dana?
+                                    </div>
+                                    <p class="text-sm">
+                                        Fitur praktis untuk memindahkan uang
+                                        antar akun (misal: setor tunai Kas ke
+                                        Bank) tanpa membuat jurnal manual.
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog bind:open={showConfigDialog}>
+                <DialogContent class="max-w-2xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Konfigurasi Mapping Akun</DialogTitle>
+                    </DialogHeader>
+
+                    {#if mappingSettings}
+                        <div class="space-y-6 py-4">
+                            {#each Object.entries(getMappingGroups()) as [groupName, mappings]}
+                                {#if mappings.length > 0}
+                                    <div class="space-y-3">
+                                        <h3
+                                            class="font-bold text-sm uppercase text-slate-500 tracking-wider border-b pb-1"
+                                        >
+                                            {groupName}
+                                        </h3>
+                                        <div class="grid gap-4">
+                                            {#each mappings as mapping}
+                                                <div
+                                                    class="grid grid-cols-1 md:grid-cols-3 md:items-center gap-2"
+                                                >
+                                                    <div
+                                                        class="text-sm font-medium"
+                                                    >
+                                                        {mapping.label}
+                                                        {#if mapping.description}
+                                                            <p
+                                                                class="text-[10px] text-slate-500 font-normal"
+                                                            >
+                                                                {mapping.description}
+                                                            </p>
+                                                        {/if}
+                                                    </div>
+                                                    <div class="md:col-span-2">
+                                                        <select
+                                                            bind:value={
+                                                                mapping.accountId
+                                                            }
+                                                            class="flex h-9 w-full rounded-md border border-slate-300 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                                        >
+                                                            <option value=""
+                                                                >Pilih Akun...</option
+                                                            >
+                                                            {#each accounts as acc}
+                                                                <option
+                                                                    value={acc.id}
+                                                                    >{acc.code} -
+                                                                    {acc.name}</option
+                                                                >
+                                                            {/each}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            {/each}
+                                        </div>
+                                    </div>
+                                {/if}
+                            {/each}
+                        </div>
+
+                        <div class="flex justify-end gap-3 pt-4">
+                            <Button
+                                variant="outline"
+                                onclick={() => (showConfigDialog = false)}
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                onclick={saveMappings}
+                                disabled={savingConfig}
+                            >
+                                {#if savingConfig}
+                                    <Loader2
+                                        class="mr-2 h-4 w-4 animate-spin"
+                                    />
+                                {/if}
+                                Simpan Konfigurasi
+                            </Button>
+                        </div>
+                    {:else}
+                        <div class="py-8 text-center text-slate-500">
+                            <Loader2
+                                class="h-8 w-8 animate-spin mx-auto mb-2"
+                            />
+                            Memuat konfigurasi...
+                        </div>
+                    {/if}
+                </DialogContent>
+            </Dialog>
 
             <Dialog bind:open={showCreateDialog}>
                 <DialogTrigger class={buttonVariants({ className: "gap-2" })}>

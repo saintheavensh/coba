@@ -65,6 +65,57 @@ export interface StockValueReport {
     }[];
 }
 
+export interface ServiceReport {
+    id: number;
+    no: string;
+    date: Date;
+    customerName: string;
+    deviceInfo: string;
+    status: string;
+    estimatedCost: number;
+    actualCost: number;
+}
+
+export interface PurchasesSummary {
+    totalAmount: number;
+    totalTransactions: number;
+    totalItems: number;
+}
+
+export interface PurchaseReport {
+    id: string;
+    date: Date;
+    supplierId: string;
+    supplierName: string | null;
+    items: number;
+    totalAmount: number;
+    notes: string | null;
+}
+
+export interface TechnicianReport {
+    id: string;
+    name: string;
+    image: string | null;
+    totalServices: number;
+    completed: number;
+    inProgress: number;
+    cancelled: number;
+    revenue: number;
+    completionRate: number;
+}
+
+export interface PartsUsageReport {
+    serviceId: number;
+    serviceNo: string;
+    date: Date;
+    partName: string;
+    source: string;
+    qty: number;
+    price: number;
+    subtotal: number;
+    variant?: string;
+}
+
 export class ReportsService {
     /**
      * Get sales summary with revenue, HPP, profit
@@ -627,9 +678,8 @@ export class ReportsService {
             salesConditions.push(gte(sales.createdAt, start));
             expenseConditions.push(gte(operationalCosts.date, start));
 
-            // Complex condition for services
-            // (status='diambil' AND dateOut >= start) OR (status='selesai' AND updatedAt >= start)
-            serviceDateCondition = gte(sql`COALESCE(${services.dateOut}, ${services.updatedAt}, ${services.dateIn})`, start);
+            // For services: use dateOut if available, otherwise dateIn
+            serviceDateCondition = gte(sql`COALESCE(${services.dateOut}, ${services.dateIn})`, start);
         }
 
         if (filters.endDate) {
@@ -638,7 +688,7 @@ export class ReportsService {
             salesConditions.push(lte(sales.createdAt, end));
             expenseConditions.push(lte(operationalCosts.date, end));
 
-            const endCond = lte(sql`COALESCE(${services.dateOut}, ${services.updatedAt}, ${services.dateIn})`, end);
+            const endCond = lte(sql`COALESCE(${services.dateOut}, ${services.dateIn})`, end);
             serviceDateCondition = serviceDateCondition ? and(serviceDateCondition, endCond) : endCond;
         }
 

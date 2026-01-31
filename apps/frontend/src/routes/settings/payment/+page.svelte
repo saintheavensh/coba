@@ -43,7 +43,10 @@
         type PaymentMethod,
     } from "$lib/services/settings.service";
 
+    import { api } from "$lib/api";
+
     let paymentMethods = $state<PaymentMethod[]>([]);
+    let assetAccounts = $state<any[]>([]); // For dropdown
     let loading = $state(true);
     let showAddMethod = $state(false);
     let saving = $state(false);
@@ -52,21 +55,33 @@
         name: "",
         icon: "💳",
         type: "custom" as const,
+        accountId: "",
     });
 
     let newVariantByMethod = $state<
         Record<
             string,
-            { name: string; accountNumber: string; accountHolder: string }
+            {
+                name: string;
+                accountNumber: string;
+                accountHolder: string;
+                accountId: string;
+            }
         >
     >({});
 
     async function loadPaymentMethods() {
         loading = true;
         try {
-            paymentMethods = await PaymentMethodsService.getAll();
+            const [methodsRes, accountsRes] = await Promise.all([
+                PaymentMethodsService.getAll(),
+                api.get("/accounting/accounts?typeId=ASSET"),
+            ]);
+            paymentMethods = methodsRes;
+            assetAccounts = accountsRes.data;
         } catch (e) {
-            toast.error("Gagal memuat metode pembayaran");
+            console.error(e);
+            toast.error("Gagal memuat data");
         } finally {
             loading = false;
         }
@@ -84,9 +99,10 @@
                 name: newMethod.name,
                 type: newMethod.type,
                 icon: newMethod.icon,
+                accountId: newMethod.accountId || undefined,
             });
             await loadPaymentMethods();
-            newMethod = { name: "", icon: "💳", type: "custom" };
+            newMethod = { name: "", icon: "💳", type: "custom", accountId: "" };
             showAddMethod = false;
             toast.success("Metode pembayaran berhasil ditambahkan");
         } catch (e) {
@@ -126,6 +142,7 @@
                 name: "",
                 accountNumber: "",
                 accountHolder: "",
+                accountId: "",
             };
         }
         return newVariantByMethod[methodId];
@@ -140,12 +157,14 @@
                 name: variant.name,
                 accountNumber: variant.accountNumber || undefined,
                 accountHolder: variant.accountHolder || undefined,
+                accountId: variant.accountId || undefined,
             });
             await loadPaymentMethods();
             newVariantByMethod[methodId] = {
                 name: "",
                 accountNumber: "",
                 accountHolder: "",
+                accountId: "",
             };
             toast.success("Varian berhasil ditambahkan");
         } catch (e) {
@@ -212,6 +231,18 @@
                                             class="text-xs uppercase"
                                             >{method.type}</Badge
                                         >
+                                        {#if method.accountId}
+                                            <Badge
+                                                variant="secondary"
+                                                class="text-[10px] font-mono"
+                                            >
+                                                GL: {assetAccounts.find(
+                                                    (a) =>
+                                                        a.id ===
+                                                        method.accountId,
+                                                )?.code || "..."}
+                                            </Badge>
+                                        {/if}
                                     </div>
                                     {#if !method.enabled}
                                         <Badge
@@ -377,12 +408,47 @@
                                                             name: "",
                                                             accountNumber: "",
                                                             accountHolder: "",
+                                                            accountId: "",
                                                         };
                                                     newVariantByMethod[
                                                         method.id
                                                     ].accountHolder = val;
                                                 }}
                                             />
+                                            <select
+                                                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                value={newVariantByMethod[
+                                                    method.id
+                                                ]?.accountId || ""}
+                                                onchange={(e) => {
+                                                    if (
+                                                        !newVariantByMethod[
+                                                            method.id
+                                                        ]
+                                                    )
+                                                        newVariantByMethod[
+                                                            method.id
+                                                        ] = {
+                                                            name: "",
+                                                            accountNumber: "",
+                                                            accountHolder: "",
+                                                            accountId: "",
+                                                        };
+                                                    newVariantByMethod[
+                                                        method.id
+                                                    ].accountId =
+                                                        e.currentTarget.value;
+                                                }}
+                                            >
+                                                <option value=""
+                                                    >- Akun Default -</option
+                                                >
+                                                {#each assetAccounts as acc}
+                                                    <option value={acc.id}
+                                                        >{acc.code} - {acc.name}</option
+                                                    >
+                                                {/each}
+                                            </select>
                                         </div>
                                         <Button
                                             size="sm"
@@ -435,6 +501,26 @@
                         </SelectContent>
                     </Select>
                 </div>
+
+                <div class="space-y-2">
+                    <Label>Akun Akuntansi Linked (Opsional)</Label>
+                    <select
+                        bind:value={newMethod.accountId}
+                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <option value="">- Gunakan Default (Kas/Bank) -</option>
+                        {#each assetAccounts as acc}
+                            <option value={acc.id}
+                                >{acc.code} - {acc.name}</option
+                            >
+                        {/each}
+                    </select>
+                    <p class="text-[10px] text-muted-foreground">
+                        Pilih akun GL khusus untuk menampung dana dari metode
+                        ini.
+                    </p>
+                </div>
+
                 <div class="space-y-2">
                     <Label>Pilih Ikon</Label>
                     <div

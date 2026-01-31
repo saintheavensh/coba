@@ -49,7 +49,8 @@ export class SalesRepository {
                 member: true,
                 items: {
                     with: {
-                        product: true
+                        product: true,
+                        batch: true
                     }
                 },
                 payments: true
