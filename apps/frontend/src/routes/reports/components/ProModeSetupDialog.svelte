@@ -115,6 +115,16 @@
         try {
             saving = true;
 
+            // Seed standard accounts when using Default configuration
+            if (configChoice === "default") {
+                const seedResult = await api.post("/accounting/accounts/seed");
+                if (seedResult?.data?.created > 0) {
+                    toast.success(
+                        `${seedResult.data.created} akun standar berhasil dibuat!`,
+                    );
+                }
+            }
+
             // Save mappings if custom
             if (configChoice === "custom" && mappings) {
                 await SettingsService.setAccountMappings(mappings);

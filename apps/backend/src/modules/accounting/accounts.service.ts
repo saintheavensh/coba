@@ -300,4 +300,88 @@ export class AccountsService {
         };
         return prefixes[typeId] || "9";
     }
+
+    /**
+     * Seed standard Chart of Accounts for new installations
+     * Used when enabling Professional Mode for the first time
+     */
+    static async seedStandardAccounts(userId?: string): Promise<{ created: number; skipped: boolean }> {
+        // Check if accounts already exist
+        const existing = await db.select({ count: sql<number>`count(*)` }).from(accounts);
+        if (Number(existing[0]?.count || 0) > 0) {
+            return { created: 0, skipped: true };
+        }
+
+        // Standard Chart of Accounts for Phone/Electronics Repair Shop
+        const standardAccounts = [
+            // ========== ASSETS (1-xxxx) ==========
+            // Current Assets
+            { code: "1001", name: "Kas Toko", typeId: "ASSET", description: "Kas tunai di toko" },
+            { code: "1002", name: "Kas Kecil", typeId: "ASSET", description: "Petty cash untuk pengeluaran kecil" },
+            { code: "1010", name: "Bank BCA", typeId: "ASSET", description: "Rekening bank BCA" },
+            { code: "1011", name: "Bank Mandiri", typeId: "ASSET", description: "Rekening bank Mandiri" },
+            { code: "1012", name: "Bank BRI", typeId: "ASSET", description: "Rekening bank BRI" },
+            { code: "2000", name: "Piutang Usaha", typeId: "ASSET", description: "Piutang dari pelanggan" },
+            { code: "2001", name: "Piutang Karyawan", typeId: "ASSET", description: "Piutang dipinjam karyawan" },
+            { code: "3000", name: "Persediaan Barang", typeId: "ASSET", description: "Stok barang dagang" },
+            { code: "3001", name: "Persediaan Sparepart", typeId: "ASSET", description: "Stok sparepart service" },
+            // Fixed Assets
+            { code: "4001", name: "Peralatan Kerja", typeId: "ASSET", description: "Peralatan servis (solder, multimeter, dll)" },
+            { code: "4002", name: "Inventaris Toko", typeId: "ASSET", description: "Meja, kursi, etalase, dll" },
+            { code: "4003", name: "Kendaraan", typeId: "ASSET", description: "Kendaraan operasional" },
+            { code: "4004", name: "Bangunan", typeId: "ASSET", description: "Bangunan toko (jika milik sendiri)" },
+            { code: "4005", name: "Tanah", typeId: "ASSET", description: "Tanah (tidak disusutkan)" },
+            { code: "4090", name: "Aset Tetap Lainnya", typeId: "ASSET", description: "Aset tetap lainnya" },
+            { code: "4099", name: "Akumulasi Penyusutan", typeId: "ASSET", description: "Akun kontra untuk penyusutan aset" },
+
+            // ========== LIABILITIES (2-xxxx) ==========
+            { code: "1000", name: "Hutang Usaha", typeId: "LIABILITY", description: "Hutang ke supplier" },
+            { code: "1001", name: "Hutang Bank", typeId: "LIABILITY", description: "Pinjaman bank" },
+            { code: "1002", name: "Hutang Karyawan", typeId: "LIABILITY", description: "Gaji/komisi yang belum dibayar" },
+            { code: "2000", name: "Deposit Pelanggan", typeId: "LIABILITY", description: "Uang muka dari pelanggan" },
+
+            // ========== EQUITY (3-xxxx) ==========
+            { code: "1000", name: "Modal Pemilik", typeId: "EQUITY", description: "Modal awal pemilik" },
+            { code: "2000", name: "Laba Ditahan", typeId: "EQUITY", description: "Laba tahun-tahun sebelumnya" },
+            { code: "3000", name: "Prive/Pengambilan", typeId: "EQUITY", description: "Pengambilan pribadi pemilik" },
+
+            // ========== REVENUE (4-xxxx) ==========
+            { code: "1000", name: "Pendapatan Penjualan", typeId: "REVENUE", description: "Penjualan barang" },
+            { code: "2000", name: "Pendapatan Service", typeId: "REVENUE", description: "Jasa perbaikan/servis" },
+            { code: "3000", name: "Pendapatan Lainnya", typeId: "REVENUE", description: "Pendapatan diluar usaha utama" },
+            { code: "4000", name: "Diskon Penjualan", typeId: "REVENUE", description: "Potongan harga ke pelanggan (pengurang)" },
+            { code: "5000", name: "Retur Penjualan", typeId: "REVENUE", description: "Barang yang dikembalikan pelanggan" },
+
+            // ========== EXPENSE (5-xxxx) ==========
+            // Cost of Goods Sold
+            { code: "1001", name: "HPP Penjualan", typeId: "EXPENSE", description: "Harga pokok barang terjual" },
+            { code: "1002", name: "HPP Service", typeId: "EXPENSE", description: "Sparepart untuk service" },
+            // Operating Expenses
+            { code: "2000", name: "Beban Gaji", typeId: "EXPENSE", description: "Gaji karyawan" },
+            { code: "2001", name: "Komisi Teknisi", typeId: "EXPENSE", description: "Komisi untuk teknisi" },
+            { code: "2100", name: "Beban Sewa", typeId: "EXPENSE", description: "Sewa tempat usaha" },
+            { code: "2200", name: "Beban Listrik", typeId: "EXPENSE", description: "Tagihan listrik" },
+            { code: "2201", name: "Beban Air", typeId: "EXPENSE", description: "Tagihan air (PDAM)" },
+            { code: "2202", name: "Beban Internet", typeId: "EXPENSE", description: "Tagihan internet/wifi" },
+            { code: "2300", name: "Beban Perlengkapan", typeId: "EXPENSE", description: "ATK dan perlengkapan kantor" },
+            { code: "2400", name: "Beban Transportasi", typeId: "EXPENSE", description: "Ongkos kirim, bensin, dll" },
+            { code: "2500", name: "Beban Iklan", typeId: "EXPENSE", description: "Promosi dan marketing" },
+            { code: "2600", name: "Beban Pemeliharaan", typeId: "EXPENSE", description: "Maintenance alat & gedung" },
+            { code: "3000", name: "Beban Penyusutan", typeId: "EXPENSE", description: "Penyusutan aset tetap bulanan" },
+            { code: "9000", name: "Beban Lain-lain", typeId: "EXPENSE", description: "Beban operasional lainnya" },
+        ];
+
+        let created = 0;
+        for (const acc of standardAccounts) {
+            try {
+                await this.create(acc, userId);
+                created++;
+            } catch (e) {
+                // Skip if already exists (edge case)
+                console.warn(`Skipped account ${acc.code}: ${e}`);
+            }
+        }
+
+        return { created, skipped: false };
+    }
 }

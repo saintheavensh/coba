@@ -80,6 +80,13 @@ accounting.post("/accounts", zValidator("json", createAccountSchema), async (c) 
     return c.json({ id }, 201);
 });
 
+// Seed standard Chart of Accounts (for new installations)
+accounting.post("/accounts/seed", async (c) => {
+    const userId = getUserId(c);
+    const result = await AccountsService.seedStandardAccounts(userId);
+    return c.json(result, result.skipped ? 200 : 201);
+});
+
 const transferFundsSchema = z.object({
     fromAccountId: z.string(),
     toAccountId: z.string(),
