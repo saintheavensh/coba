@@ -13,7 +13,6 @@
         SelectContent,
         SelectItem,
         SelectTrigger,
-        SelectValue,
     } from "$lib/components/ui/select";
     import {
         AlertTriangle,
@@ -87,6 +86,13 @@
     function getAccountForType(type: string): string {
         const mapping = mappings?.mappings.find((m) => m.type === type);
         return mapping?.accountId ?? "";
+    }
+
+    function getAccountLabel(type: string): string {
+        const accountId = getAccountForType(type);
+        if (!accountId) return "Pilih akun...";
+        const account = accounts.find((a) => a.id === accountId);
+        return account ? `${account.code} - ${account.name}` : "Pilih akun...";
     }
 
     function updateMapping(type: string, accountId: string) {
@@ -308,9 +314,7 @@
                                         updateMapping(mapping.type, v)}
                                 >
                                     <SelectTrigger class="flex-1">
-                                        <SelectValue
-                                            placeholder="Pilih akun..."
-                                        />
+                                        {getAccountLabel(mapping.type)}
                                     </SelectTrigger>
                                     <SelectContent>
                                         {#each accounts as account}
