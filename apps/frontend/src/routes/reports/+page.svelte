@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from "svelte";
     import {
         Card,
         CardContent,
@@ -18,6 +19,7 @@
     import { Button } from "$lib/components/ui/button";
     import { Label } from "$lib/components/ui/label";
     import { Separator } from "$lib/components/ui/separator";
+    import { Switch } from "$lib/components/ui/switch";
     import {
         Tabs,
         TabsContent,
@@ -42,6 +44,7 @@
         Wallet,
         BarChart3,
         PieChart,
+        Calculator,
     } from "lucide-svelte";
     import { Badge } from "$lib/components/ui/badge";
     import { createQuery } from "@tanstack/svelte-query";
@@ -58,13 +61,24 @@
         type ProfitAndLoss,
         type StockValueReport,
     } from "$lib/services/reports.service";
+    import {
+        SettingsService,
+        type GeneralSettings,
+        type AccountingMode,
+    } from "$lib/services/settings.service";
 
     // New Components
     import SalesTrendChart from "./components/SalesTrendChart.svelte";
     import ProfitCostChart from "./components/ProfitCostChart.svelte";
     import ServiceStatusChart from "./components/ServiceStatusChart.svelte";
+    import ProModeSetupDialog from "./components/ProModeSetupDialog.svelte";
     import DateTimePicker from "$lib/components/custom/date-time-picker.svelte";
     import * as XLSX from "xlsx";
+
+    // Accounting Mode State
+    let accountingMode = $state<AccountingMode>("simple");
+    let showProModeSetup = $state(false);
+    let loadingMode = $state(true);
 
     // State Filter
     let startDate = $state("2026-01-01");
@@ -389,7 +403,50 @@
         const filename = `Laporan_Lengkap_${startDate}_sd_${endDate}.xlsx`;
         XLSX.writeFile(wb, filename);
     }
+
+    // Fetch accounting mode on mount
+    async function fetchAccountingMode() {
+        try {
+            loadingMode = true;
+            const settings = await SettingsService.getGeneralSettings();
+            accountingMode = settings.accountingMode;
+        } catch (e) {
+            console.error("Failed to fetch accounting mode", e);
+            accountingMode = "simple";
+        } finally {
+            loadingMode = false;
+        }
+    }
+
+    async function disableProMode() {
+        try {
+            const settings: GeneralSettings = {
+                accountingMode: "simple",
+                accountingSetupComplete: false,
+            };
+            await SettingsService.setGeneralSettings(settings);
+            accountingMode = "simple";
+        } catch (e) {
+            console.error("Failed to disable Pro Mode", e);
+        }
+    }
+
+    function handleProModeComplete() {
+        accountingMode = "professional";
+        showProModeSetup = false;
+    }
+
+    onMount(() => {
+        fetchAccountingMode();
+    });
 </script>
+
+<!-- Pro Mode Setup Dialog -->
+<ProModeSetupDialog
+    bind:open={showProModeSetup}
+    onClose={() => (showProModeSetup = false)}
+    onComplete={handleProModeComplete}
+/>
 
 <div class="space-y-8 pb-10">
     <!-- Header with Glassmorphism -->
@@ -410,6 +467,34 @@
                 </p>
             </div>
             <div class="flex items-center gap-3">
+                <!-- Mode Toggle -->
+                <div
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 backdrop-blur-md"
+                >
+                    <span
+                        class="text-xs font-medium text-blue-100 {accountingMode ===
+                        'simple'
+                            ? 'opacity-100'
+                            : 'opacity-50'}">Simple</span
+                    >
+                    <Switch
+                        checked={accountingMode === "professional"}
+                        onCheckedChange={(checked) => {
+                            if (checked) {
+                                showProModeSetup = true;
+                            } else {
+                                disableProMode();
+                            }
+                        }}
+                        class="data-[state=checked]:bg-green-500"
+                    />
+                    <span
+                        class="text-xs font-medium text-blue-100 {accountingMode ===
+                        'professional'
+                            ? 'opacity-100'
+                            : 'opacity-50'}">Pro</span
+                    >
+                </div>
                 <Button
                     variant="outline"
                     size="lg"

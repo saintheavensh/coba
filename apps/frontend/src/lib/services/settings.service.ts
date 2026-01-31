@@ -135,6 +135,51 @@ export interface CommissionSettings {
 }
 
 // ============================================
+// ACCOUNT MAPPING SETTINGS
+// ============================================
+
+export type AccountMappingType =
+    | 'asset_tool'
+    | 'asset_equipment'
+    | 'asset_furniture'
+    | 'asset_vehicle'
+    | 'asset_building'
+    | 'asset_land'
+    | 'asset_other'
+    | 'depreciation_expense'
+    | 'accumulated_depreciation'
+    | 'default_cash'
+    | 'owner_equity'
+    | 'sales_revenue'
+    | 'service_revenue'
+    | 'cogs_sales'
+    | 'cogs_service'
+    | 'accounts_payable'
+    | 'accounts_receivable';
+
+export interface AccountMapping {
+    type: AccountMappingType;
+    accountId: string;
+    label: string;
+    description?: string;
+}
+
+export interface AccountMappingSettings {
+    mappings: AccountMapping[];
+}
+
+// ============================================
+// GENERAL SETTINGS (Accounting Mode)
+// ============================================
+
+export type AccountingMode = 'simple' | 'professional';
+
+export interface GeneralSettings {
+    accountingMode: AccountingMode;
+    accountingSetupComplete: boolean;
+}
+
+// ============================================
 // ALL SETTINGS COMBINED
 // ============================================
 
@@ -144,6 +189,8 @@ export interface AllSettings {
     serviceSettings: ServiceSettings;
     whatsappSettings: WhatsAppSettings;
     commissionSettings: CommissionSettings;
+    accountMappings: AccountMappingSettings;
+    generalSettings: GeneralSettings;
 }
 
 // ============================================
@@ -274,6 +321,26 @@ export const SettingsService = {
 
     async setCommissionSettings(settings: CommissionSettings): Promise<void> {
         await api.put("/settings/commission", settings);
+    },
+
+    // Account Mapping Settings
+    async getAccountMappings(): Promise<AccountMappingSettings> {
+        const response = await api.get<ApiResponse<AccountMappingSettings>>("/settings/account-mappings");
+        return response.data.data!;
+    },
+
+    async setAccountMappings(settings: AccountMappingSettings): Promise<void> {
+        await api.put("/settings/account-mappings", settings);
+    },
+
+    // General Settings (Accounting Mode)
+    async getGeneralSettings(): Promise<GeneralSettings> {
+        const response = await api.get<ApiResponse<GeneralSettings>>("/settings/general");
+        return response.data.data!;
+    },
+
+    async setGeneralSettings(settings: GeneralSettings): Promise<void> {
+        await api.put("/settings/general", settings);
     },
 
     // Factory Reset

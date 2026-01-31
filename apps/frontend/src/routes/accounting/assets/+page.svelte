@@ -51,10 +51,16 @@
         ArrowRightLeft,
         Map as MapIcon,
         Activity,
+        SlidersHorizontal,
     } from "lucide-svelte";
     import { api } from "$lib/api";
     import { toast } from "svelte-sonner";
     import { Badge } from "$lib/components/ui/badge";
+    import {
+        SettingsService,
+        type AccountMappingSettings,
+        type AccountMappingType,
+    } from "$lib/services/settings.service";
 
     let loading = $state(true);
     let assets = $state<any[]>([]);
@@ -66,6 +72,8 @@
     let deprPeriod = $state(new Date().toISOString().slice(0, 7)); // YYYY-MM
     let editingId = $state<string | null>(null);
     let showAccountingHelp = $state(false);
+    let accountMappings = $state<AccountMappingSettings | null>(null);
+    let advancedMode = $state(false);
 
     // Form state
     let form = $state({
@@ -118,44 +126,86 @@
         }
     }
 
-    // Smart Auto-fill for Asset Accounts
+    // Smart Auto-fill for Asset Accounts using Account Mappings
     function handleCategoryChange() {
-        if (!accounts.length) return;
+        if (!accounts.length || !accountMappings) return;
 
-        // Map categories to asset accounts
-        // tool -> 1-4001 Peralatan Service
-        // equipment, furniture -> 1-4002 Furniture
-        // vehicle -> 1-4003 Kendaraan
-        // building -> 1-4004 Bangunan
+        // Map category to mapping type
+        const categoryToMappingType: Record<string, AccountMappingType> = {
+            tool: "asset_tool",
+            equipment: "asset_equipment",
+            furniture: "asset_furniture",
+            vehicle: "asset_vehicle",
+            building: "asset_building",
+            land: "asset_land",
+            other: "asset_other",
+        };
 
-        let targetCode = "1-4001";
+        const mappingType = categoryToMappingType[form.category];
+        if (mappingType) {
+            const mapping = accountMappings.mappings.find(
+                (m) => m.type === mappingType,
+            );
+            if (mapping) {
+                const found = accounts.find((a) => a.id === mapping.accountId);
+                if (found) {
+                    form.accountId = found.id;
+                }
+            }
+        }
 
-        if (form.category === "tool") targetCode = "1-4001";
-        else if (form.category === "equipment" || form.category === "furniture")
-            targetCode = "1-4002";
-        else if (form.category === "vehicle") targetCode = "1-4003";
-        else if (form.category === "building") targetCode = "1-4004";
-        else if (form.category === "land") targetCode = "1-4005";
-        else if (form.category === "other") targetCode = "1-4090";
-
-        const found = accounts.find(
-            (a) =>
-                a.id.includes(targetCode) ||
-                a.code === targetCode.split("-")[1],
+        // Also set default source account from mappings
+        const cashMapping = accountMappings.mappings.find(
+            (m) => m.type === "default_cash",
         );
-        if (found) {
-            form.accountId = found.id;
+        if (cashMapping) {
+            const cashAccount = accounts.find(
+                (a) => a.id === cashMapping.accountId,
+            );
+            if (cashAccount) {
+                form.sourceAccountId = cashAccount.id;
+            }
         }
 
         // Property Logic
         if (form.category === "property") {
             splitProperty = true;
-            // Maybe auto-select building for the main form?
-            const building = accounts.find((a) => a.id.includes("1-4004"));
-            if (building) form.accountId = building.id;
+            const buildingMapping = accountMappings.mappings.find(
+                (m) => m.type === "asset_building",
+            );
+            if (buildingMapping) {
+                const building = accounts.find(
+                    (a) => a.id === buildingMapping.accountId,
+                );
+                if (building) form.accountId = building.id;
+            }
         } else {
             splitProperty = false;
             landPortion = 0;
+        }
+    }
+
+    async function fetchAccountMappings() {
+        try {
+            accountMappings = await SettingsService.getAccountMappings();
+            // Initialize default source account ID
+            if (accountMappings) {
+                const cashMapping = accountMappings.mappings.find(
+                    (m) => m.type === "default_cash",
+                );
+                if (cashMapping) {
+                    form.sourceAccountId = cashMapping.accountId;
+                }
+                // Also set default asset account
+                const toolMapping = accountMappings.mappings.find(
+                    (m) => m.type === "asset_tool",
+                );
+                if (toolMapping) {
+                    form.accountId = toolMapping.accountId;
+                }
+            }
+        } catch (e) {
+            console.error("Failed to fetch account mappings", e);
         }
     }
 
@@ -183,7 +233,10 @@
                         purchaseDate: new Date(form.purchaseDate),
                     });
 
-                    // 2. Create Land
+                    // 2. Create Land - use mapping for land account
+                    const landMapping = accountMappings?.mappings.find(
+                        (m) => m.type === "asset_land",
+                    );
                     await api.post("/accounting/assets", {
                         ...form,
                         name: `${form.name} (Tanah)`,
@@ -192,8 +245,9 @@
                         salvageValue: 0,
                         usefulLifeMonths: 0,
                         purchaseDate: new Date(form.purchaseDate),
-                        accountId: accounts.find((a) => a.id.includes("1-4005"))
-                            ?.id, // Explicitly set Land account
+                        accountId:
+                            landMapping?.accountId ??
+                            accounts.find((a) => a.id.includes("1-4005"))?.id,
                     });
                 } else {
                     await api.post("/accounting/assets", {
@@ -282,6 +336,7 @@
     onMount(() => {
         fetchAssets();
         fetchAccounts();
+        fetchAccountMappings();
     });
 
     const formatCurrency = (val: number) =>

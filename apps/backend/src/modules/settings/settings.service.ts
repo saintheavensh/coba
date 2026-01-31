@@ -226,6 +226,84 @@ const DEFAULT_COMMISSION_SETTINGS: CommissionSettings = {
 };
 
 // ============================================
+// ACCOUNT MAPPING SETTINGS
+// ============================================
+
+export type AccountMappingType =
+    | 'asset_tool'              // Peralatan Service
+    | 'asset_equipment'         // Peralatan Umum
+    | 'asset_furniture'         // Furniture & Perlengkapan
+    | 'asset_vehicle'           // Kendaraan
+    | 'asset_building'          // Bangunan
+    | 'asset_land'              // Tanah
+    | 'asset_other'             // Aset Lainnya
+    | 'depreciation_expense'    // Beban Penyusutan
+    | 'accumulated_depreciation' // Akumulasi Penyusutan (kontra)
+    | 'default_cash'            // Default Kas (Sumber Dana)
+    | 'owner_equity'            // Modal Pemilik
+    | 'sales_revenue'           // Pendapatan Penjualan
+    | 'service_revenue'         // Pendapatan Service
+    | 'cogs_sales'              // HPP Penjualan
+    | 'cogs_service'            // HPP Service
+    | 'accounts_payable'        // Hutang Usaha
+    | 'accounts_receivable';    // Piutang Usaha
+
+export interface AccountMapping {
+    type: AccountMappingType;
+    accountId: string;         // e.g., "1-4001"
+    label: string;             // Human-readable label for UI
+    description?: string;      // Usage notes
+}
+
+export interface AccountMappingSettings {
+    mappings: AccountMapping[];
+}
+
+const DEFAULT_ACCOUNT_MAPPINGS: AccountMappingSettings = {
+    mappings: [
+        // Fixed Assets
+        { type: 'asset_tool', accountId: '1-4001', label: 'Peralatan Service', description: 'Alat service HP/elektronik' },
+        { type: 'asset_equipment', accountId: '1-4002', label: 'Peralatan Umum', description: 'Peralatan kantor/toko' },
+        { type: 'asset_furniture', accountId: '1-4002', label: 'Furniture & Perlengkapan', description: 'Meja, kursi, rak, display' },
+        { type: 'asset_vehicle', accountId: '1-4003', label: 'Kendaraan', description: 'Motor/mobil operasional' },
+        { type: 'asset_building', accountId: '1-4004', label: 'Bangunan', description: 'Ruko/gedung' },
+        { type: 'asset_land', accountId: '1-4005', label: 'Tanah', description: 'Tanah (tidak disusutkan)' },
+        { type: 'asset_other', accountId: '1-4090', label: 'Aset Lainnya', description: 'Aset tetap lainnya' },
+        // Depreciation
+        { type: 'depreciation_expense', accountId: '5-3000', label: 'Beban Penyusutan', description: 'Beban penyusutan bulanan' },
+        { type: 'accumulated_depreciation', accountId: '1-4099', label: 'Akumulasi Penyusutan', description: 'Akun kontra aset' },
+        // Default accounts
+        { type: 'default_cash', accountId: '1-1001', label: 'Kas Toko', description: 'Sumber dana default untuk pembelian' },
+        { type: 'owner_equity', accountId: '3-1000', label: 'Modal Pemilik', description: 'Modal awal pemilik' },
+        // Revenue
+        { type: 'sales_revenue', accountId: '4-1000', label: 'Pendapatan Penjualan', description: 'Pendapatan dari penjualan barang' },
+        { type: 'service_revenue', accountId: '4-2000', label: 'Pendapatan Service', description: 'Pendapatan dari jasa servis' },
+        // COGS
+        { type: 'cogs_sales', accountId: '5-1001', label: 'HPP Penjualan', description: 'Harga pokok barang terjual' },
+        { type: 'cogs_service', accountId: '5-1002', label: 'HPP Service', description: 'Sparepart untuk service' },
+        // Payables/Receivables
+        { type: 'accounts_payable', accountId: '2-1000', label: 'Hutang Usaha', description: 'Hutang ke supplier' },
+        { type: 'accounts_receivable', accountId: '1-2000', label: 'Piutang Usaha', description: 'Piutang dari pelanggan' },
+    ]
+};
+
+// ============================================
+// GENERAL SETTINGS (Accounting Mode)
+// ============================================
+
+export type AccountingMode = 'simple' | 'professional';
+
+export interface GeneralSettings {
+    accountingMode: AccountingMode;
+    accountingSetupComplete: boolean;
+}
+
+const DEFAULT_GENERAL_SETTINGS: GeneralSettings = {
+    accountingMode: 'simple',
+    accountingSetupComplete: false,
+};
+
+// ============================================
 // SETTINGS SERVICE
 // ============================================
 
@@ -262,16 +340,20 @@ export class SettingsService {
         receiptSettings: ReceiptSettings;
         serviceSettings: ServiceSettings;
         whatsappSettings: WhatsAppSettings;
-        commissionSettings: CommissionSettings; // Added
+        commissionSettings: CommissionSettings;
+        accountMappings: AccountMappingSettings;
+        generalSettings: GeneralSettings;
     }> {
-        const [storeInfo, receiptSettings, serviceSettings, whatsappSettings, commissionSettings] = await Promise.all([
+        const [storeInfo, receiptSettings, serviceSettings, whatsappSettings, commissionSettings, accountMappings, generalSettings] = await Promise.all([
             this.getStoreInfo(),
             this.getReceiptSettings(),
             this.getServiceSettings(),
             this.getWhatsAppSettings(),
             this.getCommissionSettings(),
+            this.getAccountMappings(),
+            this.getGeneralSettings(),
         ]);
-        return { storeInfo, receiptSettings, serviceSettings, whatsappSettings, commissionSettings };
+        return { storeInfo, receiptSettings, serviceSettings, whatsappSettings, commissionSettings, accountMappings, generalSettings };
     }
 
     // ... existing specific methods ...
@@ -328,6 +410,37 @@ export class SettingsService {
 
     async setCommissionSettings(settings: CommissionSettings): Promise<void> {
         await this.set("commission_settings", settings);
+    }
+
+    // Account mapping settings
+    async getAccountMappings(): Promise<AccountMappingSettings> {
+        return this.get("account_mappings", DEFAULT_ACCOUNT_MAPPINGS);
+    }
+
+    async setAccountMappings(settings: AccountMappingSettings): Promise<void> {
+        await this.set("account_mappings", settings);
+    }
+
+    // Helper: Get account ID for a specific mapping type
+    async getAccountByType(type: AccountMappingType): Promise<string | null> {
+        const mappings = await this.getAccountMappings();
+        const found = mappings.mappings.find(m => m.type === type);
+        return found?.accountId ?? null;
+    }
+
+    // General settings (Accounting Mode)
+    async getGeneralSettings(): Promise<GeneralSettings> {
+        return this.get("general_settings", DEFAULT_GENERAL_SETTINGS);
+    }
+
+    async setGeneralSettings(settings: GeneralSettings): Promise<void> {
+        await this.set("general_settings", settings);
+    }
+
+    // Helper: Check if in professional accounting mode
+    async isProMode(): Promise<boolean> {
+        const settings = await this.getGeneralSettings();
+        return settings.accountingMode === 'professional' && settings.accountingSetupComplete;
     }
 
     // Factory Reset
