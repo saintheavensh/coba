@@ -1,106 +1,70 @@
-/**
- * Main Seed File
- * Orchestrates the execution of all modular seeds
- */
+
 import { db } from "./index";
-import {
-    users, suppliers, categories, products, productBatches, members,
-    purchases, purchaseItems, sales, saleItems, salePayments,
-    services, activityLogs, notifications, paymentMethods, paymentVariants,
-    roles, devices, brands, productDeviceCompatibility, purchaseReturns,
-    purchaseReturnItems, defectiveItems, categoryVariants, productVariants,
-    settings, operationalCosts, stockOpnameItems, stockOpnameSessions, serviceTools,
-    // Accounting tables
-    accountTypes, accounts, journals, journalLines, assets, assetDepreciationLogs,
-    cashRegisters, cashRegisterTransactions, revenueTargets, purchasePayments,
-    periodLocks, commissionPayments, auditLogs
-} from "./schema";
+import { roles, users } from "./schema";
+import { v4 as uuidv4 } from "uuid";
+// NOTE: In a real app, you should hash passwords. 
+// For this seeder, we assume the backend handles hashing or we store plain text for dev (NOT RECOMMENDED for production).
+// Since the schema says 'password' is text, we will just insert a string.
+// Ideally, import your hashing utility here.
 
-import { seedUsers, seedSettings } from "./seeds/users.seed";
-import { seedSuppliers } from "./seeds/suppliers.seed";
-import { seedProducts } from "./seeds/products.seed";
-import { seedPurchases } from "./seeds/purchases.seed";
-import { seedSales } from "./seeds/sales.seed";
-import { seedServices } from "./seeds/services.seed";
-import { seedAccounting } from "./seeds/accounting.seed";
+async function seed() {
+    console.log("🌱 Seeding database...");
 
-async function main() {
-    console.log("🌱 Starting Comprehensive Database Seed...");
+    try {
+        // 1. Create Roles
+        console.log("Creating roles...");
+        await db.insert(roles).values([
+            {
+                id: "admin",
+                name: "Administrator",
+                permissions: ["all"],
+            },
+            {
+                id: "teknisi",
+                name: "Teknisi",
+                permissions: ["service.read", "service.update"],
+            },
+            {
+                id: "kasir",
+                name: "Kasir",
+                permissions: ["sale.create", "sale.read"],
+            }
+        ]).onConflictDoNothing();
 
-    console.log("⚠️ Deleting existing data...");
+        // 2. Create Admin User
+        console.log("Creating admin user...");
+        // Generate a stable UUID for admin or use a random one
+        const adminId = "user-admin-001";
 
-    // Delete in reverse order of dependencies
-    await db.delete(activityLogs);
-    await db.delete(notifications);
-    await db.delete(stockOpnameItems);
-    await db.delete(stockOpnameSessions);
-    await db.delete(serviceTools); // Assets
-    await db.delete(salePayments);
-    await db.delete(saleItems);
-    await db.delete(sales);
-    await db.delete(purchaseItems);
-    await db.delete(purchases);
-    await db.delete(purchaseReturnItems);
-    await db.delete(purchaseReturns);
-    await db.delete(defectiveItems);
-    await db.delete(services);
-    await db.delete(productDeviceCompatibility);
-    await db.delete(productBatches);
-    await db.delete(productVariants);
-    await db.delete(products);
-    await db.delete(categoryVariants);
-    await db.delete(categories);
-    await db.delete(members);
-    await db.delete(suppliers);
-    await db.delete(paymentVariants);
-    await db.delete(paymentMethods);
-    await db.delete(devices);
-    await db.delete(brands);
-    await db.delete(operationalCosts);
-    await db.delete(settings);
-    // Accounting tables
-    await db.delete(auditLogs);
-    await db.delete(commissionPayments);
-    await db.delete(periodLocks);
-    await db.delete(purchasePayments);
-    await db.delete(revenueTargets);
-    await db.delete(cashRegisterTransactions);
-    await db.delete(cashRegisters);
-    await db.delete(assetDepreciationLogs);
-    await db.delete(assets);
-    await db.delete(journalLines);
-    await db.delete(journals);
-    await db.delete(accounts);
-    await db.delete(accountTypes);
+        const hashedPassword = await Bun.password.hash("password123");
 
-    // Core User Data (Must be last)
-    await db.delete(users);
-    await db.delete(roles);
+        await db.insert(users).values({
+            id: adminId,
+            username: "admin",
+            password: hashedPassword,
+            name: "Super Admin",
+            role: "admin",
+            isActive: true,
+        }).onConflictDoUpdate({
+            target: users.id,
+            set: {
+                password: hashedPassword,
+                role: "admin",
+                isActive: true
+            }
+        });
 
-    console.log("✅ Data cleared.");
+        console.log("✅ Seeding complete!");
+        console.log("--------------------------------");
+        console.log("User: admin");
+        console.log("Pass: password123");
+        console.log("--------------------------------");
+        process.exit(0);
 
-    // Execute modular seeds in order
-    await seedSettings();
-    await seedUsers();
-
-    const args = process.argv.slice(2);
-    if (args.includes("--users-only")) {
-        console.log("\n✅ Database reset complete (Users & Roles preserved). Skipping transactional data.");
-        return;
+    } catch (error) {
+        console.error("❌ Seeding failed:", error);
+        process.exit(1);
     }
-
-    await seedSuppliers();
-    await seedProducts();
-    await seedPurchases();
-    await seedSales();
-    await seedServices();
-    await seedAccounting();
-
-    console.log("\n✅ COMPREHENSIVE DATABASE SEED COMPLETE!");
 }
 
-main().catch((e) => {
-    console.error("❌ Seeding failed:");
-    console.error(e);
-    process.exit(1);
-});
+seed();

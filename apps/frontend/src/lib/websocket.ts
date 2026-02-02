@@ -1,12 +1,14 @@
 import { browser } from "$app/environment";
 import { writable, type Writable } from "svelte/store";
+import { supabase } from "./supabase";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 // WebSocket connection state
 export type WebSocketState = "connecting" | "connected" | "disconnected" | "error";
 
 interface WebSocketMessage {
     type: string;
-    data?: unknown;
+    data?: any;
     userId?: string;
     timestamp?: string;
 }
@@ -14,10 +16,7 @@ interface WebSocketMessage {
 type MessageHandler = (message: WebSocketMessage) => void;
 
 class WebSocketClient {
-    private ws: WebSocket | null = null;
-    private reconnectAttempts = 0;
-    private maxReconnectAttempts = 5;
-    private reconnectDelay = 1000;
+    private channel: RealtimeChannel | null = null;
     private messageHandlers: Set<MessageHandler> = new Set();
     private userId: string | null = null;
 
@@ -25,113 +24,99 @@ class WebSocketClient {
     lastMessage: Writable<WebSocketMessage | null> = writable(null);
 
     /**
-     * Connect to WebSocket server
+     * Connect to Supabase Realtime
      */
     connect(userId?: string): void {
         if (!browser) return;
-        if (this.ws?.readyState === WebSocket.OPEN) return;
+        if (this.channel) return;
 
         this.userId = userId || null;
         this.state.set("connecting");
 
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const host = import.meta.env.VITE_API_BASE_URL?.replace(/^https?:\/\//, "") || "localhost:4000";
-        const wsUrl = `${protocol}//${host}/ws${userId ? `?userId=${userId}` : ""}`;
+        console.log("🔌 Connecting to Supabase Realtime...");
 
-        try {
-            this.ws = new WebSocket(wsUrl);
-
-            this.ws.onopen = () => {
-                console.log("🔌 WebSocket connected");
-                this.state.set("connected");
-                this.reconnectAttempts = 0;
-            };
-
-            this.ws.onmessage = (event) => {
-                try {
-                    const message: WebSocketMessage = JSON.parse(event.data);
-                    this.lastMessage.set(message);
-
-                    // Notify all handlers
-                    this.messageHandlers.forEach((handler) => {
-                        try {
-                            handler(message);
-                        } catch (err) {
-                            console.error("Error in message handler:", err);
-                        }
-                    });
-                } catch (err) {
-                    console.error("Error parsing WebSocket message:", err);
+        // Subscribe to changes in the 'notifications' table
+        this.channel = supabase
+            .channel("public:notifications")
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "notifications",
+                    filter: userId ? `user_id=eq.${userId}` : undefined,
+                },
+                (payload) => {
+                    this.handleNotification(payload.new);
                 }
-            };
+            )
+            // Example for listening to stock updates (if we want to sync stock)
+            // .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'inventory' }, ...)
+            .subscribe((status) => {
+                if (status === "SUBSCRIBED") {
+                    console.log("🔌 Supabase Realtime connected");
+                    this.state.set("connected");
+                } else if (status === "CLOSED") {
+                    console.log("🔌 Supabase Realtime disconnected");
+                    this.state.set("disconnected");
+                    this.channel = null;
+                } else if (status === "CHANNEL_ERROR") {
+                    console.error("Supabase Realtime error");
+                    this.state.set("error");
+                }
+            });
+    }
 
-            this.ws.onclose = () => {
-                console.log("🔌 WebSocket disconnected");
-                this.state.set("disconnected");
-                this.attemptReconnect();
-            };
+    private handleNotification(notification: any) {
+        // Adapt DB notification structure to our internal WebSocket message format
+        const message: WebSocketMessage = {
+            type: notification.type || "notification",
+            data: notification,
+            userId: notification.user_id,
+            timestamp: notification.created_at || new Date().toISOString(),
+        };
 
-            this.ws.onerror = (error) => {
-                console.error("WebSocket error:", error);
-                this.state.set("error");
-            };
-        } catch (err) {
-            console.error("Failed to create WebSocket:", err);
-            this.state.set("error");
-        }
+        this.lastMessage.set(message);
+
+        // Notify all handlers
+        this.messageHandlers.forEach((handler) => {
+            try {
+                handler(message);
+            } catch (err) {
+                console.error("Error in message handler:", err);
+            }
+        });
     }
 
     /**
-     * Disconnect from WebSocket server
+     * Disconnect from Supabase Realtime
      */
     disconnect(): void {
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
+        if (this.channel) {
+            supabase.removeChannel(this.channel);
+            this.channel = null;
         }
         this.state.set("disconnected");
     }
 
     /**
-     * Send a message through WebSocket
+     * Send a message
+     * Note: In Supabase, we usually don't "send" messages through the socket for this use case.
+     * We insert into the DB. But if we need broadcast:
      */
-    send(message: object): void {
-        if (this.ws?.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify(message));
-        } else {
-            console.warn("WebSocket not connected, cannot send message");
-        }
+    async send(message: object): Promise<void> {
+        // Implement Broadcast if needed, or log warning
+        console.warn("Direct sending not implemented. Use DB inserts.");
     }
 
     /**
-     * Subscribe to WebSocket messages
+     * Subscribe to messages
      */
     onMessage(handler: MessageHandler): () => void {
         this.messageHandlers.add(handler);
         return () => {
             this.messageHandlers.delete(handler);
         };
-    }
-
-    /**
-     * Attempt to reconnect with exponential backoff
-     */
-    private attemptReconnect(): void {
-        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            console.log("Max reconnect attempts reached");
-            return;
-        }
-
-        this.reconnectAttempts++;
-        const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-
-        console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-
-        setTimeout(() => {
-            if (this.ws?.readyState !== WebSocket.OPEN) {
-                this.connect(this.userId || undefined);
-            }
-        }, delay);
     }
 }
 
@@ -147,6 +132,7 @@ export function useWebSocket(userId?: string) {
     return {
         state: wsClient.state,
         lastMessage: wsClient.lastMessage,
+        connect: wsClient.connect.bind(wsClient),
         send: wsClient.send.bind(wsClient),
         onMessage: wsClient.onMessage.bind(wsClient),
         disconnect: wsClient.disconnect.bind(wsClient),

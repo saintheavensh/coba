@@ -7,6 +7,7 @@ import { SettingsService } from "../../settings/services/settings.service";
 import { Logger } from "../../../lib/logger";
 import { JournalService } from "../../accounting/services/journal.service";
 import { CashRegisterService } from "../../accounting/services/cash-register.service";
+import { NotificationService } from "../../../lib/notification.service";
 
 export class ServiceService {
     private model: ServiceModel;
@@ -176,6 +177,15 @@ export class ServiceService {
             return { message: "Service created", no, id: result[0].id };
         });
 
+        // Ping assigned technician
+        if (data.technicianId) {
+            try {
+                await NotificationService.technicianAssigned(data.technicianId, no, String(transactionResult.id));
+            } catch (e) {
+                Logger.error("Failed to send technician assignment notification", e);
+            }
+        }
+
         try {
             this.sendWhatsAppNotification("new", {
                 no,
@@ -279,6 +289,20 @@ export class ServiceService {
                 }
             }
         });
+
+        // Notify the creator (Cashier) of the status update
+        if (srv.createdBy) {
+            try {
+                await NotificationService.serviceStatusChanged(
+                    srv.createdBy,
+                    srv.no,
+                    data.status,
+                    String(srv.id)
+                );
+            } catch (e) {
+                Logger.error("Failed to send cashier status update notification", e);
+            }
+        }
 
         try {
             const isComplete = data.status === "selesai";
@@ -398,6 +422,14 @@ export class ServiceService {
                 details: { newValue: { technicianId, technicianName: technician.name } }
             });
         });
+
+
+        // Notify the technician
+        try {
+            await NotificationService.technicianAssigned(technicianId, srv.no, String(srv.id));
+        } catch (e) {
+            Logger.error("Failed to send technician assignment notification", e);
+        }
 
         return { message: "Technician assigned", technician };
     }

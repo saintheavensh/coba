@@ -71,5 +71,61 @@ function createActivityLogStore() {
     };
 }
 
+import { wsClient } from "../websocket";
+import { toast } from "../components/ui/sonner";
+
 export const settings = createSettingsStore();
 export const activityLogs = createActivityLogStore();
+
+// Subscribe to WebSocket messages to update Activity Logs
+if (typeof window !== "undefined") {
+    wsClient.lastMessage.subscribe((msg: any) => {
+        if (msg && msg.data) {
+            const data = msg.data;
+            let logType: ActivityLog["type"] = "info";
+            let logUser = "System";
+
+            // Map notification types to UI styles
+            switch (data.type) {
+                case "low_stock":
+                    logType = "warning";
+                    logUser = "Inventory";
+                    break;
+                case "new_assignment":
+                case "sale_complete":
+                    logType = "success";
+                    logUser = data.type === "new_assignment" ? "Tugas" : "Kasir";
+                    break;
+                case "service_update":
+                    logType = "info";
+                    logUser = "Service";
+                    break;
+                case "purchase_complete":
+                    logType = "info";
+                    logUser = "Inventory";
+                    break;
+            }
+
+            // Add to activity log store
+            activityLogs.addLog(
+                logUser,
+                data.title || "Notification",
+                data.message || "New activity detected",
+                logType
+            );
+
+            // Trigger beautiful toast notifications
+            const toastOptions = {
+                description: data.message || "New activity detected",
+            };
+
+            if (logType === "success") {
+                toast.success(data.title || "Success", toastOptions);
+            } else if (logType === "warning") {
+                toast.warning(data.title || "Warning", toastOptions);
+            } else {
+                toast.info(data.title || "Notification", toastOptions);
+            }
+        }
+    });
+}

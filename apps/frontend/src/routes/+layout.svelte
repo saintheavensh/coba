@@ -23,22 +23,38 @@
 		},
 	});
 
+	import { useWebSocket } from "$lib/websocket";
+
+	const { connect, disconnect } = useWebSocket();
+
 	// Auth Guard - Check authentication via cookie (stored in HTTP-only cookie, user info in localStorage)
 	$effect(() => {
 		if (browser) {
-			const user = localStorage.getItem("user");
+			const userStr = localStorage.getItem("user");
 			const isLoginPage = $page.url.pathname.startsWith("/login");
 
 			// If no user in localStorage and not on login page, redirect to login
-			if (!user && !isLoginPage) {
+			if (!userStr && !isLoginPage) {
 				window.location.href = "/login";
 				return;
 			}
 
 			// If user exists and on login page, redirect to home
-			if (user && isLoginPage) {
+			if (userStr && isLoginPage) {
 				window.location.href = "/";
 				return;
+			}
+
+			// Connect to Realtime if user is logged in
+			if (userStr) {
+				try {
+					const user = JSON.parse(userStr);
+					if (user && user.id) {
+						connect(user.id);
+					}
+				} catch (e) {
+					console.error("Failed to parse user from localStorage", e);
+				}
 			}
 		}
 	});

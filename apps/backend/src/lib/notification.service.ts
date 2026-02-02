@@ -1,4 +1,3 @@
-import { publisher } from "./redis";
 import { db } from "../db";
 import { notifications } from "../db/schema";
 
@@ -16,7 +15,7 @@ interface NotificationPayload {
 /**
  * Send a notification to a specific user
  * - Saves to database for persistence
- * - Publishes to Redis for real-time delivery via WebSocket
+ * - Real-time delivery is handled by Supabase listening to the database changes
  */
 export async function sendNotification(payload: NotificationPayload) {
     // Save to database
@@ -29,12 +28,6 @@ export async function sendNotification(payload: NotificationPayload) {
         entityId: payload.entityId,
         isRead: false,
     }).returning();
-
-    // Publish to Redis for real-time delivery
-    await publisher.publish("notifications", JSON.stringify({
-        ...notification,
-        userId: payload.userId,
-    }));
 
     return notification;
 }
@@ -54,21 +47,6 @@ export async function broadcastNotification(
     }
 
     return results;
-}
-
-/**
- * Publish a real-time update (without saving to database)
- * Useful for live data sync (e.g., stock updates, service status changes)
- */
-export async function publishRealTimeUpdate(
-    eventType: string,
-    data: Record<string, unknown>
-) {
-    await publisher.publish("realtime", JSON.stringify({
-        type: eventType,
-        data,
-        timestamp: new Date().toISOString(),
-    }));
 }
 
 /**
@@ -135,12 +113,14 @@ export const NotificationService = {
         });
     },
 
-    // Real-time data sync helpers
+    // Legacy sync helpers (Deprecated/No-op as we rely on DB changes now)
     async syncStockUpdate(productId: string, newStock: number) {
-        return publishRealTimeUpdate("stock_update", { productId, stock: newStock });
+        // No-op: Frontend should listen to inventory table
+        return null;
     },
 
     async syncServiceUpdate(serviceId: string, status: string) {
-        return publishRealTimeUpdate("service_update", { serviceId, status });
-    },
+        // No-op: Frontend should listen to service table
+        return null;
+    }
 };

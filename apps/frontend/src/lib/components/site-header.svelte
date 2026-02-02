@@ -146,7 +146,21 @@
         },
     ];
 
+    import { onMount } from "svelte";
+
     let expanded: Record<string, boolean> = $state({});
+    let userName = $state<string | null>(null);
+    let userRole = $state<string | null>(null);
+    let userEmail = $state<string | null>(null);
+
+    onMount(() => {
+        try {
+            const u = JSON.parse(localStorage.getItem("user") || "{}");
+            userName = u.name || u.username;
+            userRole = typeof u.role === "object" ? u.role.id : u.role;
+            userEmail = u.email || `${u.username}@example.com`;
+        } catch {}
+    });
 
     $effect(() => {
         const path = $page.url.pathname;
@@ -412,8 +426,19 @@
                             >
                                 <div class="flex justify-between w-full">
                                     <span
-                                        class="font-semibold text-xs text-blue-400 bg-blue-950/30 px-1.5 py-0.5 rounded"
-                                        >{log.user}</span
+                                        class={cn(
+                                            "font-semibold text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider",
+                                            log.type === "success" &&
+                                                "text-emerald-400 bg-emerald-950/30",
+                                            log.type === "warning" &&
+                                                "text-amber-400 bg-amber-950/30",
+                                            log.type === "error" &&
+                                                "text-rose-400 bg-rose-950/30",
+                                            log.type === "info" &&
+                                                "text-blue-400 bg-blue-950/30",
+                                            !log.type &&
+                                                "text-slate-400 bg-slate-900",
+                                        )}>{log.user}</span
                                     >
                                     <span class="text-[10px] text-slate-500"
                                         >{getTimeDifference(
@@ -455,7 +480,9 @@
                     />
                     <AvatarFallback
                         class="bg-gradient-to-br from-blue-600 to-indigo-600 text-white text-xs font-bold"
-                        >AD</AvatarFallback
+                        >{(userName || "User")
+                            .charAt(0)
+                            .toUpperCase()}</AvatarFallback
                     >
                 </Avatar>
             </DropdownMenuTrigger>
@@ -466,10 +493,10 @@
                 <DropdownMenuLabel class="font-normal">
                     <div class="flex flex-col space-y-1">
                         <p class="text-sm font-medium leading-none text-white">
-                            Administrator
+                            {userName || "User"}
                         </p>
                         <p class="text-xs leading-none text-slate-500">
-                            admin@example.com
+                            {userEmail || "user@example.com"}
                         </p>
                     </div>
                 </DropdownMenuLabel>

@@ -2,15 +2,10 @@ import { serveStatic } from "hono/bun";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { createBunWebSocket } from "hono/bun";
 import { db } from "./db";
 import { users } from "./db/schema";
 import { sql } from "drizzle-orm";
-import { addClient, removeClient, getConnectionStats } from "./lib/websocket";
 import { Logger } from "./lib/logger";
-
-// Import Redis to initialize connections
-import "./lib/redis";
 
 import authController from "./modules/auth/routes/auth.routes";
 import inventoryController from "./modules/inventory/routes/inventory.routes";
@@ -34,9 +29,6 @@ import brandsController from "./modules/brands/routes/brands.routes";
 import serviceToolsController from "./modules/service-tools/routes/service-tools.routes";
 import operationalCostsController from "./modules/operational-costs/routes/operational-costs.routes";
 import accountingController from "./modules/accounting/routes/accounting.routes";
-
-// Create WebSocket upgrader for Bun
-const { upgradeWebSocket, websocket } = createBunWebSocket();
 
 const app = new Hono();
 
@@ -87,37 +79,6 @@ app.route("/service-tools", serviceToolsController);
 app.route("/operational-costs", operationalCostsController);
 app.route("/accounting", accountingController);
 
-// WebSocket endpoint for real-time updates
-app.get(
-    "/ws",
-    upgradeWebSocket((c) => {
-        // Get user ID from query param (optional, for user-specific notifications)
-        const userId = c.req.query("userId") || null;
-
-        return {
-            onOpen(event, ws) {
-                Logger.info(`🔌 WebSocket opened${userId ? ` for user: ${userId}` : ""}`);
-                addClient(userId, ws);
-            },
-            onMessage(event, ws) {
-                // Handle incoming messages if needed
-                const message = event.data.toString();
-                Logger.info("📨 WebSocket message:", { message });
-
-                // Echo back for now (can be extended for client commands)
-                ws.send(JSON.stringify({ type: "pong", timestamp: new Date().toISOString() }));
-            },
-            onClose(event, ws) {
-                Logger.info("🔌 WebSocket closed");
-                removeClient(userId, ws);
-            },
-            onError(event, ws) {
-                Logger.error("WebSocket error:", event);
-                removeClient(userId, ws);
-            },
-        };
-    })
-);
 
 // Root endpoint
 app.get("/", (c) => {
@@ -128,21 +89,15 @@ app.get("/", (c) => {
 app.get("/health", async (c) => {
     try {
         const result = await db.select({ count: sql<number>`count(*)` }).from(users);
-        const wsStats = getConnectionStats();
         return c.json({
             status: "ok",
             database: "postgresql",
             db_users: result[0].count,
-            websocket: wsStats,
+            realtime: "supabase"
         });
     } catch (e) {
         return c.json({ status: "error", message: String(e) }, 500);
     }
-});
-
-// WebSocket stats endpoint
-app.get("/ws/stats", (c) => {
-    return c.json(getConnectionStats());
 });
 
 const port = parseInt(process.env.PORT || "4000");
@@ -158,5 +113,4 @@ export default {
     port,
     hostname,
     fetch: app.fetch,
-    websocket,
 };

@@ -264,6 +264,7 @@
   // State for expanded menus
   // Initialize based on current URL to auto-expand
   let expanded: Record<string, boolean> = $state({});
+  let userName = $state<string | null>(null);
   let userRole = $state<string | null>(null);
   let statusCounts = $state<Record<string, number>>({});
 
@@ -282,7 +283,8 @@
   onMount(async () => {
     try {
       const u = JSON.parse(localStorage.getItem("user") || "{}");
-      userRole = u.role;
+      userName = u.name;
+      userRole = typeof u.role === "object" ? u.role.id : u.role;
 
       // Fetch counts on mount
       await fetchStatusCounts();
@@ -695,15 +697,15 @@
         <div
           class="flex h-9 w-9 min-w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-white font-bold shadow-md"
         >
-          {(typeof userRole === "string" ? userRole : "User")
-            .charAt(0)
-            .toUpperCase()}
+          {(userName || "User").charAt(0).toUpperCase()}
         </div>
         <div class="flex flex-col overflow-hidden">
           <span class="text-sm font-medium text-white truncate"
-            >{userRole || "User"}</span
+            >{userName || "User"}</span
           >
-          <span class="text-xs text-slate-500 truncate">Online</span>
+          <span class="text-xs text-slate-500 truncate"
+            >{userRole || "Online"}</span
+          >
         </div>
       </div>
     {/if}
