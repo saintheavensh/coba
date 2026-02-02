@@ -89,11 +89,11 @@ async function main() {
         return;
     }
 
-    // await seedSuppliers();
-    // await seedProducts();
-    // await seedPurchases();
-    // await seedSales();
-    // await seedServices();
+    await seedSuppliers();
+    await seedProducts();
+    await seedPurchases();
+    await seedSales();
+    await seedServices();
     await seedAccounting();
 
     console.log("\n✅ COMPREHENSIVE DATABASE SEED COMPLETE!");

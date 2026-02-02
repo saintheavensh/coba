@@ -55,6 +55,7 @@
     import { onMount } from "svelte";
     import { AuthService } from "$lib/services/auth.service";
     import { api } from "$lib/api";
+    import type { ApiResponse } from "@repo/shared";
     import { Switch } from "$lib/components/ui/switch";
     import { Separator } from "$lib/components/ui/separator";
 
@@ -91,7 +92,7 @@
         loading = true;
         try {
             // Assuming direct API call or AuthService has getAll
-            const res = await api.get("/auth/users");
+            const res = await api.get<ApiResponse<any[]>>("/users");
             users = res.data.data || [];
         } catch (e) {
             toast.error("Gagal memuat data karyawan");

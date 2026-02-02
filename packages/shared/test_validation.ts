@@ -38,7 +38,7 @@ const payload = {
 try {
     createServiceSchema.parse(payload);
     console.log("Validation Successful!");
-} catch (e) {
+} catch (e: any) {
     console.error("Validation Failed:");
     console.error(JSON.stringify(e.errors, null, 2));
 }

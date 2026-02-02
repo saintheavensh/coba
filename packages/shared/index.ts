@@ -130,6 +130,39 @@ export type UpdateStatusRequest = z.infer<typeof updateStatusSchema>;
 
 
 // ============================================
+// Sales Schemas
+// ============================================
+
+export const saleItemSchema = z.object({
+    productId: z.string(),
+    variant: z.string().default("Standard"),
+    qty: z.number().min(1),
+    price: z.number().min(0)
+});
+export type SaleItemRequest = z.infer<typeof saleItemSchema>;
+
+export const paymentSchema = z.object({
+    method: z.string(),
+    methodId: z.string().optional(),
+    variantId: z.string().optional(),
+    variantName: z.string().optional(),
+    amount: z.number().min(0),
+    reference: z.string().optional()
+});
+export type PaymentRequest = z.infer<typeof paymentSchema>;
+
+export const createSaleSchema = z.object({
+    memberId: z.string().optional(),
+    customerName: z.string().optional(),
+    payments: z.array(paymentSchema).min(1),
+    userId: z.string(),
+    notes: z.string().optional(),
+    items: z.array(saleItemSchema).min(1),
+    discountAmount: z.number().optional()
+});
+export type CreateSaleRequest = z.infer<typeof createSaleSchema>;
+
+// ============================================
 // Re-export all shared types
 // ============================================
 export * from "./types";

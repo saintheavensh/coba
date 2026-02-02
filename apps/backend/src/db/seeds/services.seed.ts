@@ -211,7 +211,7 @@ export async function seedServices() {
             userId: USER_IDS.teknisi1,
             title: "Service Baru Masuk",
             message: "iPhone X LCD Pecah perlu diagnosa",
-            type: "info",
+            type: "service_update",
             isRead: false
         }
     ]);

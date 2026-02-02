@@ -47,14 +47,13 @@ export async function seedSales() {
         paymentStatus: "paid",
         discountAmount: 0,
         totalAmount: 60000,
-        finalAmount: 60000,
         userId: USER_IDS.kasir,
         notes: "Walk-in customer",
     });
 
     await db.insert(saleItems).values([
-        { saleId: sal1Id, productId: PRODUCT_IDS.caseClear, batchId: BATCH_IDS.caseA, qty: 1, price: 35000, subtotal: 35000 },
-        { saleId: sal1Id, productId: PRODUCT_IDS.tempered, batchId: BATCH_IDS.tgA, qty: 1, price: 25000, subtotal: 25000 },
+        { saleId: sal1Id, productId: PRODUCT_IDS.caseClear, batchId: BATCH_IDS.caseA, qty: 1, price: 35000 },
+        { saleId: sal1Id, productId: PRODUCT_IDS.tempered, batchId: BATCH_IDS.tgA, qty: 1, price: 25000 },
     ]);
 
     await db.insert(salePayments).values({
@@ -73,12 +72,11 @@ export async function seedSales() {
         paymentStatus: "paid",
         discountAmount: 0,
         totalAmount: 200000,
-        finalAmount: 200000,
         userId: USER_IDS.kasir,
     });
 
     await db.insert(saleItems).values([
-        { saleId: sal2Id, productId: PRODUCT_IDS.batreIpX, batchId: BATCH_IDS.batreIpXA, qty: 1, price: 200000, subtotal: 200000 },
+        { saleId: sal2Id, productId: PRODUCT_IDS.batreIpX, batchId: BATCH_IDS.batreIpXA, qty: 1, price: 200000 },
     ]);
 
     await db.insert(salePayments).values({
@@ -99,7 +97,6 @@ export async function seedSales() {
             paymentMethod: "cash",
             paymentStatus: "paid",
             totalAmount: 50000,
-            finalAmount: 50000,
             userId: USER_IDS.kasir,
         });
 
@@ -110,7 +107,6 @@ export async function seedSales() {
             batchId: BATCH_IDS.tgA,
             qty: 2,
             price: 25000,
-            subtotal: 50000
         });
 
         await db.insert(salePayments).values({

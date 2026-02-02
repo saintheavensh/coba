@@ -695,7 +695,9 @@
         <div
           class="flex h-9 w-9 min-w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-white font-bold shadow-md"
         >
-          {userRole?.charAt(0).toUpperCase() || "U"}
+          {(typeof userRole === "string" ? userRole : "User")
+            .charAt(0)
+            .toUpperCase()}
         </div>
         <div class="flex flex-col overflow-hidden">
           <span class="text-sm font-medium text-white truncate"

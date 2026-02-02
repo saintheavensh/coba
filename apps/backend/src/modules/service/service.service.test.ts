@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ServiceService } from './service.service';
+import { ServiceService } from "./services/service.service";
 
 // Correctly mock the dependencies
 // We need to mock 'db' and 'SettingsService'

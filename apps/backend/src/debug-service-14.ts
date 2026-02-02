@@ -2,7 +2,7 @@
 import { db } from "./db";
 import { services, activityLogs } from "./db/schema";
 import { eq, desc } from "drizzle-orm";
-import { ServiceService } from "./modules/service/service.service";
+import { ServiceService } from "./modules/service/services/service.service";
 
 async function main() {
     const id = 14;

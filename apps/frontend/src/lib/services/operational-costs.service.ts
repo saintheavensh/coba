@@ -1,4 +1,5 @@
 import { api } from "$lib/api";
+import type { ApiResponse } from "@repo/shared";
 
 export interface OperationalCost {
     id: number;
@@ -12,15 +13,15 @@ export interface OperationalCost {
 
 export class OperationalCostsService {
     static async getAll() {
-        const res = await api.get<OperationalCost[]>("/operational-costs");
-        return res.data;
+        const res = await api.get<ApiResponse<OperationalCost[]>>("/operational-costs");
+        return res.data.data || [];
     }
     static async create(data: Partial<OperationalCost>) {
-        const res = await api.post("/operational-costs", data);
-        return res.data;
+        const res = await api.post<ApiResponse<OperationalCost>>("/operational-costs", data);
+        return res.data.data;
     }
     static async delete(id: number) {
-        const res = await api.delete(`/operational-costs/${id}`);
-        return res.data;
+        const res = await api.delete<ApiResponse<any>>(`/operational-costs/${id}`);
+        return res.data.data;
     }
 }

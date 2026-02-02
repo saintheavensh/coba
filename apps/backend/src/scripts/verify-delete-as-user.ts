@@ -1,7 +1,7 @@
 
 import { db } from "../db";
 import { assets, users, assetDepreciationLogs } from "../db/schema";
-import { AssetsService } from "../modules/accounting/assets.service";
+import { AssetsService } from "../modules/accounting/services/assets.service";
 
 async function main() {
     console.log("Starting Asset Deletion with User ID...");

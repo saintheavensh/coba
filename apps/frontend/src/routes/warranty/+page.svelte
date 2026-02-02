@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { api } from "$lib/api";
+    import type { ApiResponse } from "@repo/shared";
     import {
         Table,
         TableBody,
@@ -33,9 +34,9 @@
     async function loadData() {
         loading = true;
         try {
-            const res = await api.get("/services");
+            const res = await api.get<ApiResponse<any[]>>("/service");
             // Filter services that have warranty field set and not "Tanpa Garansi"
-            services = res.data.filter(
+            services = (res.data.data || []).filter(
                 (s: any) =>
                     s.warranty &&
                     s.warranty !== "none" &&

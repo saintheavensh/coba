@@ -15,16 +15,16 @@ export interface LogParams {
 }
 
 export class ActivityLogService {
-    static async log(params: LogParams) {
+    static async log(params: LogParams, dbOrTx: any = db) {
         try {
-            await db.insert(activityLogs).values({
+            await dbOrTx.insert(activityLogs).values({
                 userId: params.userId,
                 action: params.action as any,
                 entityType: params.entityType,
                 entityId: params.entityId,
                 description: params.description || null,
-                oldValue: params.details?.oldValue || null,
-                newValue: params.details?.newValue || null,
+                oldValue: params.details?.oldValue ? JSON.stringify(params.details.oldValue) : null,
+                newValue: params.details?.newValue ? JSON.stringify(params.details.newValue) : null,
             } as any);
             Logger.info(`[ACTIVITY_LOG] ${params.action} on ${params.entityType}:${params.entityId} by User:${params.userId}`);
         } catch (error) {
@@ -34,7 +34,7 @@ export class ActivityLogService {
     }
 
     // Helper for simple descriptions
-    static async logSimple(userId: string, action: LogParams["action"], entityType: string, entityId: string, description: string) {
-        return this.log({ userId, action, entityType, entityId, description });
+    static async logSimple(userId: string, action: LogParams["action"], entityType: string, entityId: string, description: string, dbOrTx: any = db) {
+        return this.log({ userId, action, entityType, entityId, description }, dbOrTx);
     }
 }

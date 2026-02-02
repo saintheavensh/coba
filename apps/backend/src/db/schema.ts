@@ -103,7 +103,7 @@ export const productBatches = pgTable("product_batches", {
     productId: text("product_id").notNull().references(() => products.id),
     variantId: text("variant_id").references(() => productVariants.id), // Link to defined variant
     supplierId: text("supplier_id").references(() => suppliers.id),
-    variant: text("variant"), // Free-text: Original, OEM, Copy (Deprecated/Legacy, use variantId)
+
     supplierName: text("supplier_name"), // Snapshot for display
     buyPrice: integer("buy_price").notNull(),
     sellPrice: integer("sell_price").notNull(),
@@ -149,7 +149,6 @@ export const sales = pgTable("sales", {
     customerName: text("customer_name"), // Walk-in name
     totalAmount: integer("total_amount").notNull(),
     discountAmount: integer("discount_amount").default(0),
-    finalAmount: integer("final_amount").notNull(),
     paymentMethod: text("payment_method", { enum: ["cash", "transfer", "qris", "mixed"] }).notNull(),
     paymentStatus: text("payment_status", { enum: ["paid", "partial", "unpaid"] }).notNull().default("paid"),
     userId: text("user_id").notNull().references(() => users.id), // Cashier
@@ -165,7 +164,6 @@ export const saleItems = pgTable("sale_items", {
     variant: text("variant"), // Snapshot
     qty: integer("qty").notNull(),
     price: integer("price").notNull(),
-    subtotal: integer("subtotal").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -659,7 +657,6 @@ export const stockOpnameItems = pgTable("stock_opname_items", {
     batchId: text("batch_id").references(() => productBatches.id), // Nullable if grouped
     systemStock: integer("system_stock").notNull(),
     physicalStock: integer("physical_stock"),
-    difference: integer("difference"), // physical - system
     adjustmentReason: text("adjustment_reason"),
 });
 

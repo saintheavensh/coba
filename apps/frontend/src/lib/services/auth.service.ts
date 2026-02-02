@@ -37,15 +37,15 @@ export const AuthService = {
         }
     },
     register: async (data: any) => {
-        const res = await api.post<ApiResponse<any>>("/auth/register", data);
+        const res = await api.post<ApiResponse<any>>("/users", data);
         return res.data.data;
     },
     updateUser: async (id: string, data: any) => {
-        const res = await api.put<ApiResponse<any>>(`/auth/users/${id}`, data);
+        const res = await api.put<ApiResponse<any>>(`/users/${id}`, data);
         return res.data.data;
     },
     deleteUser: async (id: string) => {
-        const res = await api.delete<ApiResponse<any>>(`/auth/users/${id}`);
+        const res = await api.delete<ApiResponse<any>>(`/users/${id}`);
         return res.data.data;
     }
 };

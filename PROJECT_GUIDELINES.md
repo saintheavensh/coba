@@ -29,3 +29,17 @@ Use these specialized skills for complex tasks. Read the `SKILL.md` file before 
 2.  **Verify security** implications before writing any code.
 3.  **Follow the TDD loop**: Tests first.
 4.  **Use the defined patterns** for Backend and Frontend.
+
+## 👤 User Profile & Preferences
+
+**Work Style**: Productive Lazy (Automation, Custom Apps).
+**Skills**: Basic (10%), prefers control over instant tools.
+**Personality**: Enthusiastic, easily frustrated by complex errors.
+
+### 🛑 Game Rules (Non-Negotiable)
+
+1.  **Modular Structure**: Break code into `Routes`, `Controllers`, `Models`.
+2.  **Sequential Dev**: Backend First (Test via Postman) -> Then Frontend.
+3.  **Explain Everything**: Explain logic per section for user control.
+4.  **Non-Destructive**: Do NOT delete/modify working code without permission.
+5.  **Safe Refactoring**: Always plan before changing structure.

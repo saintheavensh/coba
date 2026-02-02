@@ -12,28 +12,28 @@ import { Logger } from "./lib/logger";
 // Import Redis to initialize connections
 import "./lib/redis";
 
-import authController from "./modules/auth/auth.controller";
-import inventoryController from "./modules/inventory/inventory.controller";
-import categoryController from "./modules/categories/categories.controller";
-import supplierController from "./modules/suppliers/suppliers.controller";
-import uploadsController from "./modules/uploads/uploads.controller";
-import purchaseReturnsController from "./modules/purchase-returns/purchase-returns.controller";
-import purchaseController from "./modules/purchases/purchases.controller";
-import salesController from "./modules/sales/sales.controller";
-import notificationsController from "./modules/notifications/notifications.controller";
-import { customersController } from "./modules/customers/customers.controller";
-import { defectiveItemsController } from "./modules/defective-items/defective-items.controller";
-import serviceController from "./modules/service/service.controller";
-import reportsController from "./modules/reports/reports.controller";
-import { settingsController } from "./modules/settings/settings.controller";
-import { paymentMethodsController } from "./modules/payment-methods/payment-methods.controller";
-import dashboardController from "./modules/dashboard/dashboard.controller";
-import usersController from "./modules/users/users.controller";
-import devicesController from "./modules/devices/devices.controller";
-import { brandsController } from "./modules/brands/brands.controller";
-import { serviceToolsController } from "./modules/service-tools/service-tools.controller";
-import { operationalCostsController } from "./modules/operational-costs/operational-costs.controller";
-import accountingController from "./modules/accounting/accounting.controller";
+import authController from "./modules/auth/routes/auth.routes";
+import inventoryController from "./modules/inventory/routes/inventory.routes";
+import categoryController from "./modules/categories/routes/categories.routes";
+import supplierController from "./modules/suppliers/routes/suppliers.routes";
+import uploadsController from "./modules/uploads/routes/uploads.routes";
+import purchaseReturnsController from "./modules/purchase-returns/routes/purchase-returns.routes";
+import purchaseController from "./modules/purchases/routes/purchases.routes";
+import salesController from "./modules/sales/routes/sales.routes";
+import notificationsController from "./modules/notifications/routes/notifications.routes";
+import customersController from "./modules/customers/routes/customers.routes";
+import defectiveItemsController from "./modules/defective-items/routes/defective-items.routes";
+import serviceController from "./modules/service/routes/service.routes";
+import reportsController from "./modules/reports/routes/reports.routes";
+import settingsController from "./modules/settings/routes/settings.routes";
+import paymentMethodsController from "./modules/payment-methods/routes/payment-methods.routes";
+import dashboardController from "./modules/dashboard/routes/dashboard.routes";
+import usersController from "./modules/users/routes/users.routes";
+import devicesController from "./modules/devices/routes/devices.routes";
+import brandsController from "./modules/brands/routes/brands.routes";
+import serviceToolsController from "./modules/service-tools/routes/service-tools.routes";
+import operationalCostsController from "./modules/operational-costs/routes/operational-costs.routes";
+import accountingController from "./modules/accounting/routes/accounting.routes";
 
 // Create WebSocket upgrader for Bun
 const { upgradeWebSocket, websocket } = createBunWebSocket();
@@ -47,8 +47,12 @@ app.use("*", cors({
         if (process.env.NODE_ENV !== "production") {
             return origin || "*";
         }
-        // In production, specify allowed origins
-        return process.env.ALLOWED_ORIGINS?.split(",") || origin || "*";
+        // In production, check against allowed origins
+        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [];
+        if (origin && allowedOrigins.includes(origin)) {
+            return origin;
+        }
+        return allowedOrigins[0] || null; // Return specific origin or null if not allowed
     },
     credentials: true,
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],

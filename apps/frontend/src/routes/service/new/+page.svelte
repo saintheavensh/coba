@@ -21,6 +21,7 @@
     import { goto } from "$app/navigation";
     import { createQuery } from "@tanstack/svelte-query";
     import { api } from "$lib/api";
+    import type { ApiResponse } from "@repo/shared";
     import { ServiceService } from "$lib/services/service.service";
     import {
         Dialog,
@@ -52,7 +53,9 @@
     const techniciansQuery = createQuery(() => ({
         queryKey: ["users", "technicians"],
         queryFn: async () => {
-            const res = await api.get("/auth/users?role=teknisi");
+            const res = await api.get<ApiResponse<any[]>>(
+                "/users?role=teknisi",
+            );
             return res.data?.data || [];
         },
     }));

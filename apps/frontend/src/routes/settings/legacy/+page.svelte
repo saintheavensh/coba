@@ -139,6 +139,10 @@
         resetCounterYearly: true,
         defaultStatus: "antrian",
         autoNotifyOnStatusChange: false,
+        commissionModel: "completion",
+        enableVirtualArchive: false,
+        archiveExclusions: [],
+        enableLiquidation: false,
         warrantyPresets: [],
         defaultWarrantyDays: 7,
         gracePeriodDays: 3,
@@ -248,7 +252,7 @@
     const usersQuery = createQuery(() => ({
         queryKey: ["users"],
         queryFn: async () => {
-            const res = await api.get("/auth/users");
+            const res = await api.get("/users");
             return res.data.data || [];
         },
     }));
@@ -297,6 +301,14 @@
                 defaultStatus: data.serviceSettings?.defaultStatus || "antrian",
                 autoNotifyOnStatusChange:
                     data.serviceSettings?.autoNotifyOnStatusChange ?? false,
+                commissionModel:
+                    data.serviceSettings?.commissionModel || "completion",
+                enableVirtualArchive:
+                    data.serviceSettings?.enableVirtualArchive ?? false,
+                archiveExclusions:
+                    data.serviceSettings?.archiveExclusions || [],
+                enableLiquidation:
+                    data.serviceSettings?.enableLiquidation ?? false,
                 warrantyPresets: data.serviceSettings?.warrantyPresets || [],
                 defaultWarrantyDays:
                     data.serviceSettings?.defaultWarrantyDays || 7,
