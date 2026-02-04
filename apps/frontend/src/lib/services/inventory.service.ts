@@ -65,8 +65,8 @@ export const InventoryService = {
     deleteProduct: async (id: string): Promise<void> => {
         await api.delete(`/inventory/${id}`);
     },
-    getSupplierVariants: async (supplierId: string): Promise<string[]> => {
-        const res = await api.get<ApiResponse<string[]>>(`/inventory/suppliers/${supplierId}/variants`);
+    getSupplierVariants: async (supplierId: string): Promise<any[]> => {
+        const res = await api.get<ApiResponse<any[]>>(`/inventory/suppliers/${supplierId}/variants`);
         return res.data?.data ?? [];
     },
     getProductVariants: async (productId: string): Promise<any[]> => {
@@ -322,6 +322,16 @@ export const InventoryService = {
     },
     deleteSupplier: async (id: string): Promise<void> => {
         await api.delete(`/suppliers/${id}`);
+    },
+    getSupplierCategories: async (supplierId: string): Promise<Category[]> => {
+        const res = await api.get<ApiResponse<Category[]>>(`/suppliers/${supplierId}/categories`);
+        return res.data?.data ?? [];
+    },
+    linkSupplierCategory: async (supplierId: string, categoryId: string): Promise<void> => {
+        await api.post(`/suppliers/${supplierId}/categories`, { categoryId });
+    },
+    unlinkSupplierCategory: async (supplierId: string, categoryId: string): Promise<void> => {
+        await api.delete(`/suppliers/${supplierId}/categories/${categoryId}`);
     },
 
     // Stock Opname

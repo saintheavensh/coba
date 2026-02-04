@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { goto } from "$app/navigation";
     import {
         createQuery,
         createMutation,
@@ -465,8 +466,10 @@
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    class="h-8 w-8 text-emerald-600 hover:bg-emerald-50"
-                                    onclick={() => handleEdit(supplier)}
+                                    class="h-8 w-8 text-indigo-600 hover:bg-indigo-50"
+                                    onclick={() =>
+                                        goto(`/suppliers/${supplier.id}`)}
+                                    title="Manage Supplier"
                                 >
                                     <Pencil class="h-4 w-4" />
                                 </Button>

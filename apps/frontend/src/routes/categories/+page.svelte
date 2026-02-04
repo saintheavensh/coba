@@ -17,7 +17,6 @@
         ChevronDown,
         CornerDownRight,
         MoreHorizontal,
-        Layers,
         Search,
         Grid,
         Tag,
@@ -187,72 +186,6 @@
     let deleteOpen = $state(false);
     let deletingId = $state<string | null>(null);
 
-    // Variant Dialog State
-    let variantDialogOpen = $state(false);
-    let variantCategoryId = $state<string | null>(null);
-    let variantCategoryName = $state("");
-    let variantTemplates = $state<any[]>([]);
-    let newVariantName = $state("");
-    let newVariantSupplierId = $state("");
-
-    // Variant Mutations
-    const addVariantMutation = createMutation(() => ({
-        mutationFn: (vars: {
-            categoryId: string;
-            name: string;
-            supplierId?: string;
-        }) =>
-            InventoryService.addVariantTemplate(
-                vars.categoryId,
-                vars.name,
-                vars.supplierId,
-            ),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["categories"] });
-            toast.success("Varian ditambahkan & dipropagasi ke produk");
-            newVariantName = "";
-            newVariantSupplierId = "";
-        },
-        onError: () => toast.error("Gagal menambah varian"),
-    }));
-
-    const removeVariantMutation = createMutation(() => ({
-        mutationFn: InventoryService.removeVariantTemplate,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["categories"] });
-            toast.success("Varian dihapus");
-        },
-    }));
-
-    // Auto-sync variant list
-    $effect(() => {
-        if (variantDialogOpen && variantCategoryId) {
-            const cat = categories.find((c) => c.id === variantCategoryId);
-            if (cat) {
-                variantTemplates = (cat as any).variantTemplates || [];
-            }
-        }
-    });
-
-    function openVariantDialog(cat: any) {
-        variantCategoryId = cat.id;
-        variantCategoryName = cat.name;
-        variantTemplates = cat.variantTemplates || [];
-        newVariantName = "";
-        newVariantSupplierId = "";
-        variantDialogOpen = true;
-    }
-
-    function handleAddVariant() {
-        if (!newVariantName) return toast.error("Nama varian wajib diisi");
-        if (!variantCategoryId) return;
-        addVariantMutation.mutate({
-            categoryId: variantCategoryId,
-            name: newVariantName,
-            supplierId: newVariantSupplierId || undefined,
-        });
-    }
-
     function resetForm() {
         editingId = null;
         name = "";
@@ -359,8 +292,8 @@
         </div>
 
         <!-- Stats Grid -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-10">
-            {#each [{ label: "Total Kategori", value: totalCategories, icon: FolderTree }, { label: "Root Categories", value: rootCategories, icon: Grid }, { label: "Sub Categories", value: subCategories, icon: CornerDownRight }, { label: "Variant Types", value: "3+", icon: Layers }] as stat}
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-10">
+            {#each [{ label: "Total Kategori", value: totalCategories, icon: FolderTree }, { label: "Root Categories", value: rootCategories, icon: Grid }, { label: "Sub Categories", value: subCategories, icon: CornerDownRight }] as stat}
                 <div
                     class="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 hover:bg-white/15 transition-colors"
                 >
@@ -553,19 +486,6 @@
                                         <div
                                             class="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                                         >
-                                            {#if !cat.hasChildren}
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    class="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                                                    title="Kelola Varian"
-                                                    onclick={() =>
-                                                        openVariantDialog(cat)}
-                                                >
-                                                    <Layers class="h-4 w-4" />
-                                                </Button>
-                                            {/if}
-
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -727,128 +647,6 @@
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
-
-    <!-- Variant Management Dialog -->
-    <Dialog bind:open={variantDialogOpen}>
-        <DialogContent class="max-w-lg">
-            <DialogHeader>
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="p-2 bg-purple-100 text-purple-600 rounded-lg">
-                        <Layers class="h-5 w-5" />
-                    </div>
-                    <div>
-                        <DialogTitle>Kelola Varian</DialogTitle>
-                        <DialogDescription class="mt-1.5">
-                            Kategori: <span class="font-medium text-foreground"
-                                >{variantCategoryName}</span
-                            >
-                        </DialogDescription>
-                    </div>
-                </div>
-            </DialogHeader>
-
-            <div class="space-y-6">
-                <!-- Add Form -->
-                <div class="p-4 bg-muted/30 rounded-xl border space-y-4">
-                    <h4 class="text-sm font-semibold flex items-center gap-2">
-                        <Plus class="h-3.5 w-3.5" /> Tambah Varian Baru
-                    </h4>
-                    <div class="grid grid-cols-1 gap-3">
-                        <div>
-                            <Label
-                                class="text-xs mb-1.5 block text-muted-foreground"
-                                >Nama Varian</Label
-                            >
-                            <Input
-                                bind:value={newVariantName}
-                                placeholder="Contoh: Original, OLED, Incell"
-                                class="h-9 bg-background"
-                            />
-                        </div>
-                        <div>
-                            <Label
-                                class="text-xs mb-1.5 block text-muted-foreground"
-                                >Supplier (Opsional)</Label
-                            >
-                            <Combobox
-                                items={suppliers.map((s) => ({
-                                    label: s.name,
-                                    value: s.id,
-                                }))}
-                                bind:value={newVariantSupplierId}
-                                placeholder="Pilih Supplier"
-                            />
-                        </div>
-                    </div>
-                    <Button
-                        class="w-full h-9"
-                        onclick={handleAddVariant}
-                        disabled={addVariantMutation.isPending}
-                    >
-                        {addVariantMutation.isPending
-                            ? "Menambahkan..."
-                            : "Tambah Varian"}
-                    </Button>
-                </div>
-
-                <!-- List -->
-                <div>
-                    <h4
-                        class="text-sm font-medium mb-3 flex items-center justify-between"
-                    >
-                        Daftar Varian
-                        <Badge variant="outline" class="font-normal text-xs"
-                            >{variantTemplates.length}</Badge
-                        >
-                    </h4>
-
-                    {#if variantTemplates.length === 0}
-                        <div
-                            class="text-sm text-center py-8 border-2 border-dashed rounded-xl bg-muted/10"
-                        >
-                            <p class="text-muted-foreground">
-                                Belum ada varian terdaftar.
-                            </p>
-                        </div>
-                    {:else}
-                        <div
-                            class="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar"
-                        >
-                            {#each variantTemplates as v}
-                                <div
-                                    class="flex items-center justify-between p-3 bg-card border rounded-lg shadow-sm hover:border-primary/50 transition-colors group"
-                                >
-                                    <div class="flex flex-col gap-0.5">
-                                        <span class="font-medium text-sm"
-                                            >{v.name}</span
-                                        >
-                                        {#if v.supplier}
-                                            <span
-                                                class="text-xs text-muted-foreground flex items-center gap-1"
-                                            >
-                                                <Box class="h-3 w-3" />
-                                                {v.supplier.name}
-                                            </span>
-                                        {/if}
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                                        onclick={() =>
-                                            removeVariantMutation.mutate(v.id)}
-                                        disabled={removeVariantMutation.isPending}
-                                    >
-                                        <Trash2 class="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            {/each}
-                        </div>
-                    {/if}
-                </div>
-            </div>
-        </DialogContent>
-    </Dialog>
 </div>
 
 <style>

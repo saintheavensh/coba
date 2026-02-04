@@ -12,12 +12,7 @@
         DialogHeader,
         DialogTitle,
     } from "$lib/components/ui/dialog";
-    import {
-        Tabs,
-        TabsContent,
-        TabsList,
-        TabsTrigger,
-    } from "$lib/components/ui/tabs";
+
     import { Badge } from "$lib/components/ui/badge";
     import {
         Loader2,
@@ -27,7 +22,6 @@
         Check,
         Trash2,
         Plus,
-        Tag,
     } from "lucide-svelte";
     import {
         createQuery,
@@ -79,49 +73,6 @@
         queryKey: ["devices", debouncedDeviceSearch],
         queryFn: () => InventoryService.getDevices(debouncedDeviceSearch, 500),
     }));
-
-    // Variant Logic
-    let activeTab = $state("general");
-
-    const variantsQuery = createQuery(() => ({
-        queryKey: ["variants", editData?.id],
-        queryFn: () =>
-            editData ? InventoryService.getProductVariants(editData.id) : [],
-        enabled: !!editData,
-    }));
-
-    let variants = $derived(variantsQuery.data || []);
-    let newVariantName = $state("");
-    let newVariantPrice = $state(0);
-
-    const createVariantMutation = createMutation(() => ({
-        mutationFn: InventoryService.createVariant,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["variants"] });
-            newVariantName = "";
-            newVariantPrice = 0;
-            toast.success("Varian ditambahkan");
-        },
-        onError: () => toast.error("Gagal menambah varian"),
-    }));
-
-    const deleteVariantMutation = createMutation(() => ({
-        mutationFn: InventoryService.deleteVariant,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["variants"] });
-            toast.success("Varian dihapus");
-        },
-    }));
-
-    function handleAddVariant() {
-        if (!editData) return;
-        if (!newVariantName) return toast.error("Nama varian wajib diisi");
-        createVariantMutation.mutate({
-            productId: editData.id,
-            name: newVariantName,
-            defaultPrice: newVariantPrice,
-        });
-    }
 
     // Helpers
     function buildCategoryHierarchy(
@@ -402,8 +353,6 @@
         manualNameParts = [];
         nameSuggestions = [];
         deviceSearchQuery = "";
-        activeTab = "general";
-        newVariantName = "";
     }
 
     // Mutations
@@ -493,437 +442,319 @@
             </DialogDescription>
         </DialogHeader>
 
-        <Tabs
-            bind:value={activeTab}
-            class="flex-1 flex flex-col overflow-hidden"
-        >
-            <div class="px-6 py-2 border-b bg-muted/50">
-                <TabsList class="grid w-full grid-cols-2">
-                    <TabsTrigger value="general">Informasi Umum</TabsTrigger>
-                    <TabsTrigger value="variants" disabled={!editData}
-                        >Varian Produk</TabsTrigger
-                    >
-                </TabsList>
-            </div>
-            <div class="flex-1 overflow-y-auto p-6">
-                <TabsContent value="general" class="space-y-6 mt-0">
-                    <!-- Kategori & Code Row -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="space-y-2">
-                            <Label class="text-sm font-medium"
-                                >Kategori Produk <span class="text-destructive"
-                                    >*</span
-                                ></Label
-                            >
-                            <div class="relative">
-                                {#if categoriesQuery.isLoading}
-                                    <div
-                                        class="h-10 w-full animate-pulse rounded-md bg-secondary"
-                                    ></div>
-                                {:else}
-                                    <select
-                                        bind:value={categoryId}
-                                        class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        <div class="flex-1 overflow-y-auto p-6">
+            <div class="space-y-6 mt-0">
+                <!-- Kategori & Code Row -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <Label class="text-sm font-medium"
+                            >Kategori Produk <span class="text-destructive"
+                                >*</span
+                            ></Label
+                        >
+                        <div class="relative">
+                            {#if categoriesQuery.isLoading}
+                                <div
+                                    class="h-10 w-full animate-pulse rounded-md bg-secondary"
+                                ></div>
+                            {:else}
+                                <select
+                                    bind:value={categoryId}
+                                    class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <option value=""
+                                        >-- Pilih Kategori --</option
                                     >
-                                        <option value=""
-                                            >-- Pilih Kategori --</option
-                                        >
-                                        {#each hierarchicalCategories as cat}
-                                            <option value={cat.id}>
-                                                {@html "&nbsp;".repeat(
-                                                    cat.level * 4,
-                                                )}
-                                                {cat.level > 0
-                                                    ? "↳ "
-                                                    : ""}{cat.name}
-                                            </option>
-                                        {/each}
-                                    </select>
-                                {/if}
-                            </div>
+                                    {#each hierarchicalCategories as cat}
+                                        <option value={cat.id}>
+                                            {@html "&nbsp;".repeat(
+                                                cat.level * 4,
+                                            )}
+                                            {cat.level > 0
+                                                ? "↳ "
+                                                : ""}{cat.name}
+                                        </option>
+                                    {/each}
+                                </select>
+                            {/if}
                         </div>
+                    </div>
 
-                        <div class="space-y-2">
-                            <Label class="text-sm font-medium"
-                                >Kode SKU / Barcode</Label
+                    <div class="space-y-2">
+                        <Label class="text-sm font-medium"
+                            >Kode SKU / Barcode</Label
+                        >
+                        <div class="flex gap-2">
+                            <div class="relative flex-1">
+                                <Input
+                                    bind:value={code}
+                                    placeholder="Scan atau Auto-generate"
+                                    class="pl-9 font-mono"
+                                />
+                                <Smartphone
+                                    class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
+                                />
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onclick={generateCode}
+                                title="Generate Otomatis"
+                                disabled={!categoryId}
                             >
-                            <div class="flex gap-2">
+                                <Filter class="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <p class="text-[10px] text-muted-foreground">
+                            Otomatis / Scan
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Name with Autocomplete Device Suggestions -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <Label class="text-sm font-medium"
+                            >Nama Produk <span class="text-destructive">*</span
+                            ></Label
+                        >
+                        {#if compatibility.length > 0 || manualNameParts.length > 0}
+                            <Badge
+                                variant="secondary"
+                                class="font-normal text-xs"
+                            >
+                                <Smartphone class="h-3 w-3 mr-1" />
+                                {compatibility.length} device{#if manualNameParts.length > 0}
+                                    + {manualNameParts.length} manual{/if}
+                            </Badge>
+                        {/if}
+                    </div>
+
+                    <Input
+                        value={name}
+                        oninput={(e) => handleNameChange(e.currentTarget.value)}
+                        placeholder="Ketik nama device (Mis: Oppo A3s / A5s / Realme 2)"
+                        class="text-base"
+                    />
+
+                    <!-- Device Suggestions Dropdown -->
+                    {#if nameSuggestions.length > 0}
+                        <div
+                            class="border-2 border-primary/20 rounded-xl shadow-lg bg-card overflow-hidden"
+                        >
+                            <!-- Search Header -->
+                            <div
+                                class="flex items-center gap-2 p-3 border-b bg-gradient-to-r from-primary/5 to-transparent"
+                            >
                                 <div class="relative flex-1">
-                                    <Input
-                                        bind:value={code}
-                                        placeholder="Scan atau Auto-generate"
-                                        class="pl-9 font-mono"
+                                    <Search
+                                        class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
                                     />
-                                    <Smartphone
-                                        class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
+                                    <Input
+                                        value={deviceSearchQuery}
+                                        oninput={(e) =>
+                                            (deviceSearchQuery =
+                                                e.currentTarget.value)}
+                                        placeholder="Cari device..."
+                                        class="pl-8 h-9 text-sm"
                                     />
                                 </div>
                                 <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onclick={generateCode}
-                                    title="Generate Otomatis"
-                                    disabled={!categoryId}
+                                    variant="default"
+                                    size="sm"
+                                    class="h-9 px-4 text-xs font-semibold shadow-sm"
+                                    onclick={() => applyAllSuggestions()}
                                 >
-                                    <Filter class="h-4 w-4" />
+                                    <Check class="h-3.5 w-3.5 mr-1" />
+                                    Tambah Semua
                                 </Button>
                             </div>
-                            <p class="text-[10px] text-muted-foreground">
-                                Otomatis / Scan
-                            </p>
+
+                            <!-- Devices Header -->
+                            <div
+                                class="px-3 py-2 bg-muted/30 border-b flex items-center justify-between"
+                            >
+                                <span
+                                    class="text-xs font-semibold text-muted-foreground uppercase tracking-wider"
+                                    >Saran Device ({filteredSuggestions.length})</span
+                                >
+                            </div>
+
+                            <!-- Device List -->
+                            <div
+                                class="max-h-[280px] overflow-y-auto divide-y divide-muted/20"
+                            >
+                                {#each filteredSuggestions as suggestion, index}
+                                    <button
+                                        type="button"
+                                        class="w-full flex items-center gap-3 px-3 py-3 hover:bg-primary/5 transition-all duration-150 text-left group"
+                                        onclick={() =>
+                                            applySuggestion(suggestion)}
+                                    >
+                                        <!-- Device Image -->
+                                        <div
+                                            class="w-11 h-11 rounded-lg bg-gradient-to-br from-muted/50 to-muted/20 flex items-center justify-center overflow-hidden shrink-0 ring-1 ring-muted/30"
+                                        >
+                                            {#if suggestion.device.image}
+                                                <img
+                                                    src={suggestion.device
+                                                        .image}
+                                                    alt="{suggestion.device
+                                                        .brand} {suggestion
+                                                        .device.model}"
+                                                    class="w-full h-full object-contain"
+                                                />
+                                            {:else}
+                                                <Smartphone
+                                                    class="h-5 w-5 text-muted-foreground/50"
+                                                />
+                                            {/if}
+                                        </div>
+
+                                        <!-- Device Info -->
+                                        <div class="flex-1 min-w-0">
+                                            <div
+                                                class="font-medium text-sm text-foreground"
+                                            >
+                                                {suggestion.device.brand}
+                                                {suggestion.device.model}
+                                            </div>
+                                            {#if suggestion.device.code}
+                                                <div
+                                                    class="text-xs text-muted-foreground truncate"
+                                                >
+                                                    {suggestion.device.code}
+                                                </div>
+                                            {/if}
+                                        </div>
+
+                                        <!-- Add Icon -->
+                                        <div
+                                            class="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0"
+                                        >
+                                            <Plus class="h-4 w-4" />
+                                        </div>
+                                    </button>
+                                {/each}
+
+                                {#if filteredSuggestions.length === 0}
+                                    <div
+                                        class="p-4 text-center text-sm text-muted-foreground"
+                                    >
+                                        Tidak ada device yang cocok
+                                    </div>
+                                {/if}
+                            </div>
+                        </div>
+                    {/if}
+
+                    <!-- Selected Devices -->
+                    {#if compatibility.length > 0 || manualNameParts.length > 0}
+                        <div class="flex flex-wrap gap-2">
+                            {#each selectedDevices as device (device.id)}
+                                <span
+                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 text-sm bg-primary/10 text-primary rounded-full border border-primary/20"
+                                >
+                                    <Smartphone class="h-3.5 w-3.5" />
+                                    {device.brand}
+                                    {device.model}
+                                    <button
+                                        type="button"
+                                        class="ml-1 hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                                        onclick={() => removeDevice(device.id)}
+                                        aria-label="Hapus {device.brand} {device.model}"
+                                    >
+                                        <svg
+                                            class="h-3 w-3"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                        >
+                                            <path d="M18 6L6 18M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </span>
+                            {/each}
+                            {#each manualNameParts as part, i}
+                                <span
+                                    class="inline-flex items-center gap-1.5 px-2.5 py-1 text-sm bg-muted text-muted-foreground rounded-full border"
+                                >
+                                    🔤 {part}
+                                    <button
+                                        type="button"
+                                        class="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5 transition-colors"
+                                        onclick={() => removeManualPart(i)}
+                                        aria-label="Hapus {part}"
+                                    >
+                                        <svg
+                                            class="h-3 w-3"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                        >
+                                            <path d="M18 6L6 18M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </span>
+                            {/each}
+                        </div>
+                    {/if}
+
+                    <p class="text-xs text-muted-foreground">
+                        Ketik nama device dipisahkan dengan " / ". Saran akan
+                        muncul untuk device yang cocok.
+                    </p>
+                </div>
+
+                <!-- Image & Details Row -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Image Upload - Left Column -->
+                    <div class="space-y-2">
+                        <Label class="text-sm font-medium">Gambar Produk</Label>
+                        <div
+                            class="h-36 rounded-xl border-2 border-muted bg-muted/5 p-2"
+                        >
+                            <ImageUpload bind:value={image} compact={true} />
                         </div>
                     </div>
 
-                    <!-- Name with Autocomplete Device Suggestions -->
-                    <div class="space-y-3">
-                        <div class="flex items-center justify-between">
-                            <Label class="text-sm font-medium"
-                                >Nama Produk <span class="text-destructive"
-                                    >*</span
-                                ></Label
-                            >
-                            {#if compatibility.length > 0 || manualNameParts.length > 0}
-                                <Badge
-                                    variant="secondary"
-                                    class="font-normal text-xs"
-                                >
-                                    <Smartphone class="h-3 w-3 mr-1" />
-                                    {compatibility.length} device{#if manualNameParts.length > 0}
-                                        + {manualNameParts.length} manual{/if}
-                                </Badge>
-                            {/if}
-                        </div>
-
+                    <!-- Min Stock - Middle Column -->
+                    <div class="space-y-2">
+                        <Label class="text-sm font-medium">Minimum Stok</Label>
                         <Input
-                            value={name}
-                            oninput={(e) =>
-                                handleNameChange(e.currentTarget.value)}
-                            placeholder="Ketik nama device (Mis: Oppo A3s / A5s / Realme 2)"
-                            class="text-base"
+                            type="number"
+                            bind:value={minStock}
+                            min="0"
+                            class="h-11"
                         />
-
-                        <!-- Device Suggestions Dropdown -->
-                        {#if nameSuggestions.length > 0}
-                            <div
-                                class="border-2 border-primary/20 rounded-xl shadow-lg bg-card overflow-hidden"
-                            >
-                                <!-- Search Header -->
-                                <div
-                                    class="flex items-center gap-2 p-3 border-b bg-gradient-to-r from-primary/5 to-transparent"
-                                >
-                                    <div class="relative flex-1">
-                                        <Search
-                                            class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
-                                        />
-                                        <Input
-                                            value={deviceSearchQuery}
-                                            oninput={(e) =>
-                                                (deviceSearchQuery =
-                                                    e.currentTarget.value)}
-                                            placeholder="Cari device..."
-                                            class="pl-8 h-9 text-sm"
-                                        />
-                                    </div>
-                                    <Button
-                                        variant="default"
-                                        size="sm"
-                                        class="h-9 px-4 text-xs font-semibold shadow-sm"
-                                        onclick={() => applyAllSuggestions()}
-                                    >
-                                        <Check class="h-3.5 w-3.5 mr-1" />
-                                        Tambah Semua
-                                    </Button>
-                                </div>
-
-                                <!-- Devices Header -->
-                                <div
-                                    class="px-3 py-2 bg-muted/30 border-b flex items-center justify-between"
-                                >
-                                    <span
-                                        class="text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-                                        >Saran Device ({filteredSuggestions.length})</span
-                                    >
-                                </div>
-
-                                <!-- Device List -->
-                                <div
-                                    class="max-h-[280px] overflow-y-auto divide-y divide-muted/20"
-                                >
-                                    {#each filteredSuggestions as suggestion, index}
-                                        <button
-                                            type="button"
-                                            class="w-full flex items-center gap-3 px-3 py-3 hover:bg-primary/5 transition-all duration-150 text-left group"
-                                            onclick={() =>
-                                                applySuggestion(suggestion)}
-                                        >
-                                            <!-- Device Image -->
-                                            <div
-                                                class="w-11 h-11 rounded-lg bg-gradient-to-br from-muted/50 to-muted/20 flex items-center justify-center overflow-hidden shrink-0 ring-1 ring-muted/30"
-                                            >
-                                                {#if suggestion.device.image}
-                                                    <img
-                                                        src={suggestion.device
-                                                            .image}
-                                                        alt="{suggestion.device
-                                                            .brand} {suggestion
-                                                            .device.model}"
-                                                        class="w-full h-full object-contain"
-                                                    />
-                                                {:else}
-                                                    <Smartphone
-                                                        class="h-5 w-5 text-muted-foreground/50"
-                                                    />
-                                                {/if}
-                                            </div>
-
-                                            <!-- Device Info -->
-                                            <div class="flex-1 min-w-0">
-                                                <div
-                                                    class="font-medium text-sm text-foreground"
-                                                >
-                                                    {suggestion.device.brand}
-                                                    {suggestion.device.model}
-                                                </div>
-                                                {#if suggestion.device.code}
-                                                    <div
-                                                        class="text-xs text-muted-foreground truncate"
-                                                    >
-                                                        {suggestion.device.code}
-                                                    </div>
-                                                {/if}
-                                            </div>
-
-                                            <!-- Add Icon -->
-                                            <div
-                                                class="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0"
-                                            >
-                                                <Plus class="h-4 w-4" />
-                                            </div>
-                                        </button>
-                                    {/each}
-
-                                    {#if filteredSuggestions.length === 0}
-                                        <div
-                                            class="p-4 text-center text-sm text-muted-foreground"
-                                        >
-                                            Tidak ada device yang cocok
-                                        </div>
-                                    {/if}
-                                </div>
-                            </div>
-                        {/if}
-
-                        <!-- Selected Devices -->
-                        {#if compatibility.length > 0 || manualNameParts.length > 0}
-                            <div class="flex flex-wrap gap-2">
-                                {#each selectedDevices as device (device.id)}
-                                    <span
-                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-sm bg-primary/10 text-primary rounded-full border border-primary/20"
-                                    >
-                                        <Smartphone class="h-3.5 w-3.5" />
-                                        {device.brand}
-                                        {device.model}
-                                        <button
-                                            type="button"
-                                            class="ml-1 hover:bg-primary/20 rounded-full p-0.5 transition-colors"
-                                            onclick={() =>
-                                                removeDevice(device.id)}
-                                            aria-label="Hapus {device.brand} {device.model}"
-                                        >
-                                            <svg
-                                                class="h-3 w-3"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                stroke-width="2"
-                                            >
-                                                <path
-                                                    d="M18 6L6 18M6 6l12 12"
-                                                />
-                                            </svg>
-                                        </button>
-                                    </span>
-                                {/each}
-                                {#each manualNameParts as part, i}
-                                    <span
-                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-sm bg-muted text-muted-foreground rounded-full border"
-                                    >
-                                        🔤 {part}
-                                        <button
-                                            type="button"
-                                            class="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5 transition-colors"
-                                            onclick={() => removeManualPart(i)}
-                                            aria-label="Hapus {part}"
-                                        >
-                                            <svg
-                                                class="h-3 w-3"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                stroke-width="2"
-                                            >
-                                                <path
-                                                    d="M18 6L6 18M6 6l12 12"
-                                                />
-                                            </svg>
-                                        </button>
-                                    </span>
-                                {/each}
-                            </div>
-                        {/if}
-
                         <p class="text-xs text-muted-foreground">
-                            Ketik nama device dipisahkan dengan " / ". Saran
-                            akan muncul untuk device yang cocok.
+                            Peringatan saat stok di bawah jumlah ini.
                         </p>
                     </div>
 
-                    <!-- Image & Details Row -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <!-- Image Upload - Left Column -->
-                        <div class="space-y-2">
-                            <Label class="text-sm font-medium"
-                                >Gambar Produk</Label
+                    <!-- Empty space or additional info - Right Column -->
+                    <div class="space-y-2">
+                        <Label class="text-sm font-medium text-muted-foreground"
+                            >Info</Label
+                        >
+                        <div
+                            class="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-100 dark:border-blue-900"
+                        >
+                            <p
+                                class="text-xs text-blue-700 dark:text-blue-300 leading-relaxed"
                             >
-                            <div
-                                class="h-36 rounded-xl border-2 border-muted bg-muted/5 p-2"
-                            >
-                                <ImageUpload
-                                    bind:value={image}
-                                    compact={true}
-                                />
-                            </div>
-                        </div>
-
-                        <!-- Min Stock - Middle Column -->
-                        <div class="space-y-2">
-                            <Label class="text-sm font-medium"
-                                >Minimum Stok</Label
-                            >
-                            <Input
-                                type="number"
-                                bind:value={minStock}
-                                min="0"
-                                class="h-11"
-                            />
-                            <p class="text-xs text-muted-foreground">
-                                Peringatan saat stok di bawah jumlah ini.
+                                💡 Stok awal produk baru adalah <strong
+                                    >0</strong
+                                >. Tambah stok melalui menu
+                                <strong>Pembelian</strong>.
                             </p>
-                        </div>
-
-                        <!-- Empty space or additional info - Right Column -->
-                        <div class="space-y-2">
-                            <Label
-                                class="text-sm font-medium text-muted-foreground"
-                                >Info</Label
-                            >
-                            <div
-                                class="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-100 dark:border-blue-900"
-                            >
-                                <p
-                                    class="text-xs text-blue-700 dark:text-blue-300 leading-relaxed"
-                                >
-                                    💡 Stok awal produk baru adalah <strong
-                                        >0</strong
-                                    >. Tambah stok melalui menu
-                                    <strong>Pembelian</strong>.
-                                </p>
-                            </div>
                         </div>
                     </div>
-                </TabsContent>
-                <TabsContent value="variants" class="space-y-4 mt-0">
-                    {@const selectedCat = hierarchicalCategories.find(
-                        (c) => c.id === categoryId,
-                    )}
-
-                    {#if selectedCat && selectedCat.variantTemplates && selectedCat.variantTemplates.length > 0}
-                        <!-- Category Variants (Read-only) -->
-                        <div
-                            class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-md text-sm mb-4"
-                        >
-                            <p class="font-semibold mb-1">
-                                ℹ️ Varian Kategori "{selectedCat.name}"
-                            </p>
-                            <p class="text-xs opacity-80">
-                                Varian berikut didefinisikan di kategori dan
-                                otomatis berlaku untuk produk ini. Untuk
-                                mengelola varian, kunjungi halaman Kategori.
-                            </p>
-                        </div>
-
-                        <div class="space-y-2">
-                            {#each selectedCat.variantTemplates as v}
-                                <div
-                                    class="flex items-center justify-between p-3 border rounded-lg bg-card"
-                                >
-                                    <div class="flex items-center gap-3">
-                                        <div
-                                            class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center"
-                                        >
-                                            <Tag
-                                                class="h-4 w-4 text-purple-600"
-                                            />
-                                        </div>
-                                        <div>
-                                            <div class="font-medium">
-                                                {v.name}
-                                            </div>
-                                            <div
-                                                class="text-xs text-muted-foreground"
-                                            >
-                                                Supplier: {v.supplier?.name ||
-                                                    "-"}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <span
-                                        class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded"
-                                    >
-                                        Dari Kategori
-                                    </span>
-                                </div>
-                            {/each}
-                        </div>
-
-                        <div class="text-center mt-4">
-                            <a
-                                href="/categories"
-                                class="text-sm text-primary hover:underline"
-                            >
-                                Kelola varian di halaman Kategori →
-                            </a>
-                        </div>
-                    {:else}
-                        <!-- No Variants - Empty State -->
-                        <div
-                            class="text-center py-12 border rounded-lg border-dashed bg-muted/20"
-                        >
-                            <Tag
-                                class="h-12 w-12 mx-auto text-muted-foreground/50 mb-4"
-                            />
-                            <h3 class="font-semibold text-lg mb-2">
-                                Belum Ada Varian
-                            </h3>
-                            <p
-                                class="text-sm text-muted-foreground max-w-sm mx-auto mb-4"
-                            >
-                                Varian produk didefinisikan di tingkat kategori
-                                dan otomatis berlaku untuk semua produk dalam
-                                kategori tersebut.
-                            </p>
-                            <a
-                                href="/categories"
-                                class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-                            >
-                                <Tag class="h-4 w-4" />
-                                Kelola Varian di Kategori
-                            </a>
-                        </div>
-                    {/if}
-                </TabsContent>
+                </div>
             </div>
-        </Tabs>
+        </div>
 
         <DialogFooter
             class="px-6 py-4 border-t flex items-center justify-between sm:justify-end gap-3 sticky bottom-0 z-10 bg-background/95 backdrop-blur-sm"

@@ -33,6 +33,8 @@
     import CurrencyInput from "$lib/components/custom/currency-input.svelte";
     import { InventoryService } from "$lib/services/inventory.service";
     import { fade, fly } from "svelte/transition";
+    import CategorySection from "./components/category-section.svelte";
+    import { Checkbox } from "$lib/components/ui/checkbox";
 
     let suppliers = $state<any[]>([]);
     let products = $state<any[]>([]);
@@ -45,43 +47,29 @@
     let notes = $state("");
     // Default to Today YYYY-MM-DDTHH:mm
     const now = new Date();
-    // Adjust to local ISO string for datetime-local
     const offset = now.getTimezoneOffset() * 60000;
     let date = $state(
         new Date(now.getTime() - offset).toISOString().slice(0, 16),
     );
-    let items = $state<
-        Array<{
-            productId: string;
-            productName: string;
-            variantId?: string;
-            variantName?: string;
-            isNewVariant?: boolean;
-            qty: number;
-            buyPrice: number;
-            sellPrice: number;
-        }>
-    >([]);
 
-    // Helper for adding row
-    function addItem() {
-        items = [
-            ...items,
-            {
-                productId: "",
-                productName: "",
-                variantId: "",
-                variantName: "",
-                qty: 1,
-                buyPrice: 0,
-                sellPrice: 0,
-            },
-        ];
-    }
+    // Dynamic Sections State
+    let supplierCategories = $state<any[]>([]); // Categories linked to supplier
+    let selectedCategoryIds = $state<string[]>([]); // User checked categories
 
-    function removeItem(index: number) {
-        items = items.filter((_, i) => i !== index);
-    }
+    // Items grouped by category: { [categoryId]: [items...] }
+    let categoryItems = $state<Record<string, any[]>>({});
+
+    // Helper to calculate total
+    let totalAmount = $derived.by(() => {
+        let sum = 0;
+        for (const catId of selectedCategoryIds) {
+            const items = categoryItems[catId] || [];
+            for (const item of items) {
+                sum += (item.buyPrice || 0) * (item.qty || 0);
+            }
+        }
+        return sum;
+    });
 
     // Cache prioritized variant IDs for current supplier
     let supplierPrioritizedIds = $state<string[]>([]);
@@ -89,11 +77,28 @@
     async function loadPriorities(supplierId: string) {
         if (!supplierId) return;
         try {
-            const data = await InventoryService.getSupplierVariants(supplierId);
-            supplierPrioritizedIds = Array.isArray(data) ? data : [];
+            const [variants, cats] = await Promise.all([
+                InventoryService.getSupplierVariants(supplierId),
+                InventoryService.getSupplierCategories(supplierId),
+            ]);
+            supplierPrioritizedIds = Array.isArray(variants)
+                ? variants.map((v: any) => v.name)
+                : [];
+            supplierCategories = cats;
+
+            // Auto-select all available categories by default? Or let user pick?
+            // User sketch shows checking them manually or seeing them.
+            // Let's start empty or pre-select all if reasonable?
+            // "Category Filter: You check Batteries and LCDs" -> Implies manual or pre-filled.
+            // Let's default to EMPTY to let user choose, or ALL?
+            // Better ALL for convenience if not too many.
+            // Let's leave empty and let user check.
+            selectedCategoryIds = [];
+            categoryItems = {};
         } catch (e) {
-            console.error("Failed to load priorities", e);
+            console.error("Failed to load priorities or categories", e);
             supplierPrioritizedIds = [];
+            supplierCategories = [];
         }
     }
 
@@ -140,186 +145,61 @@
     }
 
     async function onSupplierChange() {
-        items = [
-            {
-                productId: "",
-                productName: "",
-                variantId: "",
-                variantName: "",
-                qty: 1,
-                buyPrice: 0,
-                sellPrice: 0,
-            },
-        ];
+        supplierCategories = [];
+        selectedCategoryIds = [];
+        categoryItems = {};
+
         if (selectedSupplierId) {
             await loadPriorities(selectedSupplierId);
         }
     }
 
-    let productVariantsMap = $state<Record<string, any[]>>({});
-
-    let allSearchOptions = $derived.by(() => {
-        const prioritySet = new Set(supplierPrioritizedIds);
-        const supplierCategoryVariants: Record<string, Set<string>> = {};
-
-        if (selectedSupplierId) {
-            for (const cat of categories) {
-                const variants = cat.variantTemplates || [];
-                for (const v of variants) {
-                    if (v.supplierId === selectedSupplierId) {
-                        if (!supplierCategoryVariants[cat.id]) {
-                            supplierCategoryVariants[cat.id] = new Set();
-                        }
-                        supplierCategoryVariants[cat.id].add(v.name);
-                    }
-                }
+    function toggleCategory(catId: string, checked: boolean) {
+        if (checked) {
+            if (!selectedCategoryIds.includes(catId)) {
+                selectedCategoryIds = [...selectedCategoryIds, catId];
+                if (!categoryItems[catId]) categoryItems[catId] = [];
             }
-        }
-
-        if (!selectedSupplierId) {
-            return products
-                .map((p) => ({
-                    value: p.id,
-                    label: `${p.category?.name || ""} - ${p.name}`.trim(),
-                    type: "product",
-                    product: p,
-                    isPriority: false,
-                }))
-                .sort((a, b) => a.label.localeCompare(b.label));
-        }
-
-        const options: any[] = [];
-
-        for (const p of products) {
-            const categoryId = p.categoryId;
-            const categoryName = p.category?.name || "";
-            const allowedVariants = supplierCategoryVariants[categoryId];
-
-            if (allowedVariants && allowedVariants.size > 0) {
-                for (const variantName of allowedVariants) {
-                    const matchingVariant = p.variants?.find(
-                        (v: any) => v.name === variantName,
-                    );
-
-                    const value = matchingVariant
-                        ? `${p.id}::${matchingVariant.id}`
-                        : `${p.id}::new::${variantName}`;
-
-                    options.push({
-                        value,
-                        label: `${categoryName} - ${p.name} - ${variantName}`,
-                        type: "variant",
-                        product: p,
-                        variant: matchingVariant || { name: variantName },
-                        variantName: variantName,
-                        isPriority: matchingVariant
-                            ? prioritySet.has(matchingVariant.id)
-                            : false,
-                    });
-                }
-            }
-        }
-
-        return options.sort((a, b) => {
-            if (a.isPriority && !b.isPriority) return -1;
-            if (!a.isPriority && b.isPriority) return 1;
-            return a.label.localeCompare(b.label);
-        });
-    });
-
-    function getSearchOptionsForRow(rowIndex: number) {
-        const otherSelectedValues = new Set<string>();
-        for (let i = 0; i < items.length; i++) {
-            if (i === rowIndex) continue;
-            const item = items[i];
-            if (item.productId) {
-                if (item.variantId) {
-                    otherSelectedValues.add(
-                        `${item.productId}::${item.variantId}`,
-                    );
-                } else if (item.variantName && item.isNewVariant) {
-                    otherSelectedValues.add(
-                        `${item.productId}::new::${item.variantName}`,
-                    );
-                } else {
-                    otherSelectedValues.add(item.productId);
-                }
-            }
-        }
-
-        return allSearchOptions.filter(
-            (opt: any) => !otherSelectedValues.has(opt.value),
-        );
-    }
-
-    function onUnifiedSelect(index: number, selectedValue: string) {
-        if (!selectedValue) return;
-
-        const parts = selectedValue.split("::");
-        const productId = parts[0];
-        const isNewVariant = parts[1] === "new";
-        const isExistingVariant = parts.length === 2 && !isNewVariant;
-
-        const prod = products.find((p) => p.id === productId);
-        if (!prod) return;
-
-        items[index].productId = productId;
-        items[index].productName = prod.name;
-
-        if (isNewVariant && parts.length >= 3) {
-            const variantName = parts.slice(2).join("::");
-            items[index].variantId = "";
-            items[index].variantName = variantName;
-            items[index].isNewVariant = true;
-        } else if (isExistingVariant) {
-            const variantId = parts[1];
-            const variant = prod.variants?.find((v: any) => v.id === variantId);
-            items[index].variantId = variantId;
-            items[index].variantName = variant?.name || "";
-            items[index].isNewVariant = false;
-            if (variant?.defaultPrice)
-                items[index].sellPrice = variant.defaultPrice;
         } else {
-            items[index].variantId = "";
-            items[index].variantName = "";
-            items[index].isNewVariant = false;
+            selectedCategoryIds = selectedCategoryIds.filter(
+                (id) => id !== catId,
+            );
+            // Optional: clear data? Or keep it if they re-check?
+            // Keeping it is safer.
         }
-
-        if (!items[index].sellPrice) {
-            items[index].buyPrice = 0;
-            items[index].sellPrice = 0;
-        }
-
-        items = items;
     }
 
-    let totalAmount = $derived(
-        items.reduce((sum, item) => sum + item.buyPrice * item.qty, 0),
-    );
+    // Old Unified Search Logic REPLACED by Component Logic
 
     async function handleSubmit() {
         if (!selectedSupplierId) return toast.error("Pilih Supplier");
-        if (items.length === 0) return toast.error("Minimal 1 item");
-        for (const item of items) {
-            if (!item.productId)
-                return toast.error("Pilih produk untuk semua baris");
-            if (item.qty < 1) return toast.error("Jumlah minimal 1");
-        }
-
-        loading = true;
         try {
+            // Flatten items
+            const finalItems = [];
+            for (const catId of selectedCategoryIds) {
+                const cItems = categoryItems[catId] || [];
+                for (const i of cItems) {
+                    if (i.productId && i.qty > 0) {
+                        finalItems.push({
+                            productId: i.productId,
+                            variantId: i.variantId || undefined,
+                            variant: i.variantName,
+                            qty: i.qty,
+                            buyPrice: i.buyPrice,
+                            sellPrice: i.sellPrice,
+                        });
+                    }
+                }
+            }
+
+            if (finalItems.length === 0)
+                return toast.error("Tidak ada item yang diinput");
+
             const payload = {
                 supplierId: selectedSupplierId,
                 notes,
                 date,
-                items: items.map((i) => ({
-                    productId: i.productId,
-                    variantId: i.variantId || undefined,
-                    variant: i.variantName,
-                    qty: i.qty,
-                    buyPrice: i.buyPrice,
-                    sellPrice: i.sellPrice,
-                })),
+                items: finalItems,
             };
 
             await api("/purchases", { method: "POST", data: payload });
@@ -337,17 +217,10 @@
 
     function resetForm() {
         notes = "";
-        items = [
-            {
-                productId: "",
-                productName: "",
-                variantId: "",
-                variantName: "",
-                qty: 1,
-                buyPrice: 0,
-                sellPrice: 0,
-            },
-        ];
+        supplierCategories = [];
+        selectedCategoryIds = [];
+        categoryItems = {};
+        selectedSupplierId = "";
     }
 
     function formatRp(val: number) {
@@ -360,7 +233,7 @@
     onMount(() => {
         loadData();
         loadRecentHistory();
-        addItem();
+        // Default items not needed anymore, dynamic
     });
 
     $effect(() => {
@@ -536,177 +409,149 @@
         </div>
 
         <!-- Right Column: Items -->
+        <!-- Right Column: Items -->
         <div class="lg:col-span-2 space-y-6">
-            <Card
-                class="bg-card/80 backdrop-blur-sm shadow-md border-t-4 border-t-violet-500"
-            >
-                <CardHeader
-                    class="flex flex-row items-center justify-between pb-2 bg-muted/20"
+            <!-- Phase 1: Category Selection (Appears after Supplier) -->
+            {#if selectedSupplierId}
+                <Card
+                    class="bg-card/80 backdrop-blur-sm shadow-md border-t-4 border-t-blue-500"
                 >
-                    <CardTitle class="text-lg">Daftar Barang</CardTitle>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onclick={addItem}
-                        class="bg-background shadow-sm hover:bg-violet-50"
-                    >
-                        <Plus class="mr-2 h-4 w-4" /> Tambah Baris
-                    </Button>
-                </CardHeader>
-                <CardContent class="p-0">
-                    <div class="overflow-visible">
-                        <table class="w-full text-sm">
-                            <thead
-                                class="bg-muted/50 border-y text-xs uppercase text-muted-foreground"
+                    <CardHeader class="pb-3 border-b">
+                        <CardTitle class="text-base">Kategori Produk</CardTitle>
+                    </CardHeader>
+                    <CardContent class="p-4">
+                        {#if supplierCategories.length === 0}
+                            <div
+                                class="text-sm text-muted-foreground p-4 text-center border bg-muted/20 rounded"
                             >
-                                <tr class="text-left">
-                                    <th class="p-4 font-semibold w-[40%]"
-                                        >Produk & Varian</th
-                                    >
-                                    <th
-                                        class="p-4 font-semibold text-center w-[12%]"
-                                        >Qty</th
-                                    >
-                                    <th class="p-4 font-semibold w-[18%]"
-                                        >Harga Beli</th
-                                    >
-                                    <th class="p-4 font-semibold w-[18%]"
-                                        >Harga Jual</th
-                                    >
-                                    <th class="p-4 font-semibold w-[30px]"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y">
-                                {#each items as item, i}
-                                    <tr
-                                        class="group hover:bg-violet-50/30 dark:hover:bg-violet-900/10 transition-colors"
-                                    >
-                                        <td class="p-3 align-top">
-                                            <Combobox
-                                                items={getSearchOptionsForRow(
-                                                    i,
-                                                )}
-                                                value={item.variantId
-                                                    ? `${item.productId}::${item.variantId}`
-                                                    : item.productId}
-                                                placeholder="Cari Produk..."
-                                                disabled={!selectedSupplierId}
-                                                onSelect={(item) =>
-                                                    onUnifiedSelect(
-                                                        i,
-                                                        item?.value,
-                                                    )}
-                                                class="w-full h-9"
-                                            />
-                                            {#if item.productId && !item.variantId}
-                                                <div in:fade class="mt-2">
-                                                    <Input
-                                                        class="h-8 text-xs bg-muted/30"
-                                                        placeholder="Varian Baru (Opsional)"
-                                                        bind:value={
-                                                            item.variantName
-                                                        }
-                                                    />
-                                                </div>
-                                            {/if}
-                                        </td>
-                                        <td class="p-3 align-top">
-                                            <Input
-                                                type="number"
-                                                class="h-9 text-center"
-                                                min="1"
-                                                bind:value={item.qty}
-                                                disabled={!selectedSupplierId ||
-                                                    !item.productId}
-                                            />
-                                        </td>
-                                        <td class="p-3 align-top">
-                                            <CurrencyInput
-                                                bind:value={item.buyPrice}
-                                                disabled={!selectedSupplierId ||
-                                                    !item.productId}
-                                                class="h-9"
-                                                placeholder="0"
-                                            />
-                                            <div
-                                                class="text-[10px] text-muted-foreground mt-1 text-right"
-                                            >
-                                                Total: {formatRp(
-                                                    item.qty * item.buyPrice,
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td class="p-3 align-top">
-                                            <CurrencyInput
-                                                bind:value={item.sellPrice}
-                                                disabled={!selectedSupplierId ||
-                                                    !item.productId}
-                                                class="h-9 {item.sellPrice >
-                                                    0 &&
-                                                item.sellPrice < item.buyPrice
-                                                    ? 'border-red-500 bg-red-50'
-                                                    : ''}"
-                                                placeholder="0"
-                                            />
-                                            {#if item.buyPrice > 0 && item.sellPrice > 0}
-                                                {@const margin =
-                                                    ((item.sellPrice -
-                                                        item.buyPrice) /
-                                                        item.buyPrice) *
-                                                    100}
-                                                <div
-                                                    class="text-[10px] mt-1 text-right font-medium {margin <
-                                                    0
-                                                        ? 'text-red-500'
-                                                        : 'text-green-600'}"
-                                                >
-                                                    {margin < 0
-                                                        ? "Loss"
-                                                        : "Profit"}: {Math.round(
-                                                        margin,
-                                                    )}%
-                                                </div>
-                                            {/if}
-                                        </td>
-                                        <td class="p-3 align-top text-center">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                class="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50"
-                                                onclick={() => removeItem(i)}
-                                                disabled={items.length <= 1}
-                                            >
-                                                <Trash2 class="h-4 w-4" />
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                {/each}
-                            </tbody>
-                            <tfoot
-                                class="bg-violet-50/50 dark:bg-violet-900/20"
-                            >
-                                <tr>
-                                    <td colspan="5" class="p-4">
+                                Supplier ini belum terhubung ke kategori
+                                manapun. <br />
+                                <span class="text-xs"
+                                    >Silakan hubungkan di menu Supplier atau
+                                    pilih kategori manual :</span
+                                >
+                                <div
+                                    class="mt-2 flex flex-wrap gap-2 justify-center"
+                                >
+                                    <!-- Fallback: Show ALL categories if none linked? -->
+                                    {#each categories as cat}
                                         <div
-                                            class="flex justify-end items-center gap-4"
+                                            class="flex items-center space-x-2 border p-2 rounded bg-background"
                                         >
-                                            <span
-                                                class="text-sm font-medium text-muted-foreground"
-                                                >Total Estimasi:</span
+                                            <Checkbox
+                                                id="cat-{cat.id}"
+                                                checked={selectedCategoryIds.includes(
+                                                    cat.id,
+                                                )}
+                                                onCheckedChange={(v: boolean) =>
+                                                    toggleCategory(cat.id, v)}
+                                            />
+                                            <label
+                                                for="cat-{cat.id}"
+                                                class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                                             >
-                                            <span
-                                                class="text-xl font-bold text-violet-700 dark:text-violet-400 font-mono"
-                                            >
-                                                {formatRp(totalAmount)}
-                                            </span>
+                                                {cat.name}
+                                            </label>
                                         </div>
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
+                                    {/each}
+                                </div>
+                            </div>
+                        {:else}
+                            <div
+                                class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
+                            >
+                                {#each supplierCategories as cat}
+                                    <div
+                                        class="flex items-center space-x-2 border p-3 rounded-lg bg-background hover:bg-muted/50 transition-colors cursor-pointer"
+                                        role="button"
+                                        tabindex="0"
+                                        onclick={() =>
+                                            toggleCategory(
+                                                cat.id,
+                                                !selectedCategoryIds.includes(
+                                                    cat.id,
+                                                ),
+                                            )}
+                                        onkeydown={(e) => {
+                                            if (
+                                                e.key === "Enter" ||
+                                                e.key === " "
+                                            )
+                                                toggleCategory(
+                                                    cat.id,
+                                                    !selectedCategoryIds.includes(
+                                                        cat.id,
+                                                    ),
+                                                );
+                                        }}
+                                    >
+                                        <Checkbox
+                                            id="cat-{cat.id}"
+                                            checked={selectedCategoryIds.includes(
+                                                cat.id,
+                                            )}
+                                            onCheckedChange={(v: boolean) =>
+                                                toggleCategory(cat.id, v)}
+                                        />
+                                        <label
+                                            for="cat-{cat.id}"
+                                            class="text-sm font-medium leading-none cursor-pointer select-none"
+                                        >
+                                            {cat.name}
+                                        </label>
+                                    </div>
+                                {/each}
+                            </div>
+                        {/if}
+                    </CardContent>
+                </Card>
+            {/if}
+
+            <div class="space-y-6 min-h-[300px]">
+                {#if selectedCategoryIds.length === 0}
+                    <div
+                        class="h-64 flex flex-col items-center justify-center border-2 border-dashed rounded-xl bg-muted/10 opacity-60"
+                    >
+                        <div class="p-4 rounded-full bg-muted mb-4">
+                            <Package class="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <p class="font-medium text-lg">Area Input Barang</p>
+                        <p class="text-sm text-muted-foreground">
+                            Pilih Supplier & Kategori untuk memunculkan tabel
+                            input.
+                        </p>
                     </div>
-                </CardContent>
-            </Card>
+                {:else}
+                    {#each selectedCategoryIds as catId (catId)}
+                        {@const cat = categories.find((c) => c.id === catId)}
+                        {#if cat}
+                            <div in:fade={{ duration: 300 }}>
+                                <CategorySection
+                                    categoryName={cat.name}
+                                    categoryId={catId}
+                                    {products}
+                                    supplierId={selectedSupplierId}
+                                    supplierPrioritizedNames={supplierPrioritizedIds}
+                                    bind:items={categoryItems[catId]}
+                                />
+                            </div>
+                        {/if}
+                    {/each}
+
+                    <div
+                        class="flex justify-end items-center gap-4 py-4 px-6 bg-card rounded-xl border shadow-sm sticky bottom-4 z-10"
+                    >
+                        <span class="text-sm font-medium text-muted-foreground"
+                            >Total Estimasi:</span
+                        >
+                        <span
+                            class="text-3xl font-bold text-violet-700 dark:text-violet-400 font-mono"
+                        >
+                            {formatRp(totalAmount)}
+                        </span>
+                    </div>
+                {/if}
+            </div>
 
             <!-- Recent Input History -->
             <div class="space-y-2">

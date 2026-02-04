@@ -5,16 +5,20 @@
     import { toast } from "svelte-sonner";
     import { API_URL } from "$lib/api";
 
+    import { cn } from "$lib/utils";
+
     let {
         value = $bindable(""),
         disabled = false,
         folder = "misc",
         compact = false,
+        class: className = "",
     }: {
         value: string;
         disabled?: boolean;
         folder?: string;
         compact?: boolean;
+        class?: string;
     } = $props();
 
     let isUploading = $state(false);
@@ -67,7 +71,11 @@
 <div class="w-full h-full flex items-center justify-center">
     {#if value}
         <div
-            class="{sizeClasses} relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-gradient-to-br from-muted/30 to-muted/10 shadow-sm"
+            class={cn(
+                sizeClasses,
+                "relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-gradient-to-br from-muted/30 to-muted/10 shadow-sm",
+                className,
+            )}
         >
             <img
                 src={value.startsWith("http") ? value : `${API_URL}${value}`}
@@ -91,7 +99,11 @@
     {:else}
         <button
             type="button"
-            class="{sizeClasses} rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:bg-primary/5 hover:border-primary/50 hover:text-primary transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
+            class={cn(
+                sizeClasses,
+                "rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:bg-primary/5 hover:border-primary/50 hover:text-primary transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer",
+                className,
+            )}
             onclick={() => fileInput?.click()}
             disabled={disabled || isUploading}
         >
