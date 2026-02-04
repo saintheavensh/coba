@@ -6,6 +6,8 @@ import { db } from "./db";
 import { users } from "./db/schema";
 import { sql } from "drizzle-orm";
 import { Logger } from "./lib/logger";
+import { rateLimiterMiddleware } from "./middlewares/rate-limiter.middleware";
+import { secureHeadersMiddleware } from "./middlewares/secure-headers.middleware";
 
 import authController from "./modules/auth/routes/auth.routes";
 import inventoryController from "./modules/inventory/routes/inventory.routes";
@@ -30,7 +32,7 @@ import serviceToolsController from "./modules/service-tools/routes/service-tools
 import operationalCostsController from "./modules/operational-costs/routes/operational-costs.routes";
 import accountingController from "./modules/accounting/routes/accounting.routes";
 
-const app = new Hono();
+export const app = new Hono();
 
 // CORS configuration - allow credentials for cookie-based auth
 app.use("*", cors({
@@ -51,6 +53,9 @@ app.use("*", cors({
     allowHeaders: ["Content-Type", "Authorization"],
 }));
 app.use("*", logger());
+app.use("*", rateLimiterMiddleware);
+// Secure headers
+app.use("*", secureHeadersMiddleware);
 
 // Serve static files
 app.use("/uploads/*", serveStatic({ root: "./public" }));

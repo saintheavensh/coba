@@ -13,6 +13,10 @@ export class SuppliersService {
         return await this.model.findAll();
     }
 
+    async getLinkedCategories(supplierId: string) {
+        return await this.model.getLinkedCategories(supplierId);
+    }
+
     async create(data: { name: string; contact?: string; phone?: string; address?: string; image?: string }) {
         const id = generateId(ID_PREFIX.SUPPLIER);
         return await this.model.create({
@@ -37,6 +41,14 @@ export class SuppliersService {
 
     async delete(id: string) {
         return await this.model.delete(id);
+    }
+
+    async linkCategory(supplierId: string, categoryId: string) {
+        return await this.model.addCategoryLink(supplierId, categoryId);
+    }
+
+    async unlinkCategory(supplierId: string, categoryId: string) {
+        return await this.model.removeCategoryLink(supplierId, categoryId);
     }
 }
 

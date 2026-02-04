@@ -1,6 +1,6 @@
 import { PurchasesModel } from "../models/purchases.model";
 import { db } from "../../../db";
-import { purchases, purchaseItems, productBatches, products, activityLogs } from "../../../db/schema";
+import { purchases, purchaseItems, productBatches, products, activityLogs, productVariants } from "../../../db/schema";
 import { ActivityLogService } from "../../../lib/activity-log.service";
 import { eq, sql, and } from "drizzle-orm";
 import { generateId, ID_PREFIX } from "../../../lib/utils";
@@ -65,13 +65,37 @@ export class PurchasesService {
             // 2. Process Items
             for (const item of data.items) {
                 let batchId: string;
+                let variantId: string | null = null;
+
+                // Resolve Variant Name to ID (Auto-Create if not exists)
+                if (item.variant) {
+                    const existingVariant = await tx.query.productVariants.findFirst({
+                        where: and(
+                            eq(productVariants.productId, item.productId),
+                            eq(productVariants.name, item.variant)
+                        )
+                    });
+
+                    if (existingVariant) {
+                        variantId = existingVariant.id;
+                    } else {
+                        // Create new variant
+                        variantId = "VAR-" + Date.now().toString().slice(-6) + "-" + Math.floor(Math.random() * 1000);
+                        await tx.insert(productVariants).values({
+                            id: variantId,
+                            productId: item.productId,
+                            name: item.variant,
+                            defaultPrice: item.sellPrice // Init with this purchase's sell price
+                        });
+                    }
+                }
 
                 const existingBatch = await tx.query.productBatches.findFirst({
                     where: and(
                         eq(productBatches.productId, item.productId),
                         eq(productBatches.supplierId, data.supplierId),
                         eq(productBatches.buyPrice, item.buyPrice),
-                        item.variant ? eq(productBatches.variantId, item.variant) : sql`${productBatches.variantId} IS NULL`
+                        variantId ? eq(productBatches.variantId, variantId) : sql`${productBatches.variantId} IS NULL`
                     )
                 });
 
@@ -89,7 +113,7 @@ export class PurchasesService {
                         id: batchId,
                         productId: item.productId,
                         supplierId: data.supplierId,
-                        variantId: item.variant || null,
+                        variantId: variantId,
                         buyPrice: item.buyPrice,
                         sellPrice: item.sellPrice,
                         initialStock: item.qty,

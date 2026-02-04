@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { text, integer, boolean, timestamp, serial, pgTable, json, foreignKey, primaryKey } from "drizzle-orm/pg-core";
+import { text, integer, boolean, timestamp, serial, pgTable, json, foreignKey, primaryKey, unique } from "drizzle-orm/pg-core";
 
 // ============================================
 // USERS & AUTH
@@ -72,6 +72,15 @@ export const members = pgTable("members", {
     image: text("image"),
     createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const supplierCategories = pgTable("supplier_categories", {
+    id: serial("id").primaryKey(),
+    supplierId: text("supplier_id").notNull().references(() => suppliers.id, { onDelete: 'cascade' }),
+    categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: 'cascade' }),
+}, (t) => ({
+    // Ensure one supplier can't have duplicate links to the same category
+    unq: unique("sup_cat_unique").on(t.supplierId, t.categoryId),
+}));
 
 // ============================================
 // INVENTORY
@@ -291,7 +300,19 @@ export const categoriesRelations = relations(categories, ({ one, many }) => ({
     children: many(categories, {
         relationName: "category_hierarchy"
     }),
-    variantTemplates: many(categoryVariants)
+    variantTemplates: many(categoryVariants),
+    suppliers: many(supplierCategories),
+}));
+
+export const supplierCategoriesRelations = relations(supplierCategories, ({ one }) => ({
+    supplier: one(suppliers, {
+        fields: [supplierCategories.supplierId],
+        references: [suppliers.id],
+    }),
+    category: one(categories, {
+        fields: [supplierCategories.categoryId],
+        references: [categories.id],
+    }),
 }));
 
 export const categoryVariantsRelations = relations(categoryVariants, ({ one }) => ({
@@ -343,6 +364,7 @@ export const productDeviceCompatibilityRelations = relations(productDeviceCompat
 export const suppliersRelations = relations(suppliers, ({ many }) => ({
     purchases: many(purchases),
     batches: many(productBatches),
+    categories: many(supplierCategories),
 }));
 
 export const membersRelations = relations(members, ({ many }) => ({

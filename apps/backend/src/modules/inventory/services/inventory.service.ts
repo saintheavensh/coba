@@ -72,7 +72,7 @@ export class InventoryService {
     }
 
     async getSupplierVariants(supplierId: string, dbOrTx?: any) {
-        return await this.model.findRecentVariantIdsBySupplier(supplierId, dbOrTx);
+        return await this.model.findVariantsBySupplierConfig(supplierId, dbOrTx);
     }
 
     async createVariant(data: { productId: string; name: string; image?: string; sku?: string; defaultPrice?: number }, dbOrTx?: any) {

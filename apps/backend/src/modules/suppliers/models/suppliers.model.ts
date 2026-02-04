@@ -1,6 +1,6 @@
 import { db } from "../../../db";
-import { suppliers } from "../../../db/schema";
-import { eq, desc } from "drizzle-orm";
+import { suppliers, supplierCategories, categories } from "../../../db/schema";
+import { eq, desc, and } from "drizzle-orm";
 
 export class SuppliersModel {
     async findAll() {
@@ -13,6 +13,20 @@ export class SuppliersModel {
         return await db.query.suppliers.findFirst({
             where: eq(suppliers.id, id)
         });
+    }
+
+    async getLinkedCategories(supplierId: string) {
+        // Explicitly join using the new table
+        const result = await db
+            .select({
+                id: categories.id,
+                name: categories.name,
+                parentId: categories.parentId
+            })
+            .from(supplierCategories)
+            .innerJoin(categories, eq(supplierCategories.categoryId, categories.id))
+            .where(eq(supplierCategories.supplierId, supplierId));
+        return result;
     }
 
     async create(data: typeof suppliers.$inferInsert) {
@@ -28,5 +42,21 @@ export class SuppliersModel {
 
     async delete(id: string) {
         return await db.delete(suppliers).where(eq(suppliers.id, id));
+    }
+
+    async addCategoryLink(supplierId: string, categoryId: string) {
+        await db.insert(supplierCategories)
+            .values({ supplierId, categoryId })
+            .onConflictDoNothing();
+    }
+
+    async removeCategoryLink(supplierId: string, categoryId: string) {
+        await db.delete(supplierCategories)
+            .where(
+                and(
+                    eq(supplierCategories.supplierId, supplierId),
+                    eq(supplierCategories.categoryId, categoryId)
+                )
+            );
     }
 }

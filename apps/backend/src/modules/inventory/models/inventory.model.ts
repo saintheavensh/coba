@@ -1,5 +1,5 @@
 import { db } from "../../../db";
-import { products, productBatches, categories, productDeviceCompatibility, productVariants } from "../../../db/schema";
+import { products, productBatches, categories, productDeviceCompatibility, productVariants, categoryVariants } from "../../../db/schema";
 import { eq, desc, and, sql, or, ilike } from "drizzle-orm";
 
 export class InventoryModel {
@@ -164,21 +164,18 @@ export class InventoryModel {
         return Number(result[0]?.count || 0);
     }
 
-    async findRecentVariantIdsBySupplier(supplierId: string, dbOrTx: any = db) {
-        // Return Variant IDs sorted by most recent batch creation
+    async findVariantsBySupplierConfig(supplierId: string, dbOrTx: any = db) {
+        // Return Variant Names/IDs configured for this supplier in category_variants
         const results = await dbOrTx
-            .select({ variantId: productBatches.variantId, lastDate: sql`MAX(${productBatches.createdAt})` })
-            .from(productBatches)
-            .where(
-                and(
-                    eq(productBatches.supplierId, supplierId),
-                    sql`${productBatches.variantId} IS NOT NULL`
-                )
-            )
-            .groupBy(productBatches.variantId)
-            .orderBy(desc(sql`MAX(${productBatches.createdAt})`));
+            .select({
+                id: categoryVariants.id,
+                name: categoryVariants.name,
+                categoryId: categoryVariants.categoryId
+            })
+            .from(categoryVariants)
+            .where(eq(categoryVariants.supplierId, supplierId));
 
-        return results.map((r: any) => r.variantId as string);
+        return results;
     }
 
     // Variants

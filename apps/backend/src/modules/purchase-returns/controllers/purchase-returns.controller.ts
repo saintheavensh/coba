@@ -18,6 +18,7 @@ export class PurchaseReturnsController {
         try {
             const id = c.req.param("id");
             const data = await service.getById(id);
+            if (!data) return apiError(c, null, "Purchase return not found", 404);
             return apiSuccess(c, data);
         } catch (e: any) {
             return apiError(c, e);
