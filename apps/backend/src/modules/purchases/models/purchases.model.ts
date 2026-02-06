@@ -5,7 +5,7 @@ import { eq, desc, and, between, sql, gte, lte } from "drizzle-orm";
 import { Logger } from "../../../lib/logger";
 
 export class PurchasesModel {
-    async findAll(params: { startDate?: Date; endDate?: Date; search?: string; limit?: number; userId?: string } = {}, dbOrTx: any = db) {
+    async findAll(params: { startDate?: Date; endDate?: Date; search?: string; limit?: number; userId?: string; status?: string } = {}, dbOrTx: any = db) {
         const conditions = [];
 
         if (params.startDate && params.endDate) {
@@ -14,6 +14,10 @@ export class PurchasesModel {
 
         if (params.userId) {
             conditions.push(eq(purchases.userId, params.userId));
+        }
+
+        if (params.status) {
+            conditions.push(eq(purchases.status, params.status as any));
         }
 
         if (params.search) {

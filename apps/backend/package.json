@@ -12,6 +12,7 @@
         "db:push": "drizzle-kit push",
         "db:studio": "drizzle-kit studio",
         "db:seed": "bun run src/db/seed.ts",
+        "db:safe-reset": "bun run src/scripts/safe-reset.ts",
         "db:normalize-brands": "bun run src/scripts/normalize-brands.ts"
     },
     "dependencies": {

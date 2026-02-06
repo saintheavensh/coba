@@ -63,6 +63,15 @@ export class DashboardController {
         }
     }
 
+    static async getWarehouseDashboard(c: Context) {
+        try {
+            const data = await dashboard.getWarehouseDashboard();
+            return apiSuccess(c, data, "Warehouse dashboard data retrieved");
+        } catch (e: any) {
+            return apiError(c, String(e));
+        }
+    }
+
     static async getProfitLoss(c: Context) {
         const startDate = c.req.query("startDate");
         const endDate = c.req.query("endDate");

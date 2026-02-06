@@ -7,7 +7,7 @@ import { JournalService } from "./journal.service";
 export interface CreateCommissionPaymentInput {
     technicianId: string;
     period: string;
-    serviceIds: number[];
+    serviceIds: string[];
     amount: number;
     accountId?: string;
 }
@@ -45,7 +45,7 @@ export class CommissionPaymentService {
             .from(commissionPayments)
             .where(eq(commissionPayments.period, period));
 
-        const paidServiceIds = new Set<number>();
+        const paidServiceIds = new Set<string>();
         for (const pc of paidCommissions) {
             for (const sid of (pc.serviceIds || [])) {
                 paidServiceIds.add(sid);

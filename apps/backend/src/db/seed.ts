@@ -1,11 +1,7 @@
 
 import { db } from "./index";
-import { roles, users } from "./schema";
-import { v4 as uuidv4 } from "uuid";
-// NOTE: In a real app, you should hash passwords. 
-// For this seeder, we assume the backend handles hashing or we store plain text for dev (NOT RECOMMENDED for production).
-// Since the schema says 'password' is text, we will just insert a string.
-// Ideally, import your hashing utility here.
+import { roles, users, userRoles } from "./schema";
+import { eq, sql } from "drizzle-orm";
 
 async function seed() {
     console.log("🌱 Seeding database...");
@@ -13,11 +9,21 @@ async function seed() {
     try {
         // 1. Create Roles
         console.log("Creating roles...");
-        await db.insert(roles).values([
+        const rolesToSeed = [
             {
-                id: "admin",
-                name: "Administrator",
+                id: "super_admin",
+                name: "Super Admin",
                 permissions: ["all"],
+            },
+            {
+                id: "owner",
+                name: "Owner",
+                permissions: ["analytics.view", "report.read", "all"], // Strategic oversight
+            },
+            {
+                id: "manager",
+                name: "Manager",
+                permissions: ["service.read", "service.update", "report.read", "employee.manage", "sale.confirm"],
             },
             {
                 id: "teknisi",
@@ -28,36 +34,112 @@ async function seed() {
                 id: "kasir",
                 name: "Kasir",
                 permissions: ["sale.create", "sale.read"],
+            },
+            {
+                id: "warehouse",
+                name: "Warehouse",
+                permissions: ["inventory.manage", "purchase.create"],
             }
-        ]).onConflictDoNothing();
+        ];
 
-        // 2. Create Admin User
-        console.log("Creating admin user...");
-        // Generate a stable UUID for admin or use a random one
-        const adminId = "user-admin-001";
+        for (const role of rolesToSeed) {
+            await db.insert(roles).values(role).onConflictDoUpdate({
+                target: roles.id,
+                set: { name: role.name, permissions: role.permissions }
+            });
+        }
 
+        // Optional: Clean up old 'admin' role if it exists to avoid confusion with 'manager'
+        await db.delete(roles).where(eq(roles.id, "admin"));
+
+        // 2. Create Users
+        console.log("Creating test users...");
         const hashedPassword = await Bun.password.hash("password123");
 
-        await db.insert(users).values({
-            id: adminId,
-            username: "admin",
-            password: hashedPassword,
-            name: "Super Admin",
-            role: "admin",
-            isActive: true,
-        }).onConflictDoUpdate({
-            target: users.id,
-            set: {
+        const usersToSeed = [
+            {
+                id: "user-super-001",
+                username: "superadmin",
                 password: hashedPassword,
-                role: "admin",
-                isActive: true
+                name: "Master Architect",
+                role: "super_admin",
+                isActive: true,
+            },
+            {
+                id: "user-owner-001",
+                username: "owner",
+                password: hashedPassword,
+                name: "Business Owner",
+                role: "owner",
+                isActive: true,
+            },
+            {
+                id: "user-manager-001",
+                username: "manager",
+                password: hashedPassword,
+                name: "Test Manager",
+                role: "manager",
+                isActive: true,
+            },
+            {
+                id: "user-teknisi-001",
+                username: "teknisi",
+                password: hashedPassword,
+                name: "Test Technician",
+                role: "teknisi",
+                isActive: true,
+            },
+            {
+                id: "user-kasir-001",
+                username: "kasir",
+                password: hashedPassword,
+                name: "Test Cashier",
+                role: "kasir",
+                isActive: true,
+            },
+            {
+                id: "user-warehouse-001",
+                username: "warehouse",
+                password: hashedPassword,
+                name: "Test Warehouse",
+                role: "warehouse",
+                isActive: true,
             }
-        });
+        ];
+
+        // Clear existing user roles to avoid conflicts during manual re-seed
+        await db.delete(userRoles);
+
+        for (const user of usersToSeed) {
+            await db.insert(users).values(user).onConflictDoUpdate({
+                target: users.id,
+                set: {
+                    username: user.username,
+                    password: user.password,
+                    role: user.role,
+                    name: user.name,
+                    isActive: user.isActive
+                }
+            });
+
+            // Assign initial role to user_roles table
+            await db.insert(userRoles).values({
+                userId: user.id,
+                roleId: user.role
+            }).onConflictDoNothing();
+        }
+
+        // All accounts are primary assigned in the loop above.
 
         console.log("✅ Seeding complete!");
         console.log("--------------------------------");
-        console.log("User: admin");
-        console.log("Pass: password123");
+        console.log("All accounts use password: password123");
+        console.log("- superadmin");
+        console.log("- owner");
+        console.log("- manager");
+        console.log("- teknisi");
+        console.log("- kasir");
+        console.log("- warehouse");
         console.log("--------------------------------");
         process.exit(0);
 

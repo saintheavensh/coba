@@ -112,4 +112,8 @@ export class InventoryService {
     async getStats(dbOrTx?: any) {
         return await this.model.getInventoryStats(dbOrTx);
     }
+
+    async searchProduct(search?: string, dbOrTx?: any) {
+        return await this.model.searchProductFlattened(search, dbOrTx);
+    }
 }

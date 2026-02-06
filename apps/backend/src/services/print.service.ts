@@ -168,4 +168,51 @@ export class PrintService {
             return { success: false, error };
         }
     }
+
+    async printProductLabel(item: { productName: string; variantName?: string; code: string; price?: number }) {
+        this.printer.clear();
+        this.printer.alignCenter();
+
+        // Product Line
+        this.printer.bold(true);
+        this.printer.setTextSize(1, 1);
+        this.printer.println(item.productName.toUpperCase());
+        this.printer.setTextSize(0, 0);
+        if (item.variantName && item.variantName !== "Standard" && item.variantName !== "Default" && item.variantName !== "") {
+            this.printer.println(`(${item.variantName})`);
+        }
+        this.printer.bold(false);
+
+        // Price Line (Optional)
+        if (item.price) {
+            this.printer.println(`Rp ${item.price.toLocaleString('id-ID')}`);
+        }
+
+        this.printer.newLine();
+
+        // QR Code
+        try {
+            const buffer = await QRCode.toBuffer(item.code, { width: 300 });
+            await this.printer.printImageBuffer(buffer);
+        } catch (e) {
+            this.printer.println(`[${item.code}]`);
+        }
+
+        this.printer.newLine();
+        this.printer.println(item.code);
+
+        this.printer.cut();
+
+        try {
+            const buffer = this.printer.getBuffer();
+            const tempFile = path.resolve(process.cwd(), "temp_label.bin");
+            await fs.writeFile(tempFile, buffer);
+            const cmd = `COPY /B "${tempFile}" "${this.interface}"`;
+            await execAsync(cmd, { shell: "cmd.exe" });
+            return { success: true };
+        } catch (error) {
+            Logger.error("Label Print Error", error);
+            return { success: false, error };
+        }
+    }
 }

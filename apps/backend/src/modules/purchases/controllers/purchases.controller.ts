@@ -12,7 +12,7 @@ export class PurchasesController {
 
     async getAll(c: Context) {
         try {
-            const { search, startDate, endDate, mine, limit } = c.req.query();
+            const { search, startDate, endDate, mine, limit, status } = c.req.query();
             let userId = undefined;
 
             if (mine === "true") {
@@ -25,6 +25,7 @@ export class PurchasesController {
                 startDate: startDate ? new Date(startDate) : undefined,
                 endDate: endDate ? new Date(endDate) : undefined,
                 userId,
+                status,
                 limit: limit ? parseInt(limit) : undefined
             });
             return apiSuccess(c, list, "Purchases retrieved successfully");
@@ -33,17 +34,17 @@ export class PurchasesController {
         }
     }
 
-    async createPurchase(c: Context) {
+    async createOrder(c: Context) {
         try {
             const data = (c.req as any).valid("json");
             const user = (c as any).get("user");
             if (user) {
                 data.userId = user.id;
             }
-            const result = await this.service.createPurchase(data);
-            return apiSuccess(c, result, "Purchase created successfully", 201);
+            const result = await this.service.createOrder(data);
+            return apiSuccess(c, result, "Order created successfully", 201);
         } catch (e) {
-            return apiError(c, e, "Failed to create purchase", 400); // 400 likely for validation/logic
+            return apiError(c, e, "Failed to create order", 400);
         }
     }
 
@@ -65,6 +66,30 @@ export class PurchasesController {
             return apiSuccess(c, null, "Purchase deleted successfully");
         } catch (e) {
             return apiError(c, e, "Failed to delete purchase", 500);
+        }
+    }
+
+    async receiveGoods(c: Context) {
+        try {
+            const id = c.req.param("id");
+            const { items } = (c.req as any).valid("json");
+            const user = (c as any).get("user");
+            const result = await this.service.receiveGoods(id, user?.id || "unknown", items);
+            return apiSuccess(c, result, "Goods receipt logged successfully");
+        } catch (e) {
+            return apiError(c, e, "Failed to log goods receipt", 400);
+        }
+    }
+
+    async verifyGoods(c: Context) {
+        try {
+            const id = c.req.param("id");
+            const { items } = (c.req as any).valid("json");
+            const user = (c as any).get("user");
+            const result = await this.service.verifyAndComplete(id, user?.id || "unknown", items);
+            return apiSuccess(c, result, "Purchase verified and stocked successfully");
+        } catch (e) {
+            return apiError(c, e, "Failed to verify purchase", 400);
         }
     }
 }

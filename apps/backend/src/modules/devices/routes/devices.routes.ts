@@ -24,10 +24,12 @@ app.post("/scrape", authMiddleware, permissionGuard("inventory.manage"), (c) => 
 app.post("/scrape-list", authMiddleware, permissionGuard("inventory.manage"), (c) => controller.scrapeList(c));
 app.post("/import-url", authMiddleware, permissionGuard("inventory.manage"), (c) => controller.importUrl(c));
 app.get("/", (c) => controller.getAll(c));
+app.get("/unlinked", authMiddleware, permissionGuard("inventory.view"), (c) => controller.getUnlinked(c));
 app.get("/:id", (c) => controller.getById(c));
 app.post("/", authMiddleware, permissionGuard("inventory.manage"), zValidator("json", deviceSchema), (c) => controller.create(c));
 app.patch("/:id", authMiddleware, permissionGuard("inventory.manage"), zValidator("json", deviceSchema.partial()), (c) => controller.update(c));
 app.post("/bulk-delete", authMiddleware, permissionGuard("inventory.manage"), (c) => controller.bulkDelete(c));
+app.post("/:id/sync", authMiddleware, permissionGuard("inventory.manage"), (c) => controller.sync(c));
 app.delete("/:id", authMiddleware, permissionGuard("inventory.manage"), (c) => controller.delete(c));
 
 export default app;

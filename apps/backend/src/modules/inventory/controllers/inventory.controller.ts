@@ -1,13 +1,16 @@
 import { Context } from "hono";
 import { InventoryService } from "../services/inventory.service";
+import { PrintService } from "../../../services/print.service";
 import { apiSuccess, apiError } from "../../../lib/response";
 import { Logger } from "../../../lib/logger";
 
 export class InventoryController {
     private service: InventoryService;
+    private printService: PrintService;
 
     constructor() {
         this.service = new InventoryService();
+        this.printService = new PrintService();
     }
 
     async getSupplierVariants(c: Context) {
@@ -143,6 +146,27 @@ export class InventoryController {
         } catch (e) {
             Logger.error("[BULK_MIN_STOCK_ERROR]", e);
             return apiError(c, e, "Failed to update minimum stock", 500);
+        }
+    }
+
+    async searchProduct(c: Context) {
+        try {
+            const search = c.req.query("search");
+            const results = await this.service.searchProduct(search);
+            return apiSuccess(c, results, "Products searched successfully");
+        } catch (e) {
+            return apiError(c, e, "Failed to search products", 500);
+        }
+    }
+
+    async printLabel(c: Context) {
+        try {
+            const data = (c.req as any).valid("json");
+            const result = await this.printService.printProductLabel(data);
+            if (!result.success) throw result.error;
+            return apiSuccess(c, null, "Label printed successfully");
+        } catch (e) {
+            return apiError(c, e, "Failed to print label", 500);
         }
     }
 }

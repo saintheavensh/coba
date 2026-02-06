@@ -1,527 +1,353 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import ScrollableCardList from "$lib/components/dashboard/ScrollableCardList.svelte";
-    import RevenueChart from "$lib/components/dashboard/RevenueChart.svelte";
-    import TopProductsChart from "$lib/components/dashboard/TopProductsChart.svelte";
-    import ActivityLog from "$lib/components/dashboard/ActivityLog.svelte";
-    import ServiceListCompact from "$lib/components/dashboard/ServiceListCompact.svelte";
-    import TechnicianDashboard from "$lib/components/dashboard/TechnicianDashboard.svelte";
-    import CashierDashboard from "$lib/components/dashboard/CashierDashboard.svelte";
-    import ProfitLossSummary from "$lib/components/dashboard/ProfitLossSummary.svelte";
+    import { browser } from "$app/environment";
     import {
-        Card,
-        CardContent,
-        CardHeader,
-        CardTitle,
-        CardDescription,
-    } from "$lib/components/ui/card";
-    import { Button } from "$lib/components/ui/button";
-    import {
-        DollarSign,
-        Wrench,
-        CheckCircle2,
-        AlertCircle,
-        Package,
-        Loader2,
-        ShoppingCart,
-        Plus,
         Search,
-        Bell,
-        Calendar,
-        TrendingUp,
-        ArrowUpRight,
-        ArrowDownRight,
+        ShieldCheck,
+        Smartphone,
+        Package,
+        ChevronDown,
     } from "lucide-svelte";
-    import { api } from "$lib/api";
+    import { Button } from "$lib/shared/components/ui/button";
+    import { authStore } from "$lib/features/auth/auth.svelte";
+    import { fade, slide } from "svelte/transition";
 
-    let loading = $state(true);
-    let dashboardData = $state<any>(null);
-    let activities = $state<any[]>([]);
-    let recentServices = $state<any[]>([]);
-    let urgentServices = $state<any[]>([]);
-    let profitLossData = $state<any>(null);
-    let error = $state<string | null>(null);
-    let userRole = $state<string>("admin");
-    let currentTime = $state(new Date());
+    import { goto } from "$app/navigation";
+    import { LogOut } from "lucide-svelte";
+    let activeTab = $state("track");
 
-    async function fetchData() {
-        try {
-            loading = true;
-            error = null;
-            // Use api.get which adds Authorization header automatically
-            const [dashRes, actRes, recentRes, urgentRes, plRes] =
-                await Promise.all([
-                    api.get("/dashboard"),
-                    api.get("/dashboard/activities", { params: { limit: 10 } }),
-                    api.get("/dashboard/recent-services", {
-                        params: { limit: 5 },
-                    }),
-                    api.get("/dashboard/urgent-services", {
-                        params: { limit: 5 },
-                    }),
-                    api.get("/dashboard/profit-loss"),
-                ]);
-
-            dashboardData = dashRes.data.data;
-            activities = actRes.data.data;
-            recentServices = recentRes.data.data;
-            urgentServices = urgentRes.data.data;
-            profitLossData = plRes.data.data;
-        } catch (e: any) {
-            console.error("Failed to fetch dashboard data", e);
-            error =
-                e.response?.data?.message ||
-                e.message ||
-                "Failed to load dashboard data";
-        } finally {
-            loading = false;
+    $effect(() => {
+        if (browser && authStore.isAuthenticated && !authStore.loading) {
+            goto(authStore.getRedirectPath());
         }
+    });
+
+    async function handleLogout() {
+        await authStore.logout();
     }
-
-    onMount(() => {
-        // Get user role from localStorage
-        try {
-            const u = JSON.parse(localStorage.getItem("user") || "{}");
-            userRole = u.role || "admin";
-        } catch {}
-
-        // Timer for clock
-        const timer = setInterval(() => {
-            currentTime = new Date();
-        }, 1000);
-
-        // Only fetch admin dashboard data for admin role
-        if (userRole === "admin") {
-            fetchData();
-            const interval = setInterval(fetchData, 300000);
-            return () => {
-                clearInterval(interval);
-                clearInterval(timer);
-            };
-        }
-
-        return () => clearInterval(timer);
-    });
-
-    let greeting = $derived.by(() => {
-        const hour = currentTime.getHours();
-        if (hour < 12) return "Good Morning";
-        if (hour < 18) return "Good Afternoon";
-        return "Good Evening";
-    });
-
-    // Formatting currency
-    const formatCurrency = (val: number) =>
-        new Intl.NumberFormat("id-ID", {
-            style: "currency",
-            currency: "IDR",
-            minimumFractionDigits: 0,
-        }).format(val);
 </script>
 
-<div class="space-y-8 animate-in fade-in duration-700 pb-10">
-    <!-- Header Section -->
-    <div
-        class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+<div class="parallax-container scroll-smooth">
+    <!-- Hero Section -->
+    <section
+        class="relative h-screen flex flex-col items-center justify-center overflow-hidden bg-slate-950"
     >
-        <div>
-            <h1
-                class="text-4xl font-bold tracking-tight text-slate-900 dark:text-white"
-            >
-                {greeting}, <span class="text-blue-600">Admin</span>
-            </h1>
-            <p class="text-slate-500 mt-1 flex items-center gap-2">
-                <Calendar class="h-4 w-4" />
-                {currentTime.toLocaleDateString("en-US", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                })}
-            </p>
+        <div class="absolute inset-0 z-0">
+            <div
+                class="absolute inset-0 bg-gradient-to-b from-blue-600/20 via-transparent to-slate-950"
+            ></div>
+            <div class="stars-container opacity-30"></div>
         </div>
 
-        <div class="flex items-center gap-3">
-            {#if loading && userRole === "admin"}
-                <div
-                    class="flex items-center text-sm text-muted-foreground bg-white/50 px-3 py-1.5 rounded-full backdrop-blur-sm border"
+        {#if authStore.isAuthenticated}
+            <div
+                class="absolute top-8 right-8 z-50 animate-in fade-in slide-in-from-top-4 duration-1000"
+            >
+                <Button
+                    variant="ghost"
+                    class="group h-12 px-6 rounded-full border border-white/10 bg-white/5 backdrop-blur-xl hover:bg-red-500/10 hover:border-red-500/20 text-slate-400 hover:text-red-400 font-bold transition-all duration-300"
+                    onclick={handleLogout}
                 >
-                    <Loader2 class="mr-2 h-4 w-4 animate-spin" />
-                    Updating data...
-                </div>
-            {/if}
-            <Button
-                variant="outline"
-                class="gap-2 border-slate-200 bg-white/50 backdrop-blur-sm hover:bg-white shadow-sm"
-            >
-                <Bell class="h-4 w-4 text-slate-600" />
-                <span class="hidden sm:inline">Notifications</span>
-            </Button>
-            <Button
-                class="gap-2 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 text-white border-0"
-            >
-                <Plus class="h-4 w-4" />
-                <span class="hidden sm:inline">New Transaction</span>
-            </Button>
-        </div>
-    </div>
-
-    {#if error && userRole === "admin"}
-        <div
-            class="p-4 rounded-xl bg-red-50 text-red-600 border border-red-100 flex items-center gap-3"
-        >
-            <AlertCircle class="h-5 w-5" />
-            <span class="font-medium">Error loading data: {error}</span>
-        </div>
-    {/if}
-
-    <!-- Role-based Dashboard -->
-    {#if userRole === "teknisi"}
-        <TechnicianDashboard />
-    {:else if userRole === "kasir"}
-        <CashierDashboard />
-    {:else}
-        <!-- 1. Stats Overview (Glassmorphism Cards) -->
-        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <!-- Revenue Card -->
-            <div
-                class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-600 p-6 text-white shadow-xl shadow-blue-900/10 group hover:shadow-2xl hover:scale-[1.01] transition-all duration-300"
-            >
-                <div
-                    class="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-white/20 blur-2xl"
-                ></div>
-                <div
-                    class="absolute bottom-0 left-0 -mb-4 -ml-4 h-24 w-24 rounded-full bg-black/10 blur-xl"
-                ></div>
-
-                <div class="relative z-10 flex flex-col justify-between h-full">
-                    <div class="flex justify-between items-start">
-                        <div
-                            class="p-2.5 bg-white/20 backdrop-blur-md rounded-xl"
-                        >
-                            <DollarSign class="h-6 w-6 text-white" />
-                        </div>
-                        {#if dashboardData}
-                            <div
-                                class="flex items-center gap-1 text-xs font-medium bg-green-400/20 px-2 py-1 rounded-full text-green-100 border border-green-400/30"
-                            >
-                                <ArrowUpRight class="h-3 w-3" />
-                                +12.5%
-                            </div>
-                        {/if}
-                    </div>
-
-                    <div class="mt-6">
-                        <p
-                            class="text-blue-100 font-medium text-sm tracking-wide"
-                        >
-                            Total Revenue (Today)
-                        </p>
-                        {#if dashboardData}
-                            <h3 class="text-3xl font-bold mt-1 tracking-tight">
-                                {formatCurrency(
-                                    dashboardData.cards.revenueToday || 0,
-                                )}
-                            </h3>
-                        {:else}
-                            <div
-                                class="h-9 w-32 bg-white/20 animate-pulse rounded mt-1"
-                            ></div>
-                        {/if}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Active Services Card -->
-            <div
-                class="relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 shadow-lg group hover:shadow-xl transition-all duration-300"
-            >
-                <div class="flex flex-col justify-between h-full">
-                    <div class="flex justify-between items-start">
-                        <div
-                            class="p-2.5 bg-orange-100 dark:bg-orange-900/30 rounded-xl text-orange-600 dark:text-orange-400"
-                        >
-                            <Wrench class="h-6 w-6" />
-                        </div>
-                    </div>
-
-                    <div class="mt-6">
-                        <p class="text-slate-500 font-medium text-sm">
-                            Active Services
-                        </p>
-                        {#if dashboardData}
-                            <div class="flex items-end gap-2 mt-1">
-                                <h3
-                                    class="text-3xl font-bold text-slate-900 dark:text-white"
-                                >
-                                    {dashboardData.cards.activeServices || 0}
-                                </h3>
-                                <span class="text-sm text-slate-400 mb-1"
-                                    >units</span
-                                >
-                            </div>
-                        {:else}
-                            <div
-                                class="h-9 w-20 bg-slate-100 animate-pulse rounded mt-1"
-                            ></div>
-                        {/if}
-                    </div>
-                    <div
-                        class="absolute bottom-0 right-0 h-16 w-16 bg-gradient-to-tl from-orange-500/10 to-transparent rounded-tl-3xl"
-                    ></div>
-                </div>
-            </div>
-
-            <!-- Ready for Pickup Card -->
-            <div
-                class="relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 shadow-lg group hover:shadow-xl transition-all duration-300"
-            >
-                <div class="flex flex-col justify-between h-full">
-                    <div class="flex justify-between items-start">
-                        <div
-                            class="p-2.5 bg-purple-100 dark:bg-purple-900/30 rounded-xl text-purple-600 dark:text-purple-400"
-                        >
-                            <CheckCircle2 class="h-6 w-6" />
-                        </div>
-                    </div>
-
-                    <div class="mt-6">
-                        <p class="text-slate-500 font-medium text-sm">
-                            Ready to Pickup
-                        </p>
-                        {#if dashboardData}
-                            <div class="flex items-end gap-2 mt-1">
-                                <h3
-                                    class="text-3xl font-bold text-slate-900 dark:text-white"
-                                >
-                                    {dashboardData.cards.readyPickup || 0}
-                                </h3>
-                                <span class="text-sm text-slate-400 mb-1"
-                                    >units</span
-                                >
-                            </div>
-                        {:else}
-                            <div
-                                class="h-9 w-20 bg-slate-100 animate-pulse rounded mt-1"
-                            ></div>
-                        {/if}
-                    </div>
-                    <div
-                        class="absolute bottom-0 right-0 h-16 w-16 bg-gradient-to-tl from-purple-500/10 to-transparent rounded-tl-3xl"
-                    ></div>
-                </div>
-            </div>
-
-            <!-- Low Stock Card -->
-            <div
-                class="relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 shadow-lg group hover:shadow-xl transition-all duration-300"
-            >
-                <div class="flex flex-col justify-between h-full">
-                    <div class="flex justify-between items-start">
-                        <div
-                            class="p-2.5 bg-red-100 dark:bg-red-900/30 rounded-xl text-red-600 dark:text-red-400"
-                        >
-                            <Package class="h-6 w-6" />
-                        </div>
-                        {#if dashboardData && dashboardData.cards.lowStock > 0}
-                            <div
-                                class="animate-pulse h-2 w-2 rounded-full bg-red-500"
-                            ></div>
-                        {/if}
-                    </div>
-
-                    <div class="mt-6">
-                        <p class="text-slate-500 font-medium text-sm">
-                            Low Stock Items
-                        </p>
-                        {#if dashboardData}
-                            <div class="flex items-end gap-2 mt-1">
-                                <h3
-                                    class="text-3xl font-bold text-slate-900 dark:text-white"
-                                >
-                                    {dashboardData.cards.lowStock || 0}
-                                </h3>
-                                <span class="text-sm text-slate-400 mb-1"
-                                    >items</span
-                                >
-                            </div>
-                        {:else}
-                            <div
-                                class="h-9 w-20 bg-slate-100 animate-pulse rounded mt-1"
-                            ></div>
-                        {/if}
-                    </div>
-                    <div
-                        class="absolute bottom-0 right-0 h-16 w-16 bg-gradient-to-tl from-red-500/10 to-transparent rounded-tl-3xl"
-                    ></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- 2. Main Content Grid -->
-        <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            <!-- Left Column: Charts -->
-            <div class="xl:col-span-2 space-y-8">
-                <!-- Revenue Chart -->
-                <Card
-                    class="border-0 shadow-lg bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm overflow-hidden rounded-3xl"
-                >
-                    <CardHeader class="border-b border-slate-100/50 pb-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <CardTitle class="text-lg font-bold"
-                                    >Revenue Analytics</CardTitle
-                                >
-                                <CardDescription
-                                    >Income trends from Sales & Services (Last 7
-                                    Days)</CardDescription
-                                >
-                            </div>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="rounded-full"
-                            >
-                                <TrendingUp class="h-4 w-4 text-slate-500" />
-                            </Button>
-                        </div>
-                    </CardHeader>
-                    <CardContent class="p-6">
-                        {#if dashboardData && dashboardData.charts.revenueTrend}
-                            <div class="h-[350px] w-full">
-                                <RevenueChart
-                                    data={dashboardData.charts.revenueTrend}
-                                />
-                            </div>
-                        {:else if loading}
-                            <div
-                                class="h-[350px] w-full bg-slate-100 animate-pulse rounded-2xl"
-                            ></div>
-                        {/if}
-                    </CardContent>
-                </Card>
-
-                <!-- Profit & Loss Summary (Integrated) -->
-                <div>
-                    <ProfitLossSummary
-                        data={profitLossData}
-                        isLoading={loading}
+                    <LogOut
+                        class="mr-2 h-4 w-4 group-hover:scale-110 transition-transform"
                     />
-                </div>
+                    SIGN OUT
+                </Button>
             </div>
+        {/if}
 
-            <!-- Right Column: Lists & Side Widgets -->
-            <div class="space-y-8">
-                <!-- Top Products -->
-                <Card
-                    class="border-0 shadow-lg bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-3xl"
+        <div class="z-10 text-center px-4 max-w-4xl mx-auto space-y-6">
+            <div
+                class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-widest mb-4"
+                transition:fade
+            >
+                <div
+                    class="h-2 w-2 rounded-full bg-blue-500 animate-pulse"
+                ></div>
+                Next Generation ERP
+            </div>
+            <h1
+                class="text-5xl md:text-8xl font-black text-white tracking-tighter drop-shadow-2xl"
+            >
+                Service <span
+                    class="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-500"
+                    >Experience</span
                 >
-                    <CardHeader class="border-b border-slate-100/50 pb-4">
-                        <CardTitle class="text-lg font-bold"
-                            >Top Selling Products</CardTitle
-                        >
-                        <CardDescription
-                            >Best performing inventory items</CardDescription
-                        >
-                    </CardHeader>
-                    <CardContent class="p-6">
-                        {#if dashboardData && dashboardData.charts.topProducts}
-                            <div class="h-[250px]">
-                                <TopProductsChart
-                                    data={dashboardData.charts.topProducts}
-                                />
-                            </div>
-                        {:else if loading}
-                            <div
-                                class="h-[250px] w-full bg-slate-100 animate-pulse rounded-2xl"
-                            ></div>
-                        {/if}
-                    </CardContent>
-                </Card>
+            </h1>
+            <p
+                class="text-xl text-slate-400 font-medium max-w-2xl mx-auto leading-relaxed"
+            >
+                Seamlessly track your device repairs and protect your
+                investments. Premium tools for the modern enterprise.
+            </p>
 
-                <!-- Urgent Services -->
-                <Card
-                    class="border-0 shadow-lg bg-gradient-to-br from-orange-50 to-white dark:from-orange-950/20 dark:to-slate-900 rounded-3xl overflow-hidden"
+            <div class="flex flex-col sm:flex-row gap-5 justify-center pt-10">
+                <Button
+                    size="xl"
+                    href="#interactive"
+                    class="group relative h-16 px-10 rounded-full bg-blue-600 hover:bg-blue-500 text-lg font-bold shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all duration-300"
+                    onclick={() => (activeTab = "track")}
                 >
-                    <CardHeader class="pb-2">
-                        <div class="flex items-center gap-2 text-orange-600">
-                            <AlertCircle class="h-5 w-5" />
-                            <CardTitle class="text-md font-bold"
-                                >Urgent Attention</CardTitle
-                            >
-                        </div>
-                        <CardDescription
-                            >Services approaching deadline</CardDescription
-                        >
-                    </CardHeader>
-                    <CardContent class="p-0">
-                        <div class="px-6 pb-6">
-                            <ServiceListCompact
-                                services={urgentServices}
-                                title=""
-                                emptyMessage="No urgent services found"
-                            />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <!-- Activity Stream -->
-                <Card
-                    class="border-0 shadow-lg bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-3xl"
+                    <Search
+                        class="mr-3 h-6 w-6 group-hover:scale-110 transition-transform"
+                    /> Track Ticket
+                </Button>
+                <Button
+                    size="xl"
+                    variant="outline"
+                    href="#interactive"
+                    class="group relative h-16 px-10 rounded-full border-white/20 bg-white/5 backdrop-blur-xl hover:bg-white/10 hover:border-white/40 text-lg font-bold text-white transition-all duration-300"
+                    onclick={() => (activeTab = "warranty")}
                 >
-                    <CardHeader class="border-b border-slate-100/50 pb-4">
-                        <CardTitle class="text-lg font-bold"
-                            >Recent Activity</CardTitle
-                        >
-                    </CardHeader>
-                    <CardContent
-                        class="p-0 max-h-[400px] overflow-auto custom-scrollbar"
-                    >
-                        <ActivityLog {activities} />
-                    </CardContent>
-                </Card>
+                    <ShieldCheck
+                        class="mr-3 h-6 w-6 group-hover:scale-110 transition-transform text-blue-400"
+                    /> Check Warranty
+                </Button>
             </div>
         </div>
 
-        <!-- Bottom Section: Recent Service List Full Width -->
-        <Card class="border-0 shadow-lg bg-white dark:bg-slate-900 rounded-3xl">
-            <CardHeader>
-                <div class="flex items-center justify-between">
-                    <div>
-                        <CardTitle>Recent Services</CardTitle>
-                        <CardDescription
-                            >Latest service entries and updates</CardDescription
-                        >
-                    </div>
-                    <Button
-                        variant="outline"
-                        href="/service"
-                        size="sm"
-                        class="rounded-full">View All</Button
+        <div
+            class="absolute bottom-10 animate-bounce cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
+        >
+            <ChevronDown class="text-slate-500 h-8 w-8" />
+        </div>
+    </section>
+
+    <!-- Interactive Track/Warranty Section -->
+    <section
+        id="interactive"
+        class="py-32 bg-slate-950 relative overflow-hidden"
+    >
+        <div
+            class="absolute -top-24 -left-24 w-96 h-96 bg-blue-600/10 blur-[120px] rounded-full"
+        ></div>
+        <div
+            class="absolute -bottom-24 -right-24 w-96 h-96 bg-indigo-600/10 blur-[120px] rounded-full"
+        ></div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="flex flex-col items-center text-center space-y-16">
+                <!-- Tab Switcher -->
+                <div
+                    class="inline-flex p-1.5 bg-slate-900/80 backdrop-blur-md border border-white/5 rounded-2xl shadow-2xl"
+                >
+                    <button
+                        class="px-10 py-4 rounded-xl text-sm font-black tracking-widest transition-all duration-300 {activeTab ===
+                        'track'
+                            ? 'bg-blue-600 text-white shadow-xl shadow-blue-500/20'
+                            : 'text-slate-500 hover:text-white'}"
+                        onclick={() => (activeTab = "track")}
                     >
+                        TRACK STATUS
+                    </button>
+                    <button
+                        class="px-10 py-4 rounded-xl text-sm font-black tracking-widest transition-all duration-300 {activeTab ===
+                        'warranty'
+                            ? 'bg-blue-600 text-white shadow-xl shadow-blue-500/20'
+                            : 'text-slate-500 hover:text-white'}"
+                        onclick={() => (activeTab = "warranty")}
+                    >
+                        CHECK WARRANTY
+                    </button>
                 </div>
-            </CardHeader>
-            <CardContent>
-                <ServiceListCompact
-                    services={recentServices}
-                    title=""
-                    emptyMessage="No recent services"
-                />
-            </CardContent>
-        </Card>
-    {/if}
+
+                <div
+                    class="w-full max-w-3xl bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur-3xl border border-white/10 p-10 md:p-16 rounded-[3rem] shadow-2xl shadow-black relative group"
+                >
+                    {#if activeTab === "track"}
+                        <div in:fade={{ duration: 400 }} class="space-y-8">
+                            <div class="space-y-3">
+                                <h3
+                                    class="text-4xl font-black text-white tracking-tight"
+                                >
+                                    Rapid Track
+                                </h3>
+                                <p class="text-slate-400 text-lg">
+                                    Enter your service ticket ID to see live
+                                    progress.
+                                </p>
+                            </div>
+                            <div class="relative max-w-xl mx-auto">
+                                <input
+                                    type="text"
+                                    placeholder="TKT-2024-XXXX"
+                                    class="w-full h-20 bg-black/40 border border-white/10 rounded-2xl px-8 text-2xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all font-mono placeholder:text-slate-700"
+                                />
+                                <Button
+                                    class="absolute right-3 top-3 h-14 px-10 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-lg shadow-lg"
+                                >
+                                    TRACK
+                                </Button>
+                            </div>
+                            <p
+                                class="text-xs text-slate-500 pt-4 uppercase tracking-[0.2em]"
+                            >
+                                Lost your ticket? Contact support for
+                                assistance.
+                            </p>
+                        </div>
+                    {:else}
+                        <div in:fade={{ duration: 400 }} class="space-y-8">
+                            <div class="space-y-3">
+                                <h3
+                                    class="text-4xl font-black text-white tracking-tight"
+                                >
+                                    Security Check
+                                </h3>
+                                <p class="text-slate-400 text-lg">
+                                    Verify the authenticity and protection
+                                    status of your device.
+                                </p>
+                            </div>
+                            <div class="relative max-w-xl mx-auto">
+                                <input
+                                    type="text"
+                                    placeholder="Serial Number / IMEI"
+                                    class="w-full h-20 bg-black/40 border border-white/10 rounded-2xl px-8 text-2xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all font-mono placeholder:text-slate-700"
+                                />
+                                <Button
+                                    class="absolute right-3 top-3 h-14 px-10 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-bold text-lg shadow-lg"
+                                >
+                                    VERIFY
+                                </Button>
+                            </div>
+                            <p
+                                class="text-xs text-slate-500 pt-4 uppercase tracking-[0.2em]"
+                            >
+                                Works with all official registered devices.
+                            </p>
+                        </div>
+                    {/if}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-24 bg-slate-900">
+        <div class="max-w-7xl mx-auto px-4 text-center space-y-16">
+            <div class="space-y-4">
+                <h2 class="text-4xl font-bold text-white">
+                    Why Choose Our Platform
+                </h2>
+                <p class="text-slate-400 max-w-2xl mx-auto text-lg">
+                    Powerful tools built for efficiency and trust.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div
+                    class="p-8 rounded-3xl bg-slate-950/50 border border-white/5 hover:border-blue-500/30 transition-all space-y-4 group"
+                >
+                    <div
+                        class="h-14 w-14 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400 mb-6 group-hover:scale-110 transition-transform"
+                    >
+                        <Smartphone class="h-7 w-7" />
+                    </div>
+                    <h3 class="text-xl font-bold text-white">Device History</h3>
+                    <p class="text-slate-500">
+                        Complete service history linked to your device
+                        IMEI/Serial.
+                    </p>
+                </div>
+
+                <div
+                    class="p-8 rounded-3xl bg-slate-950/50 border border-white/5 hover:border-indigo-500/30 transition-all space-y-4 group"
+                >
+                    <div
+                        class="h-14 w-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-6 group-hover:scale-110 transition-transform"
+                    >
+                        <ShieldCheck class="h-7 w-7" />
+                    </div>
+                    <h3 class="text-xl font-bold text-white">Warranty Check</h3>
+                    <p class="text-slate-500">
+                        Instantly verify your warranty status and expiration
+                        dates.
+                    </p>
+                </div>
+
+                <div
+                    class="p-8 rounded-3xl bg-slate-950/50 border border-white/5 hover:border-purple-500/30 transition-all space-y-4 group"
+                >
+                    <div
+                        class="h-14 w-14 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-400 mb-6 group-hover:scale-110 transition-transform"
+                    >
+                        <Package class="h-7 w-7" />
+                    </div>
+                    <h3 class="text-xl font-bold text-white">
+                        Stock Availability
+                    </h3>
+                    <p class="text-slate-500">
+                        Check if parts are in stock for your specific device
+                        model.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 bg-black border-t border-white/5">
+        <div
+            class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-8"
+        >
+            <div class="flex items-center gap-3">
+                <div
+                    class="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold"
+                >
+                    I
+                </div>
+                <span class="font-bold text-xl text-white">Inventory App</span>
+            </div>
+
+            <div class="text-slate-500 text-sm">
+                &copy; 2026 Inventory App. All rights reserved.
+            </div>
+
+            <div class="flex gap-6 text-sm font-medium text-slate-400">
+                <a href="#track" class="hover:text-white transition-colors"
+                    >Tracking</a
+                >
+                <a href="#warranty" class="hover:text-white transition-colors"
+                    >Warranty</a
+                >
+            </div>
+        </div>
+    </footer>
 </div>
 
 <style>
-    /* Custom Scrollbar for activity log */
-    :global(.custom-scrollbar::-webkit-scrollbar) {
-        width: 6px;
+    :global(html) {
+        scroll-behavior: smooth;
     }
-    :global(.custom-scrollbar::-webkit-scrollbar-track) {
-        background: transparent;
+
+    .parallax-container {
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        perspective: 10px;
     }
-    :global(.custom-scrollbar::-webkit-scrollbar-thumb) {
-        background-color: rgba(0, 0, 0, 0.1);
-        border-radius: 20px;
+
+    section {
+        position: relative;
+        transform-style: preserve-3d;
+        z-index: -1;
+    }
+
+    .stars-container {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background-image: radial-gradient(
+                2px 2px at 20px 30px,
+                #eee,
+                rgba(0, 0, 0, 0)
+            ),
+            radial-gradient(2px 2px at 40px 70px, #fff, rgba(0, 0, 0, 0)),
+            radial-gradient(2px 2px at 50px 160px, #ddd, rgba(0, 0, 0, 0)),
+            radial-gradient(2px 2px at 90px 40px, #fff, rgba(0, 0, 0, 0)),
+            radial-gradient(2px 2px at 130px 80px, #fff, rgba(0, 0, 0, 0)),
+            radial-gradient(2px 2px at 160px 120px, #ddd, rgba(0, 0, 0, 0));
+        background-repeat: repeat;
+        background-size: 200px 200px;
     }
 </style>

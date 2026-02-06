@@ -1,0 +1,126 @@
+﻿node.exe : npm warn config ignoring workspace config at 
+C:\Users\Good\Documents\web\cek\coba\apps\frontend/.npmrc
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" 
+"C:\Users\Good\AppData\Roaming\n ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~
+    + CategoryInfo          : NotSpecified: (npm warn config...fro 
+   ntend/.npmrc:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+> frontend@0.0.1 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: c:\Users\Good\Documents\web\cek\coba\apps\frontend
+Getting Svelte diagnostics...
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\superadmin\devices\+page.svelte[39m:2:22
+[31mError[39m: Cannot find module '../../service/devices/+page.svelte' or its corresponding type declarations. (ts)
+[36m<script lang="ts">
+    import Page from [35m"../../service/devices/+page.svelte"[36m;
+</script>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(kasir)\sales\+page.svelte[39m:380:33
+[31mError[39m: 'method.variants' is possibly 'undefined'. (ts)
+[36m                const method = getSelectedMethod(p.methodId);
+                const variant = [35mmethod?.variants[36m.find(
+                    (v) => v.id === p.variantId,[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\superadmin\sales\history\+page.svelte[39m:2:22
+[31mError[39m: Cannot find module '../../../(kasir)/sales/history/+page.svelte' or its corresponding type declarations. (ts)
+[36m<script lang="ts">
+    import Page from [35m"../../../(kasir)/sales/history/+page.svelte"[36m;
+</script>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\superadmin\settings\employees\+page.svelte[39m:2:22
+[31mError[39m: Cannot find module '../../../(manager)/settings/employees/+page.svelte' or its corresponding type declarations. (ts)
+[36m<script lang="ts">
+    import Page from [35m"../../../(manager)/settings/employees/+page.svelte"[36m;
+</script>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\superadmin\settings\notes\+page.svelte[39m:2:22
+[31mError[39m: Cannot find module '../../../(manager)/settings/notes/+page.svelte' or its corresponding type declarations. (ts)
+[36m<script lang="ts">
+    import Page from [35m"../../../(manager)/settings/notes/+page.svelte"[36m;
+</script>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\superadmin\settings\payment\+page.svelte[39m:2:22
+[31mError[39m: Cannot find module '../../../(manager)/settings/payment/+page.svelte' or its corresponding type declarations. (ts)
+[36m<script lang="ts">
+    import Page from [35m"../../../(manager)/settings/payment/+page.svelte"[36m;
+</script>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\superadmin\settings\service\+page.svelte[39m:2:22
+[31mError[39m: Cannot find module '../../../(manager)/settings/service/+page.svelte' or its corresponding type declarations. (ts)
+[36m<script lang="ts">
+    import Page from [35m"../../../(manager)/settings/service/+page.svelte"[36m;
+</script>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\superadmin\settings\store\+page.svelte[39m:2:22
+[31mError[39m: Cannot find module '../../../(manager)/settings/store/+page.svelte' or its corresponding type declarations. (ts)
+[36m<script lang="ts">
+    import Page from [35m"../../../(manager)/settings/store/+page.svelte"[36m;
+</script>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(manager)\settings\accounting\+page.svelte[39m:269:29
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ΓÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                        >
+                            [35m<svelte:component
+                                this={group.icon}
+                                class="h-5 w-5"
+                            />[36m
+                        </div>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(manager)\settings\accounting\+page.svelte[39m:291:45
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ΓÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                                        {#if TYPE_ICONS[type]}
+                                            [35m<svelte:component
+                                                this={TYPE_ICONS[type]}
+                                                class="h-4 w-4 text-slate-400 shrink-0"
+                                            />[36m
+                                        {:else}[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(manager)\settings\payment\+page.svelte[39m:102:17
+[31mError[39m: Object literal may only specify known properties, and 'accountId' does not exist in type '{ name: string; type: string; icon: string; }'. (ts)
+[36m                icon: newMethod.icon,
+                [35maccountId[36m: newMethod.accountId || undefined,
+            });[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(manager)\settings\payment\+page.svelte[39m:160:17
+[31mError[39m: Object literal may only specify known properties, and 'accountId' does not exist in type '{ name: string; accountNumber?: string | undefined; accountHolder?: string | undefined; }'. (ts)
+[36m                accountHolder: variant.accountHolder || undefined,
+                [35maccountId[36m: variant.accountId || undefined,
+            });[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(manager)\settings\payment\+page.svelte[39m:355:57
+[31mError[39m: Property 'accountId' is missing in type '{ name: string; accountNumber: string; accountHolder: string; }' but required in type '{ name: string; accountNumber: string; accountHolder: string; accountId: string; }'. (ts)
+[36m                                                    )
+                                                        [35mnewVariantByMethod[
+                                                            method.id
+                                                        ][36m = {
+                                                            name: "",[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(manager)\settings\payment\+page.svelte[39m:380:57
+[31mError[39m: Property 'accountId' is missing in type '{ name: string; accountNumber: string; accountHolder: string; }' but required in type '{ name: string; accountNumber: string; accountHolder: string; accountId: string; }'. (ts)
+[36m                                                    )
+                                                        [35mnewVariantByMethod[
+                                                            method.id
+                                                        ][36m = {
+                                                            name: "",[39m
+
+====================================
+[31msvelte-check found 12 errors and 2 warnings in 10 files
+npm error Lifecycle script `check` failed with error:
+npm error code 1
+npm error path C:\Users\Good\Documents\web\cek\coba\apps\frontend
+npm error workspace frontend@0.0.1
+npm error location 
+C:\Users\Good\Documents\web\cek\coba\apps\frontend
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c svelte-kit 
+sync && svelte-check --tsconfig ./tsconfig.json
+[39m

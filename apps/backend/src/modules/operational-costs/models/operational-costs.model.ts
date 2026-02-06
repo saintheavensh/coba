@@ -15,7 +15,7 @@ export class OperationalCostsModel {
         return result;
     }
 
-    async delete(id: number, dbOrTx: any = db) {
+    async delete(id: string, dbOrTx: any = db) {
         return await dbOrTx.delete(operationalCosts).where(eq(operationalCosts.id, id));
     }
 }

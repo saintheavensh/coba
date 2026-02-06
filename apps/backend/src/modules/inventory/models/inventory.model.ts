@@ -221,4 +221,63 @@ export class InventoryModel {
             totalCategories: Number(totalCategories?.count || 0)
         };
     }
+
+    async searchProductFlattened(search?: string, dbOrTx: any = db) {
+        // This query returns a flattened list of variants with their parent product info,
+        // category name, and current stock. 
+        // We join products -> product_variants -> (and category)
+        // We also need total stock for that specific variant from batches or products?
+        // Actually, the user wants "Stock" in the context of "Product Name (variant)".
+        // So we should return Variants as the primary row.
+
+        const conditions = [];
+        if (search && search.trim()) {
+            const term = `%${search.trim()}%`;
+            conditions.push(
+                or(
+                    ilike(products.name, term),
+                    ilike(products.code, term),
+                    ilike(productVariants.name, term),
+                    ilike(productVariants.sku, term)
+                )
+            );
+        }
+
+        const query = dbOrTx
+            .select({
+                id: productVariants.id,
+                productId: products.id,
+                universalCode: products.code,
+                productName: products.name,
+                variantName: productVariants.name,
+                categoryName: categories.name,
+                sku: productVariants.sku,
+                price: productVariants.defaultPrice,
+                // Total stock for this product (aggregated if needed, but products table has a 'stock' column)
+                // However, for variant-specific stock, we'd need batches.
+                // If the system doesn't track stock per variant strictly in 'products', 
+                // we might need to sum batches by variant.
+                stock: products.stock // Defaulting to product stock for now as simplified view
+            })
+            .from(productVariants)
+            .innerJoin(products, eq(productVariants.productId, products.id))
+            .leftJoin(categories, eq(products.categoryId, categories.id));
+
+        if (conditions.length > 0) {
+            query.where(and(...conditions));
+        }
+
+        const results = await query;
+
+        // Enhance with latest prices from batches if defaultPrice is missing
+        // and optionally refine stock if batches are variant-specific
+        return results.map(r => ({
+            ...r,
+            displayName: r.variantName && r.variantName !== "Default" && r.variantName !== ""
+                ? `${r.productName} (${r.variantName})`
+                : r.productName,
+            price: r.price || 0,
+            stock: r.stock || 0
+        }));
+    }
 }

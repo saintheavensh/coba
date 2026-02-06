@@ -110,4 +110,21 @@ export class DevicesController {
         if (!data) return apiError(c, null, "Device not found", 404);
         return apiSuccess(c, data, "Device deleted", 200);
     }
+
+    async getUnlinked(c: Context) {
+        const limit = parseInt(c.req.query("limit") || "50");
+        const offset = parseInt(c.req.query("offset") || "0");
+        const data = await DevicesService.getUnlinkedProducts(limit, offset);
+        return apiSuccess(c, data, "Unlinked products retrieved", 200);
+    }
+
+    async sync(c: Context) {
+        const id = c.req.param("id");
+        try {
+            const result = await DevicesService.syncCompatibility(id);
+            return apiSuccess(c, result, "Device compatibility synced", 200);
+        } catch (e) {
+            return apiError(c, e, "Failed to sync", 500);
+        }
+    }
 }

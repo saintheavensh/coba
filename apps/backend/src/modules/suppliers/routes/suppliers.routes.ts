@@ -3,6 +3,8 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { SuppliersController } from "../controllers/suppliers.controller";
 
+import { authMiddleware } from "../../../middlewares/auth.middleware";
+
 const app = new Hono();
 const controller = new SuppliersController();
 
@@ -15,6 +17,9 @@ const supplierSchema = z.object({
 });
 
 const linkCategorySchema = z.object({ categoryId: z.string() });
+
+// Apply auth middleware to all routes
+app.use("*", authMiddleware);
 
 app.get("/", (c) => controller.getAll(c));
 app.get("/:id/categories", (c) => controller.getLinkedCategories(c));

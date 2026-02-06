@@ -45,8 +45,7 @@ export class ServiceController {
     }
 
     async getById(c: Context) {
-        const id = parseInt(c.req.param("id"));
-        if (isNaN(id)) return apiError(c, "Invalid ID", "Validation error", 400);
+        const id = c.req.param("id");
 
         try {
             const item = await this.service.getById(id);
@@ -78,7 +77,7 @@ export class ServiceController {
     }
 
     async updateStatus(c: Context) {
-        const id = parseInt(c.req.param("id"));
+        const id = c.req.param("id");
         const data = await c.req.json(); // Assuming validation handled by route validator if passed
         // Or if handling simple logic:
         // const data = c.req.valid("json"); 
@@ -92,7 +91,7 @@ export class ServiceController {
     }
 
     async updateDetails(c: Context) {
-        const id = parseInt(c.req.param("id"));
+        const id = c.req.param("id");
         try {
             const body = await c.req.json();
             const user = (c as any).get("user");
@@ -104,7 +103,7 @@ export class ServiceController {
     }
 
     async deleteService(c: Context) {
-        const id = parseInt(c.req.param("id"));
+        const id = c.req.param("id");
         try {
             await this.service.delete(id);
             return apiSuccess(c, null, "Service deleted successfully");
@@ -114,8 +113,7 @@ export class ServiceController {
     }
 
     async printService(c: Context) {
-        const id = parseInt(c.req.param("id"));
-        if (isNaN(id)) return apiError(c, "Invalid ID", "Validation error", 400);
+        const id = c.req.param("id");
 
         try {
             const item = await this.service.getById(id);
@@ -133,8 +131,7 @@ export class ServiceController {
     }
 
     async patchService(c: Context) {
-        const id = parseInt(c.req.param("id"));
-        if (isNaN(id)) return apiError(c, "Invalid ID", "Validation error", 400);
+        const id = c.req.param("id");
 
         try {
             const body = await c.req.json();
@@ -146,7 +143,7 @@ export class ServiceController {
     }
 
     async assignTechnician(c: Context) {
-        const id = parseInt(c.req.param("id"));
+        const id = c.req.param("id");
         try {
             const body = await c.req.json();
             const user = (c as any).get("user");

@@ -6,14 +6,14 @@ export class AuthModel {
     async findByUsername(username: string, dbOrTx: any = db) {
         return await dbOrTx.query.users.findFirst({
             where: eq(users.username, username),
-            with: { role: true }
+            with: { roles: { with: { role: true } } }
         });
     }
 
     async findById(id: string, dbOrTx: any = db) {
         return await dbOrTx.query.users.findFirst({
             where: eq(users.id, id),
-            with: { role: true }
+            with: { roles: { with: { role: true } } }
         });
     }
 }

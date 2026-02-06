@@ -24,13 +24,15 @@ export class AuthService {
         }
 
         // Generate Token
-        // Payload: id, name, role, etc.
+        // roles relation is: roles: [{ role: { id, name, permissions } }]
+        const userRoles = (user as any).roles?.map((ur: any) => ur.role.id) || [user.role];
+
         const payload = {
             id: user.id,
             username: user.username,
             name: user.name,
-            role: typeof user.role === 'object' ? (user.role as any).id : user.role, // Handle if relation fetched or just id
-            // exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 // 24 hours handled by sign options usually or payload
+            role: userRoles.includes('owner') ? 'owner' : userRoles[0], // Primary role for legacy support
+            roles: userRoles, // Complete list of roles
             exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 7), // 7 days
         };
 
@@ -40,7 +42,10 @@ export class AuthService {
         const { password, ...userWithoutPassword } = user;
 
         return {
-            user: userWithoutPassword,
+            user: {
+                ...userWithoutPassword,
+                roles: userRoles
+            },
             token
         };
     }

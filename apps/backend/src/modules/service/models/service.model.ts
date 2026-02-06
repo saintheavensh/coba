@@ -25,7 +25,7 @@ export class ServiceModel {
         });
     }
 
-    async findById(id: number, dbOrTx: any = db) {
+    async findById(id: string, dbOrTx: any = db) {
         return await dbOrTx.query.services.findFirst({
             where: eq(services.id, id),
             with: {

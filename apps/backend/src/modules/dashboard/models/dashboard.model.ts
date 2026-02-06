@@ -1,6 +1,6 @@
 import { db } from "../../../db";
-import { activityLogs, saleItems, products, services, users } from "../../../db/schema";
-import { desc, eq, sql, and, gte } from "drizzle-orm";
+import { activityLogs, saleItems, products, services, users, purchases } from "../../../db/schema";
+import { desc, eq, sql, and, gte, inArray } from "drizzle-orm";
 
 export class DashboardModel {
     async getActiveServicesCount(dbOrTx: any = db) {
@@ -21,6 +21,13 @@ export class DashboardModel {
         const result = await dbOrTx.select({ count: sql<number>`count(*)` })
             .from(products)
             .where(sql`${products.stock} <= ${products.minStock}`);
+        return result[0].count;
+    }
+
+    async getPendingVerificationsCount(dbOrTx: any = db) {
+        const result = await dbOrTx.select({ count: sql<number>`count(*)` })
+            .from(purchases)
+            .where(eq(purchases.status, "RECEIVED"));
         return result[0].count;
     }
 
@@ -146,5 +153,52 @@ export class DashboardModel {
             revenueToday: revenueToday[0]?.total || 0,
             pendingConfirm: pendingConfirm[0]?.count || 0
         };
+    }
+
+    async getWarehouseStats(dbOrTx: any = db) {
+        const totalProducts = await dbOrTx.select({ count: sql<number>`count(*)` }).from(products);
+        const lowStock = await this.getLowStockCount(dbOrTx);
+
+        const pendingPurchases = await dbOrTx.select({ count: sql<number>`count(*)` })
+            .from(purchases)
+            .where(eq(purchases.status, "ORDERED"));
+
+        return {
+            totalProducts: totalProducts[0]?.count || 0,
+            lowStock: lowStock || 0,
+            pendingPurchases: pendingPurchases[0]?.count || 0
+        };
+    }
+
+    async getIncomingOrders(limit = 5, dbOrTx: any = db) {
+        return await dbOrTx.query.purchases.findMany({
+            where: eq(purchases.status, "ORDERED"),
+            with: {
+                supplier: true,
+                user: true
+            },
+            orderBy: [desc(purchases.date)],
+            limit
+        });
+    }
+
+    async getLowStockProducts(limit = 10, dbOrTx: any = db) {
+        return await dbOrTx.select()
+            .from(products)
+            .where(sql`${products.stock} <= ${products.minStock}`)
+            .orderBy(products.stock)
+            .limit(limit);
+    }
+
+    async getProcurementTasks(limit = 5, dbOrTx: any = db) {
+        return await dbOrTx.query.purchases.findMany({
+            where: inArray(purchases.status, ["ORDERED", "RECEIVED"]),
+            with: {
+                supplier: true,
+                user: true
+            },
+            orderBy: [desc(purchases.date)],
+            limit
+        });
     }
 }

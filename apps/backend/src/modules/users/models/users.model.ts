@@ -1,32 +1,31 @@
 // Users Repository
 import { db } from "../../../db";
 import { users } from "../../../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export class UsersModel {
     async findAll(role?: string, dbOrTx: any = db) {
         if (role) {
-            return await dbOrTx.select({
-                id: users.id,
-                name: users.name,
-                role: users.role,
-                image: users.image
-            })
-                .from(users)
-                .where(eq(users.role, role as any));
+            return await dbOrTx.query.users.findMany({
+                where: sql`EXISTS (
+                    SELECT 1 FROM user_roles 
+                    WHERE user_roles.user_id = users.id 
+                    AND user_roles.role_id = ${role}
+                )`,
+                with: { roles: { with: { role: true } } }
+            });
         }
 
-        return await dbOrTx.select({
-            id: users.id,
-            name: users.name,
-            role: users.role,
-            image: users.image
-        }).from(users);
+        return await dbOrTx.query.users.findMany({
+            with: { roles: { with: { role: true } } }
+        });
     }
 
     async findById(id: string, dbOrTx: any = db) {
-        const result = await dbOrTx.select().from(users).where(eq(users.id, id));
-        return result[0] || null;
+        return await dbOrTx.query.users.findFirst({
+            where: eq(users.id, id),
+            with: { roles: { with: { role: true } } }
+        });
     }
 
     async create(data: typeof users.$inferInsert, dbOrTx: any = db) {

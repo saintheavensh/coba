@@ -25,6 +25,13 @@ const bulkMinStockSchema = z.object({
     minStock: z.number().min(0, "Min stock must be 0 or greater")
 });
 
+const labelSchema = z.object({
+    productName: z.string(),
+    variantName: z.string().optional(),
+    code: z.string(),
+    price: z.number().optional()
+});
+
 // ============================================
 // INVENTORY ROUTES
 // ============================================
@@ -33,6 +40,7 @@ app.get("/suppliers/:id/variants", (c) => controller.getSupplierVariants(c));
 app.get("/stats", (c) => controller.getStats(c));
 app.get("/", (c) => controller.getAllProducts(c));
 app.get("/:id/variants", (c) => controller.getProductVariants(c));
+app.get("/searchproduct", authMiddleware, (c) => controller.searchProduct(c));
 app.get("/:id", (c) => controller.getProductById(c));
 
 app.post("/", zValidator("json", productSchema), (c) => controller.createProduct(c));
@@ -47,6 +55,7 @@ app.delete("/variants/:id", (c) => controller.deleteVariant(c));
 // Bulk Min Stock
 app.get("/categories/:id/product-count", (c) => controller.getProductCountByCategory(c));
 app.patch("/bulk-min-stock", zValidator("json", bulkMinStockSchema), (c) => controller.bulkUpdateMinStock(c));
+app.post("/print-label", zValidator("json", labelSchema), (c) => controller.printLabel(c));
 
 // ============================================
 // STOCK OPNAME ROUTES

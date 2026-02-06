@@ -61,7 +61,7 @@ export class ServiceService {
         }
     }
 
-    async getById(id: number, dbOrTx?: any) {
+    async getById(id: string, dbOrTx?: any) {
         const effectiveDb = dbOrTx || db;
         const srv = await this.model.findById(id, dbOrTx);
         if (!srv) return null;
@@ -200,7 +200,7 @@ export class ServiceService {
         return transactionResult;
     }
 
-    async updateStatus(id: number, data: { status: string; notes?: string; actualCost?: number }, userId?: string, dbOrTx?: any) {
+    async updateStatus(id: string, data: { status: string; notes?: string; actualCost?: number }, userId?: string, dbOrTx?: any) {
         const srv = await this.model.findById(id, dbOrTx);
         if (!srv) throw new Error("Service not found");
 
@@ -318,7 +318,7 @@ export class ServiceService {
         return { message: "Status updated" };
     }
 
-    async updateDetails(id: number, data: { diagnosis?: any; costEstimate?: number; complaint?: string }, userId?: string, dbOrTx?: any) {
+    async updateDetails(id: string, data: { diagnosis?: any; costEstimate?: number; complaint?: string }, userId?: string, dbOrTx?: any) {
         const srv = await this.model.findById(id, dbOrTx);
         if (!srv) throw new Error("Service not found");
 
@@ -343,7 +343,7 @@ export class ServiceService {
         return { message: "Details updated" };
     }
 
-    async delete(id: number, dbOrTx?: any) {
+    async delete(id: string, dbOrTx?: any) {
         const srv = await this.model.findById(id, dbOrTx);
         if (!srv) throw new Error("Service not found");
 
@@ -356,7 +356,7 @@ export class ServiceService {
         return { message: "Service deleted" };
     }
 
-    async patchService(id: number, data: any, dbOrTx?: any) {
+    async patchService(id: string, data: any, dbOrTx?: any) {
         const srv = await this.model.findById(id, dbOrTx);
         if (!srv) throw new Error("Service not found");
 
@@ -398,7 +398,7 @@ export class ServiceService {
         return await this.model.findById(id, dbOrTx);
     }
 
-    async assignTechnician(id: number, technicianId: string, userId?: string, dbOrTx?: any) {
+    async assignTechnician(id: string, technicianId: string, userId?: string, dbOrTx?: any) {
         const srv = await this.model.findById(id, dbOrTx);
         if (!srv) throw new Error("Service not found");
 

@@ -1,15 +1,11 @@
 <script lang="ts">
 	import "../app.css";
-	import AppSidebar from "$lib/components/app-sidebar.svelte";
-	import SiteHeader from "$lib/components/site-header.svelte";
-	import { Toaster } from "$lib/components/ui/sonner";
+	import { Toaster } from "$lib/shared/components/ui/sonner";
 	import { QueryClient, QueryClientProvider } from "@tanstack/svelte-query";
 	import { browser } from "$app/environment";
-
 	import { page } from "$app/stores";
-
-	import { cn } from "$lib/utils";
-	import { uiStore } from "$lib/stores/ui.svelte";
+	import { useWebSocket } from "$lib/shared/core/websocket";
+	import { authStore } from "$lib/features/auth/auth.svelte";
 
 	let { children } = $props();
 
@@ -17,85 +13,86 @@
 		defaultOptions: {
 			queries: {
 				enabled: browser,
-				// Freshness - stale after 1 min for better UX (no instant refetch on window focus spam)
 				staleTime: 5 * 1000,
 			},
 		},
 	});
 
-	import { useWebSocket } from "$lib/websocket";
+	const { connect } = useWebSocket();
 
-	const { connect, disconnect } = useWebSocket();
-
-	// Auth Guard - Check authentication via cookie (stored in HTTP-only cookie, user info in localStorage)
+	// Auth Guard & Initialization
 	$effect(() => {
 		if (browser) {
-			const userStr = localStorage.getItem("user");
-			const isLoginPage = $page.url.pathname.startsWith("/login");
-
-			// If no user in localStorage and not on login page, redirect to login
-			if (!userStr && !isLoginPage) {
-				window.location.href = "/login";
-				return;
-			}
-
-			// If user exists and on login page, redirect to home
-			if (userStr && isLoginPage) {
-				window.location.href = "/";
-				return;
-			}
-
-			// Connect to Realtime if user is logged in
-			if (userStr) {
-				try {
-					const user = JSON.parse(userStr);
-					if (user && user.id) {
-						connect(user.id);
+			const init = async () => {
+				// Safety timeout: If checkAuth takes more than 5s, force hide loading
+				const timeout = setTimeout(() => {
+					if (authStore.loading) {
+						authStore.loading = false;
 					}
-				} catch (e) {
-					console.error("Failed to parse user from localStorage", e);
+				}, 5000);
+
+				await authStore.checkAuth();
+				clearTimeout(timeout);
+
+				const path = $page.url.pathname;
+				const isLoginPage = path.startsWith("/login");
+				const isPublicPage =
+					path === "/" ||
+					path.startsWith("/warranty") ||
+					path.startsWith("/ticket");
+
+				// If no user and not a public/login page, redirect to login
+				if (
+					!authStore.isAuthenticated &&
+					!isLoginPage &&
+					!isPublicPage
+				) {
+					window.location.href = `/login?redirect=${encodeURIComponent(path)}`;
+					return;
 				}
-			}
+
+				// If user exists and on login page, redirect to their role-specific page
+				if (authStore.isAuthenticated && isLoginPage) {
+					window.location.href = authStore.getRedirectPath();
+					return;
+				}
+
+				// Connect to Realtime if user is logged in
+				if (authStore.isAuthenticated && authStore.user) {
+					connect(authStore.user.id);
+				}
+			};
+
+			init();
 		}
 	});
+
+	const isLoginPage = $derived($page.url.pathname.startsWith("/login"));
+	const isPublicPage = $derived(
+		$page.url.pathname === "/" ||
+			$page.url.pathname.startsWith("/warranty") ||
+			$page.url.pathname.startsWith("/ticket"),
+	);
 </script>
 
 <QueryClientProvider client={queryClient}>
-	{#if $page.url.pathname.startsWith("/login")}
+	{#if authStore.loading && !isLoginPage && !isPublicPage}
 		<div
-			class="flex min-h-screen flex-col items-center justify-center bg-slate-50/50 p-4"
+			class="flex h-screen w-screen items-center justify-center bg-slate-950"
 		>
-			{@render children()}
-		</div>
-		<Toaster />
-	{:else}
-		<div class="flex h-screen w-full bg-slate-950 overflow-hidden">
-			<!-- Floating Sidebar (Merged Background) -->
-			<aside
-				class={cn(
-					"hidden lg:block flex-shrink-0 h-full transition-all duration-300 ease-in-out",
-					uiStore.isSidebarCollapsed ? "w-[70px]" : "w-64",
-				)}
-			>
-				<AppSidebar />
-			</aside>
-
-			<!-- Main Content Area (Floating Card) -->
-			<div class="flex-1 h-full py-3 pr-3 pl-0">
+			<div class="flex flex-col items-center gap-4">
 				<div
-					class="flex flex-col h-full w-full bg-slate-50 dark:bg-slate-950/50 rounded-[32px] border border-slate-200/60 dark:border-white/5 overflow-hidden shadow-2xl relative backdrop-blur-sm"
+					class="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent shadow-[0_0_15px_rgba(37,99,235,0.3)]"
+				></div>
+				<p
+					class="text-slate-400 font-medium tracking-widest uppercase text-[10px]"
 				>
-					<SiteHeader />
-
-					<!-- Main Scrollable Content -->
-					<main class="flex-1 overflow-y-auto overflow-x-hidden">
-						<div class="p-6 md:p-8 max-w-7xl mx-auto w-full">
-							{@render children()}
-						</div>
-					</main>
-				</div>
+					Verifying Session
+				</p>
 			</div>
-			<Toaster />
 		</div>
+	{:else}
+		{@render children()}
 	{/if}
+	<Toaster />
 </QueryClientProvider>

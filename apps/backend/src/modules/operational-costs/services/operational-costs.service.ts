@@ -66,7 +66,7 @@ export class OperationalCostsService {
         return { message: "Created" };
     }
 
-    async delete(id: number) {
+    async delete(id: string) {
         return await this.model.delete(id);
     }
 }

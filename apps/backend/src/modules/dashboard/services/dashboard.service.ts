@@ -37,22 +37,26 @@ export class DashboardService {
         const activeServices = await this.model.getActiveServicesCount(dbOrTx);
         const readyPickup = await this.model.getReadyPickupCount(dbOrTx);
         const lowStock = await this.model.getLowStockCount(dbOrTx);
+        const pendingVerifications = await this.model.getPendingVerificationsCount(dbOrTx);
 
         // 2. Charts Data
         const topProducts = await this.model.getTopProducts(dbOrTx);
         const revenueTrend = await this.getRevenueTrend7Days(dbOrTx);
+        const procurementTasks = await this.model.getProcurementTasks(5, dbOrTx);
 
         return {
             cards: {
                 revenueToday: totalRevenueToday,
                 activeServices,
                 readyPickup,
-                lowStock
+                lowStock,
+                pendingVerifications
             },
             charts: {
                 revenueTrend,
                 topProducts: (topProducts || []).map((p: any) => ({ name: p.name, value: p.sold }))
-            }
+            },
+            procurementTasks
         };
     }
 
@@ -125,6 +129,27 @@ export class DashboardService {
                 revenueToday: stats.revenueToday,
                 pendingConfirm: stats.pendingConfirm
             }
+        };
+    }
+
+    async getWarehouseDashboard(dbOrTx?: any) {
+        const stats = await this.model.getWarehouseStats(dbOrTx);
+        const lowStockProducts = await this.model.getLowStockProducts(10, dbOrTx);
+        const incomingOrders = await this.model.getIncomingOrders(5, dbOrTx);
+
+        return {
+            stats: {
+                totalProducts: stats.totalProducts,
+                lowStockCount: stats.lowStock,
+                pendingPurchasesCount: stats.pendingPurchases
+            },
+            lowStockProducts: (lowStockProducts || []).map((p: any) => ({
+                id: p.id,
+                name: p.name,
+                stock: p.stock,
+                minStock: p.minStock
+            })),
+            incomingOrders: incomingOrders || []
         };
     }
 

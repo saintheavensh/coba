@@ -12,6 +12,7 @@ dashboard.get("/recent-services", DashboardController.getRecentServices);
 dashboard.get("/urgent-services", DashboardController.getUrgentServices);
 dashboard.get("/technician", DashboardController.getTechnicianDashboard);
 dashboard.get("/cashier", DashboardController.getCashierDashboard);
+dashboard.get("/warehouse", DashboardController.getWarehouseDashboard);
 dashboard.get("/profit-loss", DashboardController.getProfitLoss);
 
 export default dashboard;
