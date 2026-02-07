@@ -1,0 +1,33 @@
+﻿Loading svelte-check in workspace: c:\Users\Good\Documents\web\cek\coba\apps\frontend
+Getting Svelte diagnostics...
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\inventory\categories\components\CategoryHeader.svelte[39m:64:25
+[31mError[39m: `{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary` or `<Component>`
+https://svelte.dev/e/const_tag_invalid_placement (svelte)
+[36m                    <div class="p-1.5 rounded-lg bg-white/20 {stat.color}">
+                        [35m{@const Icon = stat.icon}[36m
+                        <Icon class="h-4 w-4" />[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:269:29
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ΓÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                        >
+                            [35m<svelte:component
+                                this={group.icon}
+                                class="h-5 w-5"
+                            />[36m
+                        </div>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:291:45
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ΓÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                                        {#if TYPE_ICONS[type]}
+                                            [35m<svelte:component
+                                                this={TYPE_ICONS[type]}
+                                                class="h-4 w-4 text-slate-400 shrink-0"
+                                            />[36m
+                                        {:else}[39m
+
+====================================
+[31msvelte-check found 1 error and 2 warnings in 2 files
+[39m

@@ -1,13 +1,5 @@
 <script lang="ts">
     import { Button } from "$lib/shared/components/ui/button";
-    import {
-        Card,
-        CardContent,
-        CardDescription,
-        CardFooter,
-        CardHeader,
-        CardTitle,
-    } from "$lib/shared/components/ui/card";
     import { Input } from "$lib/shared/components/ui/input";
     import { Label } from "$lib/shared/components/ui/label";
     import { Separator } from "$lib/shared/components/ui/separator";
@@ -18,7 +10,6 @@
         SelectItem,
         SelectTrigger,
     } from "$lib/shared/components/ui/select";
-    import { toast } from "svelte-sonner";
     import {
         Loader2,
         Save,
@@ -29,113 +20,19 @@
         ShieldCheck,
         Workflow,
         Clock,
-        AlertCircle,
         CalendarClock,
-        Coins,
         Archive,
         ShieldAlert,
     } from "lucide-svelte";
     import { onMount } from "svelte";
-    import {
-        SettingsService,
-        type ServiceSettings,
-    } from "$lib/features/settings/settings.service";
-    import { settingsStore } from "$lib/features/settings/settings-store.svelte";
     import { cn } from "$lib/shared/core/utils";
+    import { SettingsController } from "$lib/features/settings/settings.controller.svelte";
 
-    let settings = $state<ServiceSettings>({
-        numberFormat: "SRV-{YYYY}-{XXX}",
-        resetCounterYearly: true,
-        defaultStatus: "antrian",
-        autoNotifyOnStatusChange: false,
-        commissionModel: "completion",
-        warrantyPresets: [],
-        defaultWarrantyDays: 7,
-        gracePeriodDays: 3,
-        autoCloseAfterDays: 30,
-        enableVirtualArchive: true,
-        archiveExclusions: ["dikerjakan"],
-        enableLiquidation: false,
-        reminderBeforePickup: true,
-        reminderDays: 7,
+    const controller = new SettingsController();
+
+    onMount(() => {
+        controller.loadServiceSettings();
     });
-
-    let newPresetLabel = $state("");
-    let newPresetDays = $state(0);
-
-    let loading = $state(true);
-    let saving = $state(false);
-
-    // Derived: Preview Service Number
-    let previewNumber = $derived.by(() => {
-        const date = new Date();
-        const year = date.getFullYear().toString();
-        const month = (date.getMonth() + 1).toString().padStart(2, "0");
-        const day = date.getDate().toString().padStart(2, "0");
-
-        let fmt = settings.numberFormat || "SRV-{XXX}";
-        fmt = fmt.replace(/{YYYY}/g, year);
-        fmt = fmt.replace(/{YY}/g, year.slice(-2));
-        fmt = fmt.replace(/{MM}/g, month);
-        fmt = fmt.replace(/{DD}/g, day);
-        fmt = fmt.replace(/{XXX+}/g, (m) => "0".repeat(m.length - 2) + "1");
-        // Simple fallback for standard {XXX}
-        fmt = fmt.replace(/{XXX}/g, "001");
-
-        return fmt;
-    });
-
-    onMount(async () => {
-        try {
-            const data = await SettingsService.getServiceSettings();
-            if (data) {
-                // Merge data with defaults to avoid undefined on new fields
-                settings = {
-                    ...settings,
-                    ...data,
-                    // Explicit safeguards for new fields if DB returns undefined
-                    enableVirtualArchive: data.enableVirtualArchive ?? true,
-                    archiveExclusions: data.archiveExclusions ?? ["dikerjakan"],
-                    enableLiquidation: data.enableLiquidation ?? false,
-                    commissionModel: data.commissionModel ?? "completion",
-                };
-            }
-        } catch (e) {
-            console.error(e);
-            toast.error("Gagal memuat pengaturan service");
-        } finally {
-            loading = false;
-        }
-    });
-
-    async function save() {
-        saving = true;
-        try {
-            await SettingsService.setServiceSettings(settings);
-            await settingsStore.refresh();
-            toast.success("Pengaturan service berhasil disimpan");
-        } catch (e) {
-            toast.error("Gagal menyimpan pengaturan");
-        } finally {
-            saving = false;
-        }
-    }
-
-    function addPreset() {
-        if (!newPresetLabel || newPresetDays < 0) return;
-        settings.warrantyPresets = [
-            ...settings.warrantyPresets,
-            { label: newPresetLabel, days: newPresetDays },
-        ];
-        newPresetLabel = "";
-        newPresetDays = 0;
-    }
-
-    function removePreset(index: number) {
-        settings.warrantyPresets = settings.warrantyPresets.filter(
-            (_, i) => i !== index,
-        );
-    }
 </script>
 
 <div class="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
@@ -162,12 +59,12 @@
         </div>
         <div class="flex gap-3">
             <Button
-                onclick={save}
-                disabled={saving || loading}
+                onclick={() => controller.saveServiceSettings()}
+                disabled={controller.saving || controller.loading}
                 size="lg"
                 class="rounded-xl shadow-lg shadow-cyan-500/20 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 transition-all hover:scale-[1.02]"
             >
-                {#if saving}
+                {#if controller.saving}
                     <Loader2 class="mr-2 h-4 w-4 animate-spin" />
                     Menyimpan...
                 {:else}
@@ -178,7 +75,7 @@
         </div>
     </div>
 
-    {#if loading}
+    {#if controller.loading}
         <div class="flex justify-center py-20">
             <Loader2 class="h-10 w-10 animate-spin text-cyan-500" />
         </div>
@@ -206,7 +103,9 @@
                         <div class="space-y-2">
                             <Label>Pola Format</Label>
                             <Input
-                                bind:value={settings.numberFormat}
+                                bind:value={
+                                    controller.serviceSettings.numberFormat
+                                }
                                 placeholder="SRV-{'{'}YYYY{'}'}-{'{'}XXX{'}'}"
                                 class="font-mono bg-white/50"
                             />
@@ -247,7 +146,10 @@
                             </div>
                             <Switch
                                 id="reset-counter"
-                                bind:checked={settings.resetCounterYearly}
+                                bind:checked={
+                                    controller.serviceSettings
+                                        .resetCounterYearly
+                                }
                             />
                         </div>
                     </div>
@@ -269,12 +171,16 @@
                             <Label>Status Awal</Label>
                             <Select
                                 type="single"
-                                bind:value={settings.defaultStatus}
+                                bind:value={
+                                    controller.serviceSettings.defaultStatus
+                                }
                             >
                                 <SelectTrigger class="bg-white/50">
-                                    {settings.defaultStatus === "antrian"
+                                    {controller.serviceSettings
+                                        .defaultStatus === "antrian"
                                         ? "Masuk Antrian"
-                                        : settings.defaultStatus}
+                                        : controller.serviceSettings
+                                              .defaultStatus}
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="antrian"
@@ -293,10 +199,13 @@
                             <Label>Model Komisi</Label>
                             <Select
                                 type="single"
-                                bind:value={settings.commissionModel}
+                                bind:value={
+                                    controller.serviceSettings.commissionModel
+                                }
                             >
                                 <SelectTrigger class="bg-white/50">
-                                    {settings.commissionModel === "completion"
+                                    {controller.serviceSettings
+                                        .commissionModel === "completion"
                                         ? "Berdasarkan Selesai"
                                         : "Berdasarkan Diambil"}
                                 </SelectTrigger>
@@ -318,7 +227,10 @@
                             <div class="relative">
                                 <Input
                                     type="number"
-                                    bind:value={settings.autoCloseAfterDays}
+                                    bind:value={
+                                        controller.serviceSettings
+                                            .autoCloseAfterDays
+                                    }
                                     class="pl-3 pr-12 bg-white/50"
                                     min={0}
                                 />
@@ -339,7 +251,10 @@
                                 >
                                 <Switch
                                     id="reminder"
-                                    bind:checked={settings.reminderBeforePickup}
+                                    bind:checked={
+                                        controller.serviceSettings
+                                            .reminderBeforePickup
+                                    }
                                 />
                             </div>
                         </div>
@@ -368,7 +283,10 @@
                                 />
                                 <Input
                                     type="number"
-                                    bind:value={settings.defaultWarrantyDays}
+                                    bind:value={
+                                        controller.serviceSettings
+                                            .defaultWarrantyDays
+                                    }
                                     class="pl-10 pr-12 bg-white/50"
                                     min={0}
                                 />
@@ -390,7 +308,10 @@
                                 />
                                 <Input
                                     type="number"
-                                    bind:value={settings.gracePeriodDays}
+                                    bind:value={
+                                        controller.serviceSettings
+                                            .gracePeriodDays
+                                    }
                                     class="pl-10 pr-12 bg-white/50"
                                     min={0}
                                 />
@@ -421,7 +342,7 @@
                         </div>
 
                         <div class="grid gap-3">
-                            {#if settings.warrantyPresets.length === 0}
+                            {#if controller.serviceSettings.warrantyPresets.length === 0}
                                 <div
                                     class="text-center py-6 border-2 border-dashed rounded-2xl bg-slate-50/50 dark:bg-slate-800/50"
                                 >
@@ -432,7 +353,7 @@
                                 </div>
                             {/if}
 
-                            {#each settings.warrantyPresets as preset, i}
+                            {#each controller.serviceSettings.warrantyPresets as preset, i}
                                 <div
                                     class="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-slate-100 group/preset hover:border-emerald-200 transition-colors"
                                 >
@@ -450,7 +371,8 @@
                                         variant="ghost"
                                         size="icon"
                                         class="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover/preset:opacity-100 transition-all"
-                                        onclick={() => removePreset(i)}
+                                        onclick={() =>
+                                            controller.removePreset(i)}
                                     >
                                         <Trash2 class="h-4 w-4" />
                                     </Button>
@@ -463,21 +385,21 @@
                             >
                                 <Input
                                     placeholder="Nama Preset (Misal: LCD 3bln)"
-                                    bind:value={newPresetLabel}
+                                    bind:value={controller.newPresetLabel}
                                     class="bg-white/50 h-10 text-sm"
                                 />
                                 <div class="relative">
                                     <Input
                                         type="number"
                                         placeholder="Hari"
-                                        bind:value={newPresetDays}
+                                        bind:value={controller.newPresetDays}
                                         class="bg-white/50 h-10 text-sm pr-1"
                                         min={0}
                                     />
                                 </div>
                                 <Button
-                                    onclick={addPreset}
-                                    disabled={!newPresetLabel}
+                                    onclick={() => controller.addPreset()}
+                                    disabled={!controller.newPresetLabel}
                                     class="h-10 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
                                 >
                                     <Plus class="h-4 w-4" />
@@ -517,11 +439,14 @@
                             </div>
                             <Switch
                                 id="enable-archive"
-                                bind:checked={settings.enableVirtualArchive}
+                                bind:checked={
+                                    controller.serviceSettings
+                                        .enableVirtualArchive
+                                }
                             />
                         </div>
 
-                        {#if settings.enableVirtualArchive}
+                        {#if controller.serviceSettings.enableVirtualArchive}
                             <div
                                 class="p-4 bg-slate-50 dark:bg-slate-800/20 rounded-2xl border border-slate-100 dark:border-slate-700/50 space-y-4 animate-in slide-in-from-top-2 duration-300"
                             >
@@ -533,32 +458,16 @@
                                                 type="button"
                                                 class={cn(
                                                     "px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
-                                                    settings.archiveExclusions.includes(
+                                                    controller.serviceSettings.archiveExclusions?.includes(
                                                         status,
                                                     )
                                                         ? "bg-slate-800 dark:bg-cyan-600 text-white border-slate-800 dark:border-cyan-600 shadow-sm"
                                                         : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300",
                                                 )}
-                                                onclick={() => {
-                                                    if (
-                                                        settings.archiveExclusions.includes(
-                                                            status,
-                                                        )
-                                                    ) {
-                                                        settings.archiveExclusions =
-                                                            settings.archiveExclusions.filter(
-                                                                (s) =>
-                                                                    s !==
-                                                                    status,
-                                                            );
-                                                    } else {
-                                                        settings.archiveExclusions =
-                                                            [
-                                                                ...settings.archiveExclusions,
-                                                                status,
-                                                            ];
-                                                    }
-                                                }}
+                                                onclick={() =>
+                                                    controller.toggleArchiveExclusion(
+                                                        status,
+                                                    )}
                                             >
                                                 {status
                                                     .replace("_", " ")
@@ -603,7 +512,9 @@
                             </div>
                             <Switch
                                 id="enable-liquidation"
-                                bind:checked={settings.enableLiquidation}
+                                bind:checked={
+                                    controller.serviceSettings.enableLiquidation
+                                }
                             />
                         </div>
                     </div>
@@ -634,7 +545,7 @@
                             class="text-3xl font-mono font-black tracking-wider text-cyan-400 animate-pulse duration-1000"
                             style:animation-duration="3s"
                         >
-                            {previewNumber}
+                            {controller.previewNumber}
                         </div>
                     </div>
 
@@ -675,7 +586,8 @@
                                 >
                                     Service masuk, status awal: <span
                                         class="font-semibold text-foreground uppercase"
-                                        >{settings.defaultStatus}</span
+                                        >{controller.serviceSettings
+                                            .defaultStatus}</span
                                     >.
                                 </p>
                             </div>
@@ -698,7 +610,8 @@
                                     Unit diambil customer. Garansi belum aktif
                                     selama <span
                                         class="font-semibold text-emerald-600"
-                                        >{settings.gracePeriodDays} Hari</span
+                                        >{controller.serviceSettings
+                                            .gracePeriodDays} Hari</span
                                     > (Grace Period).
                                 </p>
                             </div>
@@ -720,7 +633,8 @@
                                 >
                                     Proteksi aktif selama <span
                                         class="font-semibold text-indigo-600"
-                                        >{settings.defaultWarrantyDays} Hari</span
+                                        >{controller.serviceSettings
+                                            .defaultWarrantyDays} Hari</span
                                     > ke depan.
                                 </p>
                             </div>
@@ -742,7 +656,8 @@
                                 >
                                     Jika tidak ada aktivitas selama <span
                                         class="font-semibold"
-                                        >{settings.autoCloseAfterDays} Hari</span
+                                        >{controller.serviceSettings
+                                            .autoCloseAfterDays} Hari</span
                                     >, tiket ditutup permanen.
                                 </p>
                             </div>

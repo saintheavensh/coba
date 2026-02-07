@@ -1,6 +1,5 @@
 <script lang="ts">
-    import { createQuery } from "@tanstack/svelte-query";
-    import { api } from "$lib/shared/core/api";
+    import { PurchaseReturnsController } from "$lib/features/inventory/purchase-returns/purchase-returns.controller.svelte";
     import { Button } from "$lib/shared/components/ui/button";
     import {
         Search,
@@ -12,27 +11,9 @@
     } from "lucide-svelte";
     import { Input } from "$lib/shared/components/ui/input";
     import { Badge } from "$lib/shared/components/ui/badge";
-    import { formatCurrency } from "$lib/shared/core/utils";
     import { fade } from "svelte/transition";
 
-    const query = createQuery(() => ({
-        queryKey: ["purchase-returns"],
-        queryFn: async () => {
-            const res = await api.get("/purchase-returns");
-            return res.data.data;
-        },
-    }));
-
-    let searchQuery = $state("");
-    let filtered = $derived(
-        (query.data || []).filter(
-            (item: any) =>
-                item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                item.supplier.name
-                    .toLowerCase()
-                    .includes(searchQuery.toLowerCase()),
-        ),
-    );
+    const controller = new PurchaseReturnsController();
 </script>
 
 <div class="space-y-6 p-6">
@@ -56,7 +37,7 @@
                 />
                 <Input
                     placeholder="Cari ID atau Supplier..."
-                    bind:value={searchQuery}
+                    bind:value={controller.searchQuery}
                     class="pl-9 bg-background/50 border-fuchsia-100 focus:border-fuchsia-500 transition-all rounded-lg"
                 />
             </div>
@@ -95,7 +76,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y">
-                    {#if query.isLoading}
+                    {#if controller.isLoading}
                         <tr
                             ><td
                                 colspan="6"
@@ -103,7 +84,7 @@
                                 >Memuat data retur...</td
                             ></tr
                         >
-                    {:else if filtered.length === 0}
+                    {:else if controller.filteredReturns.length === 0}
                         <tr>
                             <td
                                 colspan="6"
@@ -118,7 +99,7 @@
                             </td>
                         </tr>
                     {:else}
-                        {#each filtered as ret}
+                        {#each controller.filteredReturns as ret}
                             <tr
                                 class="group hover:bg-fuchsia-50/30 dark:hover:bg-fuchsia-900/10 transition-colors"
                             >
@@ -135,14 +116,7 @@
                                 >
                                     <div class="flex items-center gap-2">
                                         <Calendar class="h-3.5 w-3.5" />
-                                        {new Date(ret.date).toLocaleDateString(
-                                            "id-ID",
-                                            {
-                                                day: "numeric",
-                                                month: "short",
-                                                year: "numeric",
-                                            },
-                                        )}
+                                        {controller.formatDate(ret.date)}
                                     </div>
                                 </td>
                                 <td class="p-4">

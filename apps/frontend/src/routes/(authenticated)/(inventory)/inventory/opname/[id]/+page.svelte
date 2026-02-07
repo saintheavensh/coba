@@ -1,14 +1,11 @@
 <script lang="ts">
+    import { page } from "$app/stores";
     import { onMount } from "svelte";
-    import { page } from "$app/state";
-    import { InventoryService } from "$lib/features/inventory/services/inventory.service";
     import { Button } from "$lib/shared/components/ui/button";
     import { Card } from "$lib/shared/components/ui/card";
     import * as Table from "$lib/shared/components/ui/table";
     import { Badge } from "$lib/shared/components/ui/badge";
     import { Input } from "$lib/shared/components/ui/input";
-    import { toast } from "svelte-sonner";
-    import { goto } from "$app/navigation";
     import { formatDate } from "$lib/shared/core/utils";
     import {
         Check,
@@ -21,96 +18,14 @@
         Loader2,
         Search,
     } from "lucide-svelte";
+    import { OpnameDetailController } from "$lib/features/inventory/opname/opname-detail.controller.svelte";
 
-    const sessionId = page.params.id;
-    let session = $state<any>(null);
-    let isLoading = $state(true);
-    let isSaving = $state(false);
-    let searchTerm = $state("");
+    const sessionId = $page.params.id ?? "";
+    const controller = new OpnameDetailController(sessionId);
 
-    // Local changes tracker
-    let items = $state<any[]>([]);
-
-    onMount(async () => {
-        await fetchSession();
+    onMount(() => {
+        controller.fetchSession();
     });
-
-    async function fetchSession() {
-        isLoading = true;
-        try {
-            session = await InventoryService.getOpnameSessionDetails(
-                sessionId as string,
-            );
-            if (session) {
-                items = [...session.items];
-            }
-        } catch (error) {
-            toast.error("Failed to fetch session details");
-        } finally {
-            isLoading = false;
-        }
-    }
-
-    async function updateItem(item: any) {
-        try {
-            const result = await InventoryService.updateOpnameItem(item.id, {
-                physicalStock: item.physicalStock,
-                reason: item.adjustmentReason,
-            });
-            item.difference = result.difference;
-            toast.success(`Updated ${item.product?.name}`);
-        } catch (error) {
-            toast.error("Failed to update item");
-        }
-    }
-
-    async function handleFinalize() {
-        if (
-            !confirm(
-                "Are you sure you want to finalize this session? This will update system stock levels.",
-            )
-        )
-            return;
-
-        isSaving = true;
-        try {
-            await InventoryService.finalizeOpnameSession(sessionId as string);
-            toast.success("Session finalized successfully");
-            await fetchSession();
-        } catch (error) {
-            toast.error("Failed to finalize session");
-        } finally {
-            isSaving = false;
-        }
-    }
-
-    async function handleCancel() {
-        if (!confirm("Cancel this session? All counts will be lost.")) return;
-
-        try {
-            await InventoryService.cancelOpnameSession(sessionId as string);
-            toast.success("Session cancelled");
-            goto("/inventory/opname");
-        } catch (error) {
-            toast.error("Failed to cancel session");
-        }
-    }
-
-    function calculateTotalDifference() {
-        return items.reduce((acc, item) => acc + (item.difference || 0), 0);
-    }
-
-    const filteredItems = $derived(
-        items.filter(
-            (item) =>
-                item.product?.name
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase()) ||
-                item.variantName
-                    ?.toLowerCase()
-                    .includes(searchTerm.toLowerCase()),
-        ),
-    );
 </script>
 
 <div class="p-6 space-y-6">
@@ -119,7 +34,7 @@
             <Button
                 variant="outline"
                 size="icon"
-                onclick={() => goto("/inventory/opname")}
+                onclick={() => controller.handleBack()}
             >
                 <ChevronLeft class="h-4 w-4" />
             </Button>
@@ -128,16 +43,16 @@
                     <h1 class="text-3xl font-bold tracking-tight">
                         Session Detail
                     </h1>
-                    {#if session}
+                    {#if controller.session}
                         <Badge
-                            variant={session.status === "completed"
+                            variant={controller.session.status === "completed"
                                 ? "default"
-                                : session.status === "draft"
+                                : controller.session.status === "draft"
                                   ? "secondary"
                                   : "destructive"}
                             class="capitalize"
                         >
-                            {session.status}
+                            {controller.session.status}
                         </Badge>
                     {/if}
                 </div>
@@ -147,35 +62,35 @@
             </div>
         </div>
         <div class="flex items-center gap-2">
-            {#if session?.status === "draft"}
+            {#if controller.isDraft}
                 <Button
                     variant="outline"
-                    onclick={handleCancel}
-                    disabled={isSaving}>Batal</Button
+                    onclick={() => controller.handleCancel()}
+                    disabled={controller.isSaving}>Batal</Button
                 >
                 <Button
                     variant="default"
-                    onclick={handleFinalize}
-                    disabled={isSaving}
+                    onclick={() => controller.handleFinalize()}
+                    disabled={controller.isSaving}
                 >
-                    {#if isSaving}
+                    {#if controller.isSaving}
                         <Loader2 class="mr-2 h-4 w-4 animate-spin" />
                     {/if}
                     Selesaikan & Update Stok
                 </Button>
             {/if}
-            <Button variant="outline">
+            <Button variant="outline" onclick={() => controller.handlePrint()}>
                 <Printer class="mr-2 h-4 w-4" />
                 Cetak Laporan
             </Button>
         </div>
     </div>
 
-    {#if isLoading}
+    {#if controller.isLoading}
         <div class="h-64 flex items-center justify-center">
             <Loader2 class="h-8 w-8 animate-spin text-primary" />
         </div>
-    {:else if session}
+    {:else if controller.session}
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card class="p-4 space-y-4">
                 <h3
@@ -186,18 +101,20 @@
                 <div class="space-y-2">
                     <div class="flex justify-between text-sm">
                         <span class="text-muted-foreground">Dibuat Oleh:</span>
-                        <span class="font-medium">{session.user?.name}</span>
+                        <span class="font-medium"
+                            >{controller.session.user?.name}</span
+                        >
                     </div>
                     <div class="flex justify-between text-sm">
                         <span class="text-muted-foreground">Kapan:</span>
                         <span class="font-medium"
-                            >{formatDate(session.createdAt)}</span
+                            >{formatDate(controller.session.createdAt)}</span
                         >
                     </div>
                     <div class="flex justify-between text-sm">
                         <span class="text-muted-foreground">Status:</span>
                         <span class="font-medium capitalize"
-                            >{session.status}</span
+                            >{controller.session.status}</span
                         >
                     </div>
                 </div>
@@ -212,15 +129,16 @@
                 <div class="space-y-2">
                     <div class="flex justify-between text-sm">
                         <span class="text-muted-foreground">Total Item:</span>
-                        <span class="font-medium">{items.length}</span>
+                        <span class="font-medium"
+                            >{controller.totalItemsCount}</span
+                        >
                     </div>
                     <div class="flex justify-between text-sm">
                         <span class="text-muted-foreground"
                             >Item Terhitung:</span
                         >
                         <span class="font-medium"
-                            >{items.filter((i) => i.physicalStock !== null)
-                                .length}</span
+                            >{controller.countedItemsCount}</span
                         >
                     </div>
                     <div class="flex justify-between text-sm">
@@ -229,10 +147,10 @@
                         >
                         <span
                             class="font-medium"
-                            class:text-destructive={calculateTotalDifference() !==
+                            class:text-destructive={controller.totalDifference !==
                                 0}
                         >
-                            {calculateTotalDifference()}
+                            {controller.totalDifference}
                         </span>
                     </div>
                 </div>
@@ -245,7 +163,7 @@
                     Catatan Sesi
                 </h3>
                 <p class="text-sm italic">
-                    {session.notes || "Tidak ada catatan."}
+                    {controller.session.notes || "Tidak ada catatan."}
                 </p>
             </Card>
         </div>
@@ -257,7 +175,7 @@
                         class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                     />
                     <Input
-                        bind:value={searchTerm}
+                        bind:value={controller.searchTerm}
                         placeholder="Cari produk atau batch ID..."
                         class="pl-9 bg-background"
                     />
@@ -272,13 +190,13 @@
                         <Table.Head class="text-center">Fisik</Table.Head>
                         <Table.Head class="text-center">Selisih</Table.Head>
                         <Table.Head>Keterangan</Table.Head>
-                        {#if session.status === "draft"}
+                        {#if controller.isDraft}
                             <Table.Head class="text-right">Simpan</Table.Head>
                         {/if}
                     </Table.Row>
                 </Table.Header>
                 <Table.Body>
-                    {#each filteredItems as item}
+                    {#each controller.filteredItems as item}
                         <Table.Row>
                             <Table.Cell>
                                 <div class="font-medium">
@@ -299,15 +217,15 @@
                                 {item.systemStock}
                             </Table.Cell>
                             <Table.Cell class="w-32">
-                                {#if session.status === "draft"}
+                                {#if controller.isDraft}
                                     <Input
                                         type="number"
                                         bind:value={item.physicalStock}
                                         class="text-center"
                                         onchange={() =>
-                                            (item.difference =
-                                                (item.physicalStock || 0) -
-                                                item.systemStock)}
+                                            controller.updateItemDifference(
+                                                item,
+                                            )}
                                     />
                                 {:else}
                                     <div class="text-center font-bold">
@@ -333,7 +251,7 @@
                                 {/if}
                             </Table.Cell>
                             <Table.Cell>
-                                {#if session.status === "draft"}
+                                {#if controller.isDraft}
                                     <Input
                                         bind:value={item.adjustmentReason}
                                         placeholder="Alasan..."
@@ -344,12 +262,13 @@
                                     >
                                 {/if}
                             </Table.Cell>
-                            {#if session.status === "draft"}
+                            {#if controller.isDraft}
                                 <Table.Cell class="text-right">
                                     <Button
                                         variant="outline"
                                         size="icon"
-                                        onclick={() => updateItem(item)}
+                                        onclick={() =>
+                                            controller.updateItem(item)}
                                     >
                                         <Save class="h-4 w-4" />
                                     </Button>

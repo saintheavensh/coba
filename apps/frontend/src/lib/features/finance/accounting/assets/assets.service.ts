@@ -16,6 +16,11 @@ export class AssetsService {
         return response.data;
     }
 
+    static async delete(id: string) {
+        const response = await api.delete(`/accounting/assets/${id}`);
+        return response.data;
+    }
+
     static async processDepreciation(period: string) {
         const response = await api.post(
             "/accounting/assets/depreciation/process-all",

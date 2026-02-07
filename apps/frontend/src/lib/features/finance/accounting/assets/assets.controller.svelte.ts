@@ -226,6 +226,19 @@ export class AssetsController {
         }
     }
 
+    async deleteAsset(id: string) {
+        try {
+            this.loading = true;
+            await AssetsService.delete(id);
+            await this.fetchAssets();
+        } catch (e) {
+            console.error("Failed to delete asset", e);
+            throw e;
+        } finally {
+            this.loading = false;
+        }
+    }
+
     openAddDialog() {
         this.editingId = null;
         this.resetForm();

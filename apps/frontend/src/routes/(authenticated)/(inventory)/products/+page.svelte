@@ -1,5 +1,6 @@
 <script lang="ts">
-    import ProductList from "./components/product-list.svelte";
+    import ProductList from "$lib/features/inventory/products/components/product-list.svelte";
+    import { ProductsController } from "$lib/features/inventory/products/products.controller.svelte";
     import { Button } from "$lib/shared/components/ui/button";
     import {
         ClipboardList,
@@ -7,21 +8,10 @@
         AlertTriangle,
         TrendingUp,
         Tags,
-        Plus,
-        Download,
     } from "lucide-svelte";
-    import { goto } from "$app/navigation";
-    import { InventoryService } from "$lib/features/inventory/services/inventory.service";
-    import { createQuery } from "@tanstack/svelte-query";
     import { Card, CardContent } from "$lib/shared/components/ui/card";
 
-    // Fetch simple stats for the cards
-    const statsQuery = createQuery(() => ({
-        queryKey: ["productStats"],
-        queryFn: async () => {
-            return await InventoryService.getStats();
-        },
-    }));
+    const controller = new ProductsController();
 </script>
 
 <div class="space-y-8 animate-in fade-in duration-500 pb-10">
@@ -61,12 +51,11 @@
                 <Button
                     variant="outline"
                     class="border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white backdrop-blur-sm"
-                    onclick={() => goto("/inventory/opname")}
+                    onclick={() => controller.navigateToOpname()}
                 >
                     <ClipboardList class="mr-2 h-4 w-4" />
                     Stock Opname
                 </Button>
-                <!-- "New Product" button will be in the list component toolbar, keeping context close -->
             </div>
         </div>
     </div>
@@ -89,7 +78,7 @@
                     <h3
                         class="text-2xl font-bold text-slate-900 dark:text-white"
                     >
-                        {statsQuery.data?.totalProducts ?? "--"}
+                        {controller.totalProducts}
                     </h3>
                 </div>
             </CardContent>
@@ -109,7 +98,7 @@
                     <h3
                         class="text-2xl font-bold text-slate-900 dark:text-white"
                     >
-                        {statsQuery.data?.lowStock ?? "--"}
+                        {controller.lowStock}
                     </h3>
                 </div>
             </CardContent>
@@ -131,11 +120,7 @@
                     <h3
                         class="text-2xl font-bold text-slate-900 dark:text-white"
                     >
-                        {new Intl.NumberFormat("id-ID", {
-                            style: "currency",
-                            currency: "IDR",
-                            maximumFractionDigits: 0,
-                        }).format(statsQuery.data?.totalValue ?? 0)}
+                        {controller.formatCurrency(controller.totalValue)}
                     </h3>
                 </div>
             </CardContent>
@@ -155,7 +140,7 @@
                     <h3
                         class="text-2xl font-bold text-slate-900 dark:text-white"
                     >
-                        {statsQuery.data?.totalCategories ?? "--"}
+                        {controller.totalCategories}
                     </h3>
                 </div>
             </CardContent>

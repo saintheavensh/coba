@@ -32,7 +32,7 @@
         Truck,
     } from "lucide-svelte";
     import { fade } from "svelte/transition";
-    import { PurchaseDetailController } from "$lib/features/purchases/purchase-detail.controller.svelte";
+    import { PurchaseDetailController } from "$lib/features/sales/purchases/purchase-detail.controller.svelte";
 
     // Initialize Controller
     const controller = new PurchaseDetailController($page.params.id as string);

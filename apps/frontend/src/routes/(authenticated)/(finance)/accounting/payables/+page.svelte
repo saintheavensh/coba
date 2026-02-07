@@ -37,6 +37,7 @@
         ArrowRight,
         CreditCard,
         Receipt,
+        ChevronRight,
     } from "lucide-svelte";
     import { Badge } from "$lib/shared/components/ui/badge";
     import { PayablesController } from "$lib/features/finance/accounting/payables/payables.controller.svelte";
@@ -95,7 +96,9 @@
             <Card class="border-0 shadow-md rounded-xl">
                 <CardContent class="p-6">
                     <p class="text-sm text-slate-500">Jumlah Faktur</p>
-                    <p class="text-2xl font-bold">{controller.summary.purchaseCount}</p>
+                    <p class="text-2xl font-bold">
+                        {controller.summary.purchaseCount}
+                    </p>
                 </CardContent>
             </Card>
             <Card class="border-0 shadow-md rounded-xl">
@@ -169,7 +172,8 @@
                             <TableCell>
                                 <Button
                                     size="sm"
-                                    onclick={() => controller.openPayDialog(item)}
+                                    onclick={() =>
+                                        controller.openPayDialog(item)}
                                 >
                                     Bayar
                                 </Button>
@@ -197,23 +201,25 @@
         <DialogHeader>
             <DialogTitle>Pembayaran ke Supplier</DialogTitle>
         </DialogHeader>
-        {#if selectedPurchase}
+        {#if controller.selectedPayable}
             <form
                 onsubmit={(e) => {
                     e.preventDefault();
-                    submitPayment();
+                    controller.submitPayment();
                 }}
                 class="space-y-4"
             >
                 <div class="p-4 bg-slate-50 rounded-lg">
                     <div class="flex justify-between text-sm">
                         <span class="text-slate-500">No. PO</span>
-                        <span class="font-mono">{selectedPurchase.id}</span>
+                        <span class="font-mono"
+                            >{controller.selectedPayable.id}</span
+                        >
                     </div>
                     <div class="flex justify-between text-sm">
                         <span class="text-slate-500">Supplier</span>
                         <span class="font-medium"
-                            >{selectedPurchase.supplierName}</span
+                            >{controller.selectedPayable.supplierName}</span
                         >
                     </div>
                     <div
@@ -222,7 +228,7 @@
                         <span class="text-slate-500">Sisa Hutang</span>
                         <span class="font-bold text-red-600"
                             >{formatCurrency(
-                                selectedPurchase.outstanding,
+                                controller.selectedPayable.outstanding,
                             )}</span
                         >
                     </div>
@@ -234,7 +240,7 @@
                         type="number"
                         bind:value={controller.payAmount}
                         min="1"
-                        max={selectedPurchase.outstanding}
+                        max={controller.selectedPayable.outstanding}
                     />
                 </div>
 
@@ -261,23 +267,22 @@
                     <Button
                         type="button"
                         variant="outline"
-                        onclick={() => (showPayDialog = false)}
+                        onclick={() => (controller.showPayDialog = false)}
                     >
                         Batal
                     </Button>
                     <Button
                         type="submit"
-                        disabled={submitting || payAmount <= 0}
+                        disabled={controller.processingPayment ||
+                            controller.payAmount <= 0}
                     >
-                        {#if submitting}
+                        {#if controller.processingPayment}
                             <Loader2 class="h-4 w-4 animate-spin mr-2" />
                         {/if}
-                        Bayar {formatCurrency(payAmount)}
+                        Bayar {formatCurrency(controller.payAmount)}
                     </Button>
                 </div>
             </form>
         {/if}
     </DialogContent>
 </Dialog>
-
-

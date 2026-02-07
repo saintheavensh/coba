@@ -197,7 +197,8 @@
                             <Button
                                 variant="ghost"
                                 class="flex-1 rounded-xl h-11"
-                                onclick={() => (controller.showDeprDialog = false)}
+                                onclick={() =>
+                                    (controller.showDeprDialog = false)}
                             >
                                 Batal
                             </Button>
@@ -314,7 +315,9 @@
                                                 Aset
                                             </Label>
                                             <Input
-                                                bind:value={controller.form.name}
+                                                bind:value={
+                                                    controller.form.name
+                                                }
                                                 placeholder="Nama resmi aset..."
                                                 class="h-12 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 rounded-2xl transition-all font-medium text-slate-900"
                                                 required
@@ -333,7 +336,8 @@
                                                 <div class="relative">
                                                     <select
                                                         bind:value={
-                                                            controller.form.category
+                                                            controller.form
+                                                                .category
                                                         }
                                                         class="w-full h-12 pl-4 pr-10 border border-slate-200 rounded-2xl bg-slate-50/50 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all appearance-none cursor-pointer font-medium text-slate-700"
                                                         onchange={controller.handleCategoryChange}
@@ -378,7 +382,8 @@
                                                 <Input
                                                     type="date"
                                                     bind:value={
-                                                        controller.form.purchaseDate
+                                                        controller.form
+                                                            .purchaseDate
                                                     }
                                                     class="h-12 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 rounded-2xl transition-all font-medium text-slate-700 bg-slate-50/50 focus:bg-white"
                                                     required
@@ -402,7 +407,8 @@
                                                     <div class="relative">
                                                         <select
                                                             bind:value={
-                                                                controller.form.accountId
+                                                                controller.form
+                                                                    .accountId
                                                             }
                                                             class="w-full h-12 pl-4 pr-10 border border-slate-200 rounded-2xl bg-slate-50/50 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all appearance-none cursor-pointer font-medium text-slate-700"
                                                         >
@@ -436,7 +442,8 @@
                                                     <div class="relative">
                                                         <select
                                                             bind:value={
-                                                                controller.form.sourceAccountId
+                                                                controller.form
+                                                                    .sourceAccountId
                                                             }
                                                             class="w-full h-12 pl-4 pr-10 border border-slate-200 rounded-2xl bg-slate-50/50 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all appearance-none cursor-pointer font-medium text-slate-700"
                                                         >
@@ -634,7 +641,8 @@
                                                     <Input
                                                         type="number"
                                                         bind:value={
-                                                            controller.form.purchaseCost
+                                                            controller.form
+                                                                .purchaseCost
                                                         }
                                                         class="pl-16 h-14 bg-white/5 border-white/10 focus:border-blue-500/50 focus:ring-0 rounded-2xl text-xl font-black text-white hover:bg-white/[0.07] transition-all"
                                                         required
@@ -680,7 +688,8 @@
                                                         <span
                                                             class="text-[10px] text-white font-black"
                                                             >{formatCurrency(
-                                                                controller.form.purchaseCost -
+                                                                controller.form
+                                                                    .purchaseCost -
                                                                     controller.landPortion,
                                                             )}</span
                                                         >
@@ -703,7 +712,8 @@
                                                         <Input
                                                             type="number"
                                                             bind:value={
-                                                                controller.form.salvageValue
+                                                                controller.form
+                                                                    .salvageValue
                                                             }
                                                             class="h-12 bg-white/5 border-white/10 focus:border-slate-500 rounded-2xl text-sm font-bold text-white transition-all text-center"
                                                             required
@@ -724,7 +734,8 @@
                                                         <Input
                                                             type="number"
                                                             bind:value={
-                                                                controller.form.usefulLifeMonths
+                                                                controller.form
+                                                                    .usefulLifeMonths
                                                             }
                                                             class="h-12 bg-white/5 border-white/10 focus:border-slate-500 rounded-2xl text-sm font-bold text-white transition-all text-center"
                                                             min="1"
@@ -795,7 +806,7 @@
                                                             onclick={() => {
                                                                 controller.depreciationMode =
                                                                     "manual";
-                                                                controller.manualcontroller.monthlyDepr =
+                                                                controller.manualMonthlyDepr =
                                                                     controller.monthlyDepr;
                                                             }}
                                                         >
@@ -835,7 +846,7 @@
                                                             <input
                                                                 type="number"
                                                                 bind:value={
-                                                                    controller.manualcontroller.monthlyDepr
+                                                                    controller.manualMonthlyDepr
                                                                 }
                                                                 oninput={controller.handleManualDeprChange}
                                                                 class="w-full bg-transparent border-b-2 border-white/20 focus:border-white text-3xl font-black text-white italic tracking-tighter outline-none pl-8 py-1 placeholder-white/30"
@@ -847,7 +858,9 @@
                                                         >
                                                             <span
                                                                 class="text-white font-bold underline"
-                                                                >{controller.form.usefulLifeMonths}
+                                                                >{controller
+                                                                    .form
+                                                                    .usefulLifeMonths}
                                                                 Bulan</span
                                                             > (Otomatis)
                                                         </p>
@@ -961,7 +974,10 @@
                 <p class="text-sm text-slate-500">Nilai Buku Total</p>
                 <p class="text-2xl font-bold">
                     {formatCurrency(
-                        controller.assets.reduce((s, a) => s + (a.currentValue || 0), 0),
+                        controller.assets.reduce(
+                            (s, a) => s + (a.currentValue || 0),
+                            0,
+                        ),
                     )}
                 </p>
             </CardContent>
@@ -1023,7 +1039,9 @@
                                 {formatCurrency(asset.currentValue || 0)}
                             </TableCell>
                             <TableCell class="text-right font-mono">
-                                {formatCurrency(asset.controller.monthlyDepreciation || 0)}
+                                {formatCurrency(
+                                    asset.controller.monthlyDepreciation || 0,
+                                )}
                             </TableCell>
                             <TableCell
                                 class="text-right font-mono text-blue-600"
@@ -1086,10 +1104,9 @@
                                             return;
                                         try {
                                             controller.loading = true;
-                                            await api.delete(
-                                                `/accounting/assets/${asset.id}`,
+                                            await controller.deleteAsset(
+                                                asset.id,
                                             );
-                                            await fetchAssets();
                                         } catch (e: any) {
                                             console.error(
                                                 "Failed to delete asset",
@@ -1174,8 +1191,3 @@
         </Card>
     {/if}
 </div>
-
-
-
-
-

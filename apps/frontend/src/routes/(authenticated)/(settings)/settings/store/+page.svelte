@@ -4,12 +4,6 @@
     import { Label } from "$lib/shared/components/ui/label";
     import { Textarea } from "$lib/shared/components/ui/textarea";
     import {
-        SettingsService,
-        type StoreInfo,
-    } from "$lib/features/settings/settings.service";
-    import { settingsStore } from "$lib/features/settings/settings-store.svelte";
-    import { toast } from "svelte-sonner";
-    import {
         Loader2,
         Save,
         Store,
@@ -25,63 +19,13 @@
         AlertCircle,
     } from "lucide-svelte";
     import { onMount } from "svelte";
-    import { cn } from "$lib/shared/core/utils";
+    import { SettingsController } from "$lib/features/settings/settings.controller.svelte";
 
-    let storeInfo = $state<StoreInfo>({
-        name: "",
-        address: "",
-        phone: "",
-        email: "",
-        logo: "",
-        socialMedia: "",
+    const controller = new SettingsController();
+
+    onMount(() => {
+        controller.loadStoreInfo();
     });
-
-    let saving = $state(false);
-    let loading = $state(true);
-
-    onMount(async () => {
-        try {
-            const data = await SettingsService.getStoreInfo();
-            storeInfo = {
-                name: data.name || "",
-                address: data.address || "",
-                phone: data.phone || "",
-                email: data.email || "",
-                logo: data.logo || "",
-                socialMedia: data.socialMedia || "",
-            };
-        } catch (e) {
-            console.error(e);
-            toast.error("Gagal memuat informasi toko");
-        } finally {
-            loading = false;
-        }
-    });
-
-    async function saveStoreInfo() {
-        saving = true;
-        try {
-            await SettingsService.setStoreInfo(storeInfo);
-            toast.success("Informasi toko berhasil disimpan");
-            await settingsStore.refresh();
-        } catch (e) {
-            toast.error("Gagal menyimpan informasi toko");
-        } finally {
-            saving = false;
-        }
-    }
-
-    function handleLogoUpload(event: Event) {
-        const input = event.target as HTMLInputElement;
-        if (input.files && input.files[0]) {
-            const file = input.files[0];
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                storeInfo.logo = e.target?.result as string;
-            };
-            reader.readAsDataURL(file);
-        }
-    }
 </script>
 
 <div class="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
@@ -108,12 +52,12 @@
         </div>
         <div class="flex gap-3">
             <Button
-                onclick={saveStoreInfo}
-                disabled={saving || loading}
+                onclick={() => controller.saveStoreInfo()}
+                disabled={controller.saving || controller.loading}
                 size="lg"
                 class="rounded-xl shadow-lg shadow-blue-500/20 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-                {#if saving}
+                {#if controller.saving}
                     <Loader2 class="mr-2 h-4 w-4 animate-spin" />
                     Menyimpan...
                 {:else}
@@ -124,7 +68,7 @@
         </div>
     </div>
 
-    {#if loading}
+    {#if controller.loading}
         <div class="flex justify-center py-20">
             <Loader2 class="h-10 w-10 animate-spin text-indigo-500" />
         </div>
@@ -156,9 +100,9 @@
                         <div
                             class="relative group/logo w-32 h-32 flex-shrink-0"
                         >
-                            {#if storeInfo.logo}
+                            {#if controller.storeInfo.logo}
                                 <img
-                                    src={storeInfo.logo}
+                                    src={controller.storeInfo.logo}
                                     alt="Store Logo"
                                     class="w-full h-full object-contain rounded-xl bg-white border shadow-sm"
                                 />
@@ -169,7 +113,8 @@
                                         variant="destructive"
                                         size="icon"
                                         class="rounded-full h-8 w-8"
-                                        onclick={() => (storeInfo.logo = "")}
+                                        onclick={() =>
+                                            (controller.storeInfo.logo = "")}
                                     >
                                         <Loader2 class="h-4 w-4" />
                                         <!-- Trash Icon substitute logic, lucide import issue on quick fix but using existing logic is fine -->
@@ -200,7 +145,8 @@
                                         type="file"
                                         accept="image/*"
                                         class="pl-10 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                                        onchange={handleLogoUpload}
+                                        onchange={(e) =>
+                                            controller.handleLogoUpload(e)}
                                     />
                                     <UploadCloud
                                         class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointing-events-none"
@@ -229,7 +175,7 @@
                             ></Label
                         >
                         <Input
-                            bind:value={storeInfo.name}
+                            bind:value={controller.storeInfo.name}
                             placeholder="Nama Bisnis Anda"
                             class="h-12 bg-white/50 text-lg font-bold"
                         />
@@ -266,7 +212,7 @@
                                     class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                                 />
                                 <Input
-                                    bind:value={storeInfo.phone}
+                                    bind:value={controller.storeInfo.phone}
                                     class="pl-10 bg-white/50"
                                     placeholder="0812-xxxx-xxxx"
                                 />
@@ -279,7 +225,7 @@
                                     class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                                 />
                                 <Input
-                                    bind:value={storeInfo.email}
+                                    bind:value={controller.storeInfo.email}
                                     class="pl-10 bg-white/50"
                                     placeholder="admin@store.com"
                                 />
@@ -290,7 +236,7 @@
                     <div class="space-y-2">
                         <Label>Alamat Lengkap</Label>
                         <Textarea
-                            bind:value={storeInfo.address}
+                            bind:value={controller.storeInfo.address}
                             rows={3}
                             class="bg-white/50 leading-relaxed"
                             placeholder="Alamat lengkap toko untuk ditampilkan di nota..."
@@ -304,7 +250,7 @@
                                 class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                             />
                             <Input
-                                bind:value={storeInfo.socialMedia}
+                                bind:value={controller.storeInfo.socialMedia}
                                 class="pl-10 bg-white/50"
                                 placeholder="@instagram_toko / Terima Kasih"
                             />
@@ -339,12 +285,12 @@
                         <div
                             class="text-center space-y-2 border-b border-dashed border-slate-300 pb-4"
                         >
-                            {#if storeInfo.logo}
+                            {#if controller.storeInfo.logo}
                                 <div
                                     class="mx-auto w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center p-1"
                                 >
                                     <img
-                                        src={storeInfo.logo}
+                                        src={controller.storeInfo.logo}
                                         class="max-w-full max-h-full"
                                         alt="logo"
                                     />
@@ -359,13 +305,14 @@
                                 class="font-bold text-base uppercase animate-pulse duration-1000"
                                 style:animation-duration="2s"
                             >
-                                {storeInfo.name || "[NAMA TOKO]"}
+                                {controller.storeInfo.name || "[NAMA TOKO]"}
                             </div>
                             <div class="text-slate-500 leading-tight">
-                                {storeInfo.address || "[Alamat Toko]"}
+                                {controller.storeInfo.address ||
+                                    "[Alamat Toko]"}
                             </div>
                             <div class="text-slate-500">
-                                {storeInfo.phone || "[No. Telp]"}
+                                {controller.storeInfo.phone || "[No. Telp]"}
                             </div>
                         </div>
 
@@ -396,7 +343,7 @@
                         <div
                             class="text-center border-t border-dashed border-slate-300 pt-4 text-slate-500 italic"
                         >
-                            {storeInfo.socialMedia ||
+                            {controller.storeInfo.socialMedia ||
                                 "[Social Media / Footer Info]"}
                         </div>
                     </div>

@@ -1,6 +1,5 @@
 <script lang="ts">
-    import { createQuery, useQueryClient } from "@tanstack/svelte-query";
-    import { api } from "$lib/shared/core/api";
+    import { DefectiveItemsController } from "$lib/features/inventory/purchase-returns/defective-items.controller.svelte";
     import { Button } from "$lib/shared/components/ui/button";
     import {
         Plus,
@@ -12,75 +11,10 @@
     } from "lucide-svelte";
     import { Badge } from "$lib/shared/components/ui/badge";
     import { Checkbox } from "$lib/shared/components/ui/checkbox";
-    import { toast } from "svelte-sonner";
-    import { goto } from "$app/navigation";
     import { Card, CardContent } from "$lib/shared/components/ui/card";
     import { fade, fly } from "svelte/transition";
 
-    // Type Definitions
-    interface DefectiveItem {
-        id: string;
-        createdAt: string;
-        qty: number;
-        reason: string;
-        source: string;
-        supplierId: string;
-        product: { name: string };
-        batch: { variant: string | null };
-        supplier: { name: string };
-    }
-
-    const queryClient = useQueryClient();
-
-    const query = createQuery<DefectiveItem[]>(() => ({
-        queryKey: ["defective-items"],
-        queryFn: async () => {
-            const res = await api.get("/defective-items");
-            return res.data.data;
-        },
-    }));
-
-    let selectedIds: string[] = $state([]);
-
-    function toggleSelect(id: string, checked: boolean) {
-        if (checked) {
-            selectedIds = [...selectedIds, id];
-        } else {
-            selectedIds = selectedIds.filter((i) => i !== id);
-        }
-    }
-
-    async function handleCreateReturn() {
-        if (selectedIds.length === 0) return;
-
-        try {
-            const userId = "USR-ADMIN";
-
-            const res = await api.post("/defective-items/create-return", {
-                userId,
-                itemIds: selectedIds,
-            });
-
-            toast.success("Retur Pembelian berhasil dibuat!");
-            await queryClient.invalidateQueries({
-                queryKey: ["defective-items"],
-            });
-            selectedIds = [];
-            goto(`/purchase-returns/${res.data.data.returnId}`);
-        } catch (e: any) {
-            toast.error(e.response?.data?.message || "Gagal membuat retur");
-        }
-    }
-
-    let hasMixedSuppliers = $derived.by(() => {
-        if (!query.data || selectedIds.length === 0) return false;
-        const selectedItems = query.data.filter((i) =>
-            selectedIds.includes(i.id),
-        );
-        if (selectedItems.length === 0) return false;
-        const firstSupplier = selectedItems[0].supplierId;
-        return selectedItems.some((i) => i.supplierId !== firstSupplier);
-    });
+    const controller = new DefectiveItemsController();
 </script>
 
 <div class="space-y-6 p-6">
@@ -99,7 +33,7 @@
             </p>
         </div>
         <div class="flex flex-wrap gap-3 w-full md:w-auto items-end">
-            {#if selectedIds.length > 0}
+            {#if controller.selectedCount > 0}
                 <div
                     in:fly={{ x: 20, duration: 300 }}
                     class="flex items-center gap-3 w-full md:w-auto bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800 p-2 pl-4 rounded-xl shadow-sm"
@@ -108,9 +42,9 @@
                         <span
                             class="text-xs font-semibold text-violet-600 dark:text-violet-300"
                         >
-                            {selectedIds.length} Item Dipilih
+                            {controller.selectedCount} Item Dipilih
                         </span>
-                        {#if hasMixedSuppliers}
+                        {#if controller.hasMixedSuppliers}
                             <span
                                 class="text-[10px] text-red-500 font-bold flex items-center gap-1"
                             >
@@ -125,8 +59,8 @@
 
                     <Button
                         size="sm"
-                        onclick={handleCreateReturn}
-                        disabled={hasMixedSuppliers}
+                        onclick={() => controller.handleCreateReturn()}
+                        disabled={controller.hasMixedSuppliers}
                         class="bg-violet-600 hover:bg-violet-700 text-white rounded-lg shadow-sm"
                     >
                         Proses Retur
@@ -145,21 +79,21 @@
         </div>
     </div>
 
-    {#if query.isLoading}
+    {#if controller.isLoading}
         <div
             class="flex flex-col items-center justify-center py-12 space-y-4 text-muted-foreground animate-pulse"
         >
             <div class="h-12 w-12 bg-muted rounded-full"></div>
             <p>Memuat item...</p>
         </div>
-    {:else if query.isError}
+    {:else if controller.isError}
         <div
             class="p-4 text-red-500 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-xl flex items-center gap-3"
         >
             <AlertCircle class="h-5 w-5" />
-            <span>Error: {query.error?.message}</span>
+            <span>Error: {controller.errorMessage}</span>
         </div>
-    {:else if query.data}
+    {:else}
         <!-- Desktop Table View -->
         <div
             class="hidden md:block overflow-hidden rounded-xl border bg-background shadow-sm"
@@ -195,9 +129,9 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y">
-                    {#each query.data as item}
+                    {#each controller.items as item}
                         <tr
-                            class="group hover:bg-violet-50/40 dark:hover:bg-violet-900/10 transition-colors {selectedIds.includes(
+                            class="group hover:bg-violet-50/40 dark:hover:bg-violet-900/10 transition-colors {controller.isSelected(
                                 item.id,
                             )
                                 ? 'bg-violet-50/60 dark:bg-violet-900/20'
@@ -205,23 +139,16 @@
                         >
                             <td class="p-4">
                                 <Checkbox
-                                    checked={selectedIds.includes(item.id)}
-                                    onCheckedChange={(c: any) =>
-                                        toggleSelect(item.id, c as boolean)}
+                                    checked={controller.isSelected(item.id)}
+                                    onCheckedChange={(c: boolean) =>
+                                        controller.toggleSelect(item.id, c)}
                                     class="data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
                                 />
                             </td>
                             <td
                                 class="p-4 whitespace-nowrap text-muted-foreground"
                             >
-                                {new Date(item.createdAt).toLocaleDateString(
-                                    "id-ID",
-                                    {
-                                        day: "numeric",
-                                        month: "short",
-                                        year: "numeric",
-                                    },
-                                )}
+                                {controller.formatDate(item.createdAt)}
                             </td>
                             <td class="p-4">
                                 <div class="font-medium">
@@ -262,7 +189,7 @@
                             </td>
                         </tr>
                     {/each}
-                    {#if query.data.length === 0}
+                    {#if controller.items.length === 0}
                         <tr>
                             <td
                                 colspan="7"
@@ -287,7 +214,7 @@
 
         <!-- Mobile Card View -->
         <div class="md:hidden space-y-4">
-            {#if query.data.length === 0}
+            {#if controller.items.length === 0}
                 <div
                     class="py-16 text-center text-muted-foreground border-2 border-dashed rounded-xl bg-muted/10"
                 >
@@ -297,7 +224,7 @@
                     </div>
                 </div>
             {:else}
-                {#each query.data as item (item.id)}
+                {#each controller.items as item (item.id)}
                     <div
                         class="bg-card rounded-xl border shadow-sm p-4 transition-all hover:border-violet-300 relative overflow-hidden active:scale-[0.99]"
                         role="button"
@@ -306,21 +233,21 @@
                             const target = e.target as HTMLElement;
                             if (target.closest("button") || target.closest("a"))
                                 return;
-                            toggleSelect(
+                            controller.toggleSelect(
                                 item.id,
-                                !selectedIds.includes(item.id),
+                                !controller.isSelected(item.id),
                             );
                         }}
                         onkeydown={(e) =>
                             e.key === "Enter" &&
-                            toggleSelect(
+                            controller.toggleSelect(
                                 item.id,
-                                !selectedIds.includes(item.id),
+                                !controller.isSelected(item.id),
                             )}
                     >
                         <!-- Selection Indicator -->
                         <div
-                            class="absolute left-0 top-0 bottom-0 w-1.5 transition-colors {selectedIds.includes(
+                            class="absolute left-0 top-0 bottom-0 w-1.5 transition-colors {controller.isSelected(
                                 item.id,
                             )
                                 ? 'bg-violet-600'
@@ -339,9 +266,9 @@
                                 </div>
                             </div>
                             <Checkbox
-                                checked={selectedIds.includes(item.id)}
-                                onCheckedChange={(c: any) =>
-                                    toggleSelect(item.id, c as boolean)}
+                                checked={controller.isSelected(item.id)}
+                                onCheckedChange={(c: boolean) =>
+                                    controller.toggleSelect(item.id, c)}
                                 class="mt-1 data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
                             />
                         </div>
@@ -370,9 +297,7 @@
 
                             <div class="flex justify-between items-end pt-2">
                                 <span class="text-xs text-muted-foreground">
-                                    {new Date(
-                                        item.createdAt,
-                                    ).toLocaleDateString()}
+                                    {controller.formatDate(item.createdAt)}
                                 </span>
                                 <div class="flex items-baseline gap-1">
                                     <span class="text-xs text-muted-foreground"

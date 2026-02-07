@@ -31,23 +31,23 @@
         DialogHeader,
         DialogTitle,
     } from "$lib/shared/components/ui/dialog";
-    import ServiceNotePrint from "../components/service-note-print.svelte";
-    import ServicePickupWizard from "../components/service-pickup-wizard.svelte";
+    import ServiceNotePrint from "$lib/features/service-management/tickets/components/print/ServiceNotePrint.svelte";
+    import ServicePickupWizard from "$lib/features/service-management/tickets/components/wizards/ServicePickupWizard.svelte";
 
     // Logic & State
-    import { ServiceFormStore } from "./form.svelte";
+    import { TicketFormController } from "$lib/features/service-management/tickets/ticket-form.controller.svelte";
 
     // Steps
-    import Step1Customer from "./steps/Step1Customer.svelte";
-    import Step2Device from "./steps/Step2Device.svelte";
-    import Step3Service from "./steps/Step3Service.svelte";
-    import Step35QC from "./steps/Step35QC.svelte";
-    import Step5Review from "./steps/Step5Review.svelte";
+    import Step1Customer from "$lib/features/service-management/tickets/components/wizard/Step1Customer.svelte";
+    import Step2Device from "$lib/features/service-management/tickets/components/wizard/Step2Device.svelte";
+    import Step3Service from "$lib/features/service-management/tickets/components/wizard/Step3Service.svelte";
+    import Step35QC from "$lib/features/service-management/tickets/components/wizard/Step35QC.svelte";
+    import Step5Review from "$lib/features/service-management/tickets/components/wizard/Step5Review.svelte";
     import { fade, fly } from "svelte/transition";
     import { cn } from "$lib/shared/core/utils";
 
     // Initialize Store
-    const form = new ServiceFormStore();
+    const form = new TicketFormController();
 
     // Queries
     const techniciansQuery = createQuery(() => ({

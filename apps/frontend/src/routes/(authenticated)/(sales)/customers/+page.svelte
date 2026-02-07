@@ -1,11 +1,4 @@
 <script lang="ts">
-    import {
-        createQuery,
-        createMutation,
-        useQueryClient,
-    } from "@tanstack/svelte-query";
-    import { CustomersService } from "$lib/features/customers/customers.service";
-
     import { Input } from "$lib/shared/components/ui/input";
     import { Button, buttonVariants } from "$lib/shared/components/ui/button";
     import {
@@ -20,166 +13,22 @@
         Search,
         User,
         Users,
-        TrendingUp,
         Filter,
         Download,
-        Mail,
         MoreVertical,
         PhoneCall,
         Receipt,
     } from "lucide-svelte";
-    import {
-        Dialog,
-        DialogContent,
-        DialogDescription,
-        DialogFooter,
-        DialogHeader,
-        DialogTitle,
-    } from "$lib/shared/components/ui/dialog";
     import * as AlertDialog from "$lib/shared/components/ui/alert-dialog";
     import * as DropdownMenu from "$lib/shared/components/ui/dropdown-menu";
-    import { Label } from "$lib/shared/components/ui/label";
-    import {
-        Avatar,
-        AvatarFallback,
-        AvatarImage,
-    } from "$lib/shared/components/ui/avatar";
-    import { toast } from "svelte-sonner";
+    import { Avatar, AvatarFallback } from "$lib/shared/components/ui/avatar";
     import { Badge } from "$lib/shared/components/ui/badge";
     import { formatCurrency, cn } from "$lib/shared/core/utils";
-    import { fade, fly, scale } from "svelte/transition";
-    import CurrencyInput from "$lib/shared/components/custom/currency-input.svelte";
+    import { fly } from "svelte/transition";
+    import { CustomersController } from "$lib/features/sales/customers/customers.controller.svelte";
+    import CustomerForm from "$lib/features/sales/customers/components/customer-form.svelte";
 
-    const client = useQueryClient();
-
-    // --- Queries ---
-    const customersQuery = createQuery(() => ({
-        queryKey: ["customers"],
-        queryFn: () => CustomersService.getAll(),
-    }));
-
-    // --- Mutations ---
-    const saveCustomerMutation = createMutation(() => ({
-        mutationFn: async (data: any) => {
-            if (data.id) {
-                return CustomersService.update(data.id, data);
-            } else {
-                return CustomersService.create(data);
-            }
-        },
-        onSuccess: () => {
-            client.invalidateQueries({ queryKey: ["customers"] });
-            toast.success("Data pelanggan berhasil disimpan");
-            openDialog = false;
-            resetForm();
-        },
-        onError: (err: any) => {
-            toast.error(
-                err.response?.data?.message || "Gagal menyimpan pelanggan",
-            );
-        },
-    }));
-
-    const deleteCustomerMutation = createMutation(() => ({
-        mutationFn: CustomersService.delete,
-        onSuccess: () => {
-            client.invalidateQueries({ queryKey: ["customers"] });
-            toast.success("Pelanggan berhasil dihapus");
-            openDelete = false;
-        },
-        onError: () => toast.error("Gagal menghapus pelanggan"),
-    }));
-
-    // Local State
-    let searchQuery = $state("");
-    let openDialog = $state(false);
-    let openDelete = $state(false);
-    let deleteId = $state<string | null>(null);
-
-    // Form State
-    let editingId = $state<string | null>(null);
-    let name = $state("");
-    let phone = $state("");
-    let address = $state("");
-    let creditLimit = $state(0);
-
-    // Reactive Data
-    let customers = $derived(customersQuery.data || []);
-    let loading = $derived(customersQuery.isLoading);
-
-    let filteredCustomers = $derived(
-        (customers || []).filter(
-            (c: any) =>
-                c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (c.phone && c.phone.includes(searchQuery)),
-        ),
-    );
-
-    // Stats
-    let totalCustomers = $derived(customers.length);
-    let totalDebt = $derived(
-        customers.reduce((acc: number, cur: any) => acc + (cur.debt || 0), 0),
-    );
-    let totalLimit = $derived(
-        customers.reduce(
-            (acc: number, cur: any) => acc + (cur.creditLimit || 0),
-            0,
-        ),
-    );
-    let activeReceivables = $derived(
-        customers.filter((c: any) => (c.debt || 0) > 0).length,
-    );
-
-    function getInitials(name: string) {
-        if (!name) return "??";
-        return name
-            .split(" ")
-            .map((n) => n[0])
-            .slice(0, 2)
-            .join("")
-            .toUpperCase();
-    }
-
-    function resetForm() {
-        editingId = null;
-        name = "";
-        phone = "";
-        address = "";
-        creditLimit = 0;
-    }
-
-    function handleEdit(customer: any) {
-        editingId = customer.id;
-        name = customer.name;
-        phone = customer.phone || "";
-        address = customer.address || "";
-        creditLimit = customer.creditLimit || 0;
-        openDialog = true;
-    }
-
-    function confirmDelete(id: string) {
-        deleteId = id;
-        openDelete = true;
-    }
-
-    function handleDelete() {
-        if (!deleteId) return;
-        deleteCustomerMutation.mutate(deleteId);
-    }
-
-    function handleSave() {
-        if (!name) return toast.error("Nama wajib diisi");
-        if (!phone) return toast.error("Telepon wajib diisi");
-
-        const payload = {
-            id: editingId,
-            name,
-            phone,
-            address,
-            creditLimit: Number(creditLimit),
-        };
-        saveCustomerMutation.mutate(payload);
-    }
+    const controller = new CustomersController();
 </script>
 
 <div class="container mx-auto py-8 space-y-8 animate-in fade-in duration-500">
@@ -214,8 +63,8 @@
             </div>
             <Button
                 onclick={() => {
-                    resetForm();
-                    openDialog = true;
+                    controller.resetForm();
+                    controller.openDialog = true;
                 }}
                 size="lg"
                 class="bg-white text-blue-700 hover:bg-slate-100 shadow-lg border-0 font-semibold transition-all hover:scale-105 active:scale-95"
@@ -226,7 +75,7 @@
 
         <!-- Stats Grid -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-10">
-            {#each [{ label: "Total Pelanggan", value: totalCustomers, icon: Users, color: "text-blue-100" }, { label: "Piutang Aktif", value: activeReceivables, icon: Wallet, color: "text-indigo-100" }, { label: "Total Piutang", value: formatCurrency(totalDebt), icon: Receipt, color: "text-violet-100" }, { label: "Total Limit", value: formatCurrency(totalLimit), icon: CreditCard, color: "text-blue-100" }] as stat}
+            {#each [{ label: "Total Pelanggan", value: controller.totalCustomers, icon: Users, color: "text-blue-100" }, { label: "Piutang Aktif", value: controller.activeReceivables, icon: Wallet, color: "text-indigo-100" }, { label: "Total Piutang", value: formatCurrency(controller.totalDebt), icon: Receipt, color: "text-violet-100" }, { label: "Total Limit", value: formatCurrency(controller.totalLimit), icon: CreditCard, color: "text-blue-100" }] as stat}
                 <div
                     class="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 hover:bg-white/15 transition-colors group"
                 >
@@ -265,7 +114,7 @@
                     class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                 />
                 <Input
-                    bind:value={searchQuery}
+                    bind:value={controller.searchQuery}
                     placeholder="Cari nama atau telepon..."
                     class="pl-9 bg-secondary/30 border-transparent focus:bg-background focus:border-blue-500/50 transition-all rounded-lg"
                 />
@@ -281,7 +130,7 @@
         </div>
 
         <!-- Grid Cards -->
-        {#if loading && customers.length === 0}
+        {#if controller.loading && controller.customers.length === 0}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {#each Array(6) as _}
                     <div class="p-5 rounded-2xl border bg-card space-y-4">
@@ -309,7 +158,7 @@
                     </div>
                 {/each}
             </div>
-        {:else if filteredCustomers.length === 0}
+        {:else if controller.filteredCustomers.length === 0}
             <div
                 class="flex flex-col items-center justify-center p-20 rounded-3xl border-2 border-dashed bg-muted/5"
             >
@@ -326,13 +175,13 @@
                 </p>
                 <Button
                     variant="link"
-                    onclick={() => (searchQuery = "")}
+                    onclick={() => (controller.searchQuery = "")}
                     class="mt-2">Bersihkan Pencarian</Button
                 >
             </div>
         {:else}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {#each filteredCustomers as cust (cust.id)}
+                {#each controller.filteredCustomers as cust (cust.id)}
                     <div
                         class="group relative flex flex-col bg-card border border-slate-200/60 dark:border-slate-800/60 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
                         transition:fly={{ y: 20, duration: 400 }}
@@ -345,7 +194,7 @@
                                     <AvatarFallback
                                         class="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-bold"
                                     >
-                                        {getInitials(cust.name)}
+                                        {controller.getInitials(cust.name)}
                                     </AvatarFallback>
                                 </Avatar>
                                 <DropdownMenu.Root>
@@ -365,7 +214,8 @@
                                         class="w-48 rounded-xl shadow-xl"
                                     >
                                         <DropdownMenu.Item
-                                            onclick={() => handleEdit(cust)}
+                                            onclick={() =>
+                                                controller.handleEdit(cust)}
                                             class="rounded-lg cursor-pointer"
                                         >
                                             <Pencil class="mr-2 h-4 w-4" /> Edit
@@ -374,7 +224,9 @@
                                         <DropdownMenu.Separator />
                                         <DropdownMenu.Item
                                             onclick={() =>
-                                                confirmDelete(cust.id)}
+                                                controller.confirmDelete(
+                                                    cust.id,
+                                                )}
                                             class="text-red-600 focus:text-red-700 focus:bg-red-50 rounded-lg cursor-pointer"
                                         >
                                             <Trash2 class="mr-2 h-4 w-4" /> Hapus
@@ -474,117 +326,10 @@
     </div>
 
     <!-- Dialog Create/Edit -->
-    <Dialog bind:open={openDialog} onOpenChange={(o) => !o && resetForm()}>
-        <DialogContent
-            class="sm:max-w-[500px] rounded-3xl p-0 overflow-hidden border-none shadow-2xl"
-        >
-            <div
-                class="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white"
-            >
-                <DialogTitle class="text-2xl font-bold">
-                    {editingId ? "Perbarui Pelanggan" : "Tambah Pelanggan Baru"}
-                </DialogTitle>
-                <DialogDescription class="text-blue-100 mt-1">
-                    Silakan lengkapi informasi profil dan pengaturan limit
-                    kredit.
-                </DialogDescription>
-            </div>
-
-            <div class="p-8 space-y-5 bg-background">
-                <div class="grid gap-5">
-                    <div class="grid gap-2">
-                        <Label
-                            for="name"
-                            class="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"
-                        >
-                            <User class="h-3.5 w-3.5 text-blue-500" /> Nama Lengkap
-                            <span class="text-red-500">*</span>
-                        </Label>
-                        <Input
-                            id="name"
-                            bind:value={name}
-                            placeholder="Contoh: Toko Berkah Jaya"
-                            class="h-11 rounded-xl"
-                        />
-                    </div>
-
-                    <div class="grid gap-2">
-                        <Label
-                            for="phone"
-                            class="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"
-                        >
-                            <Phone class="h-3.5 w-3.5 text-blue-500" /> Nomor Telepon
-                            <span class="text-red-500">*</span>
-                        </Label>
-                        <Input
-                            id="phone"
-                            bind:value={phone}
-                            placeholder="08xxxxxxxx"
-                            class="h-11 rounded-xl"
-                        />
-                    </div>
-
-                    <div class="grid gap-2">
-                        <Label
-                            for="address"
-                            class="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"
-                        >
-                            <MapPin class="h-3.5 w-3.5 text-blue-500" /> Alamat
-                        </Label>
-                        <Input
-                            id="address"
-                            bind:value={address}
-                            placeholder="Alamat lengkap pengiriman"
-                            class="h-11 rounded-xl"
-                        />
-                    </div>
-
-                    <div class="grid gap-2">
-                        <Label
-                            for="creditLimit"
-                            class="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2"
-                        >
-                            <CreditCard class="h-3.5 w-3.5 text-blue-500" /> Limit
-                            Kredit
-                        </Label>
-                        <div class="relative">
-                            <span
-                                class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-bold z-10"
-                                >Rp</span
-                            >
-                            <CurrencyInput
-                                bind:value={creditLimit}
-                                class="h-11 pl-9 rounded-xl font-bold text-blue-700"
-                                placeholder="0"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <DialogFooter class="px-8 pb-8 pt-0 bg-background">
-                <Button
-                    variant="ghost"
-                    class="h-11 px-6 rounded-xl"
-                    onclick={() => (openDialog = false)}>Batal</Button
-                >
-                <Button
-                    class="h-11 px-8 rounded-xl bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20"
-                    onclick={handleSave}
-                    disabled={saveCustomerMutation.isPending}
-                >
-                    {saveCustomerMutation.isPending
-                        ? "Menyimpan..."
-                        : editingId
-                          ? "Simpan Perubahan"
-                          : "Simpan Pelanggan"}
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-    </Dialog>
+    <CustomerForm {controller} />
 
     <!-- Delete Alert -->
-    <AlertDialog.Root bind:open={openDelete}>
+    <AlertDialog.Root bind:open={controller.openDelete}>
         <AlertDialog.Content
             class="rounded-3xl border-none shadow-2xl p-0 overflow-hidden max-w-sm bg-background"
         >
@@ -613,7 +358,7 @@
                     >Batal</AlertDialog.Cancel
                 >
                 <AlertDialog.Action
-                    onclick={handleDelete}
+                    onclick={() => controller.handleDelete()}
                     class="flex-1 h-11 rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/20"
                 >
                     Hapus

@@ -1,11 +1,5 @@
 <script lang="ts">
     import { page } from "$app/stores";
-    import {
-        createQuery,
-        createMutation,
-        useQueryClient,
-    } from "@tanstack/svelte-query";
-    import { InventoryService } from "$lib/features/inventory/services/inventory.service";
     import { Button } from "$lib/shared/components/ui/button";
     import { Input } from "$lib/shared/components/ui/input";
     import { Label } from "$lib/shared/components/ui/label";
@@ -29,7 +23,6 @@
         CheckCircle2,
         X,
     } from "lucide-svelte";
-    import { toast } from "svelte-sonner";
     import Combobox from "$lib/shared/components/ui/combobox.svelte";
     import {
         Tabs,
@@ -37,138 +30,11 @@
         TabsList,
         TabsTrigger,
     } from "$lib/shared/components/ui/tabs";
-    import { goto } from "$app/navigation";
     import { Skeleton } from "$lib/shared/components/ui/skeleton";
+    import { SupplierDetailController } from "$lib/features/inventory/suppliers/supplier-detail.controller.svelte";
 
-    const queryClient = useQueryClient();
     const supplierId = $page.params.id ?? "";
-
-    // --- Queries ---
-    const supplierQuery = createQuery(() => ({
-        queryKey: ["supplier", supplierId],
-        queryFn: () =>
-            InventoryService.getSuppliers().then((res) =>
-                res.find((s) => s.id === supplierId),
-            ),
-    }));
-
-    const allCategoriesQuery = createQuery(() => ({
-        queryKey: ["categories"],
-        queryFn: InventoryService.getCategories,
-    }));
-
-    const linkedCategoriesQuery = createQuery(() => ({
-        queryKey: ["supplier-categories", supplierId],
-        queryFn: () => InventoryService.getSupplierCategories(supplierId),
-    }));
-
-    const supplierVariantsQuery = createQuery(() => ({
-        queryKey: ["supplier-variants", supplierId],
-        queryFn: () => InventoryService.getSupplierVariants(supplierId),
-    }));
-
-    let supplier = $derived(supplierQuery.data);
-    let allCategories = $derived(allCategoriesQuery.data || []);
-    let linkedCategories = $derived(linkedCategoriesQuery.data || []);
-
-    // Parse variants: Group by CategoryID
-    // Storing full object now: { id, name, categoryId }
-    let variantsMap = $derived(
-        (supplierVariantsQuery.data || []).reduce(
-            (acc: any, curr: any) => {
-                const catId = curr.categoryId;
-                if (!acc[catId]) acc[catId] = [];
-                acc[catId].push(curr); // Store the whole variant object
-                return acc;
-            },
-            {} as Record<string, { id: string | number; name: string }[]>,
-        ),
-    );
-
-    // --- Mutations ---
-    const linkCategoryMutation = createMutation(() => ({
-        mutationFn: (categoryId: string) =>
-            InventoryService.linkSupplierCategory(supplierId, categoryId),
-        onSuccess: () => {
-            queryClient.invalidateQueries({
-                queryKey: ["supplier-categories", supplierId],
-            });
-            toast.success("Kategori berhasil ditautkan");
-            selectedCategoryId = "";
-        },
-        onError: () => toast.error("Gagal menautkan kategori"),
-    }));
-
-    const unlinkCategoryMutation = createMutation(() => ({
-        mutationFn: (categoryId: string) =>
-            InventoryService.unlinkSupplierCategory(supplierId, categoryId),
-        onSuccess: () => {
-            queryClient.invalidateQueries({
-                queryKey: ["supplier-categories", supplierId],
-            });
-            toast.success("Tautan kategori dihapus");
-        },
-        onError: () => toast.error("Gagal menghapus tautan kategori"),
-    }));
-
-    const addVariantMutation = createMutation(() => ({
-        mutationFn: (vars: { categoryId: string; name: string }) =>
-            InventoryService.addVariantTemplate(
-                vars.categoryId,
-                vars.name,
-                supplierId, // PASS SUPPLIER ID HERE
-            ),
-        onSuccess: (_, vars) => {
-            queryClient.invalidateQueries({
-                queryKey: ["supplier-variants", supplierId],
-            });
-            toast.success("Varian ditambahkan");
-            newVariantNames[vars.categoryId] = ""; // Clear specific input
-            activeVariantCategory = null;
-        },
-        onError: (e) => {
-            console.error(e);
-            toast.error("Gagal menambah varian");
-        },
-    }));
-
-    const removeVariantMutation = createMutation(() => ({
-        mutationFn: (variantId: number) =>
-            InventoryService.removeVariantTemplate(variantId),
-        onSuccess: () => {
-            queryClient.invalidateQueries({
-                queryKey: ["supplier-variants", supplierId],
-            });
-            toast.success("Varian dihapus");
-        },
-        onError: () => toast.error("Gagal menghapus varian"),
-    }));
-
-    // Local State
-    let selectedCategoryId = $state("");
-
-    // CHANGED: Use a map for new variant inputs to prevent duplicates
-    let newVariantNames = $state<Record<string, string>>({});
-
-    let activeVariantCategory = $state<string | null>(null);
-
-    function handleLinkCategory() {
-        if (!selectedCategoryId) return;
-        linkCategoryMutation.mutate(selectedCategoryId);
-    }
-
-    function handleAddVariant(categoryId: string) {
-        const name = newVariantNames[categoryId];
-        if (!name) return toast.error("Nama varian wajib diisi");
-        addVariantMutation.mutate({ categoryId, name });
-    }
-
-    function handleDeleteVariant(e: Event, variantId: number) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!confirm("Hapus varian ini?")) return;
-        removeVariantMutation.mutate(variantId);
-    }
+    const controller = new SupplierDetailController(supplierId);
 </script>
 
 <div class="container mx-auto py-8 space-y-8 animate-in fade-in duration-500">
@@ -180,12 +46,12 @@
         <ArrowLeft class="h-4 w-4" /> Kembali ke Daftar Supplier
     </Button>
 
-    {#if supplierQuery.isLoading}
+    {#if controller.isLoading}
         <div class="space-y-4">
             <Skeleton class="h-40 w-full rounded-3xl" />
             <Skeleton class="h-20 w-full rounded-xl" />
         </div>
-    {:else if !supplier}
+    {:else if !controller.supplier}
         <div class="text-center py-20">
             <h2 class="text-2xl font-bold">Supplier tidak ditemukan</h2>
         </div>
@@ -205,31 +71,33 @@
                 <div
                     class="h-24 w-24 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-4xl font-bold shadow-inner"
                 >
-                    {supplier.name.substring(0, 2).toUpperCase()}
+                    {controller.supplier.name.substring(0, 2).toUpperCase()}
                 </div>
                 <div class="space-y-2 text-center md:text-left flex-1">
                     <h1 class="text-3xl md:text-5xl font-bold tracking-tight">
-                        {supplier.name}
+                        {controller.supplier.name}
                     </h1>
                     <div
                         class="flex flex-wrap gap-4 justify-center md:justify-start text-indigo-100"
                     >
-                        {#if supplier.contact}
+                        {#if controller.supplier.contact}
                             <div class="flex items-center gap-1.5">
                                 <Building2 class="h-4 w-4" />
-                                {supplier.contact}
+                                {controller.supplier.contact}
                             </div>
                         {/if}
-                        {#if supplier.phone}
+                        {#if controller.supplier.phone}
                             <div class="flex items-center gap-1.5">
                                 <Phone class="h-4 w-4" />
-                                {supplier.phone}
+                                {controller.supplier.phone}
                             </div>
                         {/if}
-                        {#if supplier.address}
+                        {#if controller.supplier.address}
                             <div class="flex items-center gap-1.5 max-w-md">
                                 <MapPin class="h-4 w-4 shrink-0" />
-                                <span class="truncate">{supplier.address}</span>
+                                <span class="truncate"
+                                    >{controller.supplier.address}</span
+                                >
                             </div>
                         {/if}
                     </div>
@@ -275,39 +143,22 @@
                                 <div class="space-y-3">
                                     <Label>Pilih Kategori</Label>
                                     <Combobox
-                                        items={allCategories
-                                            .filter((c) => {
-                                                // 1. Must not be already linked
-                                                const isLinked =
-                                                    linkedCategories.find(
-                                                        (l) => l.id === c.id,
-                                                    );
-                                                if (isLinked) return false;
-
-                                                // 2. Must NOT be a parent (i.e., must be a leaf node)
-                                                // Check if any OTHER category has this current category as its parent
-                                                const isParent =
-                                                    allCategories.some(
-                                                        (other) =>
-                                                            other.parentId ===
-                                                            c.id,
-                                                    );
-                                                return !isParent;
-                                            })
-                                            .map((c) => ({
-                                                label: c.name,
-                                                value: c.id,
-                                            }))}
-                                        bind:value={selectedCategoryId}
+                                        items={controller.availableCategories}
+                                        bind:value={
+                                            controller.selectedCategoryId
+                                        }
                                         placeholder="Cari kategori..."
                                     />
                                     <Button
                                         class="w-full"
-                                        onclick={handleLinkCategory}
-                                        disabled={!selectedCategoryId ||
-                                            linkCategoryMutation.isPending}
+                                        onclick={() =>
+                                            controller.handleLinkCategory()}
+                                        disabled={!controller.selectedCategoryId ||
+                                            controller.linkCategoryMutation
+                                                .isPending}
                                     >
-                                        {linkCategoryMutation.isPending
+                                        {controller.linkCategoryMutation
+                                            .isPending
                                             ? "Menautkan..."
                                             : "Tautkan Kategori"}
                                     </Button>
@@ -323,12 +174,12 @@
                             Terdaftar
                         </h3>
 
-                        {#if linkedCategoriesQuery.isLoading}
+                        {#if controller.linkedCategoriesQuery.isLoading}
                             <div class="space-y-4">
                                 <Skeleton class="h-24 w-full" />
                                 <Skeleton class="h-24 w-full" />
                             </div>
-                        {:else if linkedCategories.length === 0}
+                        {:else if controller.linkedCategories.length === 0}
                             <div
                                 class="border-2 border-dashed rounded-xl p-12 text-center text-muted-foreground bg-slate-50"
                             >
@@ -342,7 +193,7 @@
                             </div>
                         {:else}
                             <div class="space-y-4">
-                                {#each linkedCategories as cat (cat.id)}
+                                {#each controller.linkedCategories as cat (cat.id)}
                                     <div
                                         class="bg-card border rounded-xl overflow-hidden shadow-sm transition-all hover:border-indigo-200"
                                     >
@@ -366,9 +217,9 @@
                                                     <p
                                                         class="text-xs text-muted-foreground"
                                                     >
-                                                        {variantsMap[cat.id]
-                                                            ?.length || 0} Varian
-                                                        Terdaftar
+                                                        {controller.variantsMap[
+                                                            cat.id
+                                                        ]?.length || 0} Varian Terdaftar
                                                     </p>
                                                 </div>
                                             </div>
@@ -377,7 +228,7 @@
                                                 size="sm"
                                                 class="text-red-500 hover:text-red-700 hover:bg-red-50"
                                                 onclick={() =>
-                                                    unlinkCategoryMutation.mutate(
+                                                    controller.handleUnlinkCategory(
                                                         cat.id,
                                                     )}
                                             >
@@ -401,12 +252,12 @@
                                                             (Khusus Supplier
                                                             Ini)</Label
                                                         >
-                                                        <!-- FIXED: Bind to a unique key for this category -->
                                                         <Input
                                                             placeholder="Contoh: Original, Grade A..."
                                                             class="h-9"
                                                             bind:value={
-                                                                newVariantNames[
+                                                                controller
+                                                                    .newVariantNames[
                                                                     cat.id
                                                                 ]
                                                             }
@@ -416,10 +267,12 @@
                                                         size="sm"
                                                         class="h-9"
                                                         onclick={() =>
-                                                            handleAddVariant(
+                                                            controller.handleAddVariant(
                                                                 cat.id,
                                                             )}
-                                                        disabled={addVariantMutation.isPending}
+                                                        disabled={controller
+                                                            .addVariantMutation
+                                                            .isPending}
                                                     >
                                                         <Plus
                                                             class="h-4 w-4 mr-1"
@@ -430,8 +283,8 @@
                                                 <div
                                                     class="flex flex-wrap gap-2 mt-4 pt-4 border-t border-dashed"
                                                 >
-                                                    {#if variantsMap[cat.id] && variantsMap[cat.id].length > 0}
-                                                        {#each variantsMap[cat.id] as variant}
+                                                    {#if controller.variantsMap[cat.id] && controller.variantsMap[cat.id].length > 0}
+                                                        {#each controller.variantsMap[cat.id] as variant}
                                                             <Badge
                                                                 variant="secondary"
                                                                 class="pl-2 pr-1 py-1 gap-1 flex items-center text-sm font-normal group"
@@ -443,7 +296,7 @@
                                                                     onclick={(
                                                                         e,
                                                                     ) =>
-                                                                        handleDeleteVariant(
+                                                                        controller.handleDeleteVariant(
                                                                             e,
                                                                             Number(
                                                                                 variant.id,

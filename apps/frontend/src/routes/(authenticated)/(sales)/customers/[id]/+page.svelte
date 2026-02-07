@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { page } from "$app/stores";
-    import { CustomersService } from "$lib/features/customers/customers.service";
+    import { CustomersService } from "$lib/features/sales/customers/customers.service";
     import {
         PaymentMethodsService,
         type PaymentMethod,

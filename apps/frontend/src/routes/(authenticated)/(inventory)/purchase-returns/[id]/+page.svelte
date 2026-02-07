@@ -1,7 +1,5 @@
 <script lang="ts">
     import { page } from "$app/stores";
-    import { createQuery } from "@tanstack/svelte-query";
-    import { api } from "$lib/shared/core/api";
     import { Button } from "$lib/shared/components/ui/button";
     import {
         Card,
@@ -11,36 +9,13 @@
     } from "$lib/shared/components/ui/card";
     import { ArrowLeft, Printer } from "lucide-svelte";
     import { Skeleton } from "$lib/shared/components/ui/skeleton";
-    import { formatCurrency } from "$lib/shared/core/utils";
-    import {
-        settingsStore,
-        initializeSettings,
-    } from "$lib/features/settings/settings-store.svelte";
-    import { browser } from "$app/environment";
+    import { PurchaseReturnDetailController } from "$lib/features/inventory/purchase-returns/purchase-return-detail.controller.svelte";
 
-    let id = $derived($page.params.id);
+    const id = $page.params.id ?? "";
+    const controller = new PurchaseReturnDetailController(id);
 
-    // Ensure settings are loaded
-    $effect(() => {
-        if (browser) {
-            initializeSettings();
-        }
-    });
-
-    const query = createQuery(() => ({
-        queryKey: ["purchase-return", id],
-        queryFn: async () => {
-            const res = await api.get(`/purchase-returns/${id}`);
-            return res.data.data;
-        },
-    }));
-
-    let r = $derived(query.data);
-
-    // Derived settings from store
-    let storeName = $derived(settingsStore.storeInfo.name || "Toko Service");
-    let storeAddress = $derived(settingsStore.storeInfo.address || "");
-    let storePhone = $derived(settingsStore.storeInfo.phone || "");
+    // Shorthand for the return data
+    let r = $derived(controller.purchaseReturn);
 </script>
 
 <div class="space-y-6 print:hidden">
@@ -54,7 +29,7 @@
         <div class="ml-auto">
             <Button
                 variant="outline"
-                onclick={() => window.print()}
+                onclick={() => controller.handlePrint()}
                 class="print:hidden"
             >
                 <Printer class="mr-2 h-4 w-4" />
@@ -63,14 +38,14 @@
         </div>
     </div>
 
-    {#if query.isLoading}
+    {#if controller.isLoading}
         <div class="space-y-4">
             <Skeleton class="h-40 w-full" />
             <Skeleton class="h-60 w-full" />
         </div>
-    {:else if query.isError}
+    {:else if controller.isError}
         <div class="p-4 text-red-500 border rounded bg-red-50">
-            Gagal memuat detail retur: {query.error?.message}
+            Gagal memuat detail retur: {controller.error?.message}
         </div>
     {:else if !r}
         <div class="p-8 text-center border rounded bg-muted/20">
@@ -215,12 +190,14 @@
                         S
                     </div>
                     <div>
-                        <h1 class="text-2xl font-bold">{storeName}</h1>
-                        {#if storeAddress}<p class="text-sm">
-                                {storeAddress}
+                        <h1 class="text-2xl font-bold">
+                            {controller.storeName}
+                        </h1>
+                        {#if controller.storeAddress}<p class="text-sm">
+                                {controller.storeAddress}
                             </p>{/if}
-                        {#if storePhone}<p class="text-sm">
-                                Tel: {storePhone}
+                        {#if controller.storePhone}<p class="text-sm">
+                                Tel: {controller.storePhone}
                             </p>{/if}
                     </div>
                 </div>
@@ -257,7 +234,6 @@
                         {new Date(r.date || new Date()).toLocaleDateString()}
                     </div>
                 </div>
-                <!-- Placeholders for Invoice/Order No as they aren't in schema yet, or use Notes -->
                 <div class="grid grid-cols-[150px_1fr] border-b">
                     <div class="bg-slate-100 p-1 px-2 font-bold text-sm">
                         INVOICE NO.
@@ -333,10 +309,7 @@
                             >TOTAL QTY</td
                         >
                         <td class="p-2 text-center border border-slate-200">
-                            {r.items.reduce(
-                                (acc: number, i: any) => acc + i.qty,
-                                0,
-                            )}
+                            {controller.totalQty}
                         </td>
                     </tr>
                 </tfoot>
@@ -354,7 +327,7 @@
         /* Hide everything */
         :global(body) {
             visibility: hidden;
-            overflow: hidden; /* Prevent scrolling if needed */
+            overflow: hidden;
         }
         /* Show only our print layout */
         .print-layout {

@@ -1,0 +1,67 @@
+﻿Loading svelte-check in workspace: c:\Users\Good\Documents\web\cek\coba\apps\frontend
+Getting Svelte diagnostics...
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\inventory\categories\components\CategoryHeader.svelte[39m:50:13
+[31mError[39m: This type of directive is not valid on components
+https://svelte.dev/e/component_invalid_directive (svelte)
+[36m            onclick={() => controller.handleCreateNew()}
+            [35min:scale={{ delay: 500, duration: 400 }}[36m
+        >[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\inventory\categories\components\CategoryHeader.svelte[39m:50:21
+[31mError[39m: The value 'undefined' cannot be used here. (ts)
+[36m            onclick={() => controller.handleCreateNew()}
+            in:scale[35m[36m={{ delay: 500, duration: 400 }}
+        >[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(inventory)\categories\+page.svelte[39m:82:5
+[33mWarn[39m: Unused CSS selector ".custom-scrollbar::-webkit-scrollbar"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m<style>
+    [35m.custom-scrollbar::-webkit-scrollbar[36m {
+        width: 4px;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(inventory)\categories\+page.svelte[39m:85:5
+[33mWarn[39m: Unused CSS selector ".custom-scrollbar::-webkit-scrollbar-track"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.custom-scrollbar::-webkit-scrollbar-track[36m {
+        background: transparent;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(inventory)\categories\+page.svelte[39m:88:5
+[33mWarn[39m: Unused CSS selector ".custom-scrollbar::-webkit-scrollbar-thumb"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.custom-scrollbar::-webkit-scrollbar-thumb[36m {
+        background: hsl(var(--muted-foreground) / 0.3);[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(inventory)\categories\+page.svelte[39m:92:5
+[33mWarn[39m: Unused CSS selector ".custom-scrollbar::-webkit-scrollbar-thumb:hover"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.custom-scrollbar::-webkit-scrollbar-thumb:hover[36m {
+        background: hsl(var(--muted-foreground) / 0.5);[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:269:29
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ΓÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                        >
+                            [35m<svelte:component
+                                this={group.icon}
+                                class="h-5 w-5"
+                            />[36m
+                        </div>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:291:45
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ΓÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                                        {#if TYPE_ICONS[type]}
+                                            [35m<svelte:component
+                                                this={TYPE_ICONS[type]}
+                                                class="h-4 w-4 text-slate-400 shrink-0"
+                                            />[36m
+                                        {:else}[39m
+
+====================================
+[31msvelte-check found 2 errors and 6 warnings in 3 files
+[39m

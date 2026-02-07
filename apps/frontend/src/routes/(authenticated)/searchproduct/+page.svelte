@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { InventoryService } from "$lib/features/inventory/services/inventory.service";
+    import { ProductsService as InventoryService } from "$lib/features/inventory/products/products.service";
     import SearchInput from "$lib/shared/components/custom/search-input.svelte";
     import {
         Table,
@@ -36,7 +36,7 @@
 
     const searchProductQuery = createQuery(() => ({
         queryKey: ["globalProductSearch", debouncedSearch],
-        queryFn: () => InventoryService.searchProducts(debouncedSearch),
+        queryFn: () => InventoryService.search(debouncedSearch),
     }));
 
     let products = $derived(searchProductQuery.data || []);

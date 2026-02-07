@@ -1,0 +1,312 @@
+﻿node.exe : npm warn config ignoring workspace config at 
+C:\Users\Good\Documents\web\cek\coba\apps\frontend/.npmrc
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" 
+"C:\Users\Good\AppData\Roaming\n ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm warn 
+config...fron    tend/.npmrc:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+> frontend@0.0.1 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: c:\Users\Good\Documents\web\cek\coba\apps\frontend
+Getting Svelte diagnostics...
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\inventory\products\products.service.ts[39m:5:31
+[31mError[39m: Cannot find module '../brands/brands.service' or its corresponding type declarations. 
+[36mimport * as XLSX from "xlsx";
+import { BrandsService } from [35m"../brands/brands.service"[36m;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\inventory\products\products.service.ts[39m:202:43
+[31mError[39m: Parameter 'b' implicitly has an 'any' type. 
+[36m            const allBrands = await BrandsService.getAll();
+            const exists = allBrands.find([35mb[36m => b.name.toLowerCase().trim() === brandKey);[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\assets\+page.svelte[39m:798:76
+[31mError[39m: Property 'manualcontroller' does not exist on type 'AssetsController'. (ts)
+[36m                                                                    "manual";
+                                                                controller.[35mmanualcontroller[36m.monthlyDepr =
+                                                                    controller.monthlyDepr;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\assets\+page.svelte[39m:838:80
+[31mError[39m: Property 'manualcontroller' does not exist on type 'AssetsController'. (ts)
+[36m                                                                bind:value={
+                                                                    controller.[35mmanualcontroller[36m.monthlyDepr
+                                                                }[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\assets\+page.svelte[39m:1089:51
+[31mError[39m: Cannot find name 'api'. (ts)
+[36m                                            controller.loading = true;
+                                            await [35mapi[36m.delete(
+                                                `/accounting/assets/${asset.id}`,[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\assets\+page.svelte[39m:1092:51
+[31mError[39m: Cannot find name 'fetchAssets'. (ts)
+[36m                                            );
+                                            await [35mfetchAssets[36m();
+                                        } catch (e: any) {[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\journals\+page.svelte[39m:64:18
+[31mError[39m: Cannot find name 'ChevronRight'. (ts)
+[36m                <a href="/accounting" class="hover:text-blue-600">Akuntansi</a>
+                <[35mChevronRight[36m class="h-4 w-4" />
+                <span class="text-slate-900 font-medium">Jurnal Umum</span>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\journals\+page.svelte[39m:78:22
+[31mError[39m: Cannot find name 'Loader2'. (ts)
+[36m                <div class="flex items-center justify-center py-20">
+                    <[35mLoader2[36m class="h-8 w-8 animate-spin text-blue-600" />
+                </div>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\journals\+page.svelte[39m:118:46
+[31mError[39m: Cannot find name 'getReferenceTypeLabel'. (ts)
+[36m                                        >
+                                            {[35mgetReferenceTypeLabel[36m(
+                                                journal.referenceType,[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\journals\+page.svelte[39m:262:34
+[31mError[39m: Cannot find name 'CheckCircle2'. (ts)
+[36m                            >
+                                <[35mCheckCircle2[36m class="h-4 w-4" />
+                                <span>Balanced & Posted</span>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\journals\+page.svelte[39m:269:34
+[31mError[39m: Cannot find name 'XCircle'. (ts)
+[36m                            >
+                                <[35mXCircle[36m class="h-4 w-4" />
+                                <span>Voided</span>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:73:18
+[31mError[39m: Cannot find name 'ChevronRight'. (ts)
+[36m                <a href="/accounting" class="hover:text-blue-600">Akuntansi</a>
+                <[35mChevronRight[36m class="h-4 w-4" />
+                <span class="text-slate-900 font-medium">Hutang Supplier</span>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:200:14
+[31mError[39m: Cannot find name 'selectedPurchase'. (ts)
+[36m        </DialogHeader>
+        {#if [35mselectedPurchase[36m}
+            <form[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:204:21
+[31mError[39m: Cannot find name 'submitPayment'. (ts)
+[36m                    e.preventDefault();
+                    [35msubmitPayment[36m();
+                }}[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:211:50
+[31mError[39m: Cannot find name 'selectedPurchase'. (ts)
+[36m                        <span class="text-slate-500">No. PO</span>
+                        <span class="font-mono">{[35mselectedPurchase[36m.id}</span>
+                    </div>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:216:31
+[31mError[39m: Cannot find name 'selectedPurchase'. (ts)
+[36m                        <span class="font-medium"
+                            >{[35mselectedPurchase[36m.supplierName}</span
+                        >[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:225:33
+[31mError[39m: Cannot find name 'selectedPurchase'. (ts)
+[36m                            >{formatCurrency(
+                                [35mselectedPurchase[36m.outstanding,
+                            )}</span[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:237:30
+[31mError[39m: Cannot find name 'selectedPurchase'. (ts)
+[36m                        min="1"
+                        max={[35mselectedPurchase[36m.outstanding}
+                    />[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:264:41
+[31mError[39m: Cannot find name 'showPayDialog'. (ts)
+[36m                        variant="outline"
+                        onclick={() => ([35mshowPayDialog[36m = false)}
+                    >[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:270:35
+[31mError[39m: Cannot find name 'submitting'. (ts)
+[36m                        type="submit"
+                        disabled={[35msubmitting[36m || payAmount <= 0}
+                    >[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:270:49
+[31mError[39m: Cannot find name 'payAmount'. (ts)
+[36m                        type="submit"
+                        disabled={submitting || [35mpayAmount[36m <= 0}
+                    >[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:272:30
+[31mError[39m: Cannot find name 'submitting'. (ts)
+[36m                    >
+                        {#if [35msubmitting[36m}
+                            <Loader2 class="h-4 w-4 animate-spin mr-2" />[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:275:47
+[31mError[39m: Cannot find name 'payAmount'. (ts)
+[36m                        {/if}
+                        Bayar {formatCurrency([35mpayAmount[36m)}
+                    </Button>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(inventory)\brands\+page.svelte[39m:6:12
+[31mError[39m: Cannot find module '$lib/features/inventory/brands/brands.service' or its corresponding type declarations. (ts)
+[36m        type Brand,
+    } from [35m"$lib/features/inventory/brands/brands.service"[36m;
+    import { Button } from "$lib/shared/components/ui/button";[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(inventory)\inventory\opname\[id]\+page.svelte[39m:25:28
+[31mError[39m: Property 'params' does not exist on type 'Readable<Page<{ id?: string | undefined; }, "/" | "/(public)/logout" | "/(public)" | "/(authenticated)/(settings)" | "/(authenticated)/(service)" | "/(authenticated)/(sales)" | "/(authenticated)/(inventory)" | ... 69 more ... | null>>'. (ts)
+[36m
+    const sessionId = page.[35mparams[36m.id;
+    let session = $state<any>(null);[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(inventory)\products\components\bulk-min-stock-dialog.svelte[39m:25:9
+[31mError[39m: '"$lib/shared/components/ui/select"' has no exported member named 'SelectId'. Did you mean 'Select'? (ts)
+[36m        SelectTrigger,
+        [35mSelectId[36m,
+    } from "$lib/shared/components/ui/select";[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(inventory)\suppliers\[id]\+page.svelte[39m:117:30
+[31mError[39m: Property 'addVariant' does not exist on type '{ getAll: () => Promise<Supplier[]>; create: (data: CreateSupplierInput) => Promise<Supplier>; update: (id: string, data: Partial<CreateSupplierInput>) => Promise<...>; ... 4 more ...; getVariants: (supplierId: string) => Promise<...>; }'. (ts)
+[36m        mutationFn: (vars: { categoryId: string; name: string }) =>
+            SuppliersService.[35maddVariant[36m(
+                vars.categoryId,[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(inventory)\suppliers\[id]\+page.svelte[39m:138:30
+[31mError[39m: Property 'removeVariant' does not exist on type '{ getAll: () => Promise<Supplier[]>; create: (data: CreateSupplierInput) => Promise<Supplier>; update: (id: string, data: Partial<CreateSupplierInput>) => Promise<...>; ... 4 more ...; getVariants: (supplierId: string) => Promise<...>; }'. (ts)
+[36m        mutationFn: (variantId: number) =>
+            SuppliersService.[35mremoveVariant[36m(variantId),
+        onSuccess: () => {[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\devices\+page.svelte[39m:8:35
+[31mError[39m: Cannot find module '$lib/features/inventory/brands/brands.service' or its corresponding type declarations. (ts)
+[36m    import { ProductsService as InventoryService } from "$lib/features/inventory/products/products.service";
+    import { BrandsService } from [35m"$lib/features/inventory/brands/brands.service"[36m;
+    import { Button, buttonVariants } from "$lib/shared/components/ui/button";[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\devices\+page.svelte[39m:132:38
+[31mError[39m: Property 'map' does not exist on type '{}'. (ts)
+[36m    let brandMap = $derived(
+        Object.fromEntries(brandList.[35mmap[36m((b) => [b.id, b])),
+    );[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\devices\+page.svelte[39m:132:43
+[31mError[39m: Parameter 'b' implicitly has an 'any' type. (ts)
+[36m    let brandMap = $derived(
+        Object.fromEntries(brandList.map(([35mb[36m) => [b.id, b])),
+    );[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\devices\+page.svelte[39m:203:42
+[31mError[39m: Property 'length' does not exist on type '{}'. (ts)
+[36m    // Correct logic for "Brands" card: Use brandList.length (from BrandsService).
+    let totalBrands = $derived(brandList.[35mlength[36m);[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\devices\+page.svelte[39m:496:46
+[31mError[39m: Property 'find' does not exist on type '{}'. (ts)
+[36m                    : "";
+                const foundBrand = brandList.[35mfind[36m(
+                    (b) =>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\devices\+page.svelte[39m:497:22
+[31mError[39m: Parameter 'b' implicitly has an 'any' type. (ts)
+[36m                const foundBrand = brandList.find(
+                    ([35mb[36m) =>
+                        b.name.toLowerCase() === normalizedBrand.toLowerCase(),[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\devices\+page.svelte[39m:1066:36
+[31mError[39m: Argument of type '{}' is not assignable to parameter of type 'ArrayLike<unknown> | Iterable<unknown> | null | undefined'. (ts)
+[36m                            </DropdownMenuItem>
+                            {#each [35mbrandList[36m as brandItem}
+                                <DropdownMenuItem[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\devices\+page.svelte[39m:1069:58
+[31mError[39m: 'brandItem' is of type 'unknown'. (ts)
+[36m                                    onclick={() =>
+                                        (selectedBrand = [35mbrandItem[36m.name)}
+                                >[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\devices\+page.svelte[39m:1071:60
+[31mError[39m: 'brandItem' is of type 'unknown'. (ts)
+[36m                                >
+                                    {normalizeBrandDisplay([35mbrandItem[36m.name)}
+                                </DropdownMenuItem>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\devices\+page.svelte[39m:1467:44
+[31mError[39m: Argument of type '{}' is not assignable to parameter of type 'ArrayLike<unknown> | Iterable<unknown> | null | undefined'. (ts)
+[36m                                <SelectContent>
+                                    {#each [35mbrandList[36m as b}
+                                        <SelectItem value={b.id}[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\devices\+page.svelte[39m:1468:60
+[31mError[39m: 'b' is of type 'unknown'. (ts)
+[36m                                    {#each brandList as b}
+                                        <SelectItem value={[35mb[36m.id}
+                                            >{b.name}</SelectItem[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\devices\+page.svelte[39m:1469:47
+[31mError[39m: 'b' is of type 'unknown'. (ts)
+[36m                                        <SelectItem value={b.id}
+                                            >{[35mb[36m.name}</SelectItem
+                                        >[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\service\new\steps\Step2Device.svelte[39m:27:35
+[31mError[39m: Cannot find module '$lib/features/inventory/brands/brands.service' or its corresponding type declarations. (ts)
+[36m    import { ProductsService as InventoryService } from "$lib/features/inventory/products/products.service";
+    import { BrandsService } from [35m"$lib/features/inventory/brands/brands.service"[36m;
+    import { createQuery } from "@tanstack/svelte-query";[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\service\new\steps\Step2Device.svelte[39m:298:52
+[31mError[39m: Argument of type '{}' is not assignable to parameter of type 'ArrayLike<unknown> | Iterable<unknown> | null | undefined'. (ts)
+[36m                                        {#if brandsQuery.data}
+                                            {#each [35mbrandsQuery.data[36m as brand}
+                                                <SelectItem value={brand.name}[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\service\new\steps\Step2Device.svelte[39m:299:68
+[31mError[39m: 'brand' is of type 'unknown'. (ts)
+[36m                                            {#each brandsQuery.data as brand}
+                                                <SelectItem value={[35mbrand[36m.name}
+                                                    >{brand.name}</SelectItem[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\service\new\steps\Step2Device.svelte[39m:300:55
+[31mError[39m: 'brand' is of type 'unknown'. (ts)
+[36m                                                <SelectItem value={brand.name}
+                                                    >{[35mbrand[36m.name}</SelectItem
+                                                >[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:269:29
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ΓÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                        >
+                            [35m<svelte:component
+                                this={group.icon}
+                                class="h-5 w-5"
+                            />[36m
+                        </div>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:291:45
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ΓÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                                        {#if TYPE_ICONS[type]}
+                                            [35m<svelte:component
+                                                this={TYPE_ICONS[type]}
+                                                class="h-4 w-4 text-slate-400 shrink-0"
+                                            />[36m
+                                        {:else}[39m
+
+====================================
+[31msvelte-check found 44 errors and 2 warnings in 11 files
+npm error Lifecycle script `check` failed with error:
+npm error code 1
+npm error path 
+C:\Users\Good\Documents\web\cek\coba\apps\frontend
+npm error workspace frontend@0.0.1
+npm error location 
+C:\Users\Good\Documents\web\cek\coba\apps\frontend
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c 
+svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+[39m

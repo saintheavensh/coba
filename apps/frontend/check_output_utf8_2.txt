@@ -1,0 +1,285 @@
+﻿Loading svelte-check in workspace: c:\Users\Good\Documents\web\cek\coba\apps\frontend
+Getting Svelte diagnostics...
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\inventory\categories\categories.controller.svelte.ts[39m:141:25
+[31mError[39m: Argument of type '{ level: number; childrenCount: number; hasChildren: boolean; visible: boolean; id: string; name: string; description?: string | null; parentId?: string | null; variantTemplates?: { id: number; name: string; }[]; createdAt?: Date | null; }' is not assignable to parameter of type 'HierarchicalCategory'.
+  Types of property 'description' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'. 
+[36m
+            result.push([35m{
+                ...child,
+                level,
+                childrenCount,
+                hasChildren,
+                visible,
+            }[36m);[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\sales\purchases\purchase-form.controller.svelte.ts[39m:1:33
+[31mError[39m: Cannot find module '$lib/features/purchases/purchase.service' or its corresponding type declarations. 
+[36mimport { PurchaseService } from [35m"$lib/features/purchases/purchase.service"[36m;
+import { ProductsService } from "$lib/features/inventory/products/products.service";[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\service-management\tickets\components\ticket-detail\TicketHeader.svelte[39m:51:29
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ΓÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                        >
+                            [35m<svelte:component
+                                this={controller.statusConfig.icon}
+                                class="w-3 h-3 mr-1.5"
+                            />[36m
+                            {controller.statusConfig.label}[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\service-management\tickets\components\ticket-detail\TicketHeader.svelte[39m:5:24
+[31mError[39m: Cannot find module '$lib/shared/utils' or its corresponding type declarations. (ts)
+[36m    import * as DropdownMenu from "$lib/shared/components/ui/dropdown-menu";
+    import { cn } from [35m"$lib/shared/utils"[36m;
+    import {[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\service-management\tickets\components\ticket-detail\cards\ConditionCard.svelte[39m:4:49
+[31mError[39m: Cannot find module '../../ticket-detail.controller.svelte' or its corresponding type declarations. (ts)
+[36m    import { FileText } from "lucide-svelte";
+    import type { TicketDetailController } from [35m"../../ticket-detail.controller.svelte"[36m;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\service-management\tickets\components\ticket-detail\cards\CostSummary.svelte[39m:2:49
+[31mError[39m: Cannot find module '../../ticket-detail.controller.svelte' or its corresponding type declarations. (ts)
+[36m<script lang="ts">
+    import type { TicketDetailController } from [35m"../../ticket-detail.controller.svelte"[36m;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\service-management\tickets\components\ticket-detail\cards\CustomerCard.svelte[39m:3:49
+[31mError[39m: Cannot find module '../../ticket-detail.controller.svelte' or its corresponding type declarations. (ts)
+[36m    import { User } from "lucide-svelte";
+    import type { TicketDetailController } from [35m"../../ticket-detail.controller.svelte"[36m;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\service-management\tickets\components\ticket-detail\cards\DeviceCard.svelte[39m:4:49
+[31mError[39m: Cannot find module '../../ticket-detail.controller.svelte' or its corresponding type declarations. (ts)
+[36m    import { Smartphone } from "lucide-svelte";
+    import type { TicketDetailController } from [35m"../../ticket-detail.controller.svelte"[36m;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\service-management\tickets\components\ticket-detail\cards\DiagnosisCard.svelte[39m:3:49
+[31mError[39m: Cannot find module '../../ticket-detail.controller.svelte' or its corresponding type declarations. (ts)
+[36m    import { AlertTriangle, Wrench, Search, CheckCircle } from "lucide-svelte";
+    import type { TicketDetailController } from [35m"../../ticket-detail.controller.svelte"[36m;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\service-management\tickets\components\ticket-detail\cards\PartsCard.svelte[39m:4:49
+[31mError[39m: Cannot find module '../../ticket-detail.controller.svelte' or its corresponding type declarations. (ts)
+[36m    import { Wrench } from "lucide-svelte";
+    import type { TicketDetailController } from [35m"../../ticket-detail.controller.svelte"[36m;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\service-management\tickets\components\ticket-detail\cards\PaymentCard.svelte[39m:5:49
+[31mError[39m: Cannot find module '../../ticket-detail.controller.svelte' or its corresponding type declarations. (ts)
+[36m    import { CreditCard, RefreshCw, Shield } from "lucide-svelte";
+    import type { TicketDetailController } from [35m"../../ticket-detail.controller.svelte"[36m;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\service-management\tickets\components\ticket-detail\cards\PhotosCard.svelte[39m:4:49
+[31mError[39m: Cannot find module '../../ticket-detail.controller.svelte' or its corresponding type declarations. (ts)
+[36m    import { fade } from "svelte/transition";
+    import type { TicketDetailController } from [35m"../../ticket-detail.controller.svelte"[36m;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\service-management\tickets\components\ticket-detail\cards\QCCard.svelte[39m:3:49
+[31mError[39m: Cannot find module '../../ticket-detail.controller.svelte' or its corresponding type declarations. (ts)
+[36m    import { CheckCircle, XCircle, AlertCircle, Loader2 } from "lucide-svelte";
+    import type { TicketDetailController } from [35m"../../ticket-detail.controller.svelte"[36m;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\service-management\tickets\components\ticket-detail\cards\SecurityCard.svelte[39m:4:49
+[31mError[39m: Cannot find module '../../ticket-detail.controller.svelte' or its corresponding type declarations. (ts)
+[36m    import { Shield } from "lucide-svelte";
+    import type { TicketDetailController } from [35m"../../ticket-detail.controller.svelte"[36m;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\features\service-management\tickets\components\ticket-detail\modals\ServiceModals.svelte[39m:93:2
+[31mError[39m: Property 'onClose' is missing in type '{ open: boolean; serviceId: number; serviceNo: any; initialQC: null; costEstimate: number; diagnosis: any; onComplete: () => void; }' but required in type 'Props'. (ts)
+[36m<!-- Completion Wizard -->
+<[35mServiceCompletionWizard[36m
+    bind:open={controller.showCompletionModal}[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\assets\+page.svelte[39m:798:76
+[31mError[39m: Property 'manualcontroller' does not exist on type 'AssetsController'. (ts)
+[36m                                                                    "manual";
+                                                                controller.[35mmanualcontroller[36m.monthlyDepr =
+                                                                    controller.monthlyDepr;[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\assets\+page.svelte[39m:838:80
+[31mError[39m: Property 'manualcontroller' does not exist on type 'AssetsController'. (ts)
+[36m                                                                bind:value={
+                                                                    controller.[35mmanualcontroller[36m.monthlyDepr
+                                                                }[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\assets\+page.svelte[39m:1089:51
+[31mError[39m: Cannot find name 'api'. (ts)
+[36m                                            controller.loading = true;
+                                            await [35mapi[36m.delete(
+                                                `/accounting/assets/${asset.id}`,[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\assets\+page.svelte[39m:1092:51
+[31mError[39m: Cannot find name 'fetchAssets'. (ts)
+[36m                                            );
+                                            await [35mfetchAssets[36m();
+                                        } catch (e: any) {[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\journals\+page.svelte[39m:64:18
+[31mError[39m: Cannot find name 'ChevronRight'. (ts)
+[36m                <a href="/accounting" class="hover:text-blue-600">Akuntansi</a>
+                <[35mChevronRight[36m class="h-4 w-4" />
+                <span class="text-slate-900 font-medium">Jurnal Umum</span>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\journals\+page.svelte[39m:78:22
+[31mError[39m: Cannot find name 'Loader2'. (ts)
+[36m                <div class="flex items-center justify-center py-20">
+                    <[35mLoader2[36m class="h-8 w-8 animate-spin text-blue-600" />
+                </div>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\journals\+page.svelte[39m:118:46
+[31mError[39m: Cannot find name 'getReferenceTypeLabel'. (ts)
+[36m                                        >
+                                            {[35mgetReferenceTypeLabel[36m(
+                                                journal.referenceType,[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\journals\+page.svelte[39m:262:34
+[31mError[39m: Cannot find name 'CheckCircle2'. (ts)
+[36m                            >
+                                <[35mCheckCircle2[36m class="h-4 w-4" />
+                                <span>Balanced & Posted</span>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\journals\+page.svelte[39m:269:34
+[31mError[39m: Cannot find name 'XCircle'. (ts)
+[36m                            >
+                                <[35mXCircle[36m class="h-4 w-4" />
+                                <span>Voided</span>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:73:18
+[31mError[39m: Cannot find name 'ChevronRight'. (ts)
+[36m                <a href="/accounting" class="hover:text-blue-600">Akuntansi</a>
+                <[35mChevronRight[36m class="h-4 w-4" />
+                <span class="text-slate-900 font-medium">Hutang Supplier</span>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:200:14
+[31mError[39m: Cannot find name 'selectedPurchase'. (ts)
+[36m        </DialogHeader>
+        {#if [35mselectedPurchase[36m}
+            <form[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:204:21
+[31mError[39m: Cannot find name 'submitPayment'. (ts)
+[36m                    e.preventDefault();
+                    [35msubmitPayment[36m();
+                }}[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:211:50
+[31mError[39m: Cannot find name 'selectedPurchase'. (ts)
+[36m                        <span class="text-slate-500">No. PO</span>
+                        <span class="font-mono">{[35mselectedPurchase[36m.id}</span>
+                    </div>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:216:31
+[31mError[39m: Cannot find name 'selectedPurchase'. (ts)
+[36m                        <span class="font-medium"
+                            >{[35mselectedPurchase[36m.supplierName}</span
+                        >[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:225:33
+[31mError[39m: Cannot find name 'selectedPurchase'. (ts)
+[36m                            >{formatCurrency(
+                                [35mselectedPurchase[36m.outstanding,
+                            )}</span[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:237:30
+[31mError[39m: Cannot find name 'selectedPurchase'. (ts)
+[36m                        min="1"
+                        max={[35mselectedPurchase[36m.outstanding}
+                    />[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:264:41
+[31mError[39m: Cannot find name 'showPayDialog'. (ts)
+[36m                        variant="outline"
+                        onclick={() => ([35mshowPayDialog[36m = false)}
+                    >[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:270:35
+[31mError[39m: Cannot find name 'submitting'. (ts)
+[36m                        type="submit"
+                        disabled={[35msubmitting[36m || payAmount <= 0}
+                    >[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:270:49
+[31mError[39m: Cannot find name 'payAmount'. (ts)
+[36m                        type="submit"
+                        disabled={submitting || [35mpayAmount[36m <= 0}
+                    >[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:272:30
+[31mError[39m: Cannot find name 'submitting'. (ts)
+[36m                    >
+                        {#if [35msubmitting[36m}
+                            <Loader2 class="h-4 w-4 animate-spin mr-2" />[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(finance)\accounting\payables\+page.svelte[39m:275:47
+[31mError[39m: Cannot find name 'payAmount'. (ts)
+[36m                        {/if}
+                        Bayar {formatCurrency([35mpayAmount[36m)}
+                    </Button>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(inventory)\inventory\opname\[id]\+page.svelte[39m:24:51
+[31mError[39m: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'. (ts)
+[36m    const sessionId = $page.params.id;
+    const controller = new OpnameDetailController([35msessionId[36m);[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(inventory)\purchase-returns\[id]\+page.svelte[39m:15:59
+[31mError[39m: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'. (ts)
+[36m    const id = $page.params.id;
+    const controller = new PurchaseReturnDetailController([35mid[36m);[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(inventory)\purchase-returns\[id]\+page.svelte[39m:85:37
+[31mError[39m: Property 'address' does not exist on type '{ name: string; }'. (ts)
+[36m                    <div class="text-sm text-muted-foreground">
+                        {r.supplier.[35maddress[36m || "-"}
+                    </div>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(inventory)\purchase-returns\[id]\+page.svelte[39m:223:55
+[31mError[39m: Property 'address' does not exist on type '{ name: string; }'. (ts)
+[36m                    </div>
+                    <div class="text-sm">{r.supplier?.[35maddress[36m || "-"}</div>
+                    <div class="text-sm">{r.supplier?.phone || "-"}</div>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(inventory)\purchase-returns\[id]\+page.svelte[39m:224:55
+[31mError[39m: Property 'phone' does not exist on type '{ name: string; }'. (ts)
+[36m                    <div class="text-sm">{r.supplier?.address || "-"}</div>
+                    <div class="text-sm">{r.supplier?.[35mphone[36m || "-"}</div>
+                </div>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\devices\+page.svelte[39m:122:21
+[31mError[39m: Object literal may only specify known properties, and '"asChild"' does not exist in type 'Omit<{ disabled?: boolean | null | undefined; }, "child" | "children"> & { child?: Snippet<[{ props: Record<string, unknown>; }]> | undefined; children?: Snippet<[]> | undefined; style?: any; ref?: HTMLElement | ... 1 more ... | undefined; } & Without<...>'. (ts)
+[36m                    class="w-[140px] justify-between"
+                    [35masChild[36m
+                    let:builder[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(service)\devices\+page.svelte[39m:123:32
+[31mError[39m: '$$_reggirT_uneMnwodporD4.$$slot_def' is of type 'unknown'. (ts)
+[36m                    asChild
+                    let:builder[35m[36m
+                >[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:269:29
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ΓÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                        >
+                            [35m<svelte:component
+                                this={group.icon}
+                                class="h-5 w-5"
+                            />[36m
+                        </div>[39m
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:291:45
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode ΓÇö components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                                        {#if TYPE_ICONS[type]}
+                                            [35m<svelte:component
+                                                this={TYPE_ICONS[type]}
+                                                class="h-4 w-4 text-slate-400 shrink-0"
+                                            />[36m
+                                        {:else}[39m
+
+====================================
+[31msvelte-check found 42 errors and 3 warnings in 21 files
+[39m

@@ -1,84 +1,22 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { InventoryService } from "$lib/features/inventory/services/inventory.service";
+    import { OpnameController } from "$lib/features/inventory/opname/opname.controller.svelte";
     import { Button } from "$lib/shared/components/ui/button";
     import { Card } from "$lib/shared/components/ui/card";
     import * as Table from "$lib/shared/components/ui/table";
     import { Badge } from "$lib/shared/components/ui/badge";
-    import {
-        Plus,
-        Search,
-        Calendar,
-        User,
-        ClipboardList,
-        ArrowRight,
-        Package,
-    } from "lucide-svelte";
+    import { Plus, User, ArrowRight, Package } from "lucide-svelte";
     import { Input } from "$lib/shared/components/ui/input";
-    import { toast } from "svelte-sonner";
-    import { goto } from "$app/navigation";
     import { formatDate } from "$lib/shared/core/utils";
     import * as Dialog from "$lib/shared/components/ui/dialog";
     import * as Select from "$lib/shared/components/ui/select";
     import { Label } from "$lib/shared/components/ui/label";
 
-    let sessions = $state<any[]>([]);
-    let isLoading = $state(true);
-    let categories = $state<any[]>([]);
-    let isCreateDialogOpen = $state(false);
+    const controller = new OpnameController();
 
-    let newSessionNote = $state("");
-    let selectedCategoryId = $state("");
-
-    onMount(async () => {
-        await Promise.all([fetchSessions(), fetchCategories()]);
+    onMount(() => {
+        controller.init();
     });
-
-    async function fetchSessions() {
-        isLoading = true;
-        try {
-            sessions = await InventoryService.getOpnameSessions();
-        } catch (error) {
-            toast.error("Failed to fetch sessions");
-        } finally {
-            isLoading = false;
-        }
-    }
-
-    async function fetchCategories() {
-        try {
-            categories = await InventoryService.getCategories();
-        } catch (error) {
-            console.error("Failed to fetch categories", error);
-        }
-    }
-
-    async function handleCreateSession() {
-        try {
-            const result = await InventoryService.createOpnameSession({
-                notes: newSessionNote,
-                categoryId: selectedCategoryId || undefined,
-            });
-            toast.success("Stock opname session created");
-            isCreateDialogOpen = false;
-            goto(`/inventory/opname/${result.id}`);
-        } catch (error) {
-            toast.error("Failed to create session");
-        }
-    }
-
-    function getStatusVariant(status: string) {
-        switch (status) {
-            case "completed":
-                return "default";
-            case "draft":
-                return "secondary";
-            case "cancelled":
-                return "destructive";
-            default:
-                return "outline";
-        }
-    }
 </script>
 
 <div class="p-6 space-y-6">
@@ -89,7 +27,7 @@
                 Manage and track inventory audit sessions.
             </p>
         </div>
-        <Button onclick={() => (isCreateDialogOpen = true)}>
+        <Button onclick={() => controller.openCreateDialog()}>
             <Plus class="mr-2 h-4 w-4" />
             Mulai Opname Baru
         </Button>
@@ -109,13 +47,13 @@
                 </Table.Row>
             </Table.Header>
             <Table.Body>
-                {#if isLoading}
+                {#if controller.isLoading}
                     <Table.Row>
                         <Table.Cell colspan={7} class="text-center py-8">
                             <span class="animate-pulse">Memuat data...</span>
                         </Table.Cell>
                     </Table.Row>
-                {:else if sessions.length === 0}
+                {:else if controller.sessions.length === 0}
                     <Table.Row>
                         <Table.Cell
                             colspan={7}
@@ -128,7 +66,7 @@
                         </Table.Cell>
                     </Table.Row>
                 {:else}
-                    {#each sessions as session}
+                    {#each controller.sessions as session}
                         <Table.Row>
                             <Table.Cell class="font-mono text-xs"
                                 >{session.id}</Table.Cell
@@ -150,7 +88,9 @@
                             </Table.Cell>
                             <Table.Cell>
                                 <Badge
-                                    variant={getStatusVariant(session.status)}
+                                    variant={controller.getStatusVariant(
+                                        session.status,
+                                    )}
                                     class="capitalize"
                                 >
                                     {session.status}
@@ -169,7 +109,9 @@
                                     variant="ghost"
                                     size="sm"
                                     onclick={() =>
-                                        goto(`/inventory/opname/${session.id}`)}
+                                        controller.navigateToSession(
+                                            session.id,
+                                        )}
                                 >
                                     <ArrowRight class="h-4 w-4" />
                                 </Button>
@@ -181,7 +123,7 @@
         </Table.Root>
     </Card>
 
-    <Dialog.Root bind:open={isCreateDialogOpen}>
+    <Dialog.Root bind:open={controller.isCreateDialogOpen}>
         <Dialog.Content>
             <Dialog.Header>
                 <Dialog.Title>Mulai Sesi Stock Opname</Dialog.Title>
@@ -194,14 +136,16 @@
                     <Label for="category-select"
                         >Kategori Produk (Opsional)</Label
                     >
-                    <Select.Root type="single" bind:value={selectedCategoryId}>
+                    <Select.Root
+                        type="single"
+                        bind:value={controller.selectedCategoryId}
+                    >
                         <Select.Trigger id="category-select">
-                            {categories.find((c) => c.id === selectedCategoryId)
-                                ?.name || "Semua Kategori"}
+                            {controller.getSelectedCategoryName()}
                         </Select.Trigger>
                         <Select.Content>
                             <Select.Item value="">Semua Kategori</Select.Item>
-                            {#each categories as cat}
+                            {#each controller.categories as cat}
                                 <Select.Item value={cat.id}
                                     >{cat.name}</Select.Item
                                 >
@@ -213,7 +157,7 @@
                     <Label for="session-note">Catatan Sesi</Label>
                     <Input
                         id="session-note"
-                        bind:value={newSessionNote}
+                        bind:value={controller.newSessionNote}
                         placeholder="Contoh: Audit Bulanan Gudang B"
                     />
                 </div>
@@ -221,9 +165,11 @@
             <Dialog.Footer>
                 <Button
                     variant="outline"
-                    onclick={() => (isCreateDialogOpen = false)}>Batal</Button
+                    onclick={() => controller.closeDialog()}>Batal</Button
                 >
-                <Button onclick={handleCreateSession}>Mulai Sesi</Button>
+                <Button onclick={() => controller.handleCreateSession()}
+                    >Mulai Sesi</Button
+                >
             </Dialog.Footer>
         </Dialog.Content>
     </Dialog.Root>

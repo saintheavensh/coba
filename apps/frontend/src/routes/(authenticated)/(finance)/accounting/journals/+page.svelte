@@ -16,7 +16,17 @@
         TableHeader,
         TableRow,
     } from "$lib/shared/components/ui/table";
-    import { Eye, FileText, Search, Calendar, Maximize2 } from "lucide-svelte";
+    import {
+        Eye,
+        FileText,
+        Search,
+        Calendar,
+        Maximize2,
+        ChevronRight,
+        CheckCircle2,
+        XCircle,
+        Loader2,
+    } from "lucide-svelte";
     import { Badge } from "$lib/shared/components/ui/badge";
     import { JournalsController } from "$lib/features/finance/accounting/journals/journals.controller.svelte";
 
@@ -40,6 +50,22 @@
             year: "numeric",
         });
     };
+
+    function getReferenceTypeLabel(type: string) {
+        const types: Record<string, string> = {
+            manual: "Manual Journal",
+            invoice: "Invoice",
+            payment: "Payment",
+            receipt: "Receipt",
+            expense: "Expense",
+            purchase: "Purchase",
+            purchase_return: "Purchase Return",
+            sales_return: "Sales Return",
+            opname: "Stock Opname",
+            depreciation: "Depreciation",
+        };
+        return types[type] || type;
+    }
 
     function getStatusBadge(status: string) {
         switch (status) {
@@ -96,7 +122,8 @@
                             {#each controller.journals as journal}
                                 <TableRow
                                     class="hover:bg-slate-50 cursor-pointer"
-                                    onclick={() => controller.viewJournal(journal.id)}
+                                    onclick={() =>
+                                        controller.viewJournal(journal.id)}
                                 >
                                     <TableCell class="font-mono text-sm">
                                         {formatDate(journal.date)}
@@ -139,7 +166,9 @@
                                             variant="ghost"
                                             size="icon"
                                             onclick={() =>
-                                                controller.viewJournal(journal.id)}
+                                                controller.viewJournal(
+                                                    journal.id,
+                                                )}
                                         >
                                             <Eye class="h-4 w-4" />
                                         </Button>
@@ -175,11 +204,17 @@
                         <div class="grid grid-cols-2 gap-4 text-sm">
                             <div>
                                 <p class="text-slate-500">ID</p>
-                                <p class="font-mono">{controller.selectedJournal.id}</p>
+                                <p class="font-mono">
+                                    {controller.selectedJournal.id}
+                                </p>
                             </div>
                             <div>
                                 <p class="text-slate-500">Tanggal</p>
-                                <p>{formatDate(controller.selectedJournal.date)}</p>
+                                <p>
+                                    {formatDate(
+                                        controller.selectedJournal.date,
+                                    )}
+                                </p>
                             </div>
                             <div class="col-span-2">
                                 <p class="text-slate-500">Deskripsi</p>
@@ -285,5 +320,3 @@
         </div>
     </div>
 </div>
-
-

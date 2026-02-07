@@ -1,11 +1,6 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import {
-        createQuery,
-        createMutation,
-        useQueryClient,
-    } from "@tanstack/svelte-query";
-    import { InventoryService } from "$lib/features/inventory/services/inventory.service";
+    import { SuppliersController } from "$lib/features/inventory/suppliers/suppliers.controller.svelte";
     import ImageUpload from "$lib/shared/components/custom/image-upload.svelte";
     import { Input } from "$lib/shared/components/ui/input";
     import { Button, buttonVariants } from "$lib/shared/components/ui/button";
@@ -13,7 +8,6 @@
         Plus,
         Pencil,
         Trash2,
-        Tag,
         Phone,
         MapPin,
         Search,
@@ -21,12 +15,10 @@
         Users,
         Building2,
         ExternalLink,
-        Grid,
         Filter,
         Download,
         Mail,
         MoreVertical,
-        ChevronRight,
     } from "lucide-svelte";
     import { Badge } from "$lib/shared/components/ui/badge";
     import { cn } from "$lib/shared/core/utils";
@@ -35,7 +27,6 @@
         DialogContent,
         DialogDescription,
         DialogFooter,
-        DialogHeader,
         DialogTitle,
     } from "$lib/shared/components/ui/dialog";
     import * as DropdownMenu from "$lib/shared/components/ui/dropdown-menu";
@@ -46,137 +37,10 @@
         AvatarFallback,
         AvatarImage,
     } from "$lib/shared/components/ui/avatar";
-    import { toast } from "svelte-sonner";
-    import { fade, fly, slide, scale } from "svelte/transition";
+    import { fly } from "svelte/transition";
     import { API_URL } from "$lib/shared/core/api";
 
-    const queryClient = useQueryClient();
-
-    // --- Queries ---
-    const suppliersQuery = createQuery(() => ({
-        queryKey: ["suppliers"],
-        queryFn: InventoryService.getSuppliers,
-    }));
-
-    // --- Mutations ---
-    const saveSupplierMutation = createMutation(() => ({
-        mutationFn: async (data: any) => {
-            if (data.id) {
-                return InventoryService.updateSupplier(data.id, data);
-            } else {
-                return InventoryService.createSupplier(data);
-            }
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["suppliers"] });
-            toast.success("Data supplier berhasil disimpan");
-            openSupplier = false;
-            resetSupplierForm();
-        },
-        onError: () => toast.error("Gagal menyimpan supplier"),
-    }));
-
-    const deleteSupplierMutation = createMutation(() => ({
-        mutationFn: InventoryService.deleteSupplier,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["suppliers"] });
-            toast.success("Supplier berhasil dihapus");
-            openDelete = false;
-        },
-        onError: () => toast.error("Gagal menghapus supplier"),
-    }));
-
-    // Local State
-    let searchQuery = $state("");
-    let openSupplier = $state(false);
-    let openDelete = $state(false);
-    let deleteId = $state<string | null>(null);
-
-    // Form State
-    let editingId = $state<string | null>(null);
-    let name = $state("");
-    let contact = $state("");
-    let phone = $state("");
-    let address = $state("");
-    let image = $state("");
-
-    // Reactive Data
-    let suppliers = $derived(suppliersQuery.data || []);
-    let loading = $derived(suppliersQuery.isLoading);
-
-    let filteredSuppliers = $derived(
-        (suppliers || []).filter(
-            (s: any) =>
-                s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (s.phone && s.phone.includes(searchQuery)) ||
-                (s.contact &&
-                    s.contact
-                        .toLowerCase()
-                        .includes(searchQuery.toLowerCase())),
-        ),
-    );
-
-    // Stats
-    let totalSuppliers = $derived(suppliers.length);
-    let activeContacts = $derived(
-        suppliers.filter((s: any) => s.contact).length,
-    );
-    let reliablePartners = $derived(
-        Math.max(1, Math.floor(totalSuppliers * 0.8)),
-    ); // Placeholder logic
-
-    function getInitials(name: string) {
-        if (!name) return "??";
-        return name
-            .split(" ")
-            .map((n) => n[0])
-            .slice(0, 2)
-            .join("")
-            .toUpperCase();
-    }
-
-    function resetSupplierForm() {
-        editingId = null;
-        name = "";
-        contact = "";
-        phone = "";
-        address = "";
-        image = "";
-    }
-
-    function handleEdit(sup: any) {
-        editingId = sup.id;
-        name = sup.name;
-        contact = sup.contact || "";
-        phone = sup.phone || "";
-        address = sup.address || "";
-        image = sup.image || "";
-        openSupplier = true;
-    }
-
-    function confirmDelete(id: string) {
-        deleteId = id;
-        openDelete = true;
-    }
-
-    function handleDeleteSupplier() {
-        if (!deleteId) return;
-        deleteSupplierMutation.mutate(deleteId);
-    }
-
-    function handleSaveSupplier() {
-        if (!name) return toast.error("Nama supplier wajib diisi");
-
-        const payload = {
-            id: editingId,
-            name,
-            contact,
-            phone,
-            address,
-            image,
-        };
-        saveSupplierMutation.mutate(payload);
-    }
+    const controller = new SuppliersController();
 </script>
 
 <div class="container mx-auto py-8 space-y-8 animate-in fade-in duration-500">
@@ -210,10 +74,7 @@
                 </p>
             </div>
             <Button
-                onclick={() => {
-                    resetSupplierForm();
-                    openSupplier = true;
-                }}
+                onclick={() => controller.openCreateDialog()}
                 size="lg"
                 class="bg-white text-emerald-600 hover:bg-slate-100 shadow-lg border-0 font-semibold transition-all hover:scale-105 active:scale-95"
             >
@@ -223,7 +84,7 @@
 
         <!-- Stats Grid -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-10">
-            {#each [{ label: "Total Supplier", value: totalSuppliers, icon: Building2, color: "text-emerald-100" }, { label: "Kontak Aktif", value: activeContacts, icon: Users, color: "text-teal-100" }, { label: "Partner Terpercaya", value: reliablePartners, icon: TrendingUp, color: "text-cyan-100" }, { label: "Growth", value: "+12%", icon: TrendingUp, color: "text-emerald-100" }] as stat}
+            {#each [{ label: "Total Supplier", value: controller.totalSuppliers, icon: Building2, color: "text-emerald-100" }, { label: "Kontak Aktif", value: controller.activeContacts, icon: Users, color: "text-teal-100" }, { label: "Partner Terpercaya", value: controller.reliablePartners, icon: TrendingUp, color: "text-cyan-100" }, { label: "Growth", value: "+12%", icon: TrendingUp, color: "text-emerald-100" }] as stat}
                 <div
                     class="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 hover:bg-white/15 transition-colors group"
                 >
@@ -259,7 +120,7 @@
                     class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                 />
                 <Input
-                    bind:value={searchQuery}
+                    bind:value={controller.searchQuery}
                     placeholder="Cari nama, telepon, atau kontak..."
                     class="pl-9 bg-secondary/30 border-transparent focus:bg-background focus:border-emerald-500/50 transition-all rounded-lg"
                 />
@@ -275,7 +136,7 @@
         </div>
 
         <!-- Grid Cards -->
-        {#if loading && suppliers.length === 0}
+        {#if controller.loading && controller.suppliers.length === 0}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {#each Array(6) as _}
                     <div class="p-4 rounded-2xl border bg-card space-y-4">
@@ -303,7 +164,7 @@
                     </div>
                 {/each}
             </div>
-        {:else if filteredSuppliers.length === 0}
+        {:else if controller.filteredSuppliers.length === 0}
             <div
                 class="flex flex-col items-center justify-center p-20 rounded-3xl border-2 border-dashed bg-muted/5"
             >
@@ -322,7 +183,7 @@
             </div>
         {:else}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {#each filteredSuppliers as supplier (supplier.id)}
+                {#each controller.filteredSuppliers as supplier (supplier.id)}
                     <div
                         class="group relative flex flex-col bg-card border border-slate-200/60 dark:border-slate-800/60 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
                         transition:fly={{ y: 20, duration: 400, delay: 100 }}
@@ -341,7 +202,7 @@
                                 <AvatarFallback
                                     class="rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 font-bold text-lg"
                                 >
-                                    {getInitials(supplier.name)}
+                                    {controller.getInitials(supplier.name)}
                                 </AvatarFallback>
                             </Avatar>
                             <div class="flex-1 min-w-0">
@@ -369,7 +230,9 @@
                                         >
                                             <DropdownMenu.Item
                                                 onclick={() =>
-                                                    handleEdit(supplier)}
+                                                    controller.handleEdit(
+                                                        supplier,
+                                                    )}
                                                 class="rounded-lg cursor-pointer"
                                             >
                                                 <Pencil class="mr-2 h-4 w-4" /> Edit
@@ -378,7 +241,9 @@
                                             <DropdownMenu.Separator />
                                             <DropdownMenu.Item
                                                 onclick={() =>
-                                                    confirmDelete(supplier.id)}
+                                                    controller.confirmDelete(
+                                                        supplier.id,
+                                                    )}
                                                 class="text-red-600 focus:text-red-700 focus:bg-red-50 rounded-lg cursor-pointer"
                                             >
                                                 <Trash2 class="mr-2 h-4 w-4" /> Hapus
@@ -483,8 +348,8 @@
 
     <!-- Dialog Create/Edit -->
     <Dialog
-        bind:open={openSupplier}
-        onOpenChange={(o) => !o && resetSupplierForm()}
+        bind:open={controller.openSupplier}
+        onOpenChange={(o) => !o && controller.resetForm()}
     >
         <DialogContent
             class="sm:max-w-[550px] rounded-3xl p-0 overflow-hidden border-none shadow-2xl"
@@ -493,19 +358,21 @@
                 class="bg-gradient-to-r from-emerald-600 to-teal-600 p-8 text-white"
             >
                 <DialogTitle class="text-2xl font-bold">
-                    {editingId ? "Edit Supplier" : "Tambah Supplier Baru"}
+                    {controller.editingId
+                        ? "Edit Supplier"
+                        : "Tambah Supplier Baru"}
                 </DialogTitle>
-                <DialogDescription class="text-emerald-100 mt-1">
+                <p class="text-emerald-100 mt-1">
                     Silakan isi informasi lengkap mengenai mitra supplier Anda.
-                </DialogDescription>
+                </p>
             </div>
 
             <div class="p-8 space-y-6 bg-background">
                 <div class="flex justify-center -mt-20 relative z-10">
                     <div class="relative">
                         <ImageUpload
-                            bind:value={image}
-                            disabled={saveSupplierMutation.isPending}
+                            bind:value={controller.image}
+                            disabled={controller.isSaving}
                             class="h-32 w-32 rounded-3xl border-4 border-background shadow-xl bg-slate-50"
                         />
                     </div>
@@ -522,7 +389,7 @@
                         </Label>
                         <Input
                             id="name"
-                            bind:value={name}
+                            bind:value={controller.name}
                             placeholder="PT. Sinar Jaya Abadi"
                             class="h-11 rounded-xl"
                         />
@@ -539,7 +406,7 @@
                             </Label>
                             <Input
                                 id="contact"
-                                bind:value={contact}
+                                bind:value={controller.contact}
                                 placeholder="Budi Santoso"
                                 class="h-11 rounded-xl"
                             />
@@ -553,7 +420,7 @@
                             </Label>
                             <Input
                                 id="phone"
-                                bind:value={phone}
+                                bind:value={controller.phone}
                                 placeholder="08123456789"
                                 class="h-11 rounded-xl"
                             />
@@ -569,7 +436,7 @@
                         </Label>
                         <Input
                             id="address"
-                            bind:value={address}
+                            bind:value={controller.address}
                             placeholder="Jl. Teknisi No. 123, Jakarta"
                             class="h-11 rounded-xl"
                         />
@@ -581,16 +448,16 @@
                 <Button
                     variant="ghost"
                     class="h-11 px-6 rounded-xl"
-                    onclick={() => (openSupplier = false)}>Batal</Button
+                    onclick={() => controller.closeDialog()}>Batal</Button
                 >
                 <Button
                     class="h-11 px-8 rounded-xl bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
-                    onclick={handleSaveSupplier}
-                    disabled={saveSupplierMutation.isPending}
+                    onclick={() => controller.handleSaveSupplier()}
+                    disabled={controller.isSaving}
                 >
-                    {saveSupplierMutation.isPending
+                    {controller.isSaving
                         ? "Menyimpan..."
-                        : editingId
+                        : controller.editingId
                           ? "Simpan Perubahan"
                           : "Simpan Supplier"}
                 </Button>
@@ -599,7 +466,7 @@
     </Dialog>
 
     <!-- Delete Alert -->
-    <AlertDialog.Root bind:open={openDelete}>
+    <AlertDialog.Root bind:open={controller.openDelete}>
         <AlertDialog.Content
             class="rounded-3xl border-none shadow-2xl p-0 overflow-hidden max-w-md bg-background"
         >
@@ -636,7 +503,7 @@
                         >Batal</AlertDialog.Cancel
                     >
                     <AlertDialog.Action
-                        onclick={handleDeleteSupplier}
+                        onclick={() => controller.handleDeleteSupplier()}
                         class="flex-1 h-12 rounded-2xl bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/20"
                     >
                         Ya, Hapus

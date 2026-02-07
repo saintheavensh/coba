@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createQuery } from "@tanstack/svelte-query";
-    import { InventoryService } from "$lib/features/inventory/services/inventory.service";
+    import { ProductsService as InventoryService } from "$lib/features/inventory/products/products.service";
     import { Button } from "$lib/shared/components/ui/button";
     import { ArrowLeft, Loader2, PackageX } from "lucide-svelte";
     import { Badge } from "$lib/shared/components/ui/badge";
