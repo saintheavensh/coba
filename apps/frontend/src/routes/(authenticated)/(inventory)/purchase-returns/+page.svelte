@@ -5,8 +5,8 @@
         TabsList,
         TabsTrigger,
     } from "$lib/shared/components/ui/tabs";
-    import DefectiveItemsList from "./components/defective-items-list.svelte";
-    import PurchaseReturnsList from "./components/purchase-returns-list.svelte";
+    import DefectiveItemsList from "$lib/features/inventory/purchase-returns/components/defective-items-list.svelte";
+    import PurchaseReturnsList from "$lib/features/inventory/purchase-returns/components/purchase-returns-list.svelte";
     import { Undo2, Archive, History } from "lucide-svelte";
     import { Button } from "$lib/shared/components/ui/button";
     import { fade } from "svelte/transition";

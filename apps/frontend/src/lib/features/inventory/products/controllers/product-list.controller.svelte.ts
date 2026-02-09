@@ -198,6 +198,21 @@ export class ProductListController {
     }
 
     // Actions
+    groupBatchesBySupplier(batches: any[]) {
+        return this.filterBatchesByVariant(batches).reduce(
+            (acc: Record<string, any[]>, batch: any) => {
+                const s =
+                    batch.supplier?.name ||
+                    batch.supplierName ||
+                    "Unknown Supplier";
+                if (!acc[s]) acc[s] = [];
+                acc[s].push(batch);
+                return acc;
+            },
+            {},
+        );
+    }
+
     toggleExpanded(id: string) {
         if (this.expandedProductId === id) {
             this.expandedProductId = null;

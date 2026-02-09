@@ -58,7 +58,7 @@
     import CurrencyInput from "$lib/shared/components/custom/currency-input.svelte";
     import { Switch } from "$lib/shared/components/ui/switch";
 
-    import { ServiceController } from "$lib/features/service-management/service.controller.svelte";
+    import { ServiceController } from "$lib/features/service-management/service";
 
     const controller = new ServiceController();
     const urlStatus = $derived($page.url.searchParams.get("status"));

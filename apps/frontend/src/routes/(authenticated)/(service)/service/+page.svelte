@@ -1,5 +1,5 @@
 <script lang="ts">
-    import ServiceList from "./components/service-list.svelte";
+    import ServiceList from "$lib/features/service-management/service/components/service-list.svelte";
     import { Wrench, Sparkles } from "lucide-svelte";
     import { fade } from "svelte/transition";
 </script>

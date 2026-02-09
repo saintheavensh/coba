@@ -1,14 +1,20 @@
 ﻿bun : $ svelte-kit sync && svelte-check --tsconfig 
 ./tsconfig.json
 At line:1 char:1
-+ bun run check 2>&1 | Out-File -Encoding utf8 check_final.txt
++ bun run check 2>&1 | Out-File -Encoding utf8 
+check_quickwins.txt
 + ~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: ($ svelte-kit 
-sy..../ts    config.json:String) [], RemoteException
+    + CategoryInfo          : NotSpecified: ($ svelte-kit sy.. 
+   ../tsconfig.json:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
  
 Loading svelte-check in workspace: c:\Users\Good\Documents\web\cek\coba\apps\frontend
 Getting Svelte diagnostics...
+
+c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\lib\shared\core\index.ts[39m:7:10
+[31mError[39m: Module '"./websocket"' declares 'WebSocketClient' locally, but it is not exported. 
+[36mexport { cn, formatCurrency, formatDate, generateBarcodeSvg, generateQrCodeSvg } from "./utils";
+export { [35mWebSocketClient[36m, wsClient, useWebSocket } from "./websocket";[39m
 
 c:\Users\Good\Documents\web\cek\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:269:29
 [33mWarn[39m: `<svelte:component>` is deprecated in runes mode ΓÇö components are dynamic by default
@@ -31,5 +37,6 @@ https://svelte.dev/e/svelte_component_deprecated (svelte)
                                         {:else}[39m
 
 ====================================
-[33msvelte-check found 0 errors and 2 warnings in 1 file
+[31msvelte-check found 1 error and 2 warnings in 2 files
+error: script "check" exited with code 1
 [39m

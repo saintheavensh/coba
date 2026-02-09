@@ -28,15 +28,15 @@
     import { authStore } from "$lib/features/auth/auth.svelte";
 
     // Components
-    import ManagerDigest from "./components/ManagerDigest.svelte";
-    import SalesTab from "./components/SalesTab.svelte";
-    import ServicesTab from "./components/ServicesTab.svelte";
-    import TechniciansTab from "./components/TechniciansTab.svelte";
-    import PurchasesTab from "./components/PurchasesTab.svelte";
-    import PartsTab from "./components/PartsTab.svelte";
-    import StockTab from "./components/StockTab.svelte";
-    import AccountingTab from "./components/AccountingTab.svelte";
-    import ProModeSetupDialog from "./components/ProModeSetupDialog.svelte";
+    import ManagerDigest from "$lib/features/finance/reports/components/ManagerDigest.svelte";
+    import SalesTab from "$lib/features/finance/reports/components/SalesTab.svelte";
+    import ServicesTab from "$lib/features/finance/reports/components/ServicesTab.svelte";
+    import TechniciansTab from "$lib/features/finance/reports/components/TechniciansTab.svelte";
+    import PurchasesTab from "$lib/features/finance/reports/components/PurchasesTab.svelte";
+    import PartsTab from "$lib/features/finance/reports/components/PartsTab.svelte";
+    import StockTab from "$lib/features/finance/reports/components/StockTab.svelte";
+    import AccountingTab from "$lib/features/finance/reports/components/AccountingTab.svelte";
+    import ProModeSetupDialog from "$lib/features/finance/reports/components/ProModeSetupDialog.svelte";
     import DateTimePicker from "$lib/shared/components/custom/date-time-picker.svelte";
 
     // Initialize Controller

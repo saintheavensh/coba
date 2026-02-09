@@ -1,10 +1,10 @@
-﻿bun : $ svelte-kit sync && svelte-check --tsconfig 
-./tsconfig.json
+﻿bun : $ svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
 At line:1 char:1
-+ bun run check 2>&1 | Out-File -Encoding utf8 check_final.txt
++ bun run check 2>&1 | Out-File -Encoding utf8 
+check_decomposition_3.tx ...
 + ~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: ($ svelte-kit 
-sy..../ts    config.json:String) [], RemoteException
+    + CategoryInfo          : NotSpecified: ($ svelte-kit sy..../ts 
+   config.json:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
  
 Loading svelte-check in workspace: c:\Users\Good\Documents\web\cek\coba\apps\frontend
