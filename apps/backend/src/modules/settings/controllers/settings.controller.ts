@@ -9,6 +9,8 @@ import {
     CommissionSettings,
     AccountMappingSettings,
     GeneralSettings,
+    TaxSettings,
+    SystemSettings,
 } from "../services/settings.service";
 import { apiSuccess, apiError } from "../../../lib/response";
 
@@ -173,6 +175,44 @@ export class SettingsController {
             return apiSuccess(c, null, "General settings updated");
         } catch (e: any) {
             return apiError(c, e, "Failed to update general settings");
+        }
+    }
+
+    static async getTaxSettings(c: Context) {
+        try {
+            const settings = await service.getTaxSettings();
+            return apiSuccess(c, settings);
+        } catch (e: any) {
+            return apiError(c, e, "Failed to fetch tax settings");
+        }
+    }
+
+    static async setTaxSettings(c: Context) {
+        try {
+            const body = await c.req.json<TaxSettings>();
+            await service.setTaxSettings(body);
+            return apiSuccess(c, null, "Tax settings updated");
+        } catch (e: any) {
+            return apiError(c, e, "Failed to update tax settings");
+        }
+    }
+
+    static async getSystemSettings(c: Context) {
+        try {
+            const settings = await service.getSystemSettings();
+            return apiSuccess(c, settings);
+        } catch (e: any) {
+            return apiError(c, e, "Failed to fetch system settings");
+        }
+    }
+
+    static async setSystemSettings(c: Context) {
+        try {
+            const body = await c.req.json<SystemSettings>();
+            await service.setSystemSettings(body);
+            return apiSuccess(c, null, "System settings updated");
+        } catch (e: any) {
+            return apiError(c, e, "Failed to update system settings");
         }
     }
 

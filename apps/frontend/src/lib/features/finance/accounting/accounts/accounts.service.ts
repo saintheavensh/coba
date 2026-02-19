@@ -30,4 +30,14 @@ export class AccountsService {
         const response = await api.post(`/accounting/accounts/${id}/opening-balance`, { amount });
         return response.data;
     }
+
+    static async update(id: string, data: any) {
+        const response = await api.patch(`/accounting/accounts/${id}`, data);
+        return response.data;
+    }
+
+    static async delete(id: string) {
+        const response = await api.delete(`/accounting/accounts/${id}`);
+        return response.data;
+    }
 }

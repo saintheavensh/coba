@@ -6,7 +6,7 @@
     let { children } = $props();
 
     // Settings domain: settings, employees, admin
-    const allowedRoles = ["owner", "super_admin"];
+    const allowedRoles = ["owner", "super_admin", "manager"];
 
     $effect(() => {
         if (browser && authStore.isAuthenticated && !authStore.loading) {

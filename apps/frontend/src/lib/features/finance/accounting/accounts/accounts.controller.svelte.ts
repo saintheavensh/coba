@@ -199,6 +199,35 @@ export class AccountsController {
     }
 
     /**
+     * Delete an account
+     */
+    async handleDeleteAccount(id: string) {
+        const account = this.accounts.find((a) => a.id === id);
+        if (!account) return;
+
+        if (account.isSystem) {
+            alert("Aset Sistem tidak dapat dihapus");
+            return;
+        }
+
+        if (account.balance !== 0) {
+            alert("Akun tidak dapat dihapus karena masih memiliki saldo. Silakan transfer saldo terlebih dahulu.");
+            return;
+        }
+
+        if (!confirm(`Hapus akun ${account.name}? Tindakan ini tidak dapat dibatalkan.`))
+            return;
+
+        try {
+            await AccountsService.delete(id);
+            await this.fetchAccounts();
+        } catch (e: any) {
+            console.error("Failed to delete account", e);
+            alert(e.response?.data?.error || "Gagal menghapus akun");
+        }
+    }
+
+    /**
      * Toggle tree node expansion
      */
     toggleNode(id: string) {

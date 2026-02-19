@@ -18,7 +18,9 @@
     import { Textarea } from "$lib/shared/components/ui/textarea";
     import { Separator } from "$lib/shared/components/ui/separator";
     import { toast } from "svelte-sonner";
-    import { Loader2, MessageSquare, Save } from "lucide-svelte";
+    import { Loader2, MessageSquare, Save, AlertTriangle } from "lucide-svelte";
+    import * as Select from "$lib/shared/components/ui/select";
+    import * as Alert from "$lib/shared/components/ui/alert";
 
     let settings: WhatsAppSettings = $state({
         enabled: false,
@@ -33,6 +35,15 @@
     });
     let loading = $state(true);
     let saving = $state(false);
+
+    // Mode Options
+    const MODES = [
+        {
+            value: "client",
+            label: "Client-Side (Click-to-Chat) - AMAN & GRATIS",
+        },
+        { value: "server", label: "Server-Side (Gateway Otomatis) - BERISIKO" },
+    ];
 
     onMount(async () => {
         try {
@@ -90,16 +101,85 @@
             </div>
 
             {#if settings.enabled}
-                <div class="grid gap-2">
-                    <Label>Nomor WhatsApp Pengirim / API Token</Label>
-                    <Input
-                        bind:value={settings.phoneNumber}
-                        placeholder="081234567890 atau API Token"
-                    />
-                    <p class="text-[10px] text-muted-foreground">
-                        Masukkan nomor pengirim atau token API sesuai provider
-                        yang digunakan.
-                    </p>
+                <div class="space-y-4 pt-4">
+                    <!-- Mode Selector -->
+                    <div class="space-y-2">
+                        <Label>Metode Integrasi</Label>
+                        <Select.Root type="single" bind:value={settings.mode}>
+                            <Select.Trigger>
+                                {MODES.find((m) => m.value === settings.mode)
+                                    ?.label || "Pilih Mode"}
+                            </Select.Trigger>
+                            <Select.Content>
+                                {#each MODES as mode}
+                                    <Select.Item
+                                        value={mode.value}
+                                        label={mode.label}
+                                    >
+                                        {mode.label}
+                                    </Select.Item>
+                                {/each}
+                            </Select.Content>
+                        </Select.Root>
+                    </div>
+
+                    <!-- Client Mode Content -->
+                    {#if settings.mode === "client"}
+                        <div
+                            class="grid gap-2 border p-4 rounded-md bg-muted/20"
+                        >
+                            <Label
+                                >Nomor WhatsApp Pengirim / API Token (Opsional)</Label
+                            >
+                            <Input
+                                bind:value={settings.phoneNumber}
+                                placeholder="081234567890 (Hanya untuk referensi)"
+                            />
+                            <p class="text-[12px] text-muted-foreground">
+                                Mode Client-Side menggunakan WhatsApp Web yang
+                                sedang dibuka di perangkat kasir. Nomor pengirim
+                                mengikuti akun yang login di browser.
+                            </p>
+                        </div>
+                    {/if}
+
+                    <!-- Server Mode Content -->
+                    {#if settings.mode === "server"}
+                        <Alert.Root variant="destructive">
+                            <AlertTriangle class="h-4 w-4" />
+                            <Alert.Title>Peringatan Risiko Banned</Alert.Title>
+                            <Alert.Description>
+                                Mode Server-Side menggunakan API Gateway pihak
+                                ketiga. Pihak WhatsApp dapat memblokir nomor
+                                Anda jika terdeteksi spam. Gunakan <strong
+                                    >Nomor Khusus (Bukan Pribadi)</strong
+                                >
+                                dan hindari mengirim pesan massal sekaligus.
+                            </Alert.Description>
+                        </Alert.Root>
+
+                        <div class="grid gap-4 border p-4 rounded-md">
+                            <div class="grid gap-2">
+                                <Label>Gateway URL</Label>
+                                <Input
+                                    bind:value={settings.gatewayUrl}
+                                    placeholder="https://api.fonnte.com/send"
+                                />
+                                <p class="text-[10px] text-muted-foreground">
+                                    URL API Provider (Fonnte, Wabus, dll)
+                                </p>
+                            </div>
+
+                            <div class="grid gap-2">
+                                <Label>API Key / Token</Label>
+                                <Input
+                                    type="password"
+                                    bind:value={settings.apiKey}
+                                    placeholder="Masukkan Token API..."
+                                />
+                            </div>
+                        </div>
+                    {/if}
                 </div>
             {/if}
         </CardContent>

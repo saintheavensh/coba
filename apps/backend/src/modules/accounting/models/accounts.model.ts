@@ -14,6 +14,7 @@ export class AccountModel {
                 parentId: accounts.parentId,
                 description: accounts.description,
                 isActive: accounts.isActive,
+                isSystem: accounts.isSystem,
                 balance: accounts.balance,
             })
             .from(accounts)

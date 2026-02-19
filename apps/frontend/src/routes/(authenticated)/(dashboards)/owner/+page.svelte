@@ -351,7 +351,11 @@
                         <Settings class="mr-2 h-4 w-4" />
                         Pengaturan Toko
                     </Button>
-                    <Button variant="ghost" class="justify-start" href="/users">
+                    <Button
+                        variant="ghost"
+                        class="justify-start"
+                        href="/settings/employees"
+                    >
                         <Users class="mr-2 h-4 w-4" />
                         Manajemen User
                     </Button>

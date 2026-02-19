@@ -8,6 +8,11 @@ interface CreateSaleInput {
     userId: string;
     notes?: string;
     discountAmount?: number;
+    subtotal?: number;
+    tax?: number;
+    taxRate?: number;
+    taxInclusive?: boolean;
+    serviceFee?: number;
     items: {
         productId: string;
         variant: string;

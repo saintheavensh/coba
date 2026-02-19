@@ -10,6 +10,7 @@ export interface CreateAccountInput {
     typeId: string;
     parentId?: string;
     description?: string;
+    isSystem?: boolean;
 }
 
 export interface UpdateAccountInput {
@@ -93,6 +94,7 @@ export class AccountsService {
             typeId: input.typeId,
             parentId: input.parentId,
             description: input.description,
+            isSystem: input.isSystem || false,
             balance: 0,
         });
 
@@ -117,6 +119,16 @@ export class AccountsService {
             throw new Error(`Account ${id} not found`);
         }
 
+        // Rule: System accounts cannot be renamed or deactivated
+        if (oldAccount.isSystem) {
+            if (input.name && input.name !== oldAccount.name) {
+                throw new Error("Cannot rename system account");
+            }
+            if (input.isActive !== undefined && input.isActive !== oldAccount.isActive) {
+                throw new Error("Cannot change active status of system account");
+            }
+        }
+
         await AccountModel.update(id, {
             ...input,
             updatedAt: new Date(),
@@ -130,6 +142,44 @@ export class AccountsService {
             tableName: "accounts",
             oldValues: { name: oldAccount.name, description: oldAccount.description, isActive: oldAccount.isActive },
             newValues: input as Record<string, unknown>,
+        });
+    }
+
+    /**
+     * Delete an account
+     */
+    static async delete(id: string, userId?: string): Promise<void> {
+        const account = await this.getById(id);
+        if (!account) {
+            throw new Error(`Account ${id} not found`);
+        }
+
+        // Rule: Cannot delete system accounts
+        if (account.isSystem) {
+            throw new Error("Cannot delete system account");
+        }
+
+        // Rule: Cannot delete accounts with non-zero balance
+        if (account.balance !== 0) {
+            throw new Error("Cannot delete account with non-zero balance. Please transfer the balance first.");
+        }
+
+        // Rule: Check if has children
+        const allAccounts = await this.getAll();
+        const hasChildren = allAccounts.some((a: any) => a.parentId === id);
+        if (hasChildren) {
+            throw new Error("Cannot delete account that has child accounts. Please delete the children first.");
+        }
+
+        await AccountModel.delete(id);
+
+        await AuditService.log({
+            userId,
+            action: "DELETE",
+            entityType: "account",
+            entityId: id,
+            tableName: "accounts",
+            oldValues: { name: account.name, code: account.code },
         });
     }
 
@@ -435,13 +485,13 @@ export class AccountsService {
             { code: "5209", name: "Beban Iklan", typeId: "EXPENSE", parentId: "5-5200", description: "Promosi dan marketing" },
             { code: "5210", name: "Beban Pemeliharaan", typeId: "EXPENSE", parentId: "5-5200", description: "Maintenance alat & gedung" },
             { code: "5211", name: "Beban Penyusutan", typeId: "EXPENSE", parentId: "5-5200", description: "Penyusutan aset tetap bulanan" },
-            { code: "5900", name: "Beban Lain-lain", typeId: "EXPENSE", parentId: "5-5200", description: "Beban operasional lainnya" },
+            { code: "5900", name: "Beban Lain-lain", typeId: "EXPENSE", parentId: "5-5200", description: "Beban operasional lainnya", isSystem: true },
         ];
 
         let created = 0;
         for (const acc of standardAccounts) {
             try {
-                await this.create(acc, userId);
+                await this.create({ ...acc, isSystem: true }, userId);
                 created++;
             } catch (e) {
                 // Skip if already exists (edge case)

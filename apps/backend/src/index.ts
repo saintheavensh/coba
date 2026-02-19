@@ -31,6 +31,7 @@ import brandsController from "./modules/brands/routes/brands.routes";
 import serviceToolsController from "./modules/service-tools/routes/service-tools.routes";
 import operationalCostsController from "./modules/operational-costs/routes/operational-costs.routes";
 import accountingController from "./modules/accounting/routes/accounting.routes";
+import whatsappController from "./modules/whatsapp/routes/whatsapp.routes";
 
 export const app = new Hono();
 
@@ -83,6 +84,7 @@ app.route("/brands", brandsController);
 app.route("/service-tools", serviceToolsController);
 app.route("/operational-costs", operationalCostsController);
 app.route("/accounting", accountingController);
+app.route("/whatsapp", whatsappController);
 
 
 // Root endpoint

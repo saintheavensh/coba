@@ -127,6 +127,11 @@ export interface WhatsAppSettings {
     statusUpdateTemplate: string;
     readyForPickupTemplate: string;
     warrantyReminderTemplate: string;
+    // Mode
+    mode: "client" | "server";
+    // Gateway (Server Mode)
+    gatewayUrl: string;
+    apiKey: string;
     // Auto-send toggles
     autoSendOnNewService: boolean;
     autoSendOnStatusChange: boolean;
@@ -200,6 +205,9 @@ const DEFAULT_WHATSAPP_SETTINGS: WhatsAppSettings = {
     statusUpdateTemplate: "Halo {customer}, status service {serviceNo} Anda telah diupdate menjadi: {status}.",
     readyForPickupTemplate: "Halo {customer}, HP Anda sudah selesai dan siap diambil. Nomor service: {serviceNo}. Total biaya: Rp {total}. Terima kasih!",
     warrantyReminderTemplate: "Halo {customer}, garansi service {serviceNo} Anda akan berakhir dalam {days} hari. Jika ada kendala, segera hubungi kami.",
+    mode: "client",
+    gatewayUrl: "",
+    apiKey: "",
     autoSendOnNewService: false,
     autoSendOnStatusChange: false,
     autoSendOnComplete: false,
@@ -260,6 +268,42 @@ export interface AccountMapping {
 export interface AccountMappingSettings {
     mappings: AccountMapping[];
 }
+
+
+
+// ============================================
+// TAX SETTINGS
+// ============================================
+
+export interface TaxSettings {
+    enabled: boolean;
+    rate: number;
+    label: string;
+    inclusive: boolean;
+}
+
+const DEFAULT_TAX_SETTINGS: TaxSettings = {
+    enabled: false,
+    rate: 11,
+    label: "PPN",
+    inclusive: false,
+};
+
+// ============================================
+// SYSTEM SETTINGS
+// ============================================
+
+export interface SystemSettings {
+    currencySymbol: string;
+    dateFormat: string;
+    timezone: string;
+}
+
+const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
+    currencySymbol: "Rp",
+    dateFormat: "dd/MM/yyyy",
+    timezone: "Asia/Jakarta",
+};
 
 const DEFAULT_ACCOUNT_MAPPINGS: AccountMappingSettings = {
     mappings: [
@@ -408,6 +452,24 @@ export class SettingsService {
 
     async setAccountMappings(settings: AccountMappingSettings, dbOrTx?: any): Promise<void> {
         await this.set("account_mappings", settings, dbOrTx);
+    }
+
+    // Tax Settings
+    async getTaxSettings(dbOrTx?: any): Promise<TaxSettings> {
+        return this.get("tax_settings", DEFAULT_TAX_SETTINGS, dbOrTx);
+    }
+
+    async setTaxSettings(settings: TaxSettings, dbOrTx?: any): Promise<void> {
+        await this.set("tax_settings", settings, dbOrTx);
+    }
+
+    // System Settings
+    async getSystemSettings(dbOrTx?: any): Promise<SystemSettings> {
+        return this.get("system_settings", DEFAULT_SYSTEM_SETTINGS, dbOrTx);
+    }
+
+    async setSystemSettings(settings: SystemSettings, dbOrTx?: any): Promise<void> {
+        await this.set("system_settings", settings, dbOrTx);
     }
 
     // Helper: Get account ID for a specific mapping type

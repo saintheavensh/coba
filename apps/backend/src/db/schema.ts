@@ -403,6 +403,9 @@ export const operationalCosts = pgTable("operational_costs", {
     amount: integer("amount").notNull(),
     date: timestamp("date").defaultNow(),
     description: text("description"),
+    status: text("status", { enum: ["paid", "pending"] }).default("paid"),
+    dueDate: timestamp("due_date"),
+    paidAt: timestamp("paid_at"),
     userId: text("user_id").references(() => users.id),
     createdAt: timestamp("created_at").defaultNow(),
 });
@@ -472,6 +475,7 @@ export const accounts = pgTable("accounts", {
     parentId: text("parent_id"),
     description: text("description"),
     isActive: boolean("is_active").default(true),
+    isSystem: boolean("is_system").default(false),
     balance: integer("balance").notNull().default(0),
     ...timestamps(), // Added timestamps + deletedAt
 }, (table) => ({
@@ -683,6 +687,8 @@ export const paymentMethods = pgTable("payment_methods", {
     name: text("name").notNull(),
     type: text("type", { enum: ["cash", "transfer", "qris", "ewallet", "custom"] }).notNull(),
     icon: text("icon").notNull().default("💳"),
+    accountId: text("account_id").references(() => accounts.id),
+    feeConfig: json("fee_config").$type<{ enabled: boolean; type: "percent" | "fixed"; value: number }>(),
     enabled: boolean("enabled").default(true),
     ...timestamps(), // Added timestamps + deletedAt
 });
@@ -693,6 +699,7 @@ export const paymentVariants = pgTable("payment_variants", {
     name: text("name").notNull(),
     accountNumber: text("account_number"),
     accountHolder: text("account_holder"),
+    accountId: text("account_id").references(() => accounts.id),
     enabled: boolean("enabled").default(true),
     created_at: timestamp("created_at").defaultNow(),
 });
@@ -822,6 +829,7 @@ export const purchasesRelations = relations(purchases, ({ one, many }) => ({
         references: [users.id],
     }),
     items: many(purchaseItems),
+    payments: many(purchasePayments),
 }));
 
 export const purchaseItemsRelations = relations(purchaseItems, ({ one }) => ({

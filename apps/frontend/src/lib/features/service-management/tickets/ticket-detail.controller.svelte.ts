@@ -1,7 +1,7 @@
 import { goto } from "$app/navigation";
 import { ServiceService } from "$lib/features/service-management/services/service.service";
 import { refreshServiceList } from "$lib/features/service-management/services/event-store";
-import { SettingsService } from "$lib/features/settings/settings.service";
+import { SettingsService, type WhatsAppSettings } from "$lib/features/settings/settings.service";
 import { api } from "$lib/shared/core/api";
 import { toast } from "svelte-sonner";
 import {
@@ -22,6 +22,20 @@ export class TicketDetailController {
     loading = $state(true);
     currentUser = $state<any>(null);
     serviceSettings = $state<any>(null);
+    whatsappSettings = $state<WhatsAppSettings>({
+        enabled: false,
+        phoneNumber: "",
+        newServiceTemplate: "",
+        statusUpdateTemplate: "",
+        readyForPickupTemplate: "",
+        warrantyReminderTemplate: "",
+        mode: "client",
+        gatewayUrl: "",
+        apiKey: "",
+        autoSendOnNewService: false,
+        autoSendOnStatusChange: false,
+        autoSendOnComplete: false,
+    });
     technicians = $state<{ id: string; name: string }[]>([]);
 
     // Modal States
@@ -136,7 +150,12 @@ export class TicketDetailController {
 
     async loadSettings() {
         try {
-            this.serviceSettings = await SettingsService.getServiceSettings();
+            const [svcSettings, waSettings] = await Promise.all([
+                SettingsService.getServiceSettings(),
+                SettingsService.getWhatsAppSettings()
+            ]);
+            this.serviceSettings = svcSettings;
+            this.whatsappSettings = waSettings;
         } catch (e) {
             console.error("Failed to load settings", e);
         }
@@ -290,6 +309,49 @@ export class TicketDetailController {
         this.isAdmin,
     );
 
+    // WhatsApp Helper
+    async sendWhatsApp(message: string, force: boolean = false) {
+        if ((!this.whatsappSettings.enabled && !force) || !this.serviceOrder?.customer?.phone) return;
+
+        const phone = this.serviceOrder.customer.phone.replace(/[^0-9]/g, "");
+        const formattedPhone = phone.startsWith("0") ? "62" + phone.slice(1) : phone;
+
+        // Parse Variables
+        const variables: Record<string, string> = {
+            "{customer}": this.serviceOrder.customer.name || "Customer",
+            "{serviceNo}": this.serviceOrder.no,
+            "{device}": `${this.serviceOrder.phone?.brand || ""} ${this.serviceOrder.phone?.model || ""}`.trim(),
+            "{status}": this.statusConfig.label,
+            "{total}": new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(this.grandTotal),
+        };
+
+        let finalMessage = message;
+        Object.entries(variables).forEach(([key, value]) => {
+            finalMessage = finalMessage.replace(new RegExp(key, "g"), value);
+        });
+
+        // Mode Check
+        if (this.whatsappSettings.mode === 'server') {
+            // Server-Side Mode
+            const toastId = toast.loading("Mengirim pesan WhatsApp...");
+            try {
+                await api.post("/whatsapp/send", {
+                    to: formattedPhone,
+                    message: finalMessage
+                });
+                toast.success("Pesan WhatsApp terkirim!", { id: toastId });
+            } catch (e) {
+                console.error("WhatsApp Send Error:", e);
+                toast.error("Gagal mengirim pesan WhatsApp", { id: toastId });
+                // Fallback to client side if server fails? Maybe ask user?
+                // For now, let's just error out to respect the "Server Only" choice.
+            }
+        } else {
+            // Client-Side Mode (Default)
+            const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(finalMessage)}`;
+            window.open(url, "_blank");
+        }
+    }
 
     // Actions
     async updateStatus(newStatus: string, extraData: any = {}) {
@@ -303,6 +365,18 @@ export class TicketDetailController {
             toast.success(`Status updated: ${newStatus}`);
             refreshServiceList.update((n) => n + 1);
             await this.loadData();
+
+            // Auto Send WhatsApp logic
+            if (this.whatsappSettings.enabled && this.whatsappSettings.autoSendOnStatusChange && this.whatsappSettings.statusUpdateTemplate) {
+                // Re-trigger visual status update to ensure label is correct before sending
+                // Actually this.serviceOrder is updated by loadData(), so statusConfig should be correct.
+                // However, we need to ensure the message uses the NEW status label.
+                // The loadData() calls above should have updated serviceOrder.status.
+                setTimeout(() => {
+                    this.sendWhatsApp(this.whatsappSettings.statusUpdateTemplate);
+                }, 500);
+            }
+
         } catch (e) {
             console.error(e);
             toast.error("Gagal update status");
@@ -442,7 +516,15 @@ export class TicketDetailController {
             });
             toast.success("Service selesai!");
             refreshServiceList.update((n) => n + 1);
-            this.loadData();
+            await this.loadData();
+
+            // Auto Send WhatsApp logic for Complete
+            if (this.whatsappSettings.enabled && this.whatsappSettings.autoSendOnComplete && this.whatsappSettings.readyForPickupTemplate) {
+                setTimeout(() => {
+                    this.sendWhatsApp(this.whatsappSettings.readyForPickupTemplate);
+                }, 500);
+            }
+
         } catch (e) {
             toast.error("Gagal update status");
         } finally {
@@ -474,13 +556,22 @@ export class TicketDetailController {
 
     handleChatCustomer() {
         if (!this.serviceOrder) return;
-        const phone = this.serviceOrder.customer?.phone?.replace(/[^0-9]/g, "") || "";
-        const formattedPhone = phone.startsWith("0") ? "62" + phone.slice(1) : phone;
-        const brand = this.serviceOrder.phone?.brand || "HP";
-        const model = this.serviceOrder.phone?.model || "";
-        const message = `Halo Kak ${this.serviceOrder.customer?.name || "Customer"}, mengenai service ${brand} ${model} (No: ${this.serviceOrder.no})...`;
-        const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
-        window.open(url, "_blank");
+
+        let message = "";
+        // Use New Service Template if available and status is Antrian/Dicek, otherwise use generic or just open chat
+        if (this.whatsappSettings.enabled && this.whatsappSettings.newServiceTemplate && ["antrian", "dicek"].includes(this.serviceOrder.status)) {
+            message = this.whatsappSettings.newServiceTemplate;
+            this.sendWhatsApp(message, true);
+        } else {
+            // Fallback to manual constructing if no template or not enabled, 
+            // but strictly use sendWhatsApp to keep logic in one place.
+            // If enabled but no specific template, maybe we just want to open chat?
+            // The legacy code had a hardcoded string. Let's keep a generic fallback.
+            const brand = this.serviceOrder.phone?.brand || "HP";
+            const model = this.serviceOrder.phone?.model || "";
+            message = `Halo Kak ${this.serviceOrder.customer?.name || "Customer"}, mengenai service ${brand} ${model} (No: ${this.serviceOrder.no})...`;
+            this.sendWhatsApp(message, true);
+        }
     }
 
     handlePrint(mode: "receipt" | "sticker" = "receipt") {

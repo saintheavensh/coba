@@ -36,6 +36,8 @@
         FileText,
         BookOpen,
         Settings,
+        Lock,
+        Trash2,
     } from "lucide-svelte";
     import { AccountsController } from "$lib/features/finance/accounting/accounts/accounts.controller.svelte";
 
@@ -846,6 +848,7 @@
                         <TableHead>Nama Akun</TableHead>
                         <TableHead class="w-32">Tipe</TableHead>
                         <TableHead class="text-right w-40">Saldo</TableHead>
+                        <TableHead class="w-16"></TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -870,6 +873,33 @@
                                 {controller.formatCurrency(
                                     account.balance || 0,
                                 )}
+                            </TableCell>
+                            <TableCell>
+                                {#if account.isSystem}
+                                    <div title="Akun Sistem (Terkunci)">
+                                        <Lock
+                                            class="h-4 w-4 text-slate-400 mx-auto"
+                                        />
+                                    </div>
+                                {:else}
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                                        onclick={(e) => {
+                                            e.stopPropagation();
+                                            controller.handleDeleteAccount(
+                                                account.id,
+                                            );
+                                        }}
+                                        disabled={account.balance !== 0}
+                                        title={account.balance !== 0
+                                            ? "Tidak dapat menghapus akun dengan saldo"
+                                            : "Hapus Akun"}
+                                    >
+                                        <Trash2 class="h-4 w-4" />
+                                    </Button>
+                                {/if}
                             </TableCell>
                         </TableRow>
                     {:else}
@@ -926,9 +956,33 @@
             >
                 {node.typeName}
             </span>
-            <span class="font-mono text-sm text-slate-600 w-32 text-right">
+            <span class="font-mono text-sm text-slate-600 w-32 text-right mr-4">
                 {controller.formatCurrency(node.balance || 0)}
             </span>
+
+            {#if node.isSystem}
+                <div title="Akun Sistem (Terkunci)">
+                    <Lock class="h-4 w-4 text-slate-400 shrink-0" />
+                </div>
+            {:else}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50 p-0"
+                    onclick={(e) => {
+                        e.stopPropagation();
+                        controller.handleDeleteAccount(node.id);
+                    }}
+                    disabled={node.balance !== 0 || node.children?.length > 0}
+                    title={node.balance !== 0
+                        ? "Tidak dapat menghapus akun dengan saldo"
+                        : node.children?.length > 0
+                          ? "Hapus semua akun cabang terlebih dahulu"
+                          : "Hapus Akun"}
+                >
+                    <Trash2 class="h-3.5 w-3.5" />
+                </Button>
+            {/if}
         </button>
 
         <!-- Children -->
@@ -939,4 +993,3 @@
         {/if}
     </div>
 {/snippet}
-

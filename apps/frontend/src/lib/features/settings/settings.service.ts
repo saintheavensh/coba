@@ -24,6 +24,11 @@ export interface PaymentMethod {
     enabled: boolean;
     variants?: PaymentVariant[];
     accountId?: string | null; // Linked GL Account
+    feeConfig?: {
+        enabled: boolean;
+        type: "percent" | "fixed";
+        value: number;
+    };
     createdAt?: Date;
 }
 
@@ -120,6 +125,13 @@ export interface WhatsAppSettings {
     statusUpdateTemplate: string;
     readyForPickupTemplate: string;
     warrantyReminderTemplate: string;
+    warrantyReminderTemplate: string;
+    // Mode
+    mode: "client" | "server";
+    // Gateway (Server Mode)
+    gatewayUrl: string;
+    apiKey: string;
+    // Auto-send toggles
     autoSendOnNewService: boolean;
     autoSendOnStatusChange: boolean;
     autoSendOnComplete: boolean;
@@ -139,6 +151,19 @@ export interface CommissionSettings {
 // ============================================
 // ACCOUNT MAPPING SETTINGS
 // ============================================
+
+export interface TaxSettings {
+    enabled: boolean;
+    rate: number; // Percentage (e.g. 11 for 11%)
+    label: string; // e.g. "PPN", "VAT"
+    inclusive: boolean; // Price includes tax?
+}
+
+export interface SystemSettings {
+    currencySymbol: string;
+    dateFormat: string; // e.g. "dd/MM/yyyy"
+    timezone: string;
+}
 
 export type AccountMappingType =
     | 'asset_tool'
@@ -343,6 +368,26 @@ export const SettingsService = {
 
     async setGeneralSettings(settings: GeneralSettings): Promise<void> {
         await api.put("/settings/general", settings);
+    },
+
+    // Tax Settings
+    async getTaxSettings(): Promise<TaxSettings> {
+        const response = await api.get<ApiResponse<TaxSettings>>("/settings/tax");
+        return response.data.data || { enabled: false, rate: 11, label: "PPN", inclusive: false };
+    },
+
+    async setTaxSettings(settings: TaxSettings): Promise<void> {
+        await api.put("/settings/tax", settings);
+    },
+
+    // System Settings
+    async getSystemSettings(): Promise<SystemSettings> {
+        const response = await api.get<ApiResponse<SystemSettings>>("/settings/system");
+        return response.data.data || { currencySymbol: "Rp", dateFormat: "dd/MM/yyyy", timezone: "Asia/Jakarta" };
+    },
+
+    async setSystemSettings(settings: SystemSettings): Promise<void> {
+        await api.put("/settings/system", settings);
     },
 
     // Factory Reset

@@ -1,5 +1,5 @@
 import { db } from "../../../db";
-import { purchases, purchaseItems, productBatches, products, suppliers, activityLogs } from "../../../db/schema";
+import { purchases, purchaseItems, productBatches, products, suppliers, activityLogs, purchasePayments } from "../../../db/schema";
 import { eq, desc, and, between, sql, gte, lte } from "drizzle-orm";
 
 import { Logger } from "../../../lib/logger";
@@ -64,5 +64,29 @@ export class PurchasesModel {
                 eq(productBatches.variantId, variant)
             )
         });
+    }
+
+
+    async getUnpaid(dbOrTx: any = db) {
+        // Fetch all VERIFIED purchases with payments
+        // We filter in-memory for simplicity given ORM complexity with HAVING + Relations
+        const results = await dbOrTx.query.purchases.findMany({
+            where: eq(purchases.status, "VERIFIED"),
+            with: {
+                supplier: true,
+                payments: true // This requires 'payments' relation to be defined in schema relations
+            },
+            orderBy: [desc(purchases.date)]
+        });
+
+        // Calculate remaining debt
+        return results.map((po: any) => {
+            const paid = (po.payments || []).reduce((sum: number, p: any) => sum + p.amount, 0);
+            return {
+                ...po,
+                paidAmount: paid,
+                remainingAmount: po.totalAmount - paid
+            };
+        }).filter((po: any) => po.remainingAmount > 0);
     }
 }

@@ -16,6 +16,7 @@ import { CommissionPaymentController } from "../controllers/commission-payment.c
 import { AuditController } from "../controllers/audit.controller";
 import { AccountingDashboardController } from "../controllers/accounting-dashboard.controller";
 import { AccountingReportsController } from "../controllers/accounting-reports.controller";
+import { LiabilitiesController } from "../controllers/liabilities.controller";
 
 const accounting = new Hono();
 
@@ -58,7 +59,9 @@ const createAccountSchema = z.object({
 accounting.post("/accounts", zValidator("json", createAccountSchema), AccountsController.create);
 accounting.post("/accounts/:id/opening-balance", AccountsController.setOpeningBalance);
 accounting.post("/accounts/seed", AccountsController.seed);
+accounting.patch("/accounts/:id", AccountsController.update);
 accounting.delete("/accounts/reset", AccountsController.reset);
+accounting.delete("/accounts/:id", AccountsController.delete);
 
 const transferFundsSchema = z.object({
     fromAccountId: z.string(),
@@ -158,6 +161,16 @@ const setTargetSchema = z.object({
     profitMarginPercent: z.number().min(0).max(100).optional(),
 });
 accounting.post("/targets/:month", zValidator("json", setTargetSchema), RevenueTargetController.setTarget);
+
+// ============================================
+// LIABILITIES (DEBT MANAGEMENT)
+// ============================================
+
+accounting.get("/liabilities/summary", LiabilitiesController.getSummary);
+accounting.get("/liabilities/suppliers", LiabilitiesController.getSupplierDebts);
+accounting.get("/liabilities/expenses", LiabilitiesController.getExpenseDebts);
+accounting.post("/liabilities/expenses/:id/pay", LiabilitiesController.payExpense);
+accounting.get("/liabilities/commissions", LiabilitiesController.getCommissionDebts);
 
 // ============================================
 // SUPPLIER PAYMENTS (AP)

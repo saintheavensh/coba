@@ -29,7 +29,10 @@ export class CommissionPaymentService {
                 technicianId: services.technicianId,
                 technicianName: users.name,
                 actualCost: services.actualCost,
+                actualCost: services.actualCost,
+                parts: services.parts,
                 dateOut: services.dateOut,
+                commissionConfig: users.commissionConfig,
             })
             .from(services)
             .leftJoin(users, eq(services.technicianId, users.id))
@@ -56,7 +59,7 @@ export class CommissionPaymentService {
         const pendingByTechnician: Record<string, {
             technicianId: string;
             technicianName: string;
-            services: typeof completedServices;
+            services: (typeof completedServices)[0][];
             totalAmount: number;
         }> = {};
 
@@ -72,9 +75,36 @@ export class CommissionPaymentService {
                 };
             }
 
+            // Special Commission Calculation:
+            // (Service Price - Spare Part Selling Price) * Commission %
+
+            const servicePrice = svc.actualCost || 0;
+            let partsSellingPrice = 0;
+
+            if (svc.parts && Array.isArray(svc.parts)) {
+                for (const part of svc.parts as any[]) {
+                    // Assuming part.price is the selling price charged to customer
+                    // If part.price is missing, fallback to 0 to avoid NaN
+                    const price = Number(part.price) || 0;
+                    const qty = Number(part.qty) || 1;
+                    partsSellingPrice += price * qty;
+                }
+            }
+
+            const netServiceRevenue = Math.max(0, servicePrice - partsSellingPrice);
+
+            // Get Commission Rate
+            // Default 10% if not configured
+            let rate = 10;
+            const config = svc.commissionConfig as any;
+            if (config && config.rate !== undefined) {
+                rate = Number(config.rate);
+            }
+
+            const commission = Math.floor(netServiceRevenue * (rate / 100));
+
             pendingByTechnician[svc.technicianId].services.push(svc);
-            // Assuming 10% commission - this should come from user's commissionConfig
-            pendingByTechnician[svc.technicianId].totalAmount += Math.floor((svc.actualCost || 0) * 0.1);
+            pendingByTechnician[svc.technicianId].totalAmount += commission;
         }
 
         return Object.values(pendingByTechnician);

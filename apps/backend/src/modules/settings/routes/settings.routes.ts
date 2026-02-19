@@ -48,6 +48,14 @@ settings.put("/account-mappings", SettingsController.setAccountMappings);
 settings.get("/general", SettingsController.getGeneralSettings);
 settings.put("/general", SettingsController.setGeneralSettings);
 
+// Tax
+settings.get("/tax", SettingsController.getTaxSettings);
+settings.put("/tax", SettingsController.setTaxSettings);
+
+// System
+settings.get("/system", SettingsController.getSystemSettings);
+settings.put("/system", SettingsController.setSystemSettings);
+
 // Reset
 settings.post("/reset", SettingsController.factoryReset);
 

@@ -4,6 +4,7 @@ import { CategoriesService } from "$lib/features/inventory/categories/categories
 import { SalesService } from "$lib/features/sales/sales.service";
 import { CustomersService } from "$lib/features/sales/customers/customers.service";
 import { PaymentService, type PaymentMethod } from "$lib/features/finance/shared/payment.service";
+import { SettingsService, type TaxSettings } from "$lib/features/settings/settings.service";
 import { formatCurrency } from "$lib/shared/core/utils";
 import { toast } from "svelte-sonner";
 import { authStore } from "$lib/features/auth/auth.svelte";
@@ -34,6 +35,12 @@ export class SalesController {
     categories = $state<any[]>([]);
     customers = $state<any[]>([]);
     cart = $state<CartItem[]>([]);
+    taxSettings = $state<TaxSettings>({
+        enabled: false,
+        rate: 0,
+        label: "Tax",
+        inclusive: false
+    });
 
     // UI State
     searchTerm = $state("");
@@ -56,7 +63,8 @@ export class SalesController {
             this.fetchProducts(),
             this.fetchCategories(),
             this.fetchCustomers(),
-            this.fetchPaymentMethods()
+            this.fetchPaymentMethods(),
+            this.fetchSettings()
         ]);
         this.resetPaymentForm();
     }
@@ -91,6 +99,14 @@ export class SalesController {
             this.availableMethods = await PaymentService.getEnabledMethods();
         } catch (error) {
             console.error("Failed to fetch payment methods", error);
+        }
+    }
+
+    async fetchSettings() {
+        try {
+            this.taxSettings = await SettingsService.getTaxSettings();
+        } catch (error) {
+            console.error("Failed to fetch tax settings", error);
         }
     }
 
@@ -150,8 +166,50 @@ export class SalesController {
         }));
     }
 
-    get totalAmount() {
+    get subtotal() {
         return this.cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+    }
+
+    get taxAmount() {
+        if (!this.taxSettings.enabled) return 0;
+        const rate = this.taxSettings.rate / 100;
+        if (this.taxSettings.inclusive) {
+            // Implied Tax: Price = Base + Tax. Tax = Price - (Price / (1 + rate))
+            return this.subtotal - (this.subtotal / (1 + rate));
+        } else {
+            // Additive Tax: Tax = Price * rate
+            return this.subtotal * rate;
+        }
+    }
+
+    get totalWithTax() {
+        if (this.taxSettings.inclusive) {
+            return this.subtotal; // Price already includes tax
+        }
+        return this.subtotal + this.taxAmount;
+    }
+
+    get transactionFees() {
+        return this.payments.reduce((sum, p) => {
+            const method = this.getSelectedMethod(p.methodId);
+            if (!method?.feeConfig?.enabled || !p.amount) return sum;
+
+            const { type, value } = method.feeConfig;
+            if (type === "percent") {
+                return sum + (p.amount * (value / 100)); // Fee based on payment amount
+            } else {
+                return sum + value; // Fixed fee
+            }
+        }, 0);
+    }
+
+    get finalTotal() {
+        return this.totalWithTax + this.transactionFees;
+    }
+
+    // Replaces totalAmount for display
+    get totalAmount() {
+        return this.totalWithTax; // For compatibility, but UI should prefer finalTotal for payment
     }
 
     get totalPaid() {
@@ -159,11 +217,13 @@ export class SalesController {
     }
 
     get change() {
-        return this.totalPaid - this.totalAmount;
+        // If paid more than final total (including fees)
+        return Math.max(0, this.totalPaid - this.finalTotal);
     }
 
     get remaining() {
-        return this.totalAmount - this.totalPaid;
+        // Remaining to be paid
+        return Math.max(0, this.finalTotal - this.totalPaid);
     }
 
     // Actions
@@ -254,7 +314,8 @@ export class SalesController {
             this.availableMethods.find((m) => m.type === "cash") ||
             this.availableMethods[0];
 
-        this.payments = [{ methodId: defaultMethod?.id || "", amount: this.totalAmount }]; // Default full cash
+        // Initialize payment with TOTAL including Tax (fees are dynamic based on method, so we start with totalWithTax)
+        this.payments = [{ methodId: defaultMethod?.id || "", amount: this.totalWithTax }];
         this.paymentOpen = true;
     }
 
@@ -354,6 +415,12 @@ export class SalesController {
                 qty: c.qty,
                 price: c.price,
             })),
+            // New Fields for Tax & Fees
+            subtotal: this.subtotal,
+            tax: this.taxAmount,
+            taxRate: this.taxSettings.enabled ? this.taxSettings.rate : 0,
+            taxInclusive: this.taxSettings.inclusive,
+            serviceFee: this.transactionFees,
         };
 
         try {

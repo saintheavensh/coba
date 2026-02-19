@@ -22,6 +22,7 @@
         ClipboardList,
         Shield,
         KeyRound,
+        ChevronDown,
     } from "lucide-svelte";
     import * as DropdownMenu from "$lib/shared/components/ui/dropdown-menu";
     import { Button } from "$lib/shared/components/ui/button";
@@ -34,22 +35,31 @@
         icon: any;
     }
 
+    interface NavGroup {
+        title: string;
+        icon?: any;
+        href?: string; // Optional root link
+        items: NavItem[];
+    }
+
+    type NavEntry = NavItem | NavGroup;
+
     // Use activeRole for nav (the switcher mode), not the primary role
     const activeRole = $derived(authStore.activeRole);
     const userName = $derived(authStore.user?.name || "User");
     const roleConfig = $derived(authStore.activeRoleConfig);
 
-    const navConfig: Record<string, NavItem[]> = {
+    const navConfig: Record<string, NavEntry[]> = {
         super_admin: [
             { title: "System", href: "/superadmin", icon: Shield },
-            { title: "Users", href: "/users", icon: Users },
+            { title: "Karyawan", href: "/settings/employees", icon: Users },
             { title: "Roles", href: "/roles", icon: KeyRound },
             { title: "Settings", href: "/settings", icon: Settings },
-            { title: "Audit Log", href: "/audit", icon: FileText },
+            { title: "Audit", href: "/accounting/audit-log", icon: FileText },
         ],
         teknisi: [
             {
-                title: "My Workstation",
+                title: "Workstation",
                 href: "/technician",
                 icon: LayoutDashboard,
             },
@@ -67,35 +77,109 @@
         warehouse: [
             { title: "Inventory", href: "/warehouse", icon: LayoutDashboard },
             { title: "Products", href: "/products", icon: Package },
-            {
-                title: "Penerimaan Barang",
-                href: "/warehouse/reception",
-                icon: Truck,
-            },
-            { title: "Stock", href: "/searchproduct", icon: Search },
+            { title: "Receiving", href: "/warehouse/reception", icon: Truck },
+            { title: "Stock Search", href: "/searchproduct", icon: Search },
         ],
         owner: [
             { title: "Dashboard", href: "/owner", icon: LayoutDashboard },
-            { title: "Reports", href: "/reports", icon: BarChart3 },
-            { title: "Accounting", href: "/accounting", icon: Wallet },
-            { title: "Staff", href: "/users", icon: Users },
-            { title: "Audit", href: "/accounting/audit-log", icon: Shield },
-            { title: "Settings", href: "/settings", icon: Settings },
+            {
+                title: "Analisis & Grafik",
+                icon: BarChart3,
+                items: [
+                    {
+                        title: "Dashboard Laporan",
+                        href: "/reports",
+                        icon: BarChart3,
+                    },
+                    {
+                        title: "Riwayat Aktivitas",
+                        href: "/accounting/audit-log",
+                        icon: FileText,
+                    },
+                ],
+            },
+            {
+                title: "Keuangan",
+                icon: Wallet,
+                items: [
+                    {
+                        title: "Accounting Hub",
+                        href: "/accounting",
+                        icon: Wallet,
+                    },
+                    {
+                        title: "Liabilities (Hutang)",
+                        href: "/accounting/liabilities",
+                        icon: FileText,
+                    },
+                ],
+            },
+            {
+                title: "Pengaturan Utama",
+                icon: Settings,
+                items: [
+                    {
+                        title: "Manajemen Karyawan",
+                        href: "/settings/employees",
+                        icon: Users,
+                    },
+                    {
+                        title: "Pengaturan Toko",
+                        href: "/settings/store",
+                        icon: Settings,
+                    },
+                    {
+                        title: "Metode Pembayaran",
+                        href: "/settings/payment",
+                        icon: Wallet,
+                    },
+                    { title: "Akses & Roles", href: "/roles", icon: KeyRound },
+                    {
+                        title: "Semua Pengaturan",
+                        href: "/settings",
+                        icon: Settings,
+                    },
+                ],
+            },
         ],
         manager: [
             { title: "Dashboard", href: "/manager", icon: LayoutDashboard },
-            { title: "Services", href: "/service", icon: Wrench },
-            { title: "Sales", href: "/sales", icon: ShoppingCart },
             {
-                title: "Purchases",
-                href: "/manager/purchases",
-                icon: ShoppingCart,
+                title: "Operations",
+                icon: Wrench,
+                items: [
+                    { title: "Services", href: "/service", icon: Wrench },
+                    { title: "Sales", href: "/sales", icon: ShoppingCart },
+                    {
+                        title: "Purchases",
+                        href: "/manager/purchases",
+                        icon: ShoppingCart,
+                    },
+                ],
             },
-            { title: "Accounting", href: "/accounting", icon: Wallet },
-            { title: "Products", href: "/products", icon: Package },
-            { title: "Suppliers", href: "/suppliers", icon: Truck },
-            { title: "Categories", href: "/categories", icon: Layers },
-            { title: "Reports", href: "/reports", icon: BarChart3 },
+            {
+                title: "Inventory",
+                icon: Package,
+                items: [
+                    { title: "Products", href: "/products", icon: Package },
+                    { title: "Suppliers", href: "/suppliers", icon: Truck },
+                    { title: "Categories", href: "/categories", icon: Layers },
+                ],
+            },
+            {
+                title: "Finance",
+                icon: Wallet,
+                items: [
+                    { title: "Accounting", href: "/accounting", icon: Wallet },
+                    {
+                        title: "Liabilities",
+                        href: "/accounting/liabilities",
+                        icon: FileText,
+                    },
+                    { title: "Reports", href: "/reports", icon: BarChart3 },
+                ],
+            },
+            { title: "Settings", href: "/settings", icon: Settings },
         ],
     };
 
@@ -107,10 +191,14 @@
         await AuthService.logout();
         window.location.href = "/login";
     }
+
+    function isGroupActive(group: NavGroup, path: string) {
+        return group.items.some((item) => path.startsWith(item.href));
+    }
 </script>
 
 <nav
-    class="flex h-16 items-center justify-between px-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50"
+    class="flex h-16 items-center justify-between px-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 transition-all duration-200"
 >
     <div class="flex items-center gap-6">
         <!-- Role Switcher (replaces static logo/badge) -->
@@ -120,11 +208,12 @@
         {#if !authStore.hasMultipleRoles && roleConfig}
             <div class="flex items-center gap-3">
                 <div
-                    class="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-base"
+                    class="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-base shadow-sm"
                 >
                     {roleConfig.icon}
                 </div>
-                <span class="font-bold tracking-tight hidden md:block"
+                <span
+                    class="font-bold tracking-tight hidden md:block text-slate-700 dark:text-slate-200"
                     >{roleConfig.label} Terminal</span
                 >
             </div>
@@ -133,18 +222,57 @@
         <!-- Dynamic Nav Links -->
         <div class="hidden lg:flex items-center gap-1">
             {#each currentNav as item}
-                <a
-                    href={item.href}
-                    class={cn(
-                        "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all hover:bg-slate-100 dark:hover:bg-slate-800",
-                        activePath === item.href
-                            ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
-                            : "text-slate-500",
-                    )}
-                >
-                    <item.icon class="h-4 w-4" />
-                    {item.title}
-                </a>
+                {#if "items" in item}
+                    <!-- Dropdown for Group -->
+                    <DropdownMenu.Root>
+                        <DropdownMenu.Trigger>
+                            <Button
+                                variant="ghost"
+                                class={cn(
+                                    "flex items-center gap-2 px-3 rounded-full text-sm font-medium transition-all",
+                                    isGroupActive(item, activePath)
+                                        ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+                                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800",
+                                )}
+                            >
+                                {#if item.icon}<item.icon
+                                        class="h-4 w-4"
+                                    />{/if}
+                                {item.title}
+                                <ChevronDown class="h-3 w-3 opacity-50" />
+                            </Button>
+                        </DropdownMenu.Trigger>
+                        <DropdownMenu.Content align="start" class="w-48">
+                            {#each item.items as subItem}
+                                <DropdownMenu.Item>
+                                    <a
+                                        href={subItem.href}
+                                        class="flex items-center w-full"
+                                    >
+                                        {#if subItem.icon}<subItem.icon
+                                                class="mr-2 h-4 w-4"
+                                            />{/if}
+                                        {subItem.title}
+                                    </a>
+                                </DropdownMenu.Item>
+                            {/each}
+                        </DropdownMenu.Content>
+                    </DropdownMenu.Root>
+                {:else}
+                    <!-- Single Link -->
+                    <a
+                        href={item.href}
+                        class={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all hover:bg-slate-100 dark:hover:bg-slate-800",
+                            activePath === item.href
+                                ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+                                : "text-slate-500",
+                        )}
+                    >
+                        <item.icon class="h-4 w-4" />
+                        {item.title}
+                    </a>
+                {/if}
             {/each}
         </div>
     </div>

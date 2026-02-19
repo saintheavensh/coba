@@ -12,6 +12,11 @@ export type PaymentMethod = {
     accountId?: string; // Links to accounting account
     requiresProof?: boolean;
     variants?: PaymentMethodVariant[];
+    feeConfig?: {
+        enabled: boolean;
+        type: "percent" | "fixed";
+        value: number;
+    };
 };
 
 export type PaymentMethodVariant = {
