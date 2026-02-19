@@ -49,8 +49,27 @@ export class AuthController {
     }
 
     async me(c: Context) {
-        const user = c.get("user");
-        if (!user) return apiError(c, null, "Not authenticated", 401);
-        return apiSuccess(c, user);
+        const payload = c.get("user");
+        if (!payload) return apiError(c, null, "Not authenticated", 401);
+
+        try {
+            // Fetch fresh user data including roles
+            const user = await this.service.findById(payload.id);
+            if (!user) return apiError(c, null, "User not found", 404);
+
+            // Format roles for frontend
+            const userRoles = (user as any).roles?.map((ur: any) => ur.role.id) || [user.role];
+
+            // Remove password
+            const { password, ...userWithoutPassword } = user;
+
+            return apiSuccess(c, {
+                ...userWithoutPassword,
+                role: userRoles.includes('owner') ? 'owner' : userRoles[0], // Primary role fallback
+                roles: userRoles
+            });
+        } catch (e) {
+            return apiError(c, e, "Failed to fetch user data", 500);
+        }
     }
 }

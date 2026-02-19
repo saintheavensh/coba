@@ -1,16 +1,20 @@
 <script lang="ts">
     import { authStore } from "$lib/features/auth/auth.svelte";
     import { goto } from "$app/navigation";
-    import { onMount } from "svelte";
+    import { browser } from "$app/environment";
+
+    let { children } = $props();
 
     // Sales domain: purchases, sales, customers
-    const allowedRoles = ["owner", "manager", "cashier", "super_admin"];
+    const allowedRoles = ["owner", "manager", "kasir", "super_admin"];
 
-    onMount(() => {
-        if (!authStore.hasRole(allowedRoles)) {
-            goto("/unauthorized");
+    $effect(() => {
+        if (browser && authStore.isAuthenticated && !authStore.loading) {
+            if (!authStore.hasRole(allowedRoles)) {
+                goto(authStore.getRedirectPath());
+            }
         }
     });
 </script>
 
-<slot />
+{@render children()}

@@ -1,12 +1,14 @@
 import { Hono } from "hono";
 import { OperationalCostsController } from "../controllers/operational-costs.controller";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
+import { requireRole } from "../../../middlewares/permission.middleware";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
 const operationalCosts = new Hono();
 
 operationalCosts.use("*", authMiddleware);
+operationalCosts.use("*", requireRole("super_admin", "owner", "manager"));
 
 operationalCosts.get("/", OperationalCostsController.getAll);
 

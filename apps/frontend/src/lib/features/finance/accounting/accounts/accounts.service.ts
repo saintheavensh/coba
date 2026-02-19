@@ -25,4 +25,9 @@ export class AccountsService {
         const response = await api.post("/accounting/accounts/transfer", data);
         return response.data;
     }
+
+    static async setOpeningBalance(id: string, amount: number) {
+        const response = await api.post(`/accounting/accounts/${id}/opening-balance`, { amount });
+        return response.data;
+    }
 }

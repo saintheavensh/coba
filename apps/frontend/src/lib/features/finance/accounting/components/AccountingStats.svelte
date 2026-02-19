@@ -61,11 +61,14 @@
             >
                 <TrendingUp class="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
-            <p class="text-slate-500 text-sm">Total Aset</p>
+            <p class="text-slate-500 text-sm">Harta Perusahaan (Assets)</p>
             <p class="text-2xl font-bold text-slate-900 dark:text-white mt-1">
                 {controller.formatCurrency(
                     controller.dashboard?.balanceSummary?.ASSET?.total || 0,
                 )}
+            </p>
+            <p class="text-xs text-slate-400 mt-1">
+                Uang tunai, stok barang, & peralatan.
             </p>
         </CardContent>
     </Card>
@@ -78,11 +81,14 @@
             >
                 <Calculator class="h-6 w-6 text-red-600 dark:text-red-400" />
             </div>
-            <p class="text-slate-500 text-sm">Total Kewajiban</p>
+            <p class="text-slate-500 text-sm">Total Hutang (Liabilities)</p>
             <p class="text-2xl font-bold text-slate-900 dark:text-white mt-1">
                 {controller.formatCurrency(
                     controller.dashboard?.balanceSummary?.LIABILITY?.total || 0,
                 )}
+            </p>
+            <p class="text-xs text-slate-400 mt-1">
+                Kewajiban pembayaran ke pihak lain.
             </p>
         </CardContent>
     </Card>
@@ -98,10 +104,10 @@
                 </div>
                 <span
                     class="text-[10px] font-bold uppercase tracking-widest text-slate-400"
-                    >Net Profit</span
+                    >Bulan Ini</span
                 >
             </div>
-            <p class="text-slate-400 text-sm">Laba Bersih</p>
+            <p class="text-slate-400 text-sm">Keuntungan Bersih</p>
             <div class="flex items-baseline gap-2">
                 <p
                     class="text-2xl font-black italic mt-1 {controller.netIncome >=
@@ -112,6 +118,10 @@
                     {controller.formatCurrency(controller.netIncome)}
                 </p>
             </div>
+            <p class="text-xs text-slate-400 mt-1">
+                {controller.netIncome >= 0 ? "Profit (Untung)" : "Loss (Rugi)"} bersih
+                bulan ini.
+            </p>
         </CardContent>
     </Card>
 </div>

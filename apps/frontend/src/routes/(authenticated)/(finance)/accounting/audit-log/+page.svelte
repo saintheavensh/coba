@@ -101,6 +101,30 @@
         }
     }
 
+    function formatDescription(desc: string) {
+        try {
+            // Check if looks like JSON
+            if (
+                desc &&
+                (desc.trim().startsWith("{") || desc.trim().startsWith("["))
+            ) {
+                const parsed = JSON.parse(desc);
+                // Humanize common patterns
+                if (
+                    parsed.monthlyTotal !== undefined &&
+                    parsed.dailyTarget !== undefined
+                ) {
+                    return `Updated targets: Monthly ${parsed.monthlyTotal}, Daily ${parsed.dailyTarget}`;
+                }
+                const keys = Object.keys(parsed).join(", ");
+                return `Updated: ${keys}`;
+            }
+            return desc;
+        } catch (e) {
+            return desc;
+        }
+    }
+
     let filteredLogs = $derived.by(() => {
         if (!searchQuery) return logs;
         const q = searchQuery.toLowerCase();
@@ -213,13 +237,14 @@
                             <TableCell
                                 class="text-sm text-slate-500 max-w-xs truncate"
                             >
-                                {#if log.reason}
+                                {#if log.description}
+                                    {formatDescription(log.description)}
+                                {:else if log.reason}
                                     {log.reason}
                                 {:else if log.newValues}
-                                    {JSON.stringify(log.newValues).slice(
-                                        0,
-                                        50,
-                                    )}...
+                                    {formatDescription(
+                                        JSON.stringify(log.newValues),
+                                    )}
                                 {:else}
                                     -
                                 {/if}

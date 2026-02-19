@@ -17,9 +17,9 @@
         <h1
             class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white"
         >
-            Akuntansi
+            Keuangan & Akuntansi
         </h1>
-        <p class="text-slate-500 mt-1">Dashboard keuangan dan target harian</p>
+        <p class="text-slate-500 mt-1">Pantau kesehatan keuangan bisnis Anda</p>
     </div>
 
     <div class="flex items-center gap-3">

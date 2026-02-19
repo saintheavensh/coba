@@ -2,6 +2,25 @@
     import ServiceList from "$lib/features/service-management/service/components/service-list.svelte";
     import { Wrench, Sparkles } from "lucide-svelte";
     import { fade } from "svelte/transition";
+    import { onMount } from "svelte";
+    import { goto } from "$app/navigation";
+    import { CashRegisterService } from "$lib/features/accounting/services/cash-register.service";
+    import { authStore } from "$lib/features/auth/auth.svelte";
+    import { toast } from "svelte-sonner";
+
+    const user = $derived(authStore.user);
+
+    onMount(async () => {
+        try {
+            const status = await CashRegisterService.getStatus();
+            if (!status.isOpen) {
+                toast.error("Register is closed. Please open a session first.");
+                goto("/kasir");
+            }
+        } catch (e) {
+            console.error("Failed to check register status", e);
+        }
+    });
 </script>
 
 <div class="min-h-screen space-y-8 p-6 pb-20">

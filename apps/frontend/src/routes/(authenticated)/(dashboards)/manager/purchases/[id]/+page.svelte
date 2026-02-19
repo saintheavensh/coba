@@ -30,6 +30,8 @@
         TrendingUp,
         AlertCircle,
         Truck,
+        Trash2,
+        CheckCircle,
     } from "lucide-svelte";
     import { fade } from "svelte/transition";
     import { PurchaseDetailController } from "$lib/features/sales/purchases/purchase-detail.controller.svelte";
@@ -43,9 +45,9 @@
 </script>
 
 <div class="min-h-screen space-y-8 p-6 pb-20">
-    <!-- Header with Gradient -->
+    <!-- Header with GradientManager Style -->
     <div
-        class="relative bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-3xl p-8 text-white overflow-hidden shadow-2xl print:hidden"
+        class="relative bg-gradient-to-r from-violet-600 to-indigo-600 rounded-3xl p-8 text-white overflow-hidden shadow-2xl print:hidden"
     >
         <div
             class="absolute inset-0 bg-white/10 opacity-20 pattern-dots pointer-events-none"
@@ -55,12 +57,12 @@
         >
             <div>
                 <Button
-                    href="/purchases"
+                    href="/manager/purchases"
                     variant="ghost"
                     size="sm"
                     class="text-white/80 hover:text-white hover:bg-white/10 p-0 h-auto mb-2 font-normal"
                 >
-                    <ArrowLeft class="mr-1 h-4 w-4" /> Kembali ke Riwayat
+                    <ArrowLeft class="mr-1 h-4 w-4" /> Kembali ke Manajemen
                 </Button>
                 <div class="flex items-center gap-3">
                     <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
@@ -73,7 +75,7 @@
                         <Badge
                             class="{controller.getStatusColor(
                                 controller.purchase?.status,
-                            )} text-white border-0 shadow-sm px-4"
+                            )} text-white border-0 shadow-sm px-4 py-1 text-sm bg-opacity-90 backdrop-blur-sm"
                         >
                             {controller.purchase?.status || "ORDERED"}
                         </Badge>
@@ -87,25 +89,23 @@
             </div>
 
             <div class="flex gap-3">
-                {#if controller.purchase?.status === "ORDERED" && controller.role === "warehouse"}
+                <!-- Manager Actions -->
+                {#if controller.purchase?.status === "RECEIVED"}
                     <Button
-                        variant="secondary"
                         size="sm"
-                        onclick={() => (controller.isEditing = true)}
-                        class="bg-white text-blue-600 hover:bg-blue-50 border-0 shadow-lg font-bold"
+                        href="/manager/purchases/{controller.id}/verify"
+                        class="bg-white text-violet-600 hover:bg-violet-50 border-0 shadow-lg font-bold transition-transform active:scale-95"
                     >
-                        <Truck class="mr-2 h-4 w-4" /> Check-in Barang
+                        <TrendingUp class="mr-2 h-4 w-4" /> Verifikasi & Input Harga
                     </Button>
                 {/if}
 
-                {#if controller.purchase?.status === "RECEIVED" && (controller.role === "manager" || controller.role === "super_admin")}
+                {#if controller.purchase?.status === "VERIFIED"}
                     <Button
-                        variant="secondary"
                         size="sm"
-                        onclick={() => (controller.isEditing = true)}
-                        class="bg-white text-violet-600 hover:bg-violet-50 border-0 shadow-lg font-bold"
+                        class="bg-green-500 hover:bg-green-600 text-white border-0 shadow-lg font-bold cursor-default"
                     >
-                        <TrendingUp class="mr-2 h-4 w-4" /> Verifikasi & Input Harga
+                        <CheckCircle class="mr-2 h-4 w-4" /> Order Selesai
                     </Button>
                 {/if}
 
@@ -117,6 +117,21 @@
                 >
                     <Printer class="mr-2 h-4 w-4" /> Cetak
                 </Button>
+
+                {#if controller.purchase?.status === "ORDERED" || controller.purchase?.status === "DRAFT"}
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        onclick={() => controller.handleCancel()}
+                        disabled={controller.isCancelling}
+                        class="shadow-sm border-0 bg-red-500 hover:bg-red-600 text-white"
+                    >
+                        <Trash2 class="mr-2 h-4 w-4" />
+                        {controller.isCancelling
+                            ? "Processing..."
+                            : "Batalkan Order"}
+                    </Button>
+                {/if}
             </div>
         </div>
     </div>
@@ -151,7 +166,7 @@
             <p class="text-red-600/80 dark:text-red-400/80">
                 Transaksi mungkin telah dihapus.
             </p>
-            <Button variant="outline" href="/purchases" class="mt-4"
+            <Button variant="outline" href="/manager/purchases" class="mt-4"
                 >Kembali</Button
             >
         </div>
@@ -241,106 +256,51 @@
                                                     class="text-xs text-muted-foreground"
                                                     >Order: {item.qtyOrdered}</span
                                                 >
-                                                {#if controller.isEditing && controller.purchase.status === "ORDERED"}
-                                                    <Input
-                                                        type="number"
-                                                        class="w-16 h-8 text-right mt-1"
-                                                        bind:value={
-                                                            controller
-                                                                .editItems[idx]
-                                                                .qtyReceived
-                                                        }
-                                                    />
-                                                {:else}
-                                                    <span
-                                                        class={item.qtyReceived !==
-                                                            item.qtyOrdered &&
-                                                        controller.purchase
-                                                            .status !==
-                                                            "ORDERED"
-                                                            ? "text-red-500 font-bold"
-                                                            : ""}
-                                                    >
-                                                        Rcv: {item.qtyReceived}
-                                                    </span>
-                                                {/if}
+                                                <span
+                                                    class={item.qtyReceived !==
+                                                        item.qtyOrdered &&
+                                                    controller.purchase
+                                                        .status !== "ORDERED"
+                                                        ? "text-red-500 font-bold"
+                                                        : ""}
+                                                >
+                                                    Rcv: {item.qtyReceived}
+                                                </span>
                                             </div>
                                         </TableCell>
                                         <TableCell class="text-right font-mono">
-                                            {#if controller.isEditing && controller.purchase.status === "RECEIVED"}
-                                                <div
-                                                    class="flex flex-col gap-1 items-end"
-                                                >
+                                            <div
+                                                class="flex flex-col items-end"
+                                            >
+                                                {#if item.buyPrice > 0}
                                                     <span
-                                                        class="text-[10px] text-muted-foreground"
+                                                        >{controller.formatRp(
+                                                            item.buyPrice,
+                                                        )}</span
+                                                    >
+                                                {:else}
+                                                    <span
+                                                        class="text-muted-foreground italic"
                                                         >Est: {controller.formatRp(
                                                             item.estimatedBuyPrice,
                                                         )}</span
                                                     >
-                                                    <Input
-                                                        type="number"
-                                                        class="w-24 h-8 text-right"
-                                                        bind:value={
-                                                            controller
-                                                                .editItems[idx]
-                                                                .buyPrice
-                                                        }
-                                                    />
-                                                </div>
-                                            {:else}
-                                                <div
-                                                    class="flex flex-col items-end"
-                                                >
-                                                    {#if item.buyPrice > 0}
-                                                        <span
-                                                            >{controller.formatRp(
-                                                                item.buyPrice,
-                                                            )}</span
-                                                        >
-                                                    {:else}
-                                                        <span
-                                                            class="text-muted-foreground italic"
-                                                            >Est: {controller.formatRp(
-                                                                item.estimatedBuyPrice,
-                                                            )}</span
-                                                        >
-                                                    {/if}
-                                                </div>
-                                            {/if}
+                                                {/if}
+                                            </div>
                                         </TableCell>
                                         <TableCell
                                             class="text-right pr-6 font-mono"
                                         >
-                                            {#if controller.isEditing && controller.purchase.status === "RECEIVED"}
-                                                <div
-                                                    class="flex flex-col gap-1 items-end"
-                                                >
-                                                    <span
-                                                        class="text-[10px] text-muted-foreground"
-                                                        >Target: {controller.formatRp(
+                                            <div
+                                                class="flex flex-col items-end gap-1"
+                                            >
+                                                <span class="font-bold">
+                                                    {controller.formatRp(
+                                                        item.sellPrice ||
                                                             item.targetSellPrice,
-                                                        )}</span
-                                                    >
-                                                    <Input
-                                                        type="number"
-                                                        class="w-24 h-8 text-right"
-                                                        bind:value={
-                                                            controller
-                                                                .editItems[idx]
-                                                                .sellPrice
-                                                        }
-                                                    />
-                                                </div>
-                                            {:else if controller.purchase.status === "RECEIVED" || controller.purchase.status === "VERIFIED"}
-                                                <div
-                                                    class="flex flex-col items-end gap-1"
-                                                >
-                                                    <span class="font-bold"
-                                                        >{controller.formatRp(
-                                                            item.sellPrice ||
-                                                                item.targetSellPrice,
-                                                        )}</span
-                                                    >
+                                                    )}
+                                                </span>
+                                                {#if controller.purchase.status === "RECEIVED" || controller.purchase.status === "VERIFIED"}
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
@@ -354,15 +314,13 @@
                                                             class="w-3 h-3 mr-1"
                                                         /> Label
                                                     </Button>
-                                                </div>
-                                            {:else}
-                                                <span
-                                                    class="text-muted-foreground italic"
-                                                    >Target: {controller.formatRp(
-                                                        item.targetSellPrice,
-                                                    )}</span
-                                                >
-                                            {/if}
+                                                {:else}
+                                                    <span
+                                                        class="text-xs text-muted-foreground italic"
+                                                        >Target Jual</span
+                                                    >
+                                                {/if}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 {/each}
@@ -373,69 +331,34 @@
                         <div
                             class="p-6 bg-muted/10 border-t flex flex-col items-end gap-3"
                         >
-                            {#if controller.isEditing}
-                                <div class="flex gap-3">
-                                    <Button
-                                        variant="ghost"
-                                        onclick={() =>
-                                            (controller.isEditing = false)}
-                                        >Batal</Button
-                                    >
-                                    {#if controller.purchase.status === "ORDERED"}
-                                        <Button
-                                            onclick={() =>
-                                                controller.handleReceive()}
-                                            disabled={controller.isSubmitting}
-                                        >
-                                            {controller.isSubmitting
-                                                ? "Processing..."
-                                                : "Konfirmasi Penerimaan"}
-                                        </Button>
-                                    {:else if controller.purchase.status === "RECEIVED"}
-                                        <Button
-                                            onclick={() =>
-                                                controller.handleVerify()}
-                                            disabled={controller.isSubmitting}
-                                            class="bg-violet-600 hover:bg-violet-700 text-white"
-                                        >
-                                            {controller.isSubmitting
-                                                ? "Processing..."
-                                                : "Selesaikan & Update Stok"}
-                                        </Button>
-                                    {/if}
-                                </div>
-                            {:else}
-                                <div
-                                    class="w-full md:w-1/2 flex justify-between items-center text-sm text-muted-foreground"
+                            <div
+                                class="w-full md:w-1/2 flex justify-between items-center text-sm text-muted-foreground"
+                            >
+                                <span>Total Item</span>
+                                <span
+                                    >{controller.purchase.items.reduce(
+                                        (a: number, b: any) =>
+                                            a + (b.qtyReceived || b.qtyOrdered),
+                                        0,
+                                    )} Pcs</span
                                 >
-                                    <span>Total Item</span>
-                                    <span
-                                        >{controller.purchase.items.reduce(
-                                            (a: number, b: any) =>
-                                                a +
-                                                (b.qtyReceived || b.qtyOrdered),
-                                            0,
-                                        )} Pcs</span
-                                    >
-                                </div>
-                                <Separator class="w-full md:w-1/2" />
-                                <div
-                                    class="w-full md:w-1/2 flex justify-between items-center"
+                            </div>
+                            <Separator class="w-full md:w-1/2" />
+                            <div
+                                class="w-full md:w-1/2 flex justify-between items-center"
+                            >
+                                <span class="font-semibold text-lg"
+                                    >{controller.purchase.status === "VERIFIED"
+                                        ? "Total Pembelian"
+                                        : "Estimasi Total"}</span
                                 >
-                                    <span class="font-semibold text-lg"
-                                        >{controller.purchase.status ===
-                                        "VERIFIED"
-                                            ? "Total Pembelian"
-                                            : "Estimasi Total"}</span
-                                    >
-                                    <span
-                                        class="font-bold text-xl text-violet-600 font-mono"
-                                        >{controller.formatRp(
-                                            controller.purchase.totalAmount,
-                                        )}</span
-                                    >
-                                </div>
-                            {/if}
+                                <span
+                                    class="font-bold text-xl text-violet-600 font-mono"
+                                    >{controller.formatRp(
+                                        controller.purchase.totalAmount,
+                                    )}</span
+                                >
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -443,6 +366,25 @@
 
             <!-- Right Column: Info Cards -->
             <div class="space-y-6">
+                <!-- Status Card -->
+                {#if controller.purchase.status === "ORDERED"}
+                    <Card class="bg-blue-50 border-blue-100">
+                        <CardHeader class="pb-2">
+                            <CardTitle
+                                class="text-blue-700 text-sm flex items-center gap-2"
+                            >
+                                <Truck class="h-4 w-4" /> Menunggu Barang
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p class="text-sm text-blue-600 mb-2">
+                                Pesanan sedang dikirim oleh supplier. Tim Gudang
+                                akan melakukan penerimaan barang.
+                            </p>
+                        </CardContent>
+                    </Card>
+                {/if}
+
                 <!-- Info Card -->
                 <Card
                     class="bg-card/80 backdrop-blur-sm border-violet-100 dark:border-violet-900/30"

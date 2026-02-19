@@ -1,5 +1,5 @@
 import { db } from "../../../db";
-import { suppliers, supplierCategories, categories } from "../../../db/schema";
+import { suppliers, supplierCategories, categories, categoryVariants } from "../../../db/schema";
 import { eq, desc, and } from "drizzle-orm";
 
 export class SuppliersModel {
@@ -41,6 +41,9 @@ export class SuppliersModel {
     }
 
     async delete(id: string) {
+        // Delete linked category variants first (no cascade in schema)
+        await db.delete(categoryVariants).where(eq(categoryVariants.supplierId, id));
+
         return await db.delete(suppliers).where(eq(suppliers.id, id));
     }
 

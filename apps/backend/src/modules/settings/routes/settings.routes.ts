@@ -1,10 +1,18 @@
 import { Hono } from "hono";
 import { SettingsController } from "../controllers/settings.controller";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
+import { requireRole } from "../../../middlewares/permission.middleware";
 
 const settings = new Hono();
 
 settings.use("*", authMiddleware);
+
+// GET endpoints: accessible to super_admin, owner, manager
+settings.get("/*", requireRole("super_admin", "owner", "manager"));
+
+// All write (PUT/POST) endpoints: restricted to super_admin and owner
+settings.put("/*", requireRole("super_admin", "owner"));
+settings.post("/*", requireRole("super_admin", "owner"));
 
 settings.get("/", SettingsController.getAll);
 

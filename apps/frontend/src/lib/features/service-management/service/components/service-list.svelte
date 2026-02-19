@@ -31,6 +31,7 @@
         Filter,
         RefreshCw,
         Archive,
+        AlertTriangle,
     } from "lucide-svelte";
     import { goto } from "$app/navigation";
     import { Separator } from "$lib/shared/components/ui/separator";
@@ -379,10 +380,21 @@
                                             <span class="font-medium"
                                                 >{order.customer.name}</span
                                             >
-                                            <span
-                                                class="text-xs text-muted-foreground"
-                                                >{order.customer.phone}</span
-                                            >
+                                            {#if order.customer.phone}
+                                                <span
+                                                    class="text-xs text-muted-foreground"
+                                                    >{order.customer
+                                                        .phone}</span
+                                                >
+                                            {:else}
+                                                <span
+                                                    class="text-xs text-orange-500 font-medium flex items-center gap-1"
+                                                >
+                                                    <AlertTriangle
+                                                        class="h-3 w-3"
+                                                    /> No Contact
+                                                </span>
+                                            {/if}
                                         </div>
                                     </TableCell>
                                     <TableCell>
@@ -597,6 +609,14 @@
                                     <span class="font-medium truncate block"
                                         >{order.customer.name}</span
                                     >
+                                    {#if !order.customer.phone}
+                                        <span
+                                            class="text-[10px] text-orange-500 flex items-center gap-1 mt-0.5"
+                                        >
+                                            <AlertTriangle class="h-3 w-3" /> Missing
+                                            Info
+                                        </span>
+                                    {/if}
                                 </div>
                                 <div>
                                     <span

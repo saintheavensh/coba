@@ -2,8 +2,13 @@ import { Hono } from "hono";
 import { DefectiveItemsController } from "../controllers/defective-items.controller";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { authMiddleware } from "../../../middlewares/auth.middleware";
+import { requirePermission } from "../../../middlewares/permission.middleware";
 
 const defectiveItems = new Hono();
+
+defectiveItems.use("*", authMiddleware);
+defectiveItems.use("*", requirePermission("inventory.manage"));
 
 // GET /defective-items (Pending List)
 defectiveItems.get("/", DefectiveItemsController.getPendingItems);

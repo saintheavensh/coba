@@ -20,10 +20,22 @@
 
 	const { connect } = useWebSocket();
 
+	// Gate: only run init once per app lifecycle to prevent re-trigger loops
+	let hasInitialized = false;
+
 	// Auth Guard & Initialization
 	$effect(() => {
-		if (browser) {
+		if (browser && !hasInitialized) {
+			hasInitialized = true;
+
 			const init = async () => {
+				const path = $page.url.pathname;
+				const isLoginPage = path.startsWith("/login");
+				const isPublicPage =
+					path === "/" ||
+					path.startsWith("/warranty") ||
+					path.startsWith("/ticket");
+
 				// Safety timeout: If checkAuth takes more than 5s, force hide loading
 				const timeout = setTimeout(() => {
 					if (authStore.loading) {
@@ -33,13 +45,6 @@
 
 				await authStore.checkAuth();
 				clearTimeout(timeout);
-
-				const path = $page.url.pathname;
-				const isLoginPage = path.startsWith("/login");
-				const isPublicPage =
-					path === "/" ||
-					path.startsWith("/warranty") ||
-					path.startsWith("/ticket");
 
 				// If no user and not a public/login page, redirect to login
 				if (

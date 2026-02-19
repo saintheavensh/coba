@@ -27,10 +27,17 @@ export interface AssetFilters {
 
 export class AssetsService {
     /**
+     * Get total count of assets
+     */
+    static async countAll(): Promise<number> {
+        return AssetModel.countAll();
+    }
+
+    /**
      * Generate asset ID
      */
     private static async generateId(): Promise<string> {
-        const count = await AssetModel.countAll();
+        const count = await this.countAll();
         const num = count + 1;
         return `AST-${String(num).padStart(4, "0")}`;
     }

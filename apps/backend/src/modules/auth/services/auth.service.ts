@@ -49,4 +49,8 @@ export class AuthService {
             token
         };
     }
+
+    async findById(id: string, dbOrTx?: any) {
+        return await this.model.findById(id, dbOrTx);
+    }
 }

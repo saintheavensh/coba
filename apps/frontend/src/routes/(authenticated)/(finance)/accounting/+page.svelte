@@ -6,6 +6,7 @@
     import AccountingStats from "$lib/features/finance/accounting/components/AccountingStats.svelte";
     import ProfitLossSection from "$lib/features/finance/accounting/components/ProfitLossSection.svelte";
     import QuickLinks from "$lib/features/finance/accounting/components/QuickLinks.svelte";
+    import SetupGuide from "$lib/features/finance/accounting/components/SetupGuide.svelte";
 
     const controller = new AccountingController();
 
@@ -21,6 +22,11 @@
 <div class="space-y-8 animate-in fade-in duration-500 pb-10">
     <!-- Header -->
     <AccountingHeader {controller} />
+
+    <!-- Setup Guide (if incomplete) -->
+    {#if controller.dashboard?.checklist}
+        <SetupGuide checklist={controller.dashboard.checklist} />
+    {/if}
 
     <!-- Daily Target Progress -->
     <DailyTargetCard {controller} />

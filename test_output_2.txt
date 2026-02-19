@@ -1,0 +1,46 @@
+DB URL: postgresql://postgres.gatwxytvyuekexveakzo:***@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres
+🚀 Starting Variant Validation Test...
+1. Seeding Test Data...
+✅ Seed Data Created.
+2. Logging in...
+3. Testing PO for Supplier A (Expected: Success)...
+Payload 1: {
+  "supplierId": "SUP-TEST-A-1771349401127",
+  "items": [
+    {
+      "productId": "PRD-TEST-1771349401127",
+      "variant": "ExclusiveVar",
+      "qtyOrdered": 10,
+      "estimatedBuyPrice": 1000
+    }
+  ]
+}
+❌ PO 1 Failed (Unexpected) {
+  "success": false,
+  "message": "Failed to create order",
+  "errors": [
+    "TEST_VALIDATION_PASSED"
+  ],
+  "error_code": "BAD_REQUEST"
+}
+4. Testing PO for Supplier B (Expected: Failure)...
+Payload 2: {
+  "supplierId": "SUP-TEST-B-1771349401127",
+  "items": [
+    {
+      "productId": "PRD-TEST-1771349401127",
+      "variant": "ExclusiveVar",
+      "qtyOrdered": 10,
+      "estimatedBuyPrice": 1000
+    }
+  ]
+}
+✅ PO 2 Failed as expected: {
+  "success": false,
+  "message": "Failed to create order",
+  "errors": [
+    "Varian 'ExclusiveVar' tidak tersedia untuk supplier ini."
+  ],
+  "error_code": "BAD_REQUEST"
+}
+Done.

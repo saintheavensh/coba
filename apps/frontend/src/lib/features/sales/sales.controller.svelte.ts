@@ -6,6 +6,8 @@ import { CustomersService } from "$lib/features/sales/customers/customers.servic
 import { PaymentService, type PaymentMethod } from "$lib/features/finance/shared/payment.service";
 import { formatCurrency } from "$lib/shared/core/utils";
 import { toast } from "svelte-sonner";
+import { authStore } from "$lib/features/auth/auth.svelte";
+import { CashRegisterService } from "$lib/features/accounting/services/cash-register.service";
 
 // Types
 export type CartItem = {
@@ -234,7 +236,20 @@ export class SalesController {
         }
     }
 
-    openCheckout() {
+    async openCheckout() {
+        // Check Register Status first
+        try {
+            const status = await CashRegisterService.getStatus();
+            if (!status.isOpen) {
+                toast.error("Register Closed. Please open a session in Kasir Dashboard first.");
+                return;
+            }
+        } catch (e) {
+            console.error("Failed to check register status", e);
+            toast.error("System Offline: Cannot verify register status");
+            return;
+        }
+
         const defaultMethod =
             this.availableMethods.find((m) => m.type === "cash") ||
             this.availableMethods[0];
@@ -331,7 +346,7 @@ export class SalesController {
                     reference: p.reference,
                 };
             }),
-            userId: "USR-ADMIN", // Should come from session
+            userId: authStore.user?.id || "USR-ADMIN", // Use real user ID
             notes: this.notes,
             items: this.cart.map((c) => ({
                 productId: c.productId,

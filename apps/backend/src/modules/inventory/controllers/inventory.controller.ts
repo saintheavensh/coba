@@ -47,7 +47,8 @@ export class InventoryController {
     async getProductVariants(c: Context) {
         try {
             const id = c.req.param("id");
-            const list = await this.service.getProductVariants(id);
+            const supplierId = c.req.query("supplierId");
+            const list = await this.service.getProductVariants(id, supplierId);
             return apiSuccess(c, list);
         } catch (e) {
             return apiError(c, e, "Failed to retrieve variants", 500);
@@ -67,8 +68,9 @@ export class InventoryController {
 
     async createProduct(c: Context) {
         try {
+            const user = c.get("user");
             const data = (c.req as any).valid("json");
-            const result = await this.service.createProduct(data);
+            const result = await this.service.createProduct(data, user);
             return apiSuccess(c, result, "Product created successfully", 201);
         } catch (e) {
             Logger.error("[CREATE_PRODUCT_ERROR]", e);
@@ -78,9 +80,10 @@ export class InventoryController {
 
     async updateProduct(c: Context) {
         try {
+            const user = c.get("user");
             const id = c.req.param("id");
             const data = (c.req as any).valid("json");
-            await this.service.updateProduct(id, data);
+            await this.service.updateProduct(id, data, user);
             return apiSuccess(c, null, "Product updated successfully");
         } catch (e) {
             return apiError(c, e, "Failed to update product", 500);
@@ -99,8 +102,9 @@ export class InventoryController {
 
     async createVariant(c: Context) {
         try {
+            const user = c.get("user");
             const data = (c.req as any).valid("json");
-            const result = await this.service.createVariant(data);
+            const result = await this.service.createVariant(data, user);
             return apiSuccess(c, result, "Variant created successfully", 201);
         } catch (e) {
             return apiError(c, e, "Failed to create variant", 500);
@@ -109,9 +113,10 @@ export class InventoryController {
 
     async updateVariant(c: Context) {
         try {
+            const user = c.get("user");
             const id = c.req.param("id");
             const data = (c.req as any).valid("json");
-            const result = await this.service.updateVariant(id, data);
+            const result = await this.service.updateVariant(id, data, user);
             return apiSuccess(c, result, "Variant updated successfully");
         } catch (e) {
             return apiError(c, e, "Failed to update variant", 500);
@@ -140,8 +145,9 @@ export class InventoryController {
 
     async bulkUpdateMinStock(c: Context) {
         try {
+            const user = c.get("user");
             const { categoryId, minStock } = (c.req as any).valid("json");
-            const updatedCount = await this.service.bulkUpdateMinStock(categoryId, minStock);
+            const updatedCount = await this.service.bulkUpdateMinStock(categoryId, minStock, user);
             return apiSuccess(c, { updatedCount }, `${updatedCount} products updated successfully`);
         } catch (e) {
             Logger.error("[BULK_MIN_STOCK_ERROR]", e);

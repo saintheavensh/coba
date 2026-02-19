@@ -95,6 +95,8 @@ export class CashRegisterService {
             const register = await this.getCurrentRegister(tx);
 
             if (!register) {
+                // For expenses, we might allow recording even if register is closed? 
+                // No, user requested expense to be linked to session.
                 throw new Error("No register is open. Please open a register first.");
             }
 
@@ -121,6 +123,46 @@ export class CashRegisterService {
                 })
                 .where(eq(cashRegisters.id, register.id));
         });
+    }
+
+    /**
+     * Record an expense with threshold approval check
+     */
+    static async recordExpense(
+        amount: number,
+        category: string,
+        description: string,
+        userId: string,
+        userRoles: string[],
+        dbOrTx?: any
+    ) {
+        // 1. Check threshold
+        // TODO: Get from settings table
+        const EXPENSE_THRESHOLD = 500000;
+
+        const requiresApproval = amount > EXPENSE_THRESHOLD;
+        const canApprove = userRoles.includes("manager") || userRoles.includes("owner");
+
+        if (requiresApproval && !canApprove) {
+            throw new Error(`Pengeluaran di atas Rp ${EXPENSE_THRESHOLD.toLocaleString()} membutuhkan persetujuan Manager/Owner.`);
+        }
+
+        // 2. Record transaction
+        // Expense is negative amount in register
+        await this.recordTransaction({
+            transactionType: "expense",
+            paymentMethod: "cash", // Expenses from register are always cash
+            amount: -amount,
+            description: `[${category}] ${description}`,
+        }, dbOrTx);
+
+        // 3. Create operational_cost record (linked to register via created_at approximation or specific link if we add column)
+        // For now, operational_costs table exists, so we should insert there too
+        // We'll let the controller handle calling both services
+    }
+
+    static async getActiveSession(dbOrTx?: any) {
+        return await this.getCurrentRegister(dbOrTx);
     }
 
     /**
@@ -241,7 +283,8 @@ export class CashRegisterService {
      * Get today's progress (for dashboard)
      */
     static async getTodayProgress(dbOrTx?: any) {
-        const register = await this.getCurrentRegister(dbOrTx);
+        const effectiveDb = dbOrTx || db;
+        const register = await this.getCurrentRegister(effectiveDb);
 
         if (!register) {
             return { isOpen: false, progress: 0, totalSales: 0, totalServices: 0 };
@@ -258,6 +301,12 @@ export class CashRegisterService {
             totalServices: summary.byType.service.total,
             totalExpenses: Math.abs(summary.byType.expense.total),
             transactionCount: summary.transactionCount,
+            recentTransactions: (await effectiveDb
+                .select()
+                .from(cashRegisterTransactions)
+                .where(eq(cashRegisterTransactions.registerId, register.id))
+                .orderBy(desc(cashRegisterTransactions.createdAt))
+                .limit(10)) as any[]
         };
     }
 }

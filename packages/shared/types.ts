@@ -388,6 +388,7 @@ export const ID_PREFIXES = {
     CATEGORY: "CAT",
     SERVICE: "SRV",
     VARIANT: "VAR",
+    PAYMENT: "PAY",
 } as const;
 
 export type IdPrefix = typeof ID_PREFIXES[keyof typeof ID_PREFIXES];

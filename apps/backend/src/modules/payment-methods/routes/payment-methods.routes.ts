@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { PaymentMethodsController } from "../controllers/payment-methods.controller";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
+import { requireRole } from "../../../middlewares/permission.middleware";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
@@ -17,13 +18,13 @@ const createSchema = z.object({
     icon: z.string().default("💵"),
 });
 
-paymentMethods.post("/", zValidator("json", createSchema), PaymentMethodsController.create);
-paymentMethods.patch("/:id", PaymentMethodsController.update);
-paymentMethods.delete("/:id", PaymentMethodsController.disable);
+paymentMethods.post("/", requireRole("super_admin", "owner"), zValidator("json", createSchema), PaymentMethodsController.create);
+paymentMethods.patch("/:id", requireRole("super_admin", "owner"), PaymentMethodsController.update);
+paymentMethods.delete("/:id", requireRole("super_admin", "owner"), PaymentMethodsController.disable);
 
 // Variants
-paymentMethods.post("/:id/variants", PaymentMethodsController.addVariant);
-paymentMethods.patch("/variants/:id", PaymentMethodsController.updateVariant);
-paymentMethods.delete("/variants/:id", PaymentMethodsController.disableVariant);
+paymentMethods.post("/:id/variants", requireRole("super_admin", "owner"), PaymentMethodsController.addVariant);
+paymentMethods.patch("/variants/:id", requireRole("super_admin", "owner"), PaymentMethodsController.updateVariant);
+paymentMethods.delete("/variants/:id", requireRole("super_admin", "owner"), PaymentMethodsController.disableVariant);
 
 export default paymentMethods;

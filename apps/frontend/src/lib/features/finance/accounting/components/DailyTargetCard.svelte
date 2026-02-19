@@ -28,7 +28,7 @@
                         )}
                     </div>
                     <p class="text-blue-200 text-sm">
-                        Break-even: {controller.formatCurrency(
+                        Titik Impas (BEP): {controller.formatCurrency(
                             controller.dashboard.todayProgress.dailyBreakeven,
                         )}
                     </p>
@@ -76,11 +76,11 @@
                         <div class="flex items-center gap-2">
                             {#if controller.dashboard.todayProgress.isAboveBreakeven}
                                 <CheckCircle2 class="h-4 w-4 text-green-300" />
-                                <span class="text-green-200">Di atas BEP</span>
+                                <span class="text-green-200">Profit (Aman)</span
+                                >
                             {:else}
                                 <AlertCircle class="h-4 w-4 text-yellow-300" />
-                                <span class="text-yellow-200">Di bawah BEP</span
-                                >
+                                <span class="text-yellow-200">Belum BEP</span>
                             {/if}
                         </div>
                         <div class="flex items-center gap-2">

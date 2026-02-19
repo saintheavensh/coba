@@ -33,6 +33,26 @@
     function getInitials(name: string) {
         return name ? name.substring(0, 2).toUpperCase() : "??";
     }
+    function formatDescription(desc: string) {
+        try {
+            // Check if looks like JSON
+            if (desc.trim().startsWith("{") || desc.trim().startsWith("[")) {
+                const parsed = JSON.parse(desc);
+                // Humanize common patterns
+                if (
+                    parsed.monthlyTotal !== undefined &&
+                    parsed.dailyTarget !== undefined
+                ) {
+                    return `Updated targets: Monthly ${parsed.monthlyTotal}, Daily ${parsed.dailyTarget}`;
+                }
+                const keys = Object.keys(parsed).join(", ");
+                return `Updated: ${keys}`;
+            }
+            return desc;
+        } catch (e) {
+            return desc;
+        }
+    }
 </script>
 
 <div class="space-y-4 max-h-[350px] overflow-y-auto pr-2">
@@ -51,7 +71,7 @@
                     >
                 </p>
                 <p class="text-sm text-muted-foreground line-clamp-2">
-                    {activity.description}
+                    {formatDescription(activity.description)}
                 </p>
                 <p class="text-xs text-muted-foreground/70">
                     {formatTime(activity.time)}

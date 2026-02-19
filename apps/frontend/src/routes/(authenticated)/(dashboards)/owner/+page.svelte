@@ -25,6 +25,7 @@
     } from "lucide-svelte";
     import { api } from "$lib/shared/core/api";
     import { authStore } from "$lib/features/auth/auth.svelte";
+    import { AccountingReportService } from "$lib/features/finance/accounting/services/accounting-reports.service";
 
     const user = $derived(authStore.user);
 
@@ -48,15 +49,23 @@
         try {
             loading = true;
             error = null;
+            const startDate = new Date();
+            startDate.setDate(1); // 1st of month
+            const endDate = new Date();
+
             const [dashRes, actRes, plRes] = await Promise.all([
                 api.get("/dashboard"),
                 api.get("/dashboard/activities", { params: { limit: 10 } }),
-                api.get("/dashboard/profit-loss"),
+                AccountingReportService.getIncomeStatement({
+                    startDate,
+                    endDate,
+                }),
             ]);
 
             dashboardData = dashRes.data.data;
             activities = actRes.data.data;
-            profitLossData = plRes.data.data;
+            // The AccountingReportService returns the data directly (response.data)
+            profitLossData = plRes;
         } catch (e: any) {
             console.error("Failed to fetch dashboard data", e);
             error =
@@ -116,14 +125,14 @@
                 class="flex flex-row items-center justify-between space-y-0 pb-2"
             >
                 <CardTitle class="text-sm font-medium text-slate-200"
-                    >Total Profit Mingguan</CardTitle
+                    >Total Profit (Bulan Ini)</CardTitle
                 >
                 <Wallet class="h-4 w-4 text-emerald-400" />
             </CardHeader>
             <CardContent>
                 <div class="text-2xl font-bold">
                     {#if profitLossData}
-                        {formatCurrency(profitLossData.netProfit || 0)}
+                        {formatCurrency(profitLossData.netIncome || 0)}
                     {:else}
                         ...
                     {/if}
@@ -189,14 +198,15 @@
             <CardHeader
                 class="flex flex-row items-center justify-between space-y-0 pb-2"
             >
-                <CardTitle class="text-sm font-medium">Total Expenses</CardTitle
+                <CardTitle class="text-sm font-medium"
+                    >Total Expenses (Bulan Ini)</CardTitle
                 >
                 <Wallet class="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
                 <div class="text-2xl font-bold text-red-600">
                     {#if profitLossData}
-                        {formatCurrency(profitLossData.totalExpenses || 0)}
+                        {formatCurrency(profitLossData.expenses?.total || 0)}
                     {:else}
                         ...
                     {/if}
@@ -316,7 +326,8 @@
                 class="border-0 shadow-lg bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-3xl"
             >
                 <CardHeader class="border-b border-slate-100/50 pb-4">
-                    <CardTitle class="text-lg font-bold">Activity Log</CardTitle
+                    <CardTitle class="text-lg font-bold"
+                        >Recent System Activity</CardTitle
                     >
                 </CardHeader>
                 <CardContent

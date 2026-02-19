@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { goto } from "$app/navigation"; // Import goto
     import { ShoppingBag } from "lucide-svelte";
     import {
         Sheet,
@@ -11,10 +12,26 @@
     import ProductCatalog from "$lib/features/sales/components/ProductCatalog.svelte";
     import SalesCart from "$lib/features/sales/components/SalesCart.svelte";
     import PaymentDialog from "$lib/features/sales/components/PaymentDialog.svelte";
+    import { CashRegisterService } from "$lib/features/accounting/services/cash-register.service"; // Import Service
+    import { authStore } from "$lib/features/auth/auth.svelte"; // Import Auth
+    import { toast } from "svelte-sonner"; // Import Toast
 
     const controller = new SalesController();
+    const user = $derived(authStore.user);
 
-    onMount(() => {
+    onMount(async () => {
+        // Redirection Guard
+        try {
+            const status = await CashRegisterService.getStatus();
+            if (!status.isOpen) {
+                toast.error("Register is closed. Please open a session first.");
+                goto("/kasir");
+                return;
+            }
+        } catch (e) {
+            console.error("Failed to check register status", e);
+        }
+
         controller.init();
     });
 </script>

@@ -89,7 +89,7 @@ export const categoryVariants = pgTable("category_variants", {
     id: uuid(), // CHANGED: serial -> uuid
     categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: 'cascade' }),
     name: text("name").notNull(),
-    supplierId: text("supplier_id").references(() => suppliers.id),
+    supplierId: text("supplier_id").references(() => suppliers.id, { onDelete: 'cascade' }),
     createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -177,10 +177,19 @@ export const purchases = pgTable("purchases", {
     date: timestamp("date").defaultNow(),
 
     // Procurement Workflow Fields
-    status: text("status", { enum: ["DRAFT", "ORDERED", "RECEIVED", "VERIFIED"] }).default("ORDERED"),
+    status: text("status", { enum: ["DRAFT", "ORDERED", "RECEIVED", "VERIFIED", "CANCELLED"] }).default("ORDERED"),
+    receivedBy: text("received_by").references(() => users.id),
     receivedAt: timestamp("received_at"),
     verifiedAt: timestamp("verified_at"),
     verifiedBy: text("verified_by").references(() => users.id),
+
+    cancelledAt: timestamp("cancelled_at"),
+    cancelledBy: text("cancelled_by").references(() => users.id),
+
+    shippingFee: integer("shipping_fee").default(0),
+    shippingExpenseAccountId: text("shipping_expense_account_id").references(() => accounts.id),
+    discountAmount: integer("discount_amount").default(0),
+    paymentDueDate: timestamp("payment_due_date"),
 });
 
 export const purchaseItems = pgTable("purchase_items", {
@@ -601,6 +610,7 @@ export const purchasePayments = pgTable("purchase_payments", {
     method: text("method").notNull(),
     accountId: text("account_id").references(() => accounts.id),
     reference: text("reference"),
+    proofImage: text("proof_image"),
     date: timestamp("date").notNull().defaultNow(),
     journalId: text("journal_id").references(() => journals.id),
     createdBy: text("created_by").references(() => users.id),

@@ -6,6 +6,7 @@ type CreateProductDto = z.infer<typeof productSchema>;
 
 // Temporary import until Categories are moved
 import { CategoriesModel } from "../../categories/models/categories.model";
+import { CashRegisterService } from "../../accounting/services/cash-register.service";
 
 export class InventoryService {
     private model: InventoryModel;
@@ -24,7 +25,25 @@ export class InventoryService {
         return await this.model.findById(id, dbOrTx);
     }
 
-    async createProduct(data: CreateProductDto, dbOrTx?: any) {
+    private async checkRegister(user: any, dbOrTx?: any) {
+        if (!user || !user.roles) return;
+
+        const roles = user.roles || [];
+        // Block Kasir from mutating inventory if register is closed, UNLESS they are also owner/manager/admin
+        const isRestricted = roles.includes('kasir') &&
+            !roles.includes('owner') &&
+            !roles.includes('manager') &&
+            !roles.includes('super_admin');
+
+        if (isRestricted) {
+            const isOpen = await CashRegisterService.isRegisterOpen(dbOrTx);
+            if (!isOpen) throw new Error("Register Closed. Inventory changes restricted for Kasir.");
+        }
+    }
+
+    async createProduct(data: CreateProductDto, user?: any, dbOrTx?: any) {
+        await this.checkRegister(user, dbOrTx);
+
         const id = "PRD-" + Date.now().toString().slice(-6);
         const product = await this.model.createProduct({
             id,
@@ -47,7 +66,7 @@ export class InventoryService {
                         productId: product.id,
                         name: template.name,
                         // image, sku, defaultPrice empty initially
-                    }, dbOrTx);
+                    }, user, dbOrTx);
                 }
             }
         }
@@ -55,7 +74,8 @@ export class InventoryService {
         return product;
     }
 
-    async updateProduct(id: string, data: CreateProductDto, dbOrTx?: any) {
+    async updateProduct(id: string, data: CreateProductDto, user?: any, dbOrTx?: any) {
+        await this.checkRegister(user, dbOrTx);
         return await this.model.updateProduct(id, {
             name: data.name,
             code: data.code,
@@ -75,7 +95,8 @@ export class InventoryService {
         return await this.model.findVariantsBySupplierConfig(supplierId, dbOrTx);
     }
 
-    async createVariant(data: { productId: string; name: string; image?: string; sku?: string; defaultPrice?: number }, dbOrTx?: any) {
+    async createVariant(data: { productId: string; name: string; image?: string; sku?: string; defaultPrice?: number }, user?: any, dbOrTx?: any) {
+        await this.checkRegister(user, dbOrTx);
         const id = "VAR-" + Date.now().toString().slice(-6);
         return await this.model.createVariant({
             id,
@@ -87,12 +108,13 @@ export class InventoryService {
         }, dbOrTx);
     }
 
-    async updateVariant(id: string, data: Partial<{ name: string; image?: string; sku?: string; defaultPrice?: number }>, dbOrTx?: any) {
+    async updateVariant(id: string, data: Partial<{ name: string; image?: string; sku?: string; defaultPrice?: number }>, user?: any, dbOrTx?: any) {
+        await this.checkRegister(user, dbOrTx);
         return await this.model.updateVariant(id, data, dbOrTx);
     }
 
-    async getProductVariants(productId: string, dbOrTx?: any) {
-        return await this.model.findVariantsByProductId(productId, dbOrTx);
+    async getProductVariants(productId: string, supplierId?: string, dbOrTx?: any) {
+        return await this.model.findVariantsByProductId(productId, supplierId, dbOrTx);
     }
 
     async deleteVariant(id: string, dbOrTx?: any) {
@@ -100,7 +122,8 @@ export class InventoryService {
     }
 
     // Bulk update minimum stock for all products in a category
-    async bulkUpdateMinStock(categoryId: string, minStock: number, dbOrTx?: any): Promise<number> {
+    async bulkUpdateMinStock(categoryId: string, minStock: number, user?: any, dbOrTx?: any): Promise<number> {
+        await this.checkRegister(user, dbOrTx);
         return await this.model.updateMinStockByCategory(categoryId, minStock, dbOrTx);
     }
 

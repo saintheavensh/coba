@@ -130,6 +130,12 @@ export class ServiceService {
     }
 
     async createService(data: any, userId?: string, dbOrTx?: any) {
+        // Strict Check: Register must be open
+        const isOpen = await CashRegisterService.isRegisterOpen(dbOrTx);
+        if (!isOpen) {
+            throw new Error("Register Closed. Cannot create new service ticket within an active session.");
+        }
+
         const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
         const prefix = `SRV-${today}`;
         const lastService = await this.model.findLastServiceNo(prefix, dbOrTx);
@@ -203,6 +209,14 @@ export class ServiceService {
     async updateStatus(id: string, data: { status: string; notes?: string; actualCost?: number }, userId?: string, dbOrTx?: any) {
         const srv = await this.model.findById(id, dbOrTx);
         if (!srv) throw new Error("Service not found");
+
+        // Strict Check: If picking up (payment involved), register must be open
+        if (data.status === "diambil") {
+            const isOpen = await CashRegisterService.isRegisterOpen(dbOrTx);
+            if (!isOpen) {
+                throw new Error("Register Closed. Cannot process pickup/payment.");
+            }
+        }
 
         const effectiveDb = dbOrTx || db;
         await effectiveDb.transaction(async (tx: any) => {

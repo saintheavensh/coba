@@ -55,8 +55,10 @@ export const ProductsService = {
     delete: async (id: string): Promise<void> => {
         await api.delete(`/inventory/${id}`);
     },
-    getVariants: async (id: string): Promise<any[]> => {
-        const res = await api.get<ApiResponse<any[]>>(`/inventory/${id}/variants`);
+    getVariants: async (id: string, supplierId?: string): Promise<any[]> => {
+        const res = await api.get<ApiResponse<any[]>>(`/inventory/${id}/variants`, {
+            params: { supplierId }
+        });
         return res.data?.data ?? [];
     },
 

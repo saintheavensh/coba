@@ -3,8 +3,8 @@ import { accounts, accountTypes } from "../../../db/schema";
 import { eq } from "drizzle-orm";
 
 export class AccountModel {
-    static async findAll(dbOrTx: any = db) {
-        return dbOrTx
+    static async findAll(filters: { typeId?: string } = {}, dbOrTx: any = db) {
+        let query = dbOrTx
             .select({
                 id: accounts.id,
                 code: accounts.code,
@@ -19,6 +19,12 @@ export class AccountModel {
             .from(accounts)
             .leftJoin(accountTypes, eq(accounts.typeId, accountTypes.id))
             .orderBy(accounts.code);
+
+        if (filters.typeId) {
+            query = query.where(eq(accounts.typeId, filters.typeId));
+        }
+
+        return query;
     }
 
     static async findTypes(dbOrTx: any = db) {
@@ -39,6 +45,14 @@ export class AccountModel {
             .from(accountTypes)
             .where(eq(accountTypes.id, id));
         return type;
+    }
+
+    static async findByCode(code: string, dbOrTx: any = db) {
+        const [account] = await dbOrTx
+            .select()
+            .from(accounts)
+            .where(eq(accounts.code, code));
+        return account;
     }
 
     static async create(data: any, dbOrTx: any = db) {

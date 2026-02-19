@@ -25,7 +25,7 @@ export class PurchasesModel {
         }
 
         const query = dbOrTx.query.purchases.findMany({
-            where: and(...conditions),
+            where: conditions.length > 0 ? and(...conditions) : undefined,
             with: {
                 supplier: true,
                 items: {

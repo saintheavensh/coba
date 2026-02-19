@@ -23,9 +23,11 @@
                 </div>
                 <div class="flex-1">
                     <h3 class="font-semibold text-slate-900 dark:text-white">
-                        Chart of Accounts
+                        Daftar Akun (COA)
                     </h3>
-                    <p class="text-sm text-slate-500">Kelola daftar akun</p>
+                    <p class="text-sm text-slate-500">
+                        Lihat semua akun & saldo
+                    </p>
                 </div>
                 <ArrowRight
                     class="h-5 w-5 text-slate-400 group-hover:translate-x-1 transition-transform"
@@ -46,9 +48,11 @@
                 </div>
                 <div class="flex-1">
                     <h3 class="font-semibold text-slate-900 dark:text-white">
-                        Aset & Penyusutan
+                        Harta & Aset Toko
                     </h3>
-                    <p class="text-sm text-slate-500">Kelola aset tetap toko</p>
+                    <p class="text-sm text-slate-500">
+                        Data alat, kendaraan, & bangunan
+                    </p>
                 </div>
                 <ArrowRight
                     class="h-5 w-5 text-slate-400 group-hover:translate-x-1 transition-transform"
@@ -92,9 +96,11 @@
                 </div>
                 <div class="flex-1">
                     <h3 class="font-semibold text-slate-900 dark:text-white">
-                        Jurnal Umum
+                        Catatan Transaksi
                     </h3>
-                    <p class="text-sm text-slate-500">Lihat transaksi jurnal</p>
+                    <p class="text-sm text-slate-500">
+                        Riwayat jurnal keuangan
+                    </p>
                 </div>
                 <ArrowRight
                     class="h-5 w-5 text-slate-400 group-hover:translate-x-1 transition-transform"
@@ -115,9 +121,11 @@
                 </div>
                 <div class="flex-1">
                     <h3 class="font-semibold text-slate-900 dark:text-white">
-                        Hutang Supplier
+                        Tagihan Supplier
                     </h3>
-                    <p class="text-sm text-slate-500">Kelola pembayaran</p>
+                    <p class="text-sm text-slate-500">
+                        Bayar hutang beli barang
+                    </p>
                 </div>
                 <ArrowRight
                     class="h-5 w-5 text-slate-400 group-hover:translate-x-1 transition-transform"
@@ -126,7 +134,32 @@
         </Card>
     </a>
 
-    <a href="/accounting/audit-log" class="group">
+    <a href="/accounting/reports" class="group">
+        <Card
+            class="border-0 shadow-md hover:shadow-xl transition-all duration-300 rounded-2xl h-full"
+        >
+            <CardContent class="p-6 flex items-center gap-4">
+                <div
+                    class="p-3 bg-teal-100 dark:bg-teal-900/30 rounded-xl group-hover:bg-teal-200 transition-colors"
+                >
+                    <ClipboardList class="h-6 w-6 text-teal-600" />
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-semibold text-slate-900 dark:text-white">
+                        Laporan Bisnis
+                    </h3>
+                    <p class="text-sm text-slate-500">
+                        Cek untung/rugi & neraca
+                    </p>
+                </div>
+                <ArrowRight
+                    class="h-5 w-5 text-slate-400 group-hover:translate-x-1 transition-transform"
+                />
+            </CardContent>
+        </Card>
+    </a>
+
+    <a href="/accounting/setup" class="group">
         <Card
             class="border-0 shadow-md hover:shadow-xl transition-all duration-300 rounded-2xl h-full"
         >
@@ -134,13 +167,13 @@
                 <div
                     class="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl group-hover:bg-slate-200 transition-colors"
                 >
-                    <ClipboardList class="h-6 w-6 text-slate-600" />
+                    <Settings class="h-6 w-6 text-slate-600" />
                 </div>
                 <div class="flex-1">
                     <h3 class="font-semibold text-slate-900 dark:text-white">
-                        Audit Log
+                        Setup Saldo Awal
                     </h3>
-                    <p class="text-sm text-slate-500">Riwayat perubahan data</p>
+                    <p class="text-sm text-slate-500">Atur saldo kas & bank</p>
                 </div>
                 <ArrowRight
                     class="h-5 w-5 text-slate-400 group-hover:translate-x-1 transition-transform"

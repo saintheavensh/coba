@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { PurchasesController } from "../controllers/purchases.controller";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
+import { requirePermission } from "../../../middlewares/permission.middleware";
 
 const app = new Hono();
 const controller = new PurchasesController();
@@ -43,15 +44,25 @@ const verifyItemSchema = z.object({
 
 const verifySchema = z.object({
     items: z.array(verifyItemSchema).min(1),
+    shippingFee: z.number().optional(),
+    discountAmount: z.number().optional(),
+    referenceNumber: z.string().optional(),
+    payment: z.object({
+        method: z.string(),
+        amount: z.number(),
+        accountId: z.string().optional()
+    }).optional()
 });
 
 app.use("*", authMiddleware);
 
-app.get("/", (c) => controller.getAll(c));
-app.post("/", zValidator("json", purchaseSchema), (c) => controller.createOrder(c));
-app.get("/:id", (c) => controller.getById(c));
-app.post("/:id/receive", zValidator("json", receiveSchema), (c) => controller.receiveGoods(c));
-app.post("/:id/verify", zValidator("json", verifySchema), (c) => controller.verifyGoods(c));
-app.delete("/:id", (c) => controller.deletePurchase(c));
+app.get("/", requirePermission("purchase.create", "inventory.manage"), (c) => controller.getAll(c));
+app.post("/", requirePermission("purchase.create"), zValidator("json", purchaseSchema), (c) => controller.createOrder(c));
+app.get("/recommendations/low-stock", requirePermission("purchase.create", "inventory.manage"), (c) => controller.getLowStockSummary(c));
+app.get("/:id", requirePermission("purchase.create", "inventory.manage"), (c) => controller.getById(c));
+app.post("/:id/cancel", requirePermission("purchase.create", "inventory.manage"), (c) => controller.cancelOrder(c));
+app.post("/:id/receive", requirePermission("purchase.create", "inventory.manage"), zValidator("json", receiveSchema), (c) => controller.receiveGoods(c));
+app.post("/:id/verify", requirePermission("purchase.create", "inventory.manage"), zValidator("json", verifySchema), (c) => controller.verifyGoods(c));
+app.delete("/:id", requirePermission("purchase.create", "inventory.manage"), (c) => controller.deletePurchase(c));
 
 export default app;

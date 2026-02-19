@@ -13,6 +13,18 @@ export class PurchaseDetailController {
     isEditing = $state(false);
     editItems = $state<any[]>([]);
     isSubmitting = $state(false);
+    isCancelling = $state(false);
+
+    // Verification / Pricing state
+    shippingFee = $state(0);
+    shippingExpenseAccountId = $state(""); // New: Expense Account for Shipping
+    discountAmount = $state(0);
+    paymentMethod = $state("transfer");
+    amountPaid = $state(0);
+    paymentAccountId = $state("");
+    paymentProofImage = $state<File | null>(null); // New: Proof Layout
+    paymentDueDate = $state<string>(""); // New: Due Date for Debt
+    referenceNumber = $state(""); // New: Invoice Number from Supplier
 
     constructor(id: string) {
         this.id = id;
@@ -22,12 +34,32 @@ export class PurchaseDetailController {
         return authStore.role;
     }
 
+    // Account Options
+    expenseAccounts = $state<any[]>([]);
+    paymentAccounts = $state<any[]>([]);
+
     async load() {
         this.loading = true;
         this.error = "";
         try {
-            const res = await api.get(`/purchases/${this.id}`);
+            const [res, expensesRes, assetsRes] = await Promise.all([
+                api.get(`/purchases/${this.id}`),
+                api.get("/accounting/accounts?typeId=EXPENSE"),
+                api.get("/accounting/accounts?typeId=ASSET")
+            ]);
+
             this.purchase = res.data?.data || res.data;
+            this.expenseAccounts = expensesRes.data || [];
+
+            // Filter Assets for Cash/Bank (Simple filter based on code or name convention for now)
+            // Or just show all Assets allow user to pick. 
+            // Better: Filter for "Kas" or "Bank" in name or code starts with "1-1"
+            const assets = assetsRes.data || [];
+            this.paymentAccounts = assets.filter((a: any) =>
+                a.name.toLowerCase().includes("kas") ||
+                a.name.toLowerCase().includes("bank") ||
+                a.code.startsWith("11") // Standard chart of accounts 11xx is Cash/Bank
+            );
 
             // Initialize edit values
             if (this.purchase) {
@@ -38,6 +70,7 @@ export class PurchaseDetailController {
                     buyPrice: it.buyPrice || it.estimatedBuyPrice || 0,
                     sellPrice: it.sellPrice || it.targetSellPrice || 0,
                 }));
+                this.referenceNumber = this.purchase.referenceNumber || "";
             }
         } catch (e: any) {
             console.error(e);
@@ -54,7 +87,8 @@ export class PurchaseDetailController {
             await api.post(`/purchases/${this.id}/receive`, { items: this.editItems });
             toast.success("Barang berhasil diterima!");
             this.isEditing = false;
-            await this.load();
+            // FIX: Redirect to list after receiving to prevent double submission
+            goto("/warehouse/reception");
         } catch (e) {
             toast.error("Gagal memproses penerimaan");
         } finally {
@@ -63,16 +97,85 @@ export class PurchaseDetailController {
     }
 
     async handleVerify() {
+        if (this.amountPaid > 0 && !this.paymentMethod) {
+            toast.error("Pilih metode pembayaran");
+            return;
+        }
+
+        if (this.paymentMethod === 'transfer' && this.amountPaid > 0 && !this.paymentProofImage) {
+            // Optional: Enforce proof for transfer? User said "Must be proof of transfer"
+            // Let's warn but maybe allow if they really want? 
+            // Logic: "must be proof of transfer in the form of a photo" -> Strict.
+            toast.error("Bukti transfer wajib diupload untuk metode Transfer");
+            return;
+        }
+
+        // Handle Image Upload if exists
+        let proofImageUrl = null;
+        if (this.paymentProofImage) {
+            const formData = new FormData();
+            formData.append("file", this.paymentProofImage);
+            try {
+                // Assuming generic upload endpoint exists or use specific
+                const uploadRes = await api.post("/uploads", formData, {
+                    headers: { "Content-Type": "multipart/form-data" }
+                });
+                proofImageUrl = uploadRes.data.data.url; // Response wrapper might have data.url or data.data.url
+            } catch (e) {
+                toast.error("Gagal upload bukti transfer");
+                return;
+            }
+        }
+
+        if (this.isSubmitting) return;
+
         this.isSubmitting = true;
         try {
-            await api.post(`/purchases/${this.id}/verify`, { items: this.editItems });
+            const res = await api.post(`/purchases/${this.id}/verify`, {
+                items: this.editItems,
+                shippingFee: this.shippingFee,
+                shippingExpenseAccountId: this.shippingExpenseAccountId, // Send ID
+                discountAmount: this.discountAmount,
+                referenceNumber: this.referenceNumber,
+                paymentDueDate: this.paymentDueDate ? new Date(this.paymentDueDate) : null,
+                payment: this.amountPaid > 0 ? {
+                    method: this.paymentMethod,
+                    amount: this.amountPaid,
+                    accountId: this.paymentAccountId,
+                    proofImage: proofImageUrl
+                } : null
+            });
+
             toast.success("PO berhasil diverifikasi dan stok diupdate!");
             this.isEditing = false;
-            await this.load();
-        } catch (e) {
-            toast.error("Gagal memverifikasi PO");
+            // Immediate redirect to detail instead of just reloading data
+            // This prevents duplicate submissions and feels more professional
+            goto(`/manager/purchases/${this.id}`).then(() => {
+                location.reload(); // Hard reload to ensure all states are clean
+            });
+        } catch (e: any) {
+            console.error("Verification Error:", e);
+            const errorMsg = e.response?.data?.error || e.message || "Gagal memverifikasi PO";
+            toast.error(`Error: ${errorMsg}`);
         } finally {
             this.isSubmitting = false;
+        }
+    }
+
+    async handleCancel() {
+        const reason = prompt("Masukkan alasan pembatalan:");
+        if (reason === null) return; // User pressed Cancel
+
+        this.isCancelling = true;
+        try {
+            await api.post(`/purchases/${this.id}/cancel`, { reason });
+            toast.success("Purchase Order telah dibatalkan");
+            await this.load();
+        } catch (e: any) {
+            console.error(e);
+            toast.error(e.response?.data?.error || "Gagal membatalkan PO");
+        } finally {
+            this.isCancelling = false;
         }
     }
 
@@ -83,7 +186,7 @@ export class PurchaseDetailController {
         try {
             await api.delete(`/purchases/${this.id}`);
             toast.success("Pembelian berhasil dihapus");
-            goto("/purchases");
+            goto("/manager/purchases");
         } catch (e) {
             console.error(e);
             toast.error("Gagal menghapus pembelian");
@@ -113,6 +216,10 @@ export class PurchaseDetailController {
                 return "bg-amber-500";
             case "VERIFIED":
                 return "bg-green-500";
+            case "CANCELLED":
+                return "bg-red-500";
+            case "DRAFT":
+                return "bg-slate-400";
             default:
                 return "bg-slate-500";
         }
@@ -135,5 +242,17 @@ export class PurchaseDetailController {
             currency: "IDR",
             minimumFractionDigits: 0,
         }).format(val);
+    }
+
+    get actualItemsTotal() {
+        return this.editItems.reduce((sum, item) => {
+            const poItem = this.purchase?.items.find((pi: any) => pi.productId === item.productId && pi.variant === (item.variant || null));
+            const qty = poItem?.qtyReceived || 0;
+            return sum + (qty * item.buyPrice);
+        }, 0);
+    }
+
+    get grandTotal() {
+        return this.actualItemsTotal + this.shippingFee - this.discountAmount;
     }
 }

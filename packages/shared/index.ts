@@ -52,7 +52,7 @@ export const createServiceSchema = z.object({
     type: z.enum(["regular", "walk_in"]),
     customer: z.object({
         name: z.string(),
-        phone: z.string(),
+        phone: z.string().optional(), // Made optional for Quick Input
         address: z.string().optional()
     }),
     unit: z.object({

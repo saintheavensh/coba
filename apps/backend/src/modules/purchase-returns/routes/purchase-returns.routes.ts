@@ -2,8 +2,13 @@ import { Hono } from "hono";
 import { PurchaseReturnsController } from "../controllers/purchase-returns.controller";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { authMiddleware } from "../../../middlewares/auth.middleware";
+import { requirePermission } from "../../../middlewares/permission.middleware";
 
 const purchaseReturns = new Hono();
+
+purchaseReturns.use("*", authMiddleware);
+purchaseReturns.use("*", requirePermission("inventory.manage", "purchase.create"));
 
 const createReturnSchema = z.object({
     supplierId: z.string().min(1),

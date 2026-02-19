@@ -1,6 +1,6 @@
 import { db } from "../../../db";
 import { products, productBatches, categories, productDeviceCompatibility, productVariants, categoryVariants } from "../../../db/schema";
-import { eq, desc, and, sql, or, ilike } from "drizzle-orm";
+import { eq, desc, and, sql, or, ilike, inArray } from "drizzle-orm";
 
 export class InventoryModel {
     async findAll(deviceId?: string, search?: string, categoryId?: string, dbOrTx: any = db) {
@@ -98,12 +98,13 @@ export class InventoryModel {
     }
 
     async createProduct(data: typeof products.$inferInsert & { compatibility?: string[] }, dbOrTx: any = db) {
-        const productResult = await dbOrTx.insert(products).values(data).returning();
+        const { compatibility, ...productData } = data;
+        const productResult = await dbOrTx.insert(products).values(productData).returning();
         const product = productResult[0];
 
-        if (data.compatibility && data.compatibility.length > 0) {
+        if (compatibility && compatibility.length > 0) {
             await dbOrTx.insert(productDeviceCompatibility).values(
-                data.compatibility.map(deviceId => ({
+                compatibility.map(deviceId => ({
                     productId: product.id,
                     deviceId
                 }))
@@ -192,9 +193,39 @@ export class InventoryModel {
         return result[0];
     }
 
-    async findVariantsByProductId(productId: string, dbOrTx: any = db) {
+    async findVariantsByProductId(productId: string, supplierId?: string, dbOrTx: any = db) {
+        const conditions = [eq(productVariants.productId, productId)];
+
+        if (supplierId) {
+            // 1. Get Product's Category
+            const product = await dbOrTx.query.products.findFirst({
+                where: eq(products.id, productId),
+                columns: { categoryId: true }
+            });
+
+            if (product && product.categoryId) {
+                // 2. Get allowed variant names for this Supplier + Category
+                const allowedVariants = await dbOrTx.query.categoryVariants.findMany({
+                    where: and(
+                        eq(categoryVariants.supplierId, supplierId),
+                        eq(categoryVariants.categoryId, product.categoryId)
+                    ),
+                    columns: { name: true }
+                });
+
+                const allowedNames = allowedVariants.map((v: any) => v.name);
+
+                if (allowedNames.length > 0) {
+                    conditions.push(inArray(productVariants.name, allowedNames));
+                } else {
+                    // Supplier has no configured variants for this category -> Return empty
+                    return [];
+                }
+            }
+        }
+
         return await dbOrTx.query.productVariants.findMany({
-            where: eq(productVariants.productId, productId),
+            where: and(...conditions),
             orderBy: [desc(productVariants.createdAt)]
         });
     }
@@ -271,7 +302,7 @@ export class InventoryModel {
 
         // Enhance with latest prices from batches if defaultPrice is missing
         // and optionally refine stock if batches are variant-specific
-        return results.map(r => ({
+        return results.map((r: any) => ({
             ...r,
             displayName: r.variantName && r.variantName !== "Default" && r.variantName !== ""
                 ? `${r.productName} (${r.variantName})`

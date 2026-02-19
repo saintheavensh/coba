@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
+import { requireRole } from "../../../middlewares/permission.middleware";
 
 // Import Controllers
 import { AccountsController } from "../controllers/accounts.controller";
@@ -14,11 +15,13 @@ import { PeriodCloseController } from "../controllers/period-close.controller";
 import { CommissionPaymentController } from "../controllers/commission-payment.controller";
 import { AuditController } from "../controllers/audit.controller";
 import { AccountingDashboardController } from "../controllers/accounting-dashboard.controller";
+import { AccountingReportsController } from "../controllers/accounting-reports.controller";
 
 const accounting = new Hono();
 
-// Apply auth middleware to all accounting routes
+// Apply auth + role middleware to all accounting routes
 accounting.use("*", authMiddleware);
+accounting.use("*", requireRole("super_admin", "owner", "manager"));
 
 // ============================================
 // DASHBOARD
@@ -27,6 +30,14 @@ accounting.use("*", authMiddleware);
 accounting.get("/dashboard", async (c) => {
     return await AccountingDashboardController.getDashboard(c);
 });
+
+// ============================================
+// REPORTS
+// ============================================
+
+accounting.get("/reports/gl", AccountingReportsController.getGeneralLedger);
+accounting.get("/reports/pl", AccountingReportsController.getIncomeStatement);
+accounting.get("/reports/balance-sheet", AccountingReportsController.getBalanceSheet);
 
 // ============================================
 // ACCOUNTS
@@ -45,7 +56,7 @@ const createAccountSchema = z.object({
     description: z.string().optional(),
 });
 accounting.post("/accounts", zValidator("json", createAccountSchema), AccountsController.create);
-
+accounting.post("/accounts/:id/opening-balance", AccountsController.setOpeningBalance);
 accounting.post("/accounts/seed", AccountsController.seed);
 accounting.delete("/accounts/reset", AccountsController.reset);
 
@@ -127,6 +138,13 @@ const closeRegisterSchema = z.object({
 accounting.post("/register/close", zValidator("json", closeRegisterSchema), CashRegisterController.close);
 
 accounting.get("/register/history", CashRegisterController.getHistory);
+
+const recordExpenseSchema = z.object({
+    amount: z.number().positive(),
+    category: z.string().min(2),
+    description: z.string().min(3),
+});
+accounting.post("/register/expense", zValidator("json", recordExpenseSchema), CashRegisterController.recordExpense);
 
 // ============================================
 // REVENUE TARGETS

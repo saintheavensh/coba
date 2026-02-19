@@ -31,10 +31,10 @@
             <div class="flex items-center justify-between">
                 <div>
                     <CardTitle class="text-xl font-bold"
-                        >Ringkasan Laba Rugi</CardTitle
+                        >Ringkasan Untung/Rugi Bisnis</CardTitle
                     >
                     <CardDescription
-                        >Performa keuangan berdasarkan Chart of Accounts</CardDescription
+                        >Analisa pemasukan dan pengeluaran Anda.</CardDescription
                     >
                 </div>
                 <div
@@ -42,7 +42,7 @@
                 >
                     <Calculator class="h-4 w-4 text-blue-600" />
                     <span class="text-xs font-bold text-blue-600"
-                        >Calculated Real-time</span
+                        >Data Real-time</span
                     >
                 </div>
             </div>
@@ -53,7 +53,9 @@
                 <div class="space-y-6">
                     <div class="space-y-2">
                         <div class="flex justify-between text-sm">
-                            <span class="text-slate-500">Pendapatan</span>
+                            <span class="text-slate-500"
+                                >Pemasukan (Revenue)</span
+                            >
                             <span
                                 class="font-bold text-slate-900 dark:text-white"
                             >
@@ -76,7 +78,7 @@
                     <div class="space-y-2">
                         <div class="flex justify-between text-sm">
                             <span class="text-slate-500"
-                                >Total Beban (Expenses)</span
+                                >Pengeluaran (Expenses)</span
                             >
                             <span
                                 class="font-bold text-slate-900 dark:text-white"
@@ -99,8 +101,9 @@
                             ></div>
                         </div>
                         <p class="text-[10px] text-red-500 font-medium italic">
-                            Memakan {controller.expenseRatio.toFixed(1)}% dari
-                            pendapatan Anda.
+                            Pengeluaran memakan {controller.expenseRatio.toFixed(
+                                1,
+                            )}% dari total pemasukan.
                         </p>
                     </div>
                 </div>
@@ -132,7 +135,7 @@
                                         {controller.deprExpense.name}
                                     </p>
                                     <p class="text-[10px] text-slate-500">
-                                        Beban Non-Tunai
+                                        Penyusutan Aset
                                     </p>
                                 </div>
                             </div>
@@ -157,7 +160,7 @@
                                 <p
                                     class="text-[11px] font-bold text-green-700 dark:text-green-400"
                                 >
-                                    Profit Margin
+                                    Margin Keuntungan
                                 </p>
                                 <p
                                     class="text-[10px] text-green-600 opacity-70"
@@ -191,13 +194,10 @@
                 <div class="p-3 bg-white/20 rounded-2xl w-fit">
                     <AlertCircle class="h-6 w-6 text-white" />
                 </div>
-                <h3 class="text-xl font-bold leading-tight">
-                    Optimasi Laba & Pajak
-                </h3>
+                <h3 class="text-xl font-bold leading-tight">Tips Keuangan</h3>
                 <p class="text-sm text-indigo-100 leading-relaxed">
-                    Mencatat <strong>Penyusutan Aset</strong> secara rutin tidak
-                    hanya memberikan gambaran laba yang jujur, tapi juga membantu
-                    perencanaan penggantian alat di masa depan.
+                    Penyusutan aset adalah biaya 'tersembunyi'. Pastikan alat
+                    kerja Anda tercatat agar laba bersih akurat.
                 </p>
             </div>
 

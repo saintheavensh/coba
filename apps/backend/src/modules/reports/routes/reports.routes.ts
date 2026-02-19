@@ -1,10 +1,12 @@
 import { Hono } from "hono";
 import { ReportsController } from "../controllers/reports.controller";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
+import { requirePermission } from "../../../middlewares/permission.middleware";
 
 const reports = new Hono();
 
 reports.use("*", authMiddleware);
+reports.use("*", requirePermission("report.read", "analytics.view"));
 
 reports.get("/summary", ReportsController.getSummary);
 reports.get("/transactions", ReportsController.getTransactions);

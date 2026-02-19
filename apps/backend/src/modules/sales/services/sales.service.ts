@@ -88,8 +88,15 @@ export class SalesService {
             paymentStatus = "unpaid";
         }
 
+        // 0. Pre-check: Ensure Register is Open (Fail fast)
+        const isRegisterOpen = await CashRegisterService.isRegisterOpen(dbOrTx);
+        if (!isRegisterOpen) {
+            throw new Error("Cash Register is closed. Please open a session first.");
+        }
+
         const effectiveDb = dbOrTx || db;
         await effectiveDb.transaction(async (tx: any) => {
+            // ... (Tempo logic remains same) ...
             // Handle Tempo (Debt)
             const tempoPayment = data.payments.find((p: any) => p.methodId === "PM-TEMPO" || p.method.toLowerCase().includes("tempo"));
             if (tempoPayment) {
@@ -221,8 +228,6 @@ export class SalesService {
             // 4. Create Accounting Journal
             try {
                 // Calculate COGS
-                // We need to fetch items again or use the one we just inserted.
-                // Re-fetching inside TX to be safe and get joined batch buyPrice.
                 const saleWithItems = await this.model.findById(saleId, tx);
                 let cogsAmount = 0;
                 if (saleWithItems?.items) {
@@ -235,6 +240,7 @@ export class SalesService {
                 let debitAccountId = "1-1000";
 
                 if (paymentStatus === "paid") {
+                    // ... (Existing accounting logic) ...
                     const { SettingsService } = await import("../../settings/services/settings.service");
                     const settingsService = new SettingsService();
                     const methodConfig = await settingsService.getPaymentMethods(tx);
@@ -299,16 +305,22 @@ export class SalesService {
                     lines: journalLines,
                 }, data.userId, tx);
 
-                // 5. Record in Cash Register
-                if (paymentMethodStr === "cash") {
-                    await CashRegisterService.recordTransaction({
-                        transactionType: "sale",
-                        transactionId: saleId,
-                        paymentMethod: "cash",
-                        amount: finalAmount,
-                        description: `Penjualan ${saleId}`
-                    }, tx);
+                // 5. Record in Cash Register (IMPROVED to handle mixed payments)
+                for (const p of data.payments) {
+                    const methodLower = p.method.toLowerCase();
+                    const isCash = methodLower.includes("cash") || methodLower.includes("tunai");
+
+                    if (isCash) {
+                        await CashRegisterService.recordTransaction({
+                            transactionType: "sale",
+                            transactionId: saleId,
+                            paymentMethod: "cash",
+                            amount: p.amount,
+                            description: `Penjualan ${saleId}`
+                        }, tx);
+                    }
                 }
+
             } catch (e) {
                 console.error("Failed to create accounting journal for sale", e);
                 // In a perfect transactional world, we might want to throw e here

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { CustomersController } from "../controllers/customers.controller";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
+import { requirePermission } from "../../../middlewares/permission.middleware";
 
 const customers = new Hono();
 
@@ -39,14 +40,17 @@ const paymentSchema = z.object({
     proofImage: z.string().optional()
 });
 
-customers.get("/", CustomersController.getAll);
-customers.get("/:id", CustomersController.getById);
-customers.post("/", zValidator("json", customerSchema), CustomersController.create);
-customers.put("/:id", zValidator("json", updateCustomerSchema), CustomersController.update);
-customers.delete("/:id", CustomersController.delete);
+// Apply auth middleware to all customer routes
+customers.use("*", authMiddleware);
 
-customers.get("/:id/sales", CustomersController.getSales);
-customers.get("/:id/unpaid-sales", CustomersController.getUnpaidSales);
-customers.post("/:id/payment", zValidator("json", paymentSchema), CustomersController.processPayment);
+customers.get("/", requirePermission("sale.read", "sale.create"), CustomersController.getAll);
+customers.get("/:id", requirePermission("sale.read", "sale.create"), CustomersController.getById);
+customers.post("/", requirePermission("sale.create"), zValidator("json", customerSchema), CustomersController.create);
+customers.put("/:id", requirePermission("sale.create"), zValidator("json", updateCustomerSchema), CustomersController.update);
+customers.delete("/:id", requirePermission("sale.create"), CustomersController.delete);
+
+customers.get("/:id/sales", requirePermission("sale.read", "sale.create"), CustomersController.getSales);
+customers.get("/:id/unpaid-sales", requirePermission("sale.read", "sale.create"), CustomersController.getUnpaidSales);
+customers.post("/:id/payment", requirePermission("sale.create"), zValidator("json", paymentSchema), CustomersController.processPayment);
 
 export default customers;

@@ -2,9 +2,22 @@ import { describe, it, expect, vi } from "vitest";
 
 // Mock hono/jwt to bypass token verification
 vi.mock("hono/jwt", () => ({
-    verify: vi.fn().mockResolvedValue({ id: "USR-TEST", role: "admin" }),
+    verify: vi.fn().mockResolvedValue({ id: "USR-TEST", role: "super_admin" }),
     sign: vi.fn().mockResolvedValue("mock-token"),
-    decode: vi.fn().mockReturnValue({ header: {}, payload: { id: "USR-TEST", role: "admin" }, signature: "" })
+    decode: vi.fn().mockReturnValue({ header: {}, payload: { id: "USR-TEST", role: "super_admin" }, signature: "" })
+}));
+
+// Mock DB for permission middleware (prevents DrizzleQueryError in integration tests)
+vi.mock("../../../db", () => ({
+    db: {
+        select: vi.fn().mockReturnValue({
+            from: vi.fn().mockReturnValue({
+                where: vi.fn().mockReturnValue({
+                    limit: vi.fn().mockResolvedValue([{ permissions: ["all"] }])
+                })
+            })
+        })
+    }
 }));
 
 // Mock hono/bun for static serving

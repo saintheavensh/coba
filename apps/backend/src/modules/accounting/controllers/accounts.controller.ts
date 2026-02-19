@@ -11,7 +11,8 @@ function getUserId(c: any): string | undefined {
 export class AccountsController {
     static async getAll(c: Context) {
         try {
-            const accounts = await AccountsService.getAll();
+            const { typeId } = c.req.query();
+            const accounts = await AccountsService.getAll({ typeId });
             return c.json(accounts);
         } catch (e: any) {
             return c.json({ error: e.message }, 500);
@@ -51,6 +52,19 @@ export class AccountsController {
             const userId = getUserId(c);
             const id = await AccountsService.create(data, userId);
             return c.json({ id }, 201);
+        } catch (e: any) {
+            return c.json({ error: e.message }, 500);
+        }
+    }
+
+    static async setOpeningBalance(c: Context) {
+        try {
+            const id = c.req.param("id");
+            const { amount } = await c.req.json();
+            const userId = getUserId(c);
+
+            await AccountsService.setOpeningBalance(id, Number(amount), userId);
+            return c.json({ success: true });
         } catch (e: any) {
             return c.json({ error: e.message }, 500);
         }

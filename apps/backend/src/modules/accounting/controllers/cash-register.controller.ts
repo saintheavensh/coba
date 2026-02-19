@@ -66,10 +66,36 @@ export class CashRegisterController {
     static async getHistory(c: Context) {
         try {
             const { startDate, endDate, limit } = c.req.query();
+            // @ts-ignore
             const history = await CashRegisterService.getHistory(startDate, endDate, limit ? parseInt(limit) : undefined);
             return c.json(history);
         } catch (e: any) {
             return c.json({ error: e.message }, 500);
+        }
+    }
+
+    static async recordExpense(c: Context) {
+        try {
+            const { amount, category, description } = await c.req.json();
+            const userId = getUserId(c);
+            const user = c.get("user") as any; // user object with roles from auth middleware
+
+            if (!userId) return c.json({ error: "Unauthorized" }, 401);
+
+            // Extract roles safely
+            const roles = user.roles?.map((r: any) => r.role?.id || r) || [user.role];
+
+            await CashRegisterService.recordExpense(
+                amount,
+                category,
+                description,
+                userId,
+                roles
+            );
+
+            return c.json({ success: true, message: "Expense recorded" }, 201);
+        } catch (e: any) {
+            return c.json({ error: e.message }, 400); // 400 because might be validation/threshold error
         }
     }
 }
