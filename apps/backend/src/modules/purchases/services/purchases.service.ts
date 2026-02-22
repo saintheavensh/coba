@@ -1,6 +1,6 @@
 import { PurchasesModel } from "../models/purchases.model";
 import { db } from "../../../db";
-import { purchases, purchaseItems, productBatches, products, activityLogs, productVariants, categoryVariants, purchasePayments, notifications, suppliers, supplierCategories } from "../../../db/schema";
+import { purchases, purchaseItems, products, activityLogs, productVariants, categoryVariants, purchasePayments, notifications, suppliers, supplierCategories } from "../../../db/schema";
 import { ActivityLogService } from "../../../lib/activity-log.service";
 import { eq, sql, and, desc } from "drizzle-orm";
 import { generateId, ID_PREFIX } from "../../../lib/utils";
@@ -414,26 +414,20 @@ export class PurchasesService {
 
             if (!purchase) throw new Error("Purchase not found");
 
-            for (const item of purchase.items) {
-                // Revert Batch Stock
-                if (item.batchId) {
-                    const batch = await tx.query.productBatches.findFirst({
-                        where: eq(productBatches.id, item.batchId)
-                    });
-                    if (batch) {
-                        await tx.update(productBatches)
-                            .set({
-                                currentStock: sql`${productBatches.currentStock} - ${item.qtyReceived}`,
-                                updatedAt: new Date()
-                            })
-                            .where(eq(productBatches.id, item.batchId));
-                    }
-                }
+            // Revert stock via inventory single gate
+            const itemsToReverse = purchase.items
+                .filter((item: any) => item.qtyReceived > 0)
+                .map((item: any) => ({
+                    productId: item.productId,
+                    batchId: item.batchId || null,
+                    qtyReceived: item.qtyReceived
+                }));
 
-                // Revert Product Stock
-                await tx.update(products)
-                    .set({ stock: sql`${products.stock} - ${item.qtyReceived}` })
-                    .where(eq(products.id, item.productId));
+            if (itemsToReverse.length > 0) {
+                await inventoryApplicationService.reverseStockFromPurchaseDeletion(
+                    { purchaseId: id, items: itemsToReverse },
+                    tx
+                );
             }
 
             // Delete Items
@@ -468,11 +462,8 @@ export class PurchasesService {
             let supplierId = "UNKNOWN";
             let supplierName = "Unknown Supplier";
 
-            // Try to find last batch
-            const lastBatch = await effectiveDb.query.productBatches.findFirst({
-                where: eq(productBatches.productId, p.id),
-                orderBy: (batch: any, { desc }: any) => [desc(batch.createdAt)]
-            });
+            // Try to find last batch via inventory gate
+            const lastBatch = await inventoryApplicationService.getLastBatchByProduct(p.id, effectiveDb);
 
             if (lastBatch && lastBatch.supplierId) {
                 const sup = await effectiveDb.query.suppliers.findFirst({

@@ -1,25 +1,33 @@
 /**
- * Wires inventory ports to adapters and exposes the application service.
+ * Composition root for the Inventory module.
+ * Wires infrastructure adapters to domain ports and exposes application services.
  */
-import { InventoryApplicationService } from "./application/inventory-application.service";
 import {
     ProductRepositoryAdapter,
     VariantRepositoryAdapter,
     StockMutationGatewayAdapter,
+    StockOpnameRepositoryAdapter,
+    CategoryRepositoryAdapter,
     RegisterGateAdapter,
-    CategoryRepositoryAdapter
-} from "./adapters";
+    PrintGatewayAdapter,
+    ActivityLoggerAdapter
+} from "./infrastructure";
 
-const productRepository = new ProductRepositoryAdapter();
-const variantRepository = new VariantRepositoryAdapter();
-const stockGateway = new StockMutationGatewayAdapter();
-const registerGate = new RegisterGateAdapter();
-const categoryRepository = new CategoryRepositoryAdapter();
+import { InventoryApplicationService } from "./application/inventory-application.service";
+import { StockOpnameApplicationService } from "./application/stock-opname-application.service";
 
+// --- Inventory Application Service ---
 export const inventoryApplicationService = new InventoryApplicationService({
-    productRepository,
-    variantRepository,
-    stockGateway,
-    registerGate,
-    categoryRepository
+    productRepository: new ProductRepositoryAdapter(),
+    variantRepository: new VariantRepositoryAdapter(),
+    stockGateway: new StockMutationGatewayAdapter(),
+    registerGate: new RegisterGateAdapter(),
+    categoryRepository: new CategoryRepositoryAdapter(),
+    printGateway: new PrintGatewayAdapter(),
+});
+
+// --- Stock Opname Application Service ---
+export const stockOpnameApplicationService = new StockOpnameApplicationService({
+    stockOpnameRepository: new StockOpnameRepositoryAdapter(),
+    activityLogger: new ActivityLoggerAdapter(),
 });

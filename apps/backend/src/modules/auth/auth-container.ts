@@ -2,8 +2,8 @@
  * Wires auth ports to adapters and exposes use cases.
  * Single place to swap implementations (e.g. for testing).
  */
-import { LoginUseCase, GetCurrentUserUseCase } from "./use-cases";
-import { UserRepositoryAdapter, BunPasswordVerifierAdapter, JwtTokenIssuerAdapter } from "./adapters";
+import { LoginUseCase, GetCurrentUserUseCase } from "./application";
+import { UserRepositoryAdapter, BunPasswordVerifierAdapter, JwtTokenIssuerAdapter } from "./infrastructure";
 
 const userRepository = new UserRepositoryAdapter();
 const passwordVerifier = new BunPasswordVerifierAdapter();

@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
-import { DevicesController } from "../controllers/devices.controller";
+import { DevicesController } from "../presentation/devices.controller";
 import { DevicesService } from "../services/devices.service";
 import { ScraperService } from "../services/scraper.service";
 import { createMockContext } from "../../../../test/factories";
@@ -9,12 +9,12 @@ describe("DevicesController", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.spyOn(DevicesService, "getAll").mockResolvedValue({ data: [], total: 0 } as any);
-        vi.spyOn(DevicesService, "getById").mockResolvedValue(null);
-        vi.spyOn(DevicesService, "create").mockResolvedValue({ id: "d1" } as any);
-        vi.spyOn(DevicesService, "update").mockResolvedValue({ id: "d1" } as any);
-        vi.spyOn(DevicesService, "delete").mockResolvedValue({ id: "d1" } as any);
-        vi.spyOn(DevicesService, "bulkDelete").mockResolvedValue({ count: 0 } as any);
+        vi.spyOn(DevicesService.prototype, "getAll").mockResolvedValue({ data: [], total: 0 } as any);
+        vi.spyOn(DevicesService.prototype, "getById").mockResolvedValue(null);
+        vi.spyOn(DevicesService.prototype, "create").mockResolvedValue({ id: "d1" } as any);
+        vi.spyOn(DevicesService.prototype, "update").mockResolvedValue({ id: "d1" } as any);
+        vi.spyOn(DevicesService.prototype, "delete").mockResolvedValue({ id: "d1" } as any);
+        vi.spyOn(DevicesService.prototype, "bulkDelete").mockResolvedValue({ count: 0 } as any);
         vi.spyOn(ScraperService, "scrapeGsmArena").mockResolvedValue({ brand: "B", model: "M" } as any);
         vi.spyOn(ScraperService, "getDeviceLinks").mockResolvedValue([]);
         controller = new DevicesController();
@@ -64,7 +64,7 @@ describe("DevicesController", () => {
         it("getById 200 if found", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("1");
-            vi.spyOn(DevicesService, "getById").mockResolvedValue({ id: "1" } as any);
+            vi.spyOn(DevicesService.prototype, "getById").mockResolvedValue({ id: "1" } as any);
             expect((await controller.getById(ctx)).status).toBe(200);
         });
         it("getById 404 if not found", async () => {
@@ -81,14 +81,14 @@ describe("DevicesController", () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("1");
             vi.spyOn(ctx.req as any, "valid").mockReturnValue({ model: "M" });
-            vi.spyOn(DevicesService, "update").mockResolvedValue({ id: "1" } as any);
+            vi.spyOn(DevicesService.prototype, "update").mockResolvedValue({ id: "1" } as any);
             expect((await controller.update(ctx)).status).toBe(200);
         });
         it("update 404", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("1");
             vi.spyOn(ctx.req as any, "valid").mockReturnValue({ model: "M" });
-            vi.spyOn(DevicesService, "update").mockResolvedValue(null);
+            vi.spyOn(DevicesService.prototype, "update").mockResolvedValue(null as any);
             expect((await controller.update(ctx)).status).toBe(404);
         });
         it("bulkDelete 200", async () => {
@@ -99,13 +99,13 @@ describe("DevicesController", () => {
         it("delete 200", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("1");
-            vi.spyOn(DevicesService, "delete").mockResolvedValue({ id: "1" } as any);
+            vi.spyOn(DevicesService.prototype, "delete").mockResolvedValue({ id: "1" } as any);
             expect((await controller.delete(ctx)).status).toBe(200);
         });
         it("delete 404", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("1");
-            vi.spyOn(DevicesService, "delete").mockResolvedValue(null);
+            vi.spyOn(DevicesService.prototype, "delete").mockResolvedValue(null as any);
             expect((await controller.delete(ctx)).status).toBe(404);
         });
     });

@@ -1,20 +1,30 @@
 /**
  * Application service: orchestrates inventory operations using ports only.
- * No direct dependency on Drizzle, schema, or sibling modules (CashRegister, Categories).
+ * No direct dependency on Drizzle, schema, or sibling modules.
  */
 import { productSchema } from "@repo/shared";
 import { z } from "zod";
-import type { IProductRepository } from "../ports/product-repository.port";
-import type { IVariantRepository } from "../ports/variant-repository.port";
-import type { IStockMutationGateway } from "../ports/stock-mutation-gateway.port";
-import type { IRegisterGate } from "../ports/register-gate.port";
-import type { ICategoryRepository } from "../ports/category-repository.port";
+import type { IProductRepository } from "../domain/product-repository.port";
+import type { IVariantRepository } from "../domain/variant-repository.port";
+import type { IStockMutationGateway } from "../domain/stock-mutation-gateway.port";
+import type { IRegisterGate } from "../domain/register-gate.port";
+import type { ICategoryRepository } from "../domain/category-repository.port";
+import type { IPrintGateway } from "../domain/print-gateway.port";
+import type {
+    ProductEntity,
+    ProductBatchEntity,
+    VariantEntity,
+    InventoryStats,
+    SearchResult,
+    LabelData
+} from "../domain/product.entity";
 import type {
     DeductStockFIFOInput,
     DeductStockFIFOOutput,
     AddStockFromPurchaseVerificationInput,
-    AddStockFromPurchaseVerificationOutput
-} from "../types/stock.types";
+    AddStockFromPurchaseVerificationOutput,
+    ReverseStockInput
+} from "../domain/stock.types";
 
 type CreateProductDto = z.infer<typeof productSchema>;
 
@@ -24,10 +34,11 @@ export interface InventoryApplicationServiceDeps {
     stockGateway: IStockMutationGateway;
     registerGate: IRegisterGate;
     categoryRepository: ICategoryRepository;
+    printGateway: IPrintGateway;
 }
 
 export class InventoryApplicationService {
-    constructor(private readonly deps: InventoryApplicationServiceDeps) {}
+    constructor(private readonly deps: InventoryApplicationServiceDeps) { }
 
     private async ensureRegisterOpenForMutation(user: unknown, dbOrTx?: unknown): Promise<void> {
         const u = user as { roles?: string[] } | undefined;
@@ -44,15 +55,15 @@ export class InventoryApplicationService {
         }
     }
 
-    async getAllProducts(deviceId?: string, search?: string, categoryId?: string, dbOrTx?: unknown) {
+    async getAllProducts(deviceId?: string, search?: string, categoryId?: string, dbOrTx?: unknown): Promise<ProductEntity[]> {
         return this.deps.productRepository.findAll(deviceId, search, categoryId, dbOrTx);
     }
 
-    async getProductById(id: string, dbOrTx?: unknown) {
+    async getProductById(id: string, dbOrTx?: unknown): Promise<ProductEntity | null> {
         return this.deps.productRepository.findById(id, dbOrTx);
     }
 
-    async createProduct(data: CreateProductDto, user?: unknown, dbOrTx?: unknown) {
+    async createProduct(data: CreateProductDto, user?: unknown, dbOrTx?: unknown): Promise<ProductEntity> {
         await this.ensureRegisterOpenForMutation(user, dbOrTx);
 
         const id = "PRD-" + Date.now().toString().slice(-6);
@@ -68,7 +79,7 @@ export class InventoryApplicationService {
                 compatibility: data.compatibility
             },
             dbOrTx
-        ) as { id: string };
+        );
 
         if (data.categoryId) {
             const category = await this.deps.categoryRepository.findById(data.categoryId, dbOrTx);
@@ -89,7 +100,7 @@ export class InventoryApplicationService {
         return product;
     }
 
-    async updateProduct(id: string, data: CreateProductDto, user?: unknown, dbOrTx?: unknown) {
+    async updateProduct(id: string, data: CreateProductDto, user?: unknown, dbOrTx?: unknown): Promise<ProductEntity> {
         await this.ensureRegisterOpenForMutation(user, dbOrTx);
         return this.deps.productRepository.updateProduct(
             id,
@@ -105,11 +116,11 @@ export class InventoryApplicationService {
         );
     }
 
-    async deleteProduct(id: string, dbOrTx?: unknown) {
+    async deleteProduct(id: string, dbOrTx?: unknown): Promise<void> {
         return this.deps.productRepository.deleteProduct(id, dbOrTx);
     }
 
-    async getSupplierVariants(supplierId: string, dbOrTx?: unknown) {
+    async getSupplierVariants(supplierId: string, dbOrTx?: unknown): Promise<VariantEntity[]> {
         return this.deps.variantRepository.findVariantsBySupplierConfig(supplierId, dbOrTx);
     }
 
@@ -117,7 +128,7 @@ export class InventoryApplicationService {
         data: { productId: string; name: string; image?: string; sku?: string; defaultPrice?: number },
         user?: unknown,
         dbOrTx?: unknown
-    ) {
+    ): Promise<VariantEntity> {
         await this.ensureRegisterOpenForMutation(user, dbOrTx);
         const id = "VAR-" + Date.now().toString().slice(-6);
         return this.deps.variantRepository.createVariant(
@@ -138,16 +149,16 @@ export class InventoryApplicationService {
         data: Partial<{ name: string; image?: string; sku?: string; defaultPrice?: number }>,
         user?: unknown,
         dbOrTx?: unknown
-    ) {
+    ): Promise<VariantEntity> {
         await this.ensureRegisterOpenForMutation(user, dbOrTx);
         return this.deps.variantRepository.updateVariant(id, data, dbOrTx);
     }
 
-    async getProductVariants(productId: string, supplierId?: string, dbOrTx?: unknown) {
+    async getProductVariants(productId: string, supplierId?: string, dbOrTx?: unknown): Promise<VariantEntity[]> {
         return this.deps.variantRepository.findVariantsByProductId(productId, supplierId, dbOrTx);
     }
 
-    async deleteVariant(id: string, dbOrTx?: unknown) {
+    async deleteVariant(id: string, dbOrTx?: unknown): Promise<void> {
         return this.deps.variantRepository.deleteVariant(id, dbOrTx);
     }
 
@@ -160,11 +171,11 @@ export class InventoryApplicationService {
         return this.deps.productRepository.countByCategory(categoryId, dbOrTx);
     }
 
-    async getStats(dbOrTx?: unknown) {
+    async getStats(dbOrTx?: unknown): Promise<InventoryStats> {
         return this.deps.productRepository.getInventoryStats(dbOrTx);
     }
 
-    async searchProduct(search?: string, dbOrTx?: unknown) {
+    async searchProduct(search?: string, dbOrTx?: unknown): Promise<SearchResult[]> {
         return this.deps.productRepository.searchProductFlattened(search, dbOrTx);
     }
 
@@ -177,5 +188,17 @@ export class InventoryApplicationService {
         dbOrTx: unknown
     ): Promise<AddStockFromPurchaseVerificationOutput> {
         return this.deps.stockGateway.addStockFromPurchaseVerification(input, dbOrTx);
+    }
+
+    async printLabel(data: LabelData): Promise<{ success: boolean; error?: unknown }> {
+        return this.deps.printGateway.printProductLabel(data);
+    }
+
+    async reverseStockFromPurchaseDeletion(input: ReverseStockInput, dbOrTx: unknown): Promise<void> {
+        return this.deps.stockGateway.reverseStockFromPurchaseDeletion(input, dbOrTx);
+    }
+
+    async getLastBatchByProduct(productId: string, dbOrTx?: unknown): Promise<ProductBatchEntity | null> {
+        return this.deps.productRepository.getLastBatchByProduct(productId, dbOrTx);
     }
 }

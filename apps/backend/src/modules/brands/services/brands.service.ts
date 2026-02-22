@@ -1,59 +1,53 @@
-import { BrandsModel } from "../models/brands.model";
-
-/**
- * Normalize brand name: capitalize first letter, rest lowercase
- * Example: "realme" -> "Realme", "REALME" -> "Realme", "realMe" -> "Realme"
- */
-function normalizeBrandName(name: string): string {
-    if (!name || name.trim().length === 0) return name;
-    const trimmed = name.trim();
-    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
-}
+import { DBContext } from "../../../shared/types/db-context";
+import { BrandRepositoryAdapter } from "../infrastructure";
+import {
+    GetBrandsUseCase,
+    CreateBrandUseCase,
+    UpdateBrandUseCase,
+    DeleteBrandUseCase
+} from "../application";
+import { IBrandRepository, CreateBrandData, UpdateBrandData } from "../domain";
 
 export class BrandsService {
-    static async getAll(dbOrTx?: any) {
-        return await BrandsModel.findAll(dbOrTx);
+    private repository: IBrandRepository;
+    private getBrandsUseCase: GetBrandsUseCase;
+    private createBrandUseCase: CreateBrandUseCase;
+    private updateBrandUseCase: UpdateBrandUseCase;
+    private deleteBrandUseCase: DeleteBrandUseCase;
+
+    constructor() {
+        this.repository = new BrandRepositoryAdapter();
+        this.getBrandsUseCase = new GetBrandsUseCase(this.repository);
+        this.createBrandUseCase = new CreateBrandUseCase(this.repository);
+        this.updateBrandUseCase = new UpdateBrandUseCase(this.repository);
+        this.deleteBrandUseCase = new DeleteBrandUseCase(this.repository);
     }
 
-    /**
-     * Find brand by name (case-insensitive)
-     */
-    static async findByName(name: string, dbOrTx?: any) {
-        const normalized = normalizeBrandName(name);
-        return await BrandsModel.findByName(normalized, dbOrTx);
+    async getAll(dbOrTx?: DBContext) {
+        return await this.getBrandsUseCase.execute(dbOrTx);
     }
 
-    static async create(data: { id: string; name: string; logo?: string }, dbOrTx?: any) {
-        // Normalize brand name: capitalize first letter
-        const normalizedName = normalizeBrandName(data.name);
-
-        // Check if brand with same name (case-insensitive) already exists
-        const existing = await this.findByName(normalizedName, dbOrTx);
-        if (existing) {
-            // Return existing brand instead of creating duplicate
-            return [existing];
-        }
-
-        // Ensure ID is lowercase/slugified
-        const id = data.id.toLowerCase().replace(/\s+/g, '-');
-
-        return await BrandsModel.create({
-            ...data,
-            id,
-            name: normalizedName, // Use normalized name
-        }, dbOrTx);
+    async create(data: CreateBrandData, dbOrTx?: DBContext) {
+        return await this.createBrandUseCase.execute(data, dbOrTx);
     }
 
-    static async update(id: string, data: { name?: string; logo?: string }, dbOrTx?: any) {
-        const updateData: any = { ...data };
-        if (data.name) {
-            updateData.name = normalizeBrandName(data.name);
-        }
-
-        return await BrandsModel.update(id, updateData, dbOrTx);
+    async update(id: string, data: UpdateBrandData, dbOrTx?: DBContext) {
+        return await this.updateBrandUseCase.execute(id, data, dbOrTx);
     }
 
-    static async delete(id: string, dbOrTx?: any) {
-        return await BrandsModel.delete(id, dbOrTx);
+    async delete(id: string, dbOrTx?: DBContext) {
+        return await this.deleteBrandUseCase.execute(id, dbOrTx);
+    }
+
+    async findById(id: string, dbOrTx?: DBContext) {
+        return await this.repository.findById(id, dbOrTx);
+    }
+
+    async findByName(name: string, dbOrTx?: DBContext) {
+        return await this.repository.findByName(name, dbOrTx);
     }
 }
+
+// Export a singleton instance for backward compatibility with static-like usage if needed,
+// though standard practice would be to instantiate where needed or use a container.
+export const brandsService = new BrandsService();

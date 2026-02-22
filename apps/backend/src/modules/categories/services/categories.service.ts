@@ -1,54 +1,56 @@
-import { CategoriesModel } from "../models/categories.model";
-import { generateId, ID_PREFIX } from "../../../lib/utils";
+import { DBContext } from "../../../shared/types/db-context";
+import { CategoryRepositoryAdapter } from "../infrastructure";
+import {
+    GetCategoriesUseCase,
+    CreateCategoryUseCase,
+    UpdateCategoryUseCase,
+    DeleteCategoryUseCase,
+    AddVariantTemplateUseCase,
+    RemoveVariantTemplateUseCase,
+    CreateCategoryInput
+} from "../application";
+import { ICategoryRepository } from "../domain";
 
 export class CategoriesService {
-    private model: CategoriesModel;
+    private repository: ICategoryRepository;
+    private getCategoriesUseCase: GetCategoriesUseCase;
+    private createCategoryUseCase: CreateCategoryUseCase;
+    private updateCategoryUseCase: UpdateCategoryUseCase;
+    private deleteCategoryUseCase: DeleteCategoryUseCase;
+    private addVariantTemplateUseCase: AddVariantTemplateUseCase;
+    private removeVariantTemplateUseCase: RemoveVariantTemplateUseCase;
 
     constructor() {
-        this.model = new CategoriesModel();
+        this.repository = new CategoryRepositoryAdapter();
+        this.getCategoriesUseCase = new GetCategoriesUseCase(this.repository);
+        this.createCategoryUseCase = new CreateCategoryUseCase(this.repository);
+        this.updateCategoryUseCase = new UpdateCategoryUseCase(this.repository);
+        this.deleteCategoryUseCase = new DeleteCategoryUseCase(this.repository);
+        this.addVariantTemplateUseCase = new AddVariantTemplateUseCase(this.repository);
+        this.removeVariantTemplateUseCase = new RemoveVariantTemplateUseCase(this.repository);
     }
 
-    async getAll(dbOrTx?: any) {
-        return await this.model.findAll(dbOrTx);
+    async getAll(dbOrTx?: DBContext) {
+        return await this.getCategoriesUseCase.execute(dbOrTx);
     }
 
-    async create(data: { name: string; description?: string; parentId?: string | null; variants?: string[] }, dbOrTx?: any) {
-        const id = generateId(ID_PREFIX.CATEGORY);
-        const category = await this.model.create({
-            id,
-            name: data.name,
-            description: data.description,
-            parentId: data.parentId
-        }, dbOrTx);
-
-        if (data.variants && data.variants.length > 0) {
-            for (const vName of data.variants) {
-                await this.model.addVariantTemplate(id, vName, undefined, dbOrTx);
-            }
-        }
-
-        return category;
+    async create(data: CreateCategoryInput, dbOrTx?: DBContext) {
+        return await this.createCategoryUseCase.execute(data, dbOrTx);
     }
 
-    async update(id: string, data: { name: string; description?: string; parentId?: string | null }, dbOrTx?: any) {
-        return await this.model.update(id, data, dbOrTx);
+    async update(id: string, data: any, dbOrTx?: DBContext) {
+        return await this.updateCategoryUseCase.execute(id, data, dbOrTx);
     }
 
-    async delete(id: string, dbOrTx?: any) {
-        return await this.model.delete(id, dbOrTx);
+    async delete(id: string, dbOrTx?: DBContext) {
+        return await this.deleteCategoryUseCase.execute(id, dbOrTx);
     }
 
-    async addVariantTemplate(categoryId: string, name: string, supplierId?: string, dbOrTx?: any) {
-        // 1. Add to Category with supplier
-        const template = await this.model.addVariantTemplate(categoryId, name, supplierId, dbOrTx);
-
-        // 2. Propagate to ALL existing products in this category
-        await this.model.propagateVariantToProducts(categoryId, name, supplierId, dbOrTx);
-
-        return template;
+    async addVariantTemplate(categoryId: string, name: string, supplierId?: string, dbOrTx?: DBContext) {
+        return await this.addVariantTemplateUseCase.execute(categoryId, name, supplierId, dbOrTx);
     }
 
-    async removeVariantTemplate(id: number, dbOrTx?: any) {
-        return await this.model.removeVariantTemplate(id, dbOrTx);
+    async removeVariantTemplate(id: number, dbOrTx?: DBContext) {
+        return await this.removeVariantTemplateUseCase.execute(id, dbOrTx);
     }
 }

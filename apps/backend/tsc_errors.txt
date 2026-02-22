@@ -1,0 +1,41 @@
+src/middlewares/test/permission.middleware.test.ts(88,16): error TS18046: 'body' is of type 'unknown'.
+src/middlewares/test/permission.middleware.test.ts(89,16): error TS18046: 'body' is of type 'unknown'.
+src/middlewares/test/permission.middleware.test.ts(90,16): error TS18046: 'body' is of type 'unknown'.
+src/middlewares/test/permission.middleware.test.ts(104,16): error TS18046: 'body' is of type 'unknown'.
+src/middlewares/test/permission.middleware.test.ts(146,16): error TS18046: 'body' is of type 'unknown'.
+src/middlewares/test/permission.middleware.test.ts(209,16): error TS18046: 'body' is of type 'unknown'.
+src/middlewares/test/permission.middleware.test.ts(210,16): error TS18046: 'body' is of type 'unknown'.
+src/middlewares/test/permission.middleware.test.ts(211,16): error TS18046: 'body' is of type 'unknown'.
+src/modules/accounting/services/commission-payment.service.ts(32,17): error TS1117: An object literal cannot have multiple properties with the same name.
+src/modules/accounting/services/commission-payment.service.ts(157,9): error TS2322: Type 'string' is not assignable to type 'number'.
+src/modules/accounting/services/supplier-payment.service.ts(60,9): error TS2322: Type 'string' is not assignable to type 'number'.
+src/modules/categories/models/categories.model.ts(55,60): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "id"; tableName: "category_variants"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>, right: string | SQLWrapper): SQL<...>', gave the following error.
+    Argument of type 'number' is not assignable to parameter of type 'string | SQLWrapper'.
+  Overload 2 of 3, '(left: Aliased<number>, right: number | SQLWrapper): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "category_variants"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<number>'.
+      Type 'PgColumn<{ name: "id"; tableName: "category_variants"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<number>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "category_variants"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+src/modules/dashboard/test/dashboard.controller.test.ts(30,88): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ cards: { revenueToday: number; activeServices: any; readyPickup: any; lowStock: any; pendingVerifications: any; }; charts: { revenueTrend: { date: string; revenue: number; }[]; topProducts: any; }; procurementTasks: any; }'.
+  Type '{}' is missing the following properties from type '{ cards: { revenueToday: number; activeServices: any; readyPickup: any; lowStock: any; pendingVerifications: any; }; charts: { revenueTrend: { date: string; revenue: number; }[]; topProducts: any; }; procurementTasks: any; }': cards, charts, procurementTasks
+src/modules/dashboard/test/dashboard.controller.test.ts(67,94): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ myJobs: any; queue: any; stats: { completedToday: any; inProgress: any; totalQueue: any; }; }'.
+  Type '{}' is missing the following properties from type '{ myJobs: any; queue: any; stats: { completedToday: any; inProgress: any; totalQueue: any; }; }': myJobs, queue, stats
+src/modules/dashboard/test/dashboard.controller.test.ts(76,91): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ readyPickup: any; stats: { readyCount: any; pickedUpToday: any; revenueToday: any; pendingConfirm: any; }; }'.
+  Type '{}' is missing the following properties from type '{ readyPickup: any; stats: { readyCount: any; pickedUpToday: any; revenueToday: any; pendingConfirm: any; }; }': readyPickup, stats
+src/modules/dashboard/test/dashboard.controller.test.ts(85,88): error TS2345: Argument of type '{}' is not assignable to parameter of type 'ProfitAndLoss'.
+  Type '{}' is missing the following properties from type 'ProfitAndLoss': revenue, cogs, grossProfit, expenses, and 2 more.
+src/modules/notifications/models/notifications.model.ts(17,20): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "id"; tableName: "notifications"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>, right: string | SQLWrapper): SQL<...>', gave the following error.
+    Argument of type 'number' is not assignable to parameter of type 'string | SQLWrapper'.
+  Overload 2 of 3, '(left: Aliased<number>, right: number | SQLWrapper): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "notifications"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<number>'.
+      Type 'PgColumn<{ name: "id"; tableName: "notifications"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<number>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "id"; tableName: "notifications"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; notNull: true; hasDefault: true; isPrimaryKey: true; isAutoincrement: false; ... 4 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+src/modules/notifications/test/notifications.controller.test.ts(27,56): error TS2345: Argument of type 'string' is not assignable to parameter of type 'Record<string, string>'.
+src/modules/notifications/test/notifications.controller.test.ts(34,56): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'Record<string, string>'.
+src/modules/notifications/test/notifications.controller.test.ts(43,56): error TS2345: Argument of type 'string' is not assignable to parameter of type 'Record<string, string>'.
+src/modules/operational-costs/controllers/operational-costs.controller.ts(31,49): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/modules/purchases/test/purchases.controller.test.ts(81,42): error TS2339: Property 'createPurchase' does not exist on type 'PurchasesController'.
+src/modules/purchases/test/purchases.controller.test.ts(90,42): error TS2339: Property 'createPurchase' does not exist on type 'PurchasesController'.

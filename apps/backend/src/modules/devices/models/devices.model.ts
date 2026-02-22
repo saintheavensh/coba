@@ -1,12 +1,14 @@
+import { DBContext } from "../../../shared/types/db-context";
 import { db } from "../../../db";
-import { devices } from "../../../db/schema";
-import { eq, or, and, sql, inArray, ilike, desc } from "drizzle-orm";
+import { devices, products, productDeviceCompatibility } from "../../../db/schema";
+import { eq, or, and, sql, inArray, ilike, desc, isNull } from "drizzle-orm";
 
 export class DevicesModel {
-    static async findAll(filters: { search?: string, limit?: number, offset?: number, brand?: string } = {}, dbOrTx: any = db) {
+    async findAll(filters: { search?: string, limit?: number, offset?: number, brand?: string } = {}, dbOrTx?: DBContext) {
+        const client = (dbOrTx as any) || db;
         const { search, limit = 50, offset = 0, brand } = filters;
 
-        let query = dbOrTx.select().from(devices);
+        let query = client.select().from(devices);
 
         const conditions = [];
         const term = search?.trim();
@@ -51,18 +53,21 @@ export class DevicesModel {
         return query.limit(limit).offset(offset);
     }
 
-    static async findById(id: string, dbOrTx: any = db) {
-        const result = await dbOrTx.select().from(devices).where(eq(devices.id, id));
+    async findById(id: string, dbOrTx?: DBContext) {
+        const client = (dbOrTx as any) || db;
+        const result = await client.select().from(devices).where(eq(devices.id, id));
         return result[0] || null;
     }
 
-    static async create(data: typeof devices.$inferInsert, dbOrTx: any = db) {
-        const result = await dbOrTx.insert(devices).values(data).returning();
+    async create(data: typeof devices.$inferInsert, dbOrTx?: DBContext) {
+        const client = (dbOrTx as any) || db;
+        const result = await client.insert(devices).values(data).returning();
         return result[0];
     }
 
-    static async update(id: string, data: Partial<typeof devices.$inferInsert>, dbOrTx: any = db) {
-        const result = await dbOrTx
+    async update(id: string, data: Partial<typeof devices.$inferInsert>, dbOrTx?: DBContext) {
+        const client = (dbOrTx as any) || db;
+        const result = await client
             .update(devices)
             .set({ ...data, updatedAt: new Date() })
             .where(eq(devices.id, id))
@@ -70,12 +75,44 @@ export class DevicesModel {
         return result[0];
     }
 
-    static async delete(id: string, dbOrTx: any = db) {
-        const result = await dbOrTx.delete(devices).where(eq(devices.id, id)).returning();
+    async delete(id: string, dbOrTx?: DBContext) {
+        const client = (dbOrTx as any) || db;
+        const result = await client.delete(devices).where(eq(devices.id, id)).returning();
         return result[0];
     }
 
-    static async bulkDelete(ids: string[], dbOrTx: any = db) {
-        return dbOrTx.delete(devices).where(inArray(devices.id, ids)).returning();
+    async bulkDelete(ids: string[], dbOrTx?: DBContext) {
+        const client = (dbOrTx as any) || db;
+        return client.delete(devices).where(inArray(devices.id, ids)).returning();
+    }
+
+    async getUnlinkedProducts(limit: number = 50, offset: number = 0, dbOrTx?: DBContext) {
+        const client = (dbOrTx as any) || db;
+        return await client.select({
+            id: products.id,
+            name: products.name,
+            code: products.code,
+            stock: products.stock,
+            image: products.image
+        })
+            .from(products)
+            .leftJoin(productDeviceCompatibility, eq(products.id, productDeviceCompatibility.productId))
+            .where(isNull(productDeviceCompatibility.productId))
+            .limit(limit)
+            .offset(offset);
+    }
+
+    async findProductsByName(name: string, dbOrTx?: DBContext) {
+        const client = (dbOrTx as any) || db;
+        return await client.select().from(products)
+            .where(ilike(products.name, `%${name}%`));
+    }
+
+    async addCompatibilityLinks(links: { productId: string; deviceId: string }[], dbOrTx?: DBContext) {
+        const client = (dbOrTx as any) || db;
+        if (links.length === 0) return;
+        await client.insert(productDeviceCompatibility)
+            .values(links)
+            .onConflictDoNothing();
     }
 }

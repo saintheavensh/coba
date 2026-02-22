@@ -1,54 +1,64 @@
-import { SuppliersModel } from "../models/suppliers.model";
-import { generateId, ID_PREFIX } from "../../../lib/utils";
-import { z } from "zod";
+import { DBContext } from "../../../shared/types/db-context";
+import { SupplierRepositoryAdapter } from "../infrastructure";
+import {
+    GetSuppliersUseCase,
+    CreateSupplierUseCase,
+    UpdateSupplierUseCase,
+    DeleteSupplierUseCase,
+    LinkCategoryUseCase,
+    UnlinkCategoryUseCase,
+    GetSupplierCategoriesUseCase
+} from "../application";
+import { ISupplierRepository, CreateSupplierData, UpdateSupplierData } from "../domain";
 
 export class SuppliersService {
-    private model: SuppliersModel;
+    private repository: ISupplierRepository;
+    private getSuppliersUseCase: GetSuppliersUseCase;
+    private createSupplierUseCase: CreateSupplierUseCase;
+    private updateSupplierUseCase: UpdateSupplierUseCase;
+    private deleteSupplierUseCase: DeleteSupplierUseCase;
+    private linkCategoryUseCase: LinkCategoryUseCase;
+    private unlinkCategoryUseCase: UnlinkCategoryUseCase;
+    private getSupplierCategoriesUseCase: GetSupplierCategoriesUseCase;
 
     constructor() {
-        this.model = new SuppliersModel();
+        this.repository = new SupplierRepositoryAdapter();
+        this.getSuppliersUseCase = new GetSuppliersUseCase(this.repository);
+        this.createSupplierUseCase = new CreateSupplierUseCase(this.repository);
+        this.updateSupplierUseCase = new UpdateSupplierUseCase(this.repository);
+        this.deleteSupplierUseCase = new DeleteSupplierUseCase(this.repository);
+        this.linkCategoryUseCase = new LinkCategoryUseCase(this.repository);
+        this.unlinkCategoryUseCase = new UnlinkCategoryUseCase(this.repository);
+        this.getSupplierCategoriesUseCase = new GetSupplierCategoriesUseCase(this.repository);
     }
 
-    async getAll() {
-        return await this.model.findAll();
+    async getAll(dbOrTx?: DBContext) {
+        return await this.getSuppliersUseCase.execute(dbOrTx);
     }
 
-    async getLinkedCategories(supplierId: string) {
-        return await this.model.getLinkedCategories(supplierId);
+    async getLinkedCategories(supplierId: string, dbOrTx?: DBContext) {
+        return await this.getSupplierCategoriesUseCase.execute(supplierId, dbOrTx);
     }
 
-    async create(data: { name: string; contact?: string; phone?: string; address?: string; image?: string }) {
-        const id = generateId(ID_PREFIX.SUPPLIER);
-        return await this.model.create({
-            id,
-            name: data.name,
-            contact: data.contact,
-            phone: data.phone,
-            address: data.address,
-            image: data.image
-        });
+    async create(data: Omit<CreateSupplierData, 'id'>, dbOrTx?: DBContext) {
+        return await this.createSupplierUseCase.execute(data, dbOrTx);
     }
 
-    async update(id: string, data: { name?: string; contact?: string; phone?: string; address?: string; image?: string }) {
-        return await this.model.update(id, {
-            name: data.name,
-            contact: data.contact,
-            phone: data.phone,
-            address: data.address,
-            image: data.image
-        });
+    async update(id: string, data: UpdateSupplierData, dbOrTx?: DBContext) {
+        return await this.updateSupplierUseCase.execute(id, data, dbOrTx);
     }
 
-    async delete(id: string) {
-        return await this.model.delete(id);
+    async delete(id: string, dbOrTx?: DBContext) {
+        return await this.deleteSupplierUseCase.execute(id, dbOrTx);
     }
 
-    async linkCategory(supplierId: string, categoryId: string) {
-        return await this.model.addCategoryLink(supplierId, categoryId);
+    async linkCategory(supplierId: string, categoryId: string, dbOrTx?: DBContext) {
+        return await this.linkCategoryUseCase.execute(supplierId, categoryId, dbOrTx);
     }
 
-    async unlinkCategory(supplierId: string, categoryId: string) {
-        return await this.model.removeCategoryLink(supplierId, categoryId);
+    async unlinkCategory(supplierId: string, categoryId: string, dbOrTx?: DBContext) {
+        return await this.unlinkCategoryUseCase.execute(supplierId, categoryId, dbOrTx);
     }
 }
 
+export const suppliersService = new SuppliersService();

@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
-import { CategoriesController } from "../controllers/categories.controller";
+import { CategoriesController } from "../presentation/categories.controller";
 import { CategoriesService } from "../services/categories.service";
 import { createMockContext } from "../../../../test/factories";
 
