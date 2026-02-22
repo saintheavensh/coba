@@ -1,16 +1,16 @@
 /**
- * Stock Opname controller — delegates to the application service via DI container.
- * No direct StockOpnameService instantiation (old violation fixed).
+ * Stock Opname controller — delegates to StockOpnameService via DI.
+ * Updated to use new service facade instead of the old application service global.
  */
 import type { Context } from "hono";
-import { stockOpnameApplicationService } from "../inventory-container";
+import { stockOpnameService } from "../inventory-container";
 
 export class StockOpnameController {
     async createSession(c: Context) {
         try {
             const user = c.get("user") as { id: string };
             const body = await c.req.json();
-            const sessionId = await stockOpnameApplicationService.createSession(
+            const sessionId = await stockOpnameService.createSession(
                 user.id,
                 body.notes,
                 body.categoryId
@@ -23,7 +23,7 @@ export class StockOpnameController {
 
     async getSessions(c: Context) {
         try {
-            const sessions = await stockOpnameApplicationService.getSessions();
+            const sessions = await stockOpnameService.getSessions();
             return c.json(sessions);
         } catch (e: any) {
             return c.json({ error: e.message }, 500);
@@ -33,7 +33,7 @@ export class StockOpnameController {
     async getSessionDetails(c: Context) {
         try {
             const id = c.req.param("id");
-            const session = await stockOpnameApplicationService.getSessionDetails(id);
+            const session = await stockOpnameService.getSessionDetails(id);
             if (!session) return c.json({ error: "Session not found" }, 404);
             return c.json(session);
         } catch (e: any) {
@@ -45,7 +45,7 @@ export class StockOpnameController {
         try {
             const itemId = parseInt(c.req.param("itemId"));
             const body = await c.req.json();
-            const result = await stockOpnameApplicationService.updateItem(
+            const result = await stockOpnameService.updateItem(
                 itemId,
                 body.physicalStock,
                 body.adjustmentReason
@@ -60,7 +60,7 @@ export class StockOpnameController {
         try {
             const id = c.req.param("id");
             const user = c.get("user") as { id: string };
-            const result = await stockOpnameApplicationService.finalizeSession(id, user.id);
+            const result = await stockOpnameService.finalizeSession(id, user.id);
             return c.json(result);
         } catch (e: any) {
             return c.json({ error: e.message }, 500);
@@ -71,7 +71,7 @@ export class StockOpnameController {
         try {
             const id = c.req.param("id");
             const user = c.get("user") as { id: string };
-            await stockOpnameApplicationService.cancelSession(id, user.id);
+            await stockOpnameService.cancelSession(id, user.id);
             return c.json({ message: "Session cancelled" });
         } catch (e: any) {
             return c.json({ error: e.message }, 500);
@@ -80,7 +80,7 @@ export class StockOpnameController {
 
     async getAdjustmentHistory(c: Context) {
         try {
-            const history = await stockOpnameApplicationService.getAdjustmentHistory();
+            const history = await stockOpnameService.getAdjustmentHistory();
             return c.json(history);
         } catch (e: any) {
             return c.json({ error: e.message }, 500);

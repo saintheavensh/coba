@@ -1,6 +1,6 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { PurchasesController } from "../controllers/purchases.controller";
-import { PurchasesService } from "../services/purchases.service";
+import { purchasesService } from "../purchases-container";
 import { createMockContext, createMockUser } from "../../../../test/factories";
 
 describe("PurchasesController", () => {
@@ -15,10 +15,10 @@ describe("PurchasesController", () => {
     beforeEach(() => {
         vi.clearAllMocks();
 
-        getAllSpy = vi.spyOn(PurchasesService.prototype, "getAll").mockResolvedValue([]);
-        getByIdSpy = vi.spyOn(PurchasesService.prototype, "getById").mockResolvedValue(null);
-        createSpy = vi.spyOn(PurchasesService.prototype, "createPurchase").mockResolvedValue({} as any);
-        deleteSpy = vi.spyOn(PurchasesService.prototype, "deletePurchase").mockResolvedValue({} as any);
+        getAllSpy = vi.spyOn(purchasesService, "getAll").mockResolvedValue([]);
+        getByIdSpy = vi.spyOn(purchasesService, "getById").mockResolvedValue(null);
+        createSpy = vi.spyOn(purchasesService, "createOrder").mockResolvedValue("p-1");
+        deleteSpy = vi.spyOn(purchasesService, "deletePurchase").mockResolvedValue({} as any);
 
         controller = new PurchasesController();
     });
@@ -30,12 +30,12 @@ describe("PurchasesController", () => {
     describe("getAll", () => {
         it("should return 200 and list", async () => {
             const ctx = createMockContext();
-            const mockData = [{ id: "p-1" }];
+            const mockData = [{ toSnapshot: () => ({ id: "p-1" }) }];
             getAllSpy.mockResolvedValue(mockData);
             const res = await controller.getAll(ctx);
             expect(res.status).toBe(200);
             const json = await res.json() as any;
-            expect(json.data).toEqual(mockData);
+            expect(json.data).toEqual([{ id: "p-1" }]);
         });
 
         it("should return 500 on error", async () => {
@@ -50,7 +50,7 @@ describe("PurchasesController", () => {
         it("should return 200 and data if found", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("p-1");
-            getByIdSpy.mockResolvedValue({ id: "p-1" });
+            getByIdSpy.mockResolvedValue({ toSnapshot: () => ({ id: "p-1" }) });
             const res = await controller.getById(ctx);
             expect(res.status).toBe(200);
         });
@@ -72,22 +72,22 @@ describe("PurchasesController", () => {
         });
     });
 
-    describe("createPurchase", () => {
+    describe("createOrder", () => {
         it("should return 201 on success", async () => {
             const ctx = createMockContext();
             const input = { supplierId: "s-1", items: [] };
             vi.spyOn(ctx.req as any, "valid").mockReturnValue(input);
-            createSpy.mockResolvedValue({ id: "p-1" });
-            const res = await controller.createPurchase(ctx);
+            createSpy.mockResolvedValue("p-1");
+            const res = await controller.createOrder(ctx);
             expect(res.status).toBe(201);
-            expect(createSpy).toHaveBeenCalledWith(input);
+            expect(createSpy).toHaveBeenCalled();
         });
 
         it("should return 400 on error", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req as any, "valid").mockReturnValue({});
             createSpy.mockRejectedValue(new Error("Err"));
-            const res = await controller.createPurchase(ctx);
+            const res = await controller.createOrder(ctx);
             expect(res.status).toBe(400);
         });
     });

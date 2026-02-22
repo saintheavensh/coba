@@ -28,6 +28,7 @@ export interface JournalFilters {
     startDate?: string;
     endDate?: string;
     referenceType?: JournalReferenceType;
+    referenceId?: string;
     status?: "draft" | "posted" | "voided";
     limit?: number;
     offset?: number;

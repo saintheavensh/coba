@@ -1,21 +1,11 @@
 /**
  * Barrel export for the Inventory domain layer.
+ * Only stock-related types remain after catalog extraction to products module.
  */
 
-// Entities & DTOs
-export type {
-    ProductEntity,
-    ProductBatchEntity,
-    VariantEntity,
-    InventoryStats,
-    SearchResult,
-    CreateProductData,
-    UpdateProductData,
-    CreateVariantData,
-    UpdateVariantData,
-    CategoryWithTemplates,
-    LabelData
-} from "./product.entity";
+// Stock domain types
+export type { ProductRef } from "./product-ref.type";
+export type { StockMovementEntity } from "./stock-movement.entity";
 
 // Stock types
 export type {
@@ -31,13 +21,9 @@ export type {
     ReverseStockInput
 } from "./stock.types";
 
-// Port interfaces
-export type { IProductRepository } from "./product-repository.port";
-export type { IVariantRepository } from "./variant-repository.port";
+// Port interfaces (stock only)
 export type { IStockMutationGateway } from "./stock-mutation-gateway.port";
-export type { IRegisterGate } from "./register-gate.port";
-export type { ICategoryRepository } from "./category-repository.port";
-export type { IPrintGateway } from "./print-gateway.port";
+export type { IBatchRepository, ProductBatchEntity } from "./batch-repository.port";
 export type { IActivityLogger, ActivityLogEntry } from "./activity-logger.port";
 export type {
     IStockOpnameRepository,

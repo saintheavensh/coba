@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
-import { StockMutationGatewayAdapter } from "../infrastructure/stock-mutation-gateway.adapter";
+import { StockMutationGatewayAdapter } from "../infrastructure/adapters/stock-mutation-gateway.adapter";
 
 describe("StockMutationGatewayAdapter.assertStockConsistency", () => {
     let adapter: StockMutationGatewayAdapter;

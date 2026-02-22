@@ -1,0 +1,54 @@
+bun test v1.3.3 (274e01c7)
+
+src\modules\purchases\test\purchases.controller.test.ts:
+31 |         it("should return 200 and list", async () => {
+32 |             const ctx = createMockContext();
+33 |             const mockData = [{ id: "p-1" }];
+34 |             getAllSpy.mockResolvedValue(mockData);
+35 |             const res = await controller.getAll(ctx);
+36 |             expect(res.status).toBe(200);
+                                    ^
+error: expect(received).toBe(expected)
+
+Expected: 200
+Received: 500
+
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\purchases\test\purchases.controller.test.ts:36:32)
+(fail) PurchasesController > getAll > should return 200 and list [47.00ms]
+(pass) PurchasesController > getAll > should return 500 on error
+50 |         it("should return 200 and data if found", async () => {
+51 |             const ctx = createMockContext();
+52 |             vi.spyOn(ctx.req, "param").mockReturnValue("p-1");
+53 |             getByIdSpy.mockResolvedValue({ id: "p-1" });
+54 |             const res = await controller.getById(ctx);
+55 |             expect(res.status).toBe(200);
+                                    ^
+error: expect(received).toBe(expected)
+
+Expected: 200
+Received: 500
+
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\purchases\test\purchases.controller.test.ts:55:32)
+(fail) PurchasesController > getById > should return 200 and data if found
+(pass) PurchasesController > getById > should return 404 if not found
+(pass) PurchasesController > getById > should return 500 on error
+(pass) PurchasesController > createOrder > should return 201 on success
+[PURCHASES_CONTROLLER] createOrder failed: 84 |         });
+85 | 
+86 |         it("should return 400 on error", async () => {
+87 |             const ctx = createMockContext();
+88 |             vi.spyOn(ctx.req as any, "valid").mockReturnValue({});
+89 |             createSpy.mockRejectedValue(new Error("Err"));
+                                                 ^
+error: Err
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\purchases\test\purchases.controller.test.ts:89:45)
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\purchases\test\purchases.controller.test.ts:86:42)
+
+(pass) PurchasesController > createOrder > should return 400 on error
+(pass) PurchasesController > deletePurchase > should return 200 on success
+(pass) PurchasesController > deletePurchase > should return 500 on error
+
+ 7 pass
+ 2 fail
+ 10 expect() calls
+Ran 9 tests across 1 file. [270.00ms]

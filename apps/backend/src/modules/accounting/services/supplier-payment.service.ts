@@ -14,7 +14,7 @@ export class SupplierPaymentService {
     /**
      * Create a payment to a supplier
      */
-    static async create(input: CreatePaymentInput, userId?: string): Promise<number> {
+    static async create(input: CreatePaymentInput, userId?: string): Promise<string> {
         // Get purchase details
         const purchase = await SupplierPaymentModel.findPurchaseById(input.purchaseId);
 

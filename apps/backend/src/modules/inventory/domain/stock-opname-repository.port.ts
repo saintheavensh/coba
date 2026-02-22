@@ -31,6 +31,7 @@ export interface OpnameBatchEntity {
     productId: string;
     variantId: string | null;
     variant?: string | null;
+    buyPrice: number;
     currentStock: number;
     createdAt?: Date;
 }

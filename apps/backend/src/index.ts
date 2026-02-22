@@ -11,6 +11,7 @@ import { secureHeadersMiddleware } from "./middlewares/secure-headers.middleware
 
 import authController from "./modules/auth/presentation/auth.routes";
 import inventoryController from "./modules/inventory/presentation/inventory.routes";
+import productsController from "./modules/products/presentation/products.routes";
 import categoryController from "./modules/categories/presentation/categories.routes";
 import { suppliersRoutes } from "./modules/suppliers/presentation";
 import uploadsController from "./modules/uploads/routes/uploads.routes";
@@ -63,7 +64,10 @@ app.use("/uploads/*", serveStatic({ root: "./public" }));
 
 // Routes
 app.route("/auth", authController);
+app.route("/products", productsController);
 app.route("/inventory", inventoryController);
+// Backward-compat: /inventory also serves product routes for existing frontend calls
+app.route("/inventory", productsController);
 app.route("/categories", categoryController);
 app.route("/service", serviceController);
 app.route("/suppliers", suppliersRoutes);

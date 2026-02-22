@@ -53,6 +53,8 @@ export interface AddStockFromPurchaseVerificationAllocation {
 
 export interface AddStockFromPurchaseVerificationOutput {
     allocations: AddStockFromPurchaseVerificationAllocation[];
+    totalQuantityApplied: number;
+    success: boolean;
 }
 
 // --- Stock reversal (Purchase deletion) ---

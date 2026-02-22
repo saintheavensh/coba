@@ -1,168 +1,70 @@
+/**
+ * Inventory controller tests — now only tests stock opname controller.
+ * Product controller tests moved to products module.
+ */
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { createMockContext } from "../../../../test/factories";
 
 const mockService = vi.hoisted(() => ({
-    getSupplierVariants: vi.fn(),
-    getStats: vi.fn(),
-    getAllProducts: vi.fn(),
-    getProductVariants: vi.fn(),
-    getProductById: vi.fn(),
-    createProduct: vi.fn(),
-    updateProduct: vi.fn(),
-    deleteProduct: vi.fn(),
-    createVariant: vi.fn(),
-    updateVariant: vi.fn(),
-    deleteVariant: vi.fn(),
-    getProductCountByCategory: vi.fn(),
-    bulkUpdateMinStock: vi.fn(),
-    searchProduct: vi.fn(),
-    printLabel: vi.fn()
+    createSession: vi.fn(),
+    getSessions: vi.fn(),
+    getSessionDetails: vi.fn(),
+    updateItem: vi.fn(),
+    finalizeSession: vi.fn(),
+    cancelSession: vi.fn(),
+    getAdjustmentHistory: vi.fn()
 }));
 
 vi.mock("../inventory-container", () => ({
-    inventoryApplicationService: mockService
+    stockOpnameService: mockService
 }));
 
-import { InventoryController } from "../presentation/inventory.controller";
+import { StockOpnameController } from "../presentation/stock-opname.controller";
 
-describe("InventoryController", () => {
-    let controller: InventoryController;
+describe("StockOpnameController", () => {
+    let controller: StockOpnameController;
 
     beforeEach(() => {
         vi.clearAllMocks();
-        mockService.getSupplierVariants.mockResolvedValue([]);
-        mockService.getStats.mockResolvedValue({});
-        mockService.getAllProducts.mockResolvedValue([]);
-        mockService.getProductVariants.mockResolvedValue([]);
-        mockService.getProductById.mockResolvedValue(null);
-        mockService.createProduct.mockResolvedValue({});
-        mockService.updateProduct.mockResolvedValue({});
-        mockService.deleteProduct.mockResolvedValue(undefined);
-        mockService.createVariant.mockResolvedValue({});
-        mockService.updateVariant.mockResolvedValue({});
-        mockService.deleteVariant.mockResolvedValue(undefined);
-        mockService.getProductCountByCategory.mockResolvedValue(0);
-        mockService.bulkUpdateMinStock.mockResolvedValue(0);
-        mockService.searchProduct.mockResolvedValue([]);
-        mockService.printLabel.mockResolvedValue({ success: true });
+        mockService.createSession.mockResolvedValue("SO-001");
+        mockService.getSessions.mockResolvedValue([]);
+        mockService.getSessionDetails.mockResolvedValue(null);
+        mockService.updateItem.mockResolvedValue({ difference: 0 });
+        mockService.finalizeSession.mockResolvedValue({ success: true });
+        mockService.cancelSession.mockResolvedValue(undefined);
+        mockService.getAdjustmentHistory.mockResolvedValue([]);
 
-        controller = new InventoryController();
+        controller = new StockOpnameController();
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
     });
 
-    describe("General", () => {
-        it("getSupplierVariants should return 200", async () => {
-            const ctx = createMockContext();
-            vi.spyOn(ctx.req, "param").mockReturnValue("s-1");
-            expect((await controller.getSupplierVariants(ctx)).status).toBe(200);
-        });
-        it("getStats should return 200", async () => {
-            expect((await controller.getStats(createMockContext())).status).toBe(200);
-        });
-        it("getAllProducts should return 200", async () => {
-            expect((await controller.getAllProducts(createMockContext())).status).toBe(200);
-        });
+    it("getSessions should return 200", async () => {
+        expect((await controller.getSessions(createMockContext())).status).toBe(200);
     });
 
-    describe("Products", () => {
-        it("getProductById 200 if found", async () => {
-            const ctx = createMockContext();
-            vi.spyOn(ctx.req, "param").mockReturnValue("p-1");
-            mockService.getProductById.mockResolvedValue({ id: "p-1" });
-            expect((await controller.getProductById(ctx)).status).toBe(200);
-        });
-        it("getProductById 404 if not found", async () => {
-            const ctx = createMockContext();
-            vi.spyOn(ctx.req, "param").mockReturnValue("p-1");
-            expect((await controller.getProductById(ctx)).status).toBe(404);
-        });
-        it("createProduct 201 on success", async () => {
-            const ctx = createMockContext();
-            vi.spyOn(ctx.req as any, "valid").mockReturnValue({ name: "P" });
-            expect((await controller.createProduct(ctx)).status).toBe(201);
-        });
-        it("updateProduct 200 on success", async () => {
-            const ctx = createMockContext();
-            vi.spyOn(ctx.req, "param").mockReturnValue("p-1");
-            vi.spyOn(ctx.req as any, "valid").mockReturnValue({ name: "P" });
-            expect((await controller.updateProduct(ctx)).status).toBe(200);
-        });
-        it("deleteProduct 200 on success", async () => {
-            const ctx = createMockContext();
-            vi.spyOn(ctx.req, "param").mockReturnValue("p-1");
-            expect((await controller.deleteProduct(ctx)).status).toBe(200);
-        });
+    it("getAdjustmentHistory should return 200", async () => {
+        expect((await controller.getAdjustmentHistory(createMockContext())).status).toBe(200);
     });
 
-    describe("Variants", () => {
-        it("getProductVariants 200", async () => {
-            const ctx = createMockContext();
-            vi.spyOn(ctx.req, "param").mockReturnValue("p-1");
-            expect((await controller.getProductVariants(ctx)).status).toBe(200);
-        });
-        it("createVariant 201", async () => {
-            const ctx = createMockContext();
-            vi.spyOn(ctx.req as any, "valid").mockReturnValue({ name: "V" });
-            expect((await controller.createVariant(ctx)).status).toBe(201);
-        });
-        it("updateVariant 200", async () => {
-            const ctx = createMockContext();
-            vi.spyOn(ctx.req, "param").mockReturnValue("v-1");
-            vi.spyOn(ctx.req as any, "valid").mockReturnValue({ name: "V" });
-            expect((await controller.updateVariant(ctx)).status).toBe(200);
-        });
-        it("deleteVariant 200", async () => {
-            const ctx = createMockContext();
-            vi.spyOn(ctx.req, "param").mockReturnValue("v-1");
-            expect((await controller.deleteVariant(ctx)).status).toBe(200);
-        });
+    it("getSessionDetails 404 if not found", async () => {
+        const ctx = createMockContext();
+        vi.spyOn(ctx.req, "param").mockReturnValue("SO-001");
+        expect((await controller.getSessionDetails(ctx)).status).toBe(404);
     });
 
-    describe("Batch/Bulk", () => {
-        it("bulkUpdateMinStock 200", async () => {
-            const ctx = createMockContext();
-            vi.spyOn(ctx.req as any, "valid").mockReturnValue({ categoryId: "c1", minStock: 5 });
-            expect((await controller.bulkUpdateMinStock(ctx)).status).toBe(200);
-        });
+    it("getSessionDetails 200 if found", async () => {
+        const ctx = createMockContext();
+        vi.spyOn(ctx.req, "param").mockReturnValue("SO-001");
+        mockService.getSessionDetails.mockResolvedValue({ id: "SO-001", items: [] });
+        expect((await controller.getSessionDetails(ctx)).status).toBe(200);
     });
 
-    describe("Search & Print", () => {
-        it("searchProduct 200", async () => {
-            const ctx = createMockContext();
-            expect((await controller.searchProduct(ctx)).status).toBe(200);
-        });
-        it("printLabel 200", async () => {
-            const ctx = createMockContext();
-            vi.spyOn(ctx.req as any, "valid").mockReturnValue({ productName: "P", code: "C" });
-            expect((await controller.printLabel(ctx)).status).toBe(200);
-        });
-    });
-
-    describe("Error Cases", () => {
-        it("getStats 500 on error", async () => {
-            const ctx = createMockContext();
-            mockService.getStats.mockRejectedValue(new Error("Err"));
-            expect((await controller.getStats(ctx)).status).toBe(500);
-        });
-        it("getAllProducts 500 on error", async () => {
-            const ctx = createMockContext();
-            mockService.getAllProducts.mockRejectedValue(new Error("Err"));
-            expect((await controller.getAllProducts(ctx)).status).toBe(500);
-        });
-        it("createProduct 500 on error", async () => {
-            const ctx = createMockContext();
-            vi.spyOn(ctx.req as any, "valid").mockReturnValue({ name: "P" });
-            mockService.createProduct.mockRejectedValue(new Error("Err"));
-            expect((await controller.createProduct(ctx)).status).toBe(500);
-        });
-        it("deleteProduct 500 on error", async () => {
-            const ctx = createMockContext();
-            vi.spyOn(ctx.req, "param").mockReturnValue("p-1");
-            mockService.deleteProduct.mockRejectedValue(new Error("Err"));
-            expect((await controller.deleteProduct(ctx)).status).toBe(500);
-        });
+    it("getSessions 500 on error", async () => {
+        const ctx = createMockContext();
+        mockService.getSessions.mockRejectedValue(new Error("Err"));
+        expect((await controller.getSessions(ctx)).status).toBe(500);
     });
 });

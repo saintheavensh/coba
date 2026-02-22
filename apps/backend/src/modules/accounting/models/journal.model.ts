@@ -8,6 +8,7 @@ export class JournalModel {
         if (filters.startDate) where = and(where, gte(journals.date, new Date(filters.startDate)));
         if (filters.endDate) where = and(where, lte(journals.date, new Date(filters.endDate)));
         if (filters.referenceType) where = and(where, eq(journals.referenceType, filters.referenceType));
+        if (filters.referenceId) where = and(where, eq(journals.referenceId, filters.referenceId));
         if (filters.status) where = and(where, eq(journals.status, filters.status));
 
         return dbOrTx

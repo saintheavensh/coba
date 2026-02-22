@@ -12,6 +12,7 @@ const mockService = vi.hoisted(() => ({
 }));
 
 vi.mock("../inventory-container", () => ({
+    stockOpnameService: mockService,
     stockOpnameApplicationService: mockService
 }));
 

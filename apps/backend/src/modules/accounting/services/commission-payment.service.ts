@@ -29,7 +29,6 @@ export class CommissionPaymentService {
                 technicianId: services.technicianId,
                 technicianName: users.name,
                 actualCost: services.actualCost,
-                actualCost: services.actualCost,
                 parts: services.parts,
                 dateOut: services.dateOut,
                 commissionConfig: users.commissionConfig,
@@ -113,7 +112,7 @@ export class CommissionPaymentService {
     /**
      * Create a commission payment
      */
-    static async payCommission(input: CreateCommissionPaymentInput, userId: string): Promise<number> {
+    static async payCommission(input: CreateCommissionPaymentInput, userId: string): Promise<string> {
         const accountId = input.accountId || "1-1001"; // Default: Kas Toko
 
         // Create journal entry
@@ -154,7 +153,7 @@ export class CommissionPaymentService {
             },
         });
 
-        return payment.id;
+        return String(payment.id);
     }
 
     /**
