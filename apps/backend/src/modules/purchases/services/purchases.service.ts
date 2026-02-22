@@ -5,7 +5,7 @@ import { ActivityLogService } from "../../../lib/activity-log.service";
 import { eq, sql, and, desc } from "drizzle-orm";
 import { generateId, ID_PREFIX } from "../../../lib/utils";
 import { JournalService } from "../../accounting/services/journal.service";
-import { CashRegisterService } from "../../accounting/services/cash-register.service";
+import { inventoryApplicationService } from "../../inventory/inventory-container";
 
 // Service handles the Transaction + Logic
 export class PurchasesService {
@@ -202,49 +202,69 @@ export class PurchasesService {
             if (!po) throw new Error("Purchase Order not found");
             if (po.status !== "RECEIVED") throw new Error("PO is not in RECEIVED status");
 
+            // PR-2: Mandatory 1:1 – every PO item with qtyReceived > 0 must be in verification payload
+            const receivedItems = po.items.filter((pi: any) => pi.qtyReceived > 0);
+            for (const pi of receivedItems) {
+                const inPayload = items.some((item: any) => item.productId === pi.productId && (item.variant || null) === (pi.variant || null));
+                if (!inPayload) {
+                    throw new Error(`Incomplete verification: PO item productId=${pi.productId} variant=${pi.variant ?? "null"} with qtyReceived > 0 must be included`);
+                }
+            }
+
             let totalGoodsAmount = 0;
+            const verificationInputItems: Array<{
+                purchaseItemId: string;
+                productId: string;
+                variantId: string | null;
+                buyPrice: number;
+                sellPrice: number;
+                qtyReceived: number;
+            }> = [];
 
             for (const item of items) {
                 const poItem = po.items.find((pi: any) => pi.productId === item.productId && pi.variant === (item.variant || null));
-                if (poItem) {
-                    await tx.update(purchaseItems)
-                        .set({
-                            buyPrice: item.buyPrice,
-                            sellPrice: item.sellPrice
-                        })
-                        .where(eq(purchaseItems.id, poItem.id));
+                if (!poItem) continue;
 
-                    totalGoodsAmount += (item.buyPrice * poItem.qtyReceived);
-
-                    // --- INVENTORY UPDATES (BATCHES & PRODUCT STOCK) ---
-                    let variantId: string | null = null;
-                    if (poItem.variant) {
-                        const variant = await tx.query.productVariants.findFirst({
-                            where: and(eq(productVariants.productId, item.productId), eq(productVariants.name, poItem.variant))
-                        });
-                        variantId = variant?.id || null;
-                    }
-
-                    const batchId = "B-" + Date.now().toString().slice(-6) + "-" + Math.floor(Math.random() * 1000);
-                    await tx.insert(productBatches).values({
-                        id: batchId,
-                        productId: item.productId,
-                        supplierId: po.supplierId,
-                        variantId: variantId,
+                await tx.update(purchaseItems)
+                    .set({
                         buyPrice: item.buyPrice,
-                        sellPrice: item.sellPrice,
-                        initialStock: poItem.qtyReceived,
-                        currentStock: poItem.qtyReceived,
+                        sellPrice: item.sellPrice
+                    })
+                    .where(eq(purchaseItems.id, poItem.id));
+
+                totalGoodsAmount += item.buyPrice * poItem.qtyReceived;
+
+                if (poItem.qtyReceived <= 0) continue;
+
+                let variantId: string | null = null;
+                if (poItem.variant) {
+                    const variant = await tx.query.productVariants.findFirst({
+                        where: and(eq(productVariants.productId, item.productId), eq(productVariants.name, poItem.variant))
                     });
-
-                    // Update Item header link
-                    await tx.update(purchaseItems).set({ batchId }).where(eq(purchaseItems.id, poItem.id));
-
-                    // Update Product Stock
-                    await tx.update(products)
-                        .set({ stock: sql`${products.stock} + ${poItem.qtyReceived}` })
-                        .where(eq(products.id, item.productId));
+                    variantId = variant?.id || null;
                 }
+
+                verificationInputItems.push({
+                    purchaseItemId: poItem.id,
+                    productId: item.productId,
+                    variantId,
+                    buyPrice: item.buyPrice,
+                    sellPrice: item.sellPrice,
+                    qtyReceived: poItem.qtyReceived
+                });
+            }
+
+            // Stock-in via Inventory (single gate)
+            const { allocations } = await inventoryApplicationService.addStockFromPurchaseVerification(
+                {
+                    purchaseId,
+                    supplierId: po.supplierId,
+                    items: verificationInputItems
+                },
+                tx
+            );
+            for (const a of allocations) {
+                await tx.update(purchaseItems).set({ batchId: a.batchId }).where(eq(purchaseItems.id, a.purchaseItemId));
             }
 
             const shipping = options.shippingFee || 0;

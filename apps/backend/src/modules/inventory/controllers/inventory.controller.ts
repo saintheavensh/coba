@@ -1,16 +1,14 @@
 import { Context } from "hono";
-import { InventoryService } from "../services/inventory.service";
+import { inventoryApplicationService } from "../inventory-container";
 import { PrintService } from "../../../services/print.service";
 import { apiSuccess, apiError } from "../../../lib/response";
 import { Logger } from "../../../lib/logger";
 
 export class InventoryController {
-    private service: InventoryService;
-    private printService: PrintService;
+    private printService = new PrintService();
 
-    constructor() {
-        this.service = new InventoryService();
-        this.printService = new PrintService();
+    private get service() {
+        return inventoryApplicationService;
     }
 
     async getSupplierVariants(c: Context) {

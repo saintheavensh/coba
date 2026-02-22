@@ -1,10 +1,11 @@
 import { db } from "../../../db";
-import { sales, saleItems, productBatches, products, activityLogs, members, salePayments, productVariants } from "../../../db/schema";
+import { sales, saleItems, members, salePayments } from "../../../db/schema";
 import { ActivityLogService } from "../../../lib/activity-log.service";
-import { eq, and, gt, asc, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { SalesModel } from "../models/sales.model";
 import { JournalService } from "../../accounting/services/journal.service";
 import { CashRegisterService } from "../../accounting/services/cash-register.service";
+import { inventoryApplicationService } from "../../inventory/inventory-container";
 
 export class SalesService {
     private model: SalesModel;
@@ -149,70 +150,31 @@ export class SalesService {
                 });
             }
 
-            // 2. Process Items (FIFO)
-            for (const item of data.items) {
-                let remainingQty = item.qty;
+            // 2. Deduct stock via Inventory (single gate)
+            const { allocations, cogsAmount } = await inventoryApplicationService.deductStockFIFO({
+                saleId,
+                items: data.items.map((i) => ({
+                    productId: i.productId,
+                    variant: i.variant,
+                    quantity: i.qty,
+                    unitPrice: i.price
+                }))
+            }, tx);
 
-                const targetVariants = await tx.query.productVariants.findMany({
-                    where: and(
-                        eq(productVariants.productId, item.productId),
-                        eq(productVariants.name, item.variant)
-                    ),
-                    columns: { id: true }
+            const priceByItem = new Map<string, number>();
+            for (const i of data.items) {
+                priceByItem.set(`${i.productId}|${i.variant}`, i.price);
+            }
+            for (const a of allocations) {
+                const unitPrice = priceByItem.get(`${a.productId}|${a.variantName}`) ?? 0;
+                await tx.insert(saleItems).values({
+                    saleId,
+                    productId: a.productId,
+                    batchId: a.batchId,
+                    variant: a.variantName,
+                    qty: a.quantity,
+                    price: unitPrice
                 });
-
-                const targetVariantIds = targetVariants.map((v: any) => v.id);
-
-                const batches = await tx.query.productBatches.findMany({
-                    where: and(
-                        eq(productBatches.productId, item.productId),
-                        targetVariantIds.length > 0 ? inArray(productBatches.variantId, targetVariantIds) : undefined,
-                        gt(productBatches.currentStock, 0)
-                    ),
-                    orderBy: [asc(productBatches.createdAt)]
-                });
-
-                const totalVariantStock = batches.reduce((sum: number, b: any) => sum + b.currentStock, 0);
-                if (totalVariantStock < remainingQty) {
-                    throw new Error(`Insufficient stock for Product ${item.productId} (${item.variant}). Available: ${totalVariantStock}, Requested: ${remainingQty}`);
-                }
-
-                for (const batch of batches) {
-                    if (remainingQty <= 0) break;
-
-                    const deduct = Math.min(batch.currentStock, remainingQty);
-
-                    await tx.update(productBatches)
-                        .set({
-                            currentStock: batch.currentStock - deduct,
-                            updatedAt: new Date()
-                        })
-                        .where(eq(productBatches.id, batch.id));
-
-                    await tx.insert(saleItems).values({
-                        saleId: saleId,
-                        productId: item.productId,
-                        batchId: batch.id,
-                        variant: item.variant,
-                        qty: deduct,
-                        price: item.price,
-                    });
-
-                    remainingQty -= deduct;
-                }
-
-                if (remainingQty > 0) {
-                    throw new Error(`Concurrency Error: Stock changed during processing for ${item.productId}`);
-                }
-
-                const product = await tx.query.products.findFirst({
-                    where: eq(products.id, item.productId)
-                });
-                if (product) {
-                    await tx.update(products)
-                        .set({ stock: (product.stock || 0) - item.qty })
-                        .where(eq(products.id, item.productId));
-                }
             }
 
             // 3. Log
@@ -225,18 +187,8 @@ export class SalesService {
                 details: { newValue: data }
             }, tx);
 
-            // 4. Create Accounting Journal
+            // 4. Create Accounting Journal (COGS from deductStockFIFO result)
             try {
-                // Calculate COGS
-                const saleWithItems = await this.model.findById(saleId, tx);
-                let cogsAmount = 0;
-                if (saleWithItems?.items) {
-                    for (const item of saleWithItems.items) {
-                        const buyPrice = (item as any).batch?.buyPrice || 0;
-                        cogsAmount += buyPrice * item.qty;
-                    }
-                }
-
                 let debitAccountId = "1-1000";
 
                 if (paymentStatus === "paid") {

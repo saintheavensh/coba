@@ -1,6 +1,5 @@
-import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import { vi, describe, it, expect, beforeEach } from "vitest";
 import { AuthController } from "../controllers/auth.controller";
-import { AuthService } from "../services/auth.service";
 import {
     createMockContext,
     createMockUser
@@ -14,24 +13,19 @@ vi.mock("hono/cookie", () => ({
 }));
 import { setCookie } from "hono/cookie";
 
+const mockLoginExecute = vi.fn();
+const mockGetCurrentUserExecute = vi.fn();
+vi.mock("../auth-container", () => ({
+    loginUseCase: { execute: (...args: unknown[]) => mockLoginExecute(...args) },
+    getCurrentUserUseCase: { execute: (...args: unknown[]) => mockGetCurrentUserExecute(...args) },
+}));
+
 describe("AuthController", () => {
     let controller: AuthController;
 
-    // Spies
-    let loginSpy: any;
-    let registerSpy: any; // if exists
-
     beforeEach(() => {
         vi.clearAllMocks();
-
-        loginSpy = vi.spyOn(AuthService.prototype, "login").mockResolvedValue({} as any);
-        // registerSpy = vi.spyOn(AuthService.prototype, "register").mockResolvedValue({} as any);
-
         controller = new AuthController();
-    });
-
-    afterEach(() => {
-        vi.restoreAllMocks();
     });
 
     describe("login", () => {
@@ -52,7 +46,7 @@ describe("AuthController", () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "json").mockResolvedValue({ username: "test", password: "wrong" });
 
-            loginSpy.mockRejectedValue(new Error("Invalid username or password"));
+            mockLoginExecute.mockRejectedValue(new Error("Invalid username or password"));
 
             const res = await controller.login(ctx);
 
@@ -73,7 +67,7 @@ describe("AuthController", () => {
                 token: "mock-jwt-token"
             };
 
-            loginSpy.mockResolvedValue(mockResult);
+            mockLoginExecute.mockResolvedValue(mockResult);
 
             const res = await controller.login(ctx);
 
@@ -97,7 +91,7 @@ describe("AuthController", () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "json").mockResolvedValue({ username: "admin", password: "password" });
 
-            loginSpy.mockRejectedValue(new Error("DB Connection Failed"));
+            mockLoginExecute.mockRejectedValue(new Error("DB Connection Failed"));
 
             const res = await controller.login(ctx);
 
@@ -136,8 +130,10 @@ describe("AuthController", () => {
 
         it("should return 200 and user data if authenticated", async () => {
             const ctx = createMockContext();
+            const mockPayload = { id: "user-1" };
             const mockUser = createMockUser();
-            vi.spyOn(ctx, "get").mockReturnValue(mockUser);
+            vi.spyOn(ctx, "get").mockReturnValue(mockPayload);
+            mockGetCurrentUserExecute.mockResolvedValue({ user: mockUser });
 
             const res = await controller.me(ctx);
 

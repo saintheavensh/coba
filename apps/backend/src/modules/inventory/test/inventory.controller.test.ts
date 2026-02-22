@@ -1,42 +1,44 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { InventoryController } from "../controllers/inventory.controller";
-import { InventoryService } from "../services/inventory.service";
 import { createMockContext } from "../../../../test/factories";
+
+const mockService = {
+    getSupplierVariants: vi.fn(),
+    getStats: vi.fn(),
+    getAllProducts: vi.fn(),
+    getProductVariants: vi.fn(),
+    getProductById: vi.fn(),
+    createProduct: vi.fn(),
+    updateProduct: vi.fn(),
+    deleteProduct: vi.fn(),
+    createVariant: vi.fn(),
+    updateVariant: vi.fn(),
+    deleteVariant: vi.fn(),
+    getProductCountByCategory: vi.fn(),
+    bulkUpdateMinStock: vi.fn()
+};
+vi.mock("../inventory-container", () => ({
+    inventoryApplicationService: mockService
+}));
 
 describe("InventoryController", () => {
     let controller: InventoryController;
 
-    // Spies
-    let getSupplierVariantsSpy: any;
-    let getStatsSpy: any;
-    let getAllProductsSpy: any;
-    let getProductVariantsSpy: any;
-    let getProductByIdSpy: any;
-    let createProductSpy: any;
-    let updateProductSpy: any;
-    let deleteProductSpy: any;
-    let createVariantSpy: any;
-    let updateVariantSpy: any;
-    let deleteVariantSpy: any;
-    let getProductCountByCategorySpy: any;
-    let bulkUpdateMinStockSpy: any;
-
     beforeEach(() => {
         vi.clearAllMocks();
-
-        getSupplierVariantsSpy = vi.spyOn(InventoryService.prototype, "getSupplierVariants").mockResolvedValue([]);
-        getStatsSpy = vi.spyOn(InventoryService.prototype, "getStats").mockResolvedValue({} as any);
-        getAllProductsSpy = vi.spyOn(InventoryService.prototype, "getAllProducts").mockResolvedValue([]);
-        getProductVariantsSpy = vi.spyOn(InventoryService.prototype, "getProductVariants").mockResolvedValue([]);
-        getProductByIdSpy = vi.spyOn(InventoryService.prototype, "getProductById").mockResolvedValue(null);
-        createProductSpy = vi.spyOn(InventoryService.prototype, "createProduct").mockResolvedValue({} as any);
-        updateProductSpy = vi.spyOn(InventoryService.prototype, "updateProduct").mockResolvedValue({} as any);
-        deleteProductSpy = vi.spyOn(InventoryService.prototype, "deleteProduct").mockResolvedValue({} as any);
-        createVariantSpy = vi.spyOn(InventoryService.prototype, "createVariant").mockResolvedValue({} as any);
-        updateVariantSpy = vi.spyOn(InventoryService.prototype, "updateVariant").mockResolvedValue({} as any);
-        deleteVariantSpy = vi.spyOn(InventoryService.prototype, "deleteVariant").mockResolvedValue({} as any);
-        getProductCountByCategorySpy = vi.spyOn(InventoryService.prototype, "getProductCountByCategory").mockResolvedValue(0);
-        bulkUpdateMinStockSpy = vi.spyOn(InventoryService.prototype, "bulkUpdateMinStock").mockResolvedValue(0);
+        mockService.getSupplierVariants.mockResolvedValue([]);
+        mockService.getStats.mockResolvedValue({});
+        mockService.getAllProducts.mockResolvedValue([]);
+        mockService.getProductVariants.mockResolvedValue([]);
+        mockService.getProductById.mockResolvedValue(null);
+        mockService.createProduct.mockResolvedValue({});
+        mockService.updateProduct.mockResolvedValue({});
+        mockService.deleteProduct.mockResolvedValue(undefined);
+        mockService.createVariant.mockResolvedValue({});
+        mockService.updateVariant.mockResolvedValue({});
+        mockService.deleteVariant.mockResolvedValue(undefined);
+        mockService.getProductCountByCategory.mockResolvedValue(0);
+        mockService.bulkUpdateMinStock.mockResolvedValue(0);
 
         controller = new InventoryController();
     });
@@ -63,7 +65,7 @@ describe("InventoryController", () => {
         it("getProductById 200 if found", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("p-1");
-            getProductByIdSpy.mockResolvedValue({ id: "p-1" });
+            mockService.getProductById.mockResolvedValue({ id: "p-1" });
             expect((await controller.getProductById(ctx)).status).toBe(200);
         });
         it("getProductById 404 if not found", async () => {
@@ -124,24 +126,24 @@ describe("InventoryController", () => {
     describe("Error Cases", () => {
         it("getStats 500 on error", async () => {
             const ctx = createMockContext();
-            getStatsSpy.mockRejectedValue(new Error("Err"));
+            mockService.getStats.mockRejectedValue(new Error("Err"));
             expect((await controller.getStats(ctx)).status).toBe(500);
         });
         it("getAllProducts 500 on error", async () => {
             const ctx = createMockContext();
-            getAllProductsSpy.mockRejectedValue(new Error("Err"));
+            mockService.getAllProducts.mockRejectedValue(new Error("Err"));
             expect((await controller.getAllProducts(ctx)).status).toBe(500);
         });
         it("createProduct 500 on error", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req as any, "valid").mockReturnValue({ name: "P" });
-            createProductSpy.mockRejectedValue(new Error("Err"));
+            mockService.createProduct.mockRejectedValue(new Error("Err"));
             expect((await controller.createProduct(ctx)).status).toBe(500);
         });
         it("any service error should return 500 or 400", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("p-1");
-            deleteProductSpy.mockRejectedValue(new Error("Err"));
+            mockService.deleteProduct.mockRejectedValue(new Error("Err"));
             expect((await controller.deleteProduct(ctx)).status).toBe(400);
         });
     });

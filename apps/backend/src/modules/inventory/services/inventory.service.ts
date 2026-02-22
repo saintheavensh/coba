@@ -1,142 +1,71 @@
-import { InventoryModel } from "../models/inventory.model";
-import { productSchema } from "@repo/shared";
-import { z } from "zod";
-
-type CreateProductDto = z.infer<typeof productSchema>;
-
-// Temporary import until Categories are moved
-import { CategoriesModel } from "../../categories/models/categories.model";
-import { CashRegisterService } from "../../accounting/services/cash-register.service";
+/**
+ * Legacy facade. New code should use inventoryApplicationService from inventory-container.
+ * This delegates to the application service for backward compatibility.
+ */
+import { inventoryApplicationService } from "../inventory-container";
 
 export class InventoryService {
-    private model: InventoryModel;
-    private categoryModel: CategoriesModel;
-
-    constructor() {
-        this.model = new InventoryModel();
-        this.categoryModel = new CategoriesModel();
+    async getAllProducts(deviceId?: string, search?: string, categoryId?: string, dbOrTx?: unknown) {
+        return inventoryApplicationService.getAllProducts(deviceId, search, categoryId, dbOrTx);
     }
 
-    async getAllProducts(deviceId?: string, search?: string, categoryId?: string, dbOrTx?: any) {
-        return await this.model.findAll(deviceId, search, categoryId, dbOrTx);
+    async getProductById(id: string, dbOrTx?: unknown) {
+        return inventoryApplicationService.getProductById(id, dbOrTx);
     }
 
-    async getProductById(id: string, dbOrTx?: any) {
-        return await this.model.findById(id, dbOrTx);
+    async createProduct(data: unknown, user?: unknown, dbOrTx?: unknown) {
+        return inventoryApplicationService.createProduct(data as any, user, dbOrTx);
     }
 
-    private async checkRegister(user: any, dbOrTx?: any) {
-        if (!user || !user.roles) return;
-
-        const roles = user.roles || [];
-        // Block Kasir from mutating inventory if register is closed, UNLESS they are also owner/manager/admin
-        const isRestricted = roles.includes('kasir') &&
-            !roles.includes('owner') &&
-            !roles.includes('manager') &&
-            !roles.includes('super_admin');
-
-        if (isRestricted) {
-            const isOpen = await CashRegisterService.isRegisterOpen(dbOrTx);
-            if (!isOpen) throw new Error("Register Closed. Inventory changes restricted for Kasir.");
-        }
+    async updateProduct(id: string, data: unknown, user?: unknown, dbOrTx?: unknown) {
+        return inventoryApplicationService.updateProduct(id, data as any, user, dbOrTx);
     }
 
-    async createProduct(data: CreateProductDto, user?: any, dbOrTx?: any) {
-        await this.checkRegister(user, dbOrTx);
-
-        const id = "PRD-" + Date.now().toString().slice(-6);
-        const product = await this.model.createProduct({
-            id,
-            name: data.name,
-            // Sanitize input: empty string -> null to prevent Unique/FK errors
-            code: data.code && data.code.trim() !== "" ? data.code : null,
-            categoryId: data.categoryId && data.categoryId.trim() !== "" ? data.categoryId : null,
-            image: data.image,
-            minStock: data.minStock,
-            stock: 0, // Always 0 init
-            compatibility: data.compatibility
-        }, dbOrTx);
-
-        // Auto-create variants from Category Templates
-        if (data.categoryId) {
-            const category = await this.categoryModel.findById(data.categoryId, dbOrTx);
-            if (category?.variantTemplates?.length) {
-                for (const template of category.variantTemplates) {
-                    await this.createVariant({
-                        productId: product.id,
-                        name: template.name,
-                        // image, sku, defaultPrice empty initially
-                    }, user, dbOrTx);
-                }
-            }
-        }
-
-        return product;
+    async deleteProduct(id: string, dbOrTx?: unknown) {
+        return inventoryApplicationService.deleteProduct(id, dbOrTx);
     }
 
-    async updateProduct(id: string, data: CreateProductDto, user?: any, dbOrTx?: any) {
-        await this.checkRegister(user, dbOrTx);
-        return await this.model.updateProduct(id, {
-            name: data.name,
-            code: data.code,
-            categoryId: data.categoryId,
-            image: data.image,
-            minStock: data.minStock,
-            compatibility: data.compatibility
-        }, dbOrTx);
+    async getSupplierVariants(supplierId: string, dbOrTx?: unknown) {
+        return inventoryApplicationService.getSupplierVariants(supplierId, dbOrTx);
     }
 
-    async deleteProduct(id: string, dbOrTx?: any) {
-        // TODO: Check if product has batches or sales history
-        return await this.model.deleteProduct(id, dbOrTx);
+    async createVariant(data: unknown, user?: unknown, dbOrTx?: unknown) {
+        return inventoryApplicationService.createVariant(data as any, user, dbOrTx);
     }
 
-    async getSupplierVariants(supplierId: string, dbOrTx?: any) {
-        return await this.model.findVariantsBySupplierConfig(supplierId, dbOrTx);
+    async updateVariant(id: string, data: unknown, user?: unknown, dbOrTx?: unknown) {
+        return inventoryApplicationService.updateVariant(id, data as any, user, dbOrTx);
     }
 
-    async createVariant(data: { productId: string; name: string; image?: string; sku?: string; defaultPrice?: number }, user?: any, dbOrTx?: any) {
-        await this.checkRegister(user, dbOrTx);
-        const id = "VAR-" + Date.now().toString().slice(-6);
-        return await this.model.createVariant({
-            id,
-            productId: data.productId,
-            name: data.name,
-            image: data.image,
-            sku: data.sku,
-            defaultPrice: data.defaultPrice
-        }, dbOrTx);
+    async getProductVariants(productId: string, supplierId?: string, dbOrTx?: unknown) {
+        return inventoryApplicationService.getProductVariants(productId, supplierId, dbOrTx);
     }
 
-    async updateVariant(id: string, data: Partial<{ name: string; image?: string; sku?: string; defaultPrice?: number }>, user?: any, dbOrTx?: any) {
-        await this.checkRegister(user, dbOrTx);
-        return await this.model.updateVariant(id, data, dbOrTx);
+    async deleteVariant(id: string, dbOrTx?: unknown) {
+        return inventoryApplicationService.deleteVariant(id, dbOrTx);
     }
 
-    async getProductVariants(productId: string, supplierId?: string, dbOrTx?: any) {
-        return await this.model.findVariantsByProductId(productId, supplierId, dbOrTx);
+    async bulkUpdateMinStock(categoryId: string, minStock: number, user?: unknown, dbOrTx?: unknown) {
+        return inventoryApplicationService.bulkUpdateMinStock(categoryId, minStock, user, dbOrTx);
     }
 
-    async deleteVariant(id: string, dbOrTx?: any) {
-        return await this.model.deleteVariant(id, dbOrTx);
+    async getProductCountByCategory(categoryId: string, dbOrTx?: unknown) {
+        return inventoryApplicationService.getProductCountByCategory(categoryId, dbOrTx);
     }
 
-    // Bulk update minimum stock for all products in a category
-    async bulkUpdateMinStock(categoryId: string, minStock: number, user?: any, dbOrTx?: any): Promise<number> {
-        await this.checkRegister(user, dbOrTx);
-        return await this.model.updateMinStockByCategory(categoryId, minStock, dbOrTx);
+    async getStats(dbOrTx?: unknown) {
+        return inventoryApplicationService.getStats(dbOrTx);
     }
 
-    // Get count of products in a category
-    async getProductCountByCategory(categoryId: string, dbOrTx?: any): Promise<number> {
-        return await this.model.countByCategory(categoryId, dbOrTx);
+    async searchProduct(search?: string, dbOrTx?: unknown) {
+        return inventoryApplicationService.searchProduct(search, dbOrTx);
     }
 
-    async getStats(dbOrTx?: any) {
-        return await this.model.getInventoryStats(dbOrTx);
+    async deductStockFIFO(input: unknown, dbOrTx: unknown) {
+        return inventoryApplicationService.deductStockFIFO(input as any, dbOrTx);
     }
 
-    async searchProduct(search?: string, dbOrTx?: any) {
-        return await this.model.searchProductFlattened(search, dbOrTx);
+    async addStockFromPurchaseVerification(input: unknown, dbOrTx: unknown) {
+        return inventoryApplicationService.addStockFromPurchaseVerification(input as any, dbOrTx);
     }
 }
