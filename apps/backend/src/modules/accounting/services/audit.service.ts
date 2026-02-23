@@ -1,4 +1,3 @@
-import { AuditModel } from "../models/audit.model";
 import { db } from "../../../db";
 import { auditLogs } from "../../../db/schema";
 import { desc, eq, and } from "drizzle-orm";
@@ -18,22 +17,12 @@ export interface AuditLogInput {
     userAgent?: string;
 }
 
-export interface AuditLogFilters {
-    startDate?: string;
-    endDate?: string;
-    userId?: string;
-    entityType?: string;
-    action?: AuditAction;
-    limit?: number;
-    offset?: number;
-}
-
 export class AuditService {
     /**
      * Create an audit log entry
      */
     static async log(input: AuditLogInput): Promise<void> {
-        await AuditModel.create({
+        await db.insert(auditLogs).values({
             userId: input.userId,
             action: input.action,
             entityType: input.entityType,
@@ -45,13 +34,6 @@ export class AuditService {
             ipAddress: input.ipAddress,
             userAgent: input.userAgent,
         });
-    }
-
-    /**
-     * Get audit logs with filters
-     */
-    static async getLogs(filters: AuditLogFilters = {}) {
-        return AuditModel.findAll(filters);
     }
 
     /**

@@ -1,17 +1,11 @@
 import { Context } from "hono";
-import { BrandsService } from "../services/brands.service";
+import { brandsFacade } from "../brands-container";
 import { apiSuccess, apiError } from "../../../lib/response";
 
 export class BrandsController {
-    private service: BrandsService;
-
-    constructor() {
-        this.service = new BrandsService();
-    }
-
     async getAll(c: Context) {
         try {
-            const brands = await this.service.getAll();
+            const brands = await brandsFacade.getAll();
             return apiSuccess(c, brands);
         } catch (e: any) {
             return apiError(c, e, "Failed to fetch brands", 500);
@@ -21,7 +15,7 @@ export class BrandsController {
     async create(c: Context) {
         try {
             const data = (c.req as any).valid("json");
-            const brand = await this.service.create(data);
+            const brand = await brandsFacade.create(data);
             return apiSuccess(c, brand[0], "Brand created", 201);
         } catch (e: any) {
             if (e.code === '23505') { // Postgres duplicate key error
@@ -35,7 +29,7 @@ export class BrandsController {
         try {
             const id = c.req.param("id");
             const data = (c.req as any).valid("json");
-            const brand = await this.service.update(id, data);
+            const brand = await brandsFacade.update(id, data);
             if (brand.length === 0) {
                 return apiError(c, "Brand not found", "Brand not found", 404);
             }
@@ -48,7 +42,7 @@ export class BrandsController {
     async delete(c: Context) {
         try {
             const id = c.req.param("id");
-            const brand = await this.service.delete(id);
+            const brand = await brandsFacade.delete(id);
             if (brand.length === 0) {
                 return apiError(c, "Brand not found", "Brand not found", 404);
             }

@@ -1,13 +1,14 @@
 import { Context } from "hono";
-import { RoleModel } from "../infrastructure/role.model";
+import { getRolesUseCase } from "../auth-container";
+import { apiSuccess, apiError } from "../../../lib/response";
 
 export class RoleController {
-    static async getAll(c: Context) {
+    async getAll(c: Context) {
         try {
-            const roles = await RoleModel.findAll();
-            return c.json({ data: roles });
+            const roles = await getRolesUseCase.execute();
+            return apiSuccess(c, roles, "Roles retrieved successfully");
         } catch (e: any) {
-            return c.json({ error: e.message }, 500);
+            return apiError(c, e, "Failed to fetch roles", 500);
         }
     }
 }

@@ -1,9 +1,8 @@
 import { db } from "../../../db";
 import { revenueTargets, operationalCosts, sales, services } from "../../../db/schema";
-import { eq, and, gte, lte, sql, sum } from "drizzle-orm";
+import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { AssetsService } from "./assets.service";
-import { AuditService } from "./audit.service";
-import { RevenueTargetModel } from "../models/revenue-target.model";
+import { accountingService } from "../accounting-container";
 
 export interface SetTargetInput {
     month: string; // "2026-01"
@@ -16,17 +15,30 @@ export class RevenueTargetService {
      * Get or create target for a month
      */
     static async getOrCreate(month: string, userId?: string) {
-        let target = await RevenueTargetModel.findByMonth(month);
+        let target = await accountingService.getRevenueTarget(month);
 
         if (!target) {
             // Auto-create with default values
             await this.calculateAndSet({ month, workingDays: 26 }, userId);
-            target = await RevenueTargetModel.findByMonth(month);
+            target = await accountingService.getRevenueTarget(month);
         }
 
         return target;
     }
 
+    /**
+     * Get revenue target for a specific month (YYYY-MM)
+     */
+    static async getByMonth(month: string) {
+        return await accountingService.getRevenueTarget(month);
+    }
+
+    /**
+     * Create or update revenue target
+     */
+    static async upsert(month: string, data: any, userId?: string) {
+        return await accountingService.upsertRevenueTarget(month, data);
+    }
 
     /**
      * Calculate monthly costs and set target
@@ -47,7 +59,7 @@ export class RevenueTargetService {
                 lte(operationalCosts.date, endDate)
             ));
 
-        const monthlyOperational = opCosts[0]?.total || 0;
+        const monthlyOperational = Number(opCosts[0]?.total) || 0;
 
         // Get total depreciation from active assets
         const monthlyDepreciation = await AssetsService.getTotalMonthlyDepreciation();
@@ -58,47 +70,16 @@ export class RevenueTargetService {
         const dailyTarget = Math.ceil(dailyBreakeven * (1 + profitMarginPercent / 100));
 
         // Upsert target
-        const existing = await db
-            .select()
-            .from(revenueTargets)
-            .where(eq(revenueTargets.month, month));
-
-        if (existing.length > 0) {
-            await db
-                .update(revenueTargets)
-                .set({
-                    workingDays,
-                    monthlyOperational,
-                    monthlyDepreciation,
-                    monthlyTotal,
-                    dailyBreakeven,
-                    profitMarginPercent,
-                    dailyTarget,
-                    updatedAt: new Date(),
-                })
-                .where(eq(revenueTargets.month, month));
-        } else {
-            await db.insert(revenueTargets).values({
-                month,
-                workingDays,
-                monthlyOperational,
-                monthlyDepreciation,
-                monthlyTotal,
-                dailyBreakeven,
-                profitMarginPercent,
-                dailyTarget,
-                createdBy: userId,
-            });
-        }
-
-        await AuditService.log({
-            userId,
-            action: existing.length > 0 ? "UPDATE" : "CREATE",
-            entityType: "revenue_target",
-            entityId: month,
-            tableName: "revenue_targets",
-            newValues: { monthlyTotal, dailyTarget, workingDays },
-        });
+        await this.upsert(month, {
+            workingDays,
+            monthlyOperational,
+            monthlyDepreciation,
+            monthlyTotal,
+            dailyBreakeven,
+            profitMarginPercent,
+            dailyTarget,
+            createdBy: userId,
+        }, userId);
     }
 
     /**
@@ -139,7 +120,7 @@ export class RevenueTargetService {
                 eq(services.status, "diambil")
             ));
 
-        const todayRevenue = (salesResult[0]?.total || 0) + (serviceResult[0]?.total || 0);
+        const todayRevenue = Number(salesResult[0]?.total || 0) + Number(serviceResult[0]?.total || 0);
         const progressPercent = target.dailyTarget > 0
             ? Math.round((todayRevenue / target.dailyTarget) * 100)
             : 0;
@@ -191,7 +172,7 @@ export class RevenueTargetService {
                 eq(services.status, "diambil")
             ));
 
-        const monthRevenue = (salesResult[0]?.total || 0) + (serviceResult[0]?.total || 0);
+        const monthRevenue = Number(salesResult[0]?.total || 0) + Number(serviceResult[0]?.total || 0);
         const monthTarget = target.dailyTarget * target.workingDays;
 
         // Calculate working days elapsed

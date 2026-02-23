@@ -9,6 +9,6 @@ export interface ICategoryRepository {
 
     // Variant Template Operations
     addVariantTemplate(categoryId: string, name: string, supplierId?: string, dbOrTx?: DBContext): Promise<any>;
-    removeVariantTemplate(id: number, dbOrTx?: DBContext): Promise<void>;
+    removeVariantTemplate(id: string, dbOrTx?: DBContext): Promise<void>;
     propagateVariantToProducts(categoryId: string, variantName: string, supplierId?: string, dbOrTx?: DBContext): Promise<void>;
 }

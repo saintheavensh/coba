@@ -1,30 +1,16 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
-import { CustomersController } from "../controllers/customers.controller";
-import { CustomersService } from "../services/customers.service";
+import { CustomersController } from "../presentation/customers.controller";
+import { CustomersService } from "../customers-container";
 import { createMockContext } from "../../../../test/factories";
 
 describe("CustomersController", () => {
-    // Spies - CustomersService is instantiated at top level of controller file
-    let getAllSpy: any;
-    let getByIdSpy: any;
-    let createSpy: any;
-    let updateSpy: any;
-    let deleteSpy: any;
-    let getSalesSpy: any;
-    let getUnpaidSalesSpy: any;
-    let processPaymentSpy: any;
+    let service: CustomersService;
+    let controller: CustomersController;
 
     beforeEach(() => {
         vi.clearAllMocks();
-
-        getAllSpy = vi.spyOn(CustomersService.prototype, "getAll").mockResolvedValue([]);
-        getByIdSpy = vi.spyOn(CustomersService.prototype, "getById").mockResolvedValue(null);
-        createSpy = vi.spyOn(CustomersService.prototype, "create").mockResolvedValue({} as any);
-        updateSpy = vi.spyOn(CustomersService.prototype, "update").mockResolvedValue({} as any);
-        deleteSpy = vi.spyOn(CustomersService.prototype, "delete").mockResolvedValue({} as any);
-        getSalesSpy = vi.spyOn(CustomersService.prototype, "getSales").mockResolvedValue([]);
-        getUnpaidSalesSpy = vi.spyOn(CustomersService.prototype, "getUnpaidSales").mockResolvedValue([]);
-        processPaymentSpy = vi.spyOn(CustomersService.prototype, "processPayment").mockResolvedValue({} as any);
+        service = new CustomersService();
+        controller = new CustomersController(service);
     });
 
     afterEach(() => {
@@ -35,15 +21,15 @@ describe("CustomersController", () => {
         it("should return 200 and list", async () => {
             const ctx = createMockContext();
             const mockData = [{ id: "c-1" }];
-            getAllSpy.mockResolvedValue(mockData);
-            const res = await CustomersController.getAll(ctx);
+            vi.spyOn(service, "getAll").mockResolvedValue(mockData as any);
+            const res = await controller.getAll(ctx);
             expect(res.status).toBe(200);
         });
 
         it("should return 500 on error", async () => {
             const ctx = createMockContext();
-            getAllSpy.mockRejectedValue(new Error("Err"));
-            const res = await CustomersController.getAll(ctx);
+            vi.spyOn(service, "getAll").mockRejectedValue(new Error("Err"));
+            const res = await controller.getAll(ctx);
             expect(res.status).toBe(500);
         });
     });
@@ -52,16 +38,16 @@ describe("CustomersController", () => {
         it("should return 200 and data if found", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("c-1");
-            getByIdSpy.mockResolvedValue({ id: "c-1" });
-            const res = await CustomersController.getById(ctx);
+            vi.spyOn(service, "getById").mockResolvedValue({ id: "c-1" } as any);
+            const res = await controller.getById(ctx);
             expect(res.status).toBe(200);
         });
 
         it("should return 404 if not found", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("c-1");
-            getByIdSpy.mockResolvedValue(null);
-            const res = await CustomersController.getById(ctx);
+            vi.spyOn(service, "getById").mockRejectedValue({ status: 404, message: "Not found" });
+            const res = await controller.getById(ctx);
             expect(res.status).toBe(404);
         });
     });
@@ -69,10 +55,10 @@ describe("CustomersController", () => {
     describe("create", () => {
         it("should return 201 on success", async () => {
             const ctx = createMockContext();
-            vi.spyOn(ctx.req, "json").mockResolvedValue({ name: "John" });
-            (ctx.req as any).valid = vi.fn().mockReturnValue({ name: "John" });
-            createSpy.mockResolvedValue({ id: "c-1" });
-            const res = await CustomersController.create(ctx);
+            const data = { name: "John", phone: "123" };
+            (ctx.req as any).valid = vi.fn().mockReturnValue(data);
+            vi.spyOn(service, "create").mockResolvedValue({ id: "c-1", ...data } as any);
+            const res = await controller.create(ctx);
             expect(res.status).toBe(201);
         });
     });
@@ -81,9 +67,10 @@ describe("CustomersController", () => {
         it("should return 200 on success", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("c-1");
-            vi.spyOn(ctx.req, "json").mockResolvedValue({ name: "Updated" });
-            (ctx.req as any).valid = vi.fn().mockReturnValue({ name: "Updated" });
-            const res = await CustomersController.update(ctx);
+            const data = { name: "Updated" };
+            (ctx.req as any).valid = vi.fn().mockReturnValue(data);
+            vi.spyOn(service, "update").mockResolvedValue({ id: "c-1", ...data } as any);
+            const res = await controller.update(ctx);
             expect(res.status).toBe(200);
         });
     });
@@ -92,7 +79,8 @@ describe("CustomersController", () => {
         it("should return 200 on success", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("c-1");
-            const res = await CustomersController.delete(ctx);
+            vi.spyOn(service, "delete").mockResolvedValue(undefined);
+            const res = await controller.delete(ctx);
             expect(res.status).toBe(200);
         });
     });
@@ -101,7 +89,8 @@ describe("CustomersController", () => {
         it("should return 200 and sales", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("c-1");
-            const res = await CustomersController.getSales(ctx);
+            vi.spyOn(service, "getSales").mockResolvedValue([]);
+            const res = await controller.getSales(ctx);
             expect(res.status).toBe(200);
         });
     });
@@ -110,7 +99,8 @@ describe("CustomersController", () => {
         it("should return 200 and unpaid sales", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("c-1");
-            const res = await CustomersController.getUnpaidSales(ctx);
+            vi.spyOn(service, "getUnpaidSales").mockResolvedValue([]);
+            const res = await controller.getUnpaidSales(ctx);
             expect(res.status).toBe(200);
         });
     });
@@ -121,7 +111,8 @@ describe("CustomersController", () => {
             vi.spyOn(ctx.req, "param").mockReturnValue("c-1");
             const input = { amount: 1000, method: "cash" };
             (ctx.req as any).valid = vi.fn().mockReturnValue(input);
-            const res = await CustomersController.processPayment(ctx);
+            vi.spyOn(service, "processPayment").mockResolvedValue({ id: "c-1" } as any);
+            const res = await controller.processPayment(ctx);
             expect(res.status).toBe(200);
         });
     });

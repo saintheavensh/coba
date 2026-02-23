@@ -1,4 +1,4 @@
-export type PurchaseStatus = "DRAFT" | "RECEIVED" | "COMPLETED" | "CANCELLED";
+export type PurchaseStatus = "DRAFT" | "ORDERED" | "RECEIVED" | "VERIFIED" | "COMPLETED" | "CANCELLED";
 
 export class DomainError extends Error {
     constructor(message: string) {
@@ -50,11 +50,22 @@ export class PurchaseItem {
     get batchId() { return this.props.batchId; }
 
     updateReceivedQty(qty: number) {
-        const newQty = this.props.qtyReceived + qty;
-        if (newQty > this.props.qtyOrdered) {
-            throw new DomainError(`Over-receive detected. Total received (${newQty}) exceeds ordered (${this.props.qtyOrdered})`);
+        if (qty < 0) {
+            throw new DomainError(`Received quantity cannot be negative for product ${this.props.productId}`);
         }
-        this.props.qtyReceived = newQty;
+        if (qty > this.props.qtyOrdered) {
+            throw new DomainError(`Cannot receive more than ordered for product ${this.props.productId}. Ordered: ${this.props.qtyOrdered}, Received: ${qty}`);
+        }
+        this.props.qtyReceived = qty;
+    }
+
+    updatePricing(buyPrice: number, sellPrice: number) {
+        this.props.buyPrice = buyPrice;
+        this.props.sellPrice = sellPrice;
+    }
+
+    updateBatchId(batchId: string) {
+        this.props.batchId = batchId;
     }
 
     toSnapshot() {
@@ -73,7 +84,15 @@ export interface PurchaseOrderProps {
     referenceNumber?: string;
     notes?: string;
     receivedAt?: Date;
+    receivedBy?: string;
     verifiedAt?: Date;
+    verifiedBy?: string;
+    cancelledAt?: Date;
+    cancelledBy?: string;
+    shippingFee?: number;
+    discountAmount?: number;
+    shippingExpenseAccountId?: string;
+    paymentDueDate?: Date;
 }
 
 export class PurchaseOrder {
@@ -89,9 +108,11 @@ export class PurchaseOrder {
     get items() { return this.props.items; }
     get supplierId() { return this.props.supplierId; }
     get totalAmount() { return this.props.totalAmount; }
+    get userId() { return this.props.userId; }
+    get referenceNumber() { return this.props.referenceNumber; }
 
-    receiveItems(receivedItems: { productId: string, variantId?: string, qty: number }[]) {
-        if (this.props.status !== "DRAFT" && this.props.status !== "RECEIVED") {
+    receiveItems(receivedItems: { productId: string, variantId?: string, qty: number }[], receivedBy: string) {
+        if (this.props.status !== "ORDERED" && this.props.status !== "DRAFT") {
             throw new DomainError(`Cannot receive items in status ${this.props.status}`);
         }
 
@@ -105,36 +126,64 @@ export class PurchaseOrder {
 
         this.props.status = "RECEIVED";
         this.props.receivedAt = new Date();
+        this.props.receivedBy = receivedBy;
+    }
+
+    verify(
+        verifiedBy: string,
+        itemPricing: { productId: string, variantId?: string, buyPrice: number, sellPrice: number }[],
+        options: { shippingFee?: number, discountAmount?: number, shippingExpenseAccountId?: string, referenceNumber?: string, paymentDueDate?: Date }
+    ) {
+        if (this.props.status !== "RECEIVED") {
+            throw new DomainError("Must be in RECEIVED status to verify");
+        }
+
+        let totalGoodsAmount = 0;
+        for (const pricing of itemPricing) {
+            const item = this.props.items.find(i => i.productId === pricing.productId && i.variantId === pricing.variantId);
+            if (item) {
+                item.updatePricing(pricing.buyPrice, pricing.sellPrice);
+                totalGoodsAmount += pricing.buyPrice * item.qtyReceived;
+            }
+        }
+
+        this.props.shippingFee = options.shippingFee || 0;
+        this.props.discountAmount = options.discountAmount || 0;
+        this.props.shippingExpenseAccountId = options.shippingExpenseAccountId;
+        this.props.referenceNumber = options.referenceNumber || this.props.referenceNumber;
+        this.props.paymentDueDate = options.paymentDueDate;
+        this.props.totalAmount = totalGoodsAmount + (this.props.shippingFee) - (this.props.discountAmount);
+
+        this.props.status = "VERIFIED";
+        this.props.verifiedAt = new Date();
+        this.props.verifiedBy = verifiedBy;
     }
 
     complete() {
-        // Guard: Transition rules
-        if (this.props.status !== "RECEIVED") {
-            throw new DomainError(`Cannot complete purchase from status ${this.props.status}. Must be RECEIVED first.`);
-        }
-
-        // Guard: Completion logic (fully received)
-        const allReceived = this.props.items.every(item => item.qtyReceived === item.qtyOrdered);
-        if (!allReceived) {
-            throw new DomainError("Cannot complete purchase: Not all items are fully received.");
+        if (this.props.status !== "VERIFIED") {
+            throw new DomainError(`Cannot complete purchase from status ${this.props.status}. Must be VERIFIED first.`);
         }
 
         this.props.status = "COMPLETED";
-        this.props.verifiedAt = new Date();
 
         this.addEvent("PurchaseCompleted", {
             purchaseId: this.id,
             totalAmount: this.totalAmount,
             items: this.props.items.map(i => i.toSnapshot()),
-            timestamp: this.props.verifiedAt
+            timestamp: new Date()
         });
     }
 
-    cancel() {
-        if (this.props.status === "COMPLETED") {
-            throw new DomainError("Cannot cancel a completed purchase order.");
+    cancel(userId: string, reason?: string) {
+        if (this.props.status === "COMPLETED" || this.props.status === "VERIFIED") {
+            throw new DomainError("Cannot cancel a completed or verified purchase order.");
         }
         this.props.status = "CANCELLED";
+        this.props.cancelledAt = new Date();
+        this.props.cancelledBy = userId;
+        if (reason) {
+            this.props.notes = this.props.notes ? `${this.props.notes}\nReason: ${reason}` : `Reason: ${reason}`;
+        }
         this.addEvent("PurchaseCancelled", {
             purchaseId: this.id,
             timestamp: new Date()

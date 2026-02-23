@@ -4,11 +4,12 @@ import { RoleController } from "./role.controller";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
 
 const app = new Hono();
-const controller = new AuthController();
+const authController = new AuthController();
+const roleController = new RoleController();
 
-app.post("/login", (c) => controller.login(c));
-app.post("/logout", (c) => controller.logout(c));
-app.get("/me", authMiddleware, (c) => controller.me(c));
-app.get("/roles", authMiddleware, (c) => RoleController.getAll(c));
+app.post("/login", (c) => authController.login(c));
+app.post("/logout", (c) => authController.logout(c));
+app.get("/me", authMiddleware, (c) => authController.me(c));
+app.get("/roles", authMiddleware, (c) => roleController.getAll(c));
 
 export default app;

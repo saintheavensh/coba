@@ -3,7 +3,7 @@
  * Delegates to the existing ActivityLogService infrastructure.
  */
 import type { IActivityLogger, ActivityLogEntry } from "../../domain/activity-logger.port";
-import { ActivityLogService } from "../../../../lib/activity-log.service";
+import { ActivityLogService } from "../../../../shared/utils/logging";
 
 export class ActivityLoggerAdapter implements IActivityLogger {
     async log(entry: ActivityLogEntry, dbOrTx?: unknown): Promise<void> {

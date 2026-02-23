@@ -1,22 +1,16 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
-import { SalesController } from "../controllers/sales.controller";
-import { SalesService } from "../services/sales.service";
+import { SalesController } from "../presentation/sales.controller";
+import { SalesService } from "../sales-container";
 import { createMockContext, createMockUser } from "../../../../test/factories";
 
 describe("SalesController", () => {
+    let service: SalesService;
     let controller: SalesController;
-
-    // Spies
-    let getAllSpy: any;
-    let createSaleSpy: any;
-    let getOneSpy: any;
 
     beforeEach(() => {
         vi.clearAllMocks();
-        getAllSpy = vi.spyOn(SalesService.prototype, "getAll").mockResolvedValue([]);
-        createSaleSpy = vi.spyOn(SalesService.prototype, "createSale").mockResolvedValue({ id: "S1" } as any);
-        getOneSpy = vi.spyOn(SalesService.prototype, "getOne").mockResolvedValue(null);
-        controller = new SalesController();
+        service = new SalesService();
+        controller = new SalesController(service);
     });
 
     afterEach(() => {
@@ -30,12 +24,16 @@ describe("SalesController", () => {
     describe("General", () => {
         it("getAll should return 200", async () => {
             const ctx = createMockContext();
-            expect((await controller.getAll(ctx)).status).toBe(200);
+            vi.spyOn(service, "getAll").mockResolvedValue([]);
+            const res = await controller.getAll(ctx);
+            expect(res.status).toBe(200);
         });
+
         it("getAll 500 on error", async () => {
             const ctx = createMockContext();
-            getAllSpy.mockRejectedValue(new Error("Err"));
-            expect((await controller.getAll(ctx)).status).toBe(500);
+            vi.spyOn(service, "getAll").mockRejectedValue(new Error("Err"));
+            const res = await controller.getAll(ctx);
+            expect(res.status).toBe(500);
         });
     });
 
@@ -43,24 +41,33 @@ describe("SalesController", () => {
         it("getOne 200 if found", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("1");
-            getOneSpy.mockResolvedValue({ id: "1" });
-            expect((await controller.getOne(ctx)).status).toBe(200);
+            vi.spyOn(service, "getById").mockResolvedValue({ id: "1" } as any);
+            const res = await controller.getOne(ctx);
+            expect(res.status).toBe(200);
         });
+
         it("getOne 404 if not found", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req, "param").mockReturnValue("1");
-            expect((await controller.getOne(ctx)).status).toBe(404);
+            vi.spyOn(service, "getById").mockRejectedValue({ status: 404, message: "Not found" });
+            const res = await controller.getOne(ctx);
+            expect(res.status).toBe(404);
         });
+
         it("createSale 201 on success", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req as any, "valid").mockReturnValue({ items: [] });
-            expect((await controller.createSale(ctx)).status).toBe(201);
+            vi.spyOn(service, "createSale").mockResolvedValue({ message: "Sale created", id: "S1", change: 0 });
+            const res = await controller.createSale(ctx);
+            expect(res.status).toBe(201);
         });
+
         it("createSale 400 on error", async () => {
             const ctx = createMockContext();
             vi.spyOn(ctx.req as any, "valid").mockReturnValue({ items: [] });
-            createSaleSpy.mockRejectedValue(new Error("Err"));
-            expect((await controller.createSale(ctx)).status).toBe(400);
+            vi.spyOn(service, "createSale").mockRejectedValue(new Error("Err"));
+            const res = await controller.createSale(ctx);
+            expect(res.status).toBe(400);
         });
     });
 });

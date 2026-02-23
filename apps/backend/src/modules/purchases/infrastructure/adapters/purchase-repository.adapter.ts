@@ -38,7 +38,15 @@ export class PurchaseRepositoryAdapter implements IPurchaseRepository {
             referenceNumber: result.referenceNumber || undefined,
             notes: result.notes || undefined,
             receivedAt: result.receivedAt || undefined,
-            verifiedAt: result.verifiedAt || undefined
+            receivedBy: result.receivedBy || undefined,
+            verifiedAt: result.verifiedAt || undefined,
+            verifiedBy: result.verifiedBy || undefined,
+            cancelledAt: result.cancelledAt || undefined,
+            cancelledBy: result.cancelledBy || undefined,
+            shippingFee: result.shippingFee || undefined,
+            discountAmount: result.discountAmount || undefined,
+            shippingExpenseAccountId: result.shippingExpenseAccountId || undefined,
+            paymentDueDate: result.paymentDueDate || undefined
         });
     }
 
@@ -58,15 +66,32 @@ export class PurchaseRepositoryAdapter implements IPurchaseRepository {
                 referenceNumber: snapshot.referenceNumber,
                 notes: snapshot.notes,
                 receivedAt: snapshot.receivedAt,
-                verifiedAt: snapshot.verifiedAt
+                receivedBy: snapshot.receivedBy,
+                verifiedAt: snapshot.verifiedAt,
+                verifiedBy: snapshot.verifiedBy,
+                cancelledAt: snapshot.cancelledAt,
+                cancelledBy: snapshot.cancelledBy,
+                shippingFee: snapshot.shippingFee,
+                discountAmount: snapshot.discountAmount,
+                shippingExpenseAccountId: snapshot.shippingExpenseAccountId,
+                paymentDueDate: snapshot.paymentDueDate
             }).onConflictDoUpdate({
                 target: purchases.id,
                 set: {
                     status: snapshot.status,
                     totalAmount: snapshot.totalAmount,
                     receivedAt: snapshot.receivedAt,
+                    receivedBy: snapshot.receivedBy,
                     verifiedAt: snapshot.verifiedAt,
-                    notes: snapshot.notes
+                    verifiedBy: snapshot.verifiedBy,
+                    cancelledAt: snapshot.cancelledAt,
+                    cancelledBy: snapshot.cancelledBy,
+                    notes: snapshot.notes,
+                    shippingFee: snapshot.shippingFee,
+                    discountAmount: snapshot.discountAmount,
+                    shippingExpenseAccountId: snapshot.shippingExpenseAccountId,
+                    paymentDueDate: snapshot.paymentDueDate,
+                    referenceNumber: snapshot.referenceNumber
                 }
             });
 
@@ -130,10 +155,9 @@ export class PurchaseRepositoryAdapter implements IPurchaseRepository {
         });
     }
 
-    async delete(id: string): Promise<void> {
-        await db.transaction(async (tx) => {
-            await tx.delete(purchaseItems).where(eq(purchaseItems.purchaseId, id));
-            await tx.delete(purchases).where(eq(purchases.id, id));
-        });
+    async delete(id: string, dbOrTx?: any): Promise<void> {
+        const client = dbOrTx || db;
+        await client.delete(purchaseItems).where(eq(purchaseItems.purchaseId, id));
+        await client.delete(purchases).where(eq(purchases.id, id));
     }
 }

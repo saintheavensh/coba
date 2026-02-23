@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { CategoriesController } from "./categories.controller";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
-import { requirePermission } from "../../../middlewares/permission.middleware";
+import { permissionGuard } from "../../../middlewares/permission.middleware";
 
 const app = new Hono();
 const controller = new CategoriesController();
@@ -20,12 +20,12 @@ const variantSchema = z.object({ name: z.string(), supplierId: z.string().option
 app.use("*", authMiddleware);
 
 app.get("/", (c) => controller.getAll(c));
-app.post("/", requirePermission("inventory.manage"), zValidator("json", categorySchema), (c) => controller.create(c));
-app.put("/:id", requirePermission("inventory.manage"), zValidator("json", categorySchema), (c) => controller.update(c));
-app.delete("/:id", requirePermission("inventory.manage"), (c) => controller.delete(c));
+app.post("/", permissionGuard("inventory.manage"), zValidator("json", categorySchema), (c) => controller.create(c));
+app.put("/:id", permissionGuard("inventory.manage"), zValidator("json", categorySchema), (c) => controller.update(c));
+app.delete("/:id", permissionGuard("inventory.manage"), (c) => controller.delete(c));
 
 // Variant Templates
-app.post("/:id/variants", requirePermission("inventory.manage"), zValidator("json", variantSchema), (c) => controller.addVariantTemplate(c));
-app.delete("/variants/:variantId", requirePermission("inventory.manage"), (c) => controller.removeVariantTemplate(c));
+app.post("/:id/variants", permissionGuard("inventory.manage"), zValidator("json", variantSchema), (c) => controller.addVariantTemplate(c));
+app.delete("/variants/:variantId", permissionGuard("inventory.manage"), (c) => controller.removeVariantTemplate(c));
 
 export default app;

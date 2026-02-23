@@ -17,6 +17,8 @@ export class InventoryService {
         private readonly addStockFromPurchaseUC: AddStockFromPurchaseUseCase,
         private readonly reverseStockUC: ReverseStockUseCase,
         private readonly getLastBatchUC: GetLastBatchUseCase,
+        private readonly reduceBatchStockUC: any, // Using any temporarily to avoid circular or complex typing Issues if UseCase type is not exported
+        private readonly batchRepository: any,
         private readonly productsService: ProductsService
     ) { }
 
@@ -41,6 +43,14 @@ export class InventoryService {
 
     async getLastBatchByProduct(productId: string, dbOrTx?: unknown): Promise<ProductBatchEntity | null> {
         return this.getLastBatchUC.execute(productId, dbOrTx);
+    }
+
+    async getBatchById(batchId: string, dbOrTx?: unknown): Promise<ProductBatchEntity | null> {
+        return this.batchRepository.findById(batchId, dbOrTx);
+    }
+
+    async reduceStock(batchId: string, qty: number, dbOrTx: unknown): Promise<void> {
+        return this.reduceBatchStockUC.execute(batchId, qty, dbOrTx);
     }
 
     // ===========================

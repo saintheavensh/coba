@@ -1,16 +1,22 @@
+import { db } from "../../../db";
+import { users } from "../../../db/schema";
+import { eq } from "drizzle-orm";
 import type { IUserRepository, UserWithRoles } from "../domain";
-import { AuthModel } from "./auth.model";
 
 export class UserRepositoryAdapter implements IUserRepository {
-    private model = new AuthModel();
-
-    async findByUsername(username: string, dbOrTx?: unknown): Promise<UserWithRoles | null> {
-        const row = await this.model.findByUsername(username, dbOrTx);
+    async findByUsername(username: string, dbOrTx: any = db): Promise<UserWithRoles | null> {
+        const row = await dbOrTx.query.users.findFirst({
+            where: eq(users.username, username),
+            with: { roles: { with: { role: true } } }
+        });
         return row as UserWithRoles | null;
     }
 
-    async findById(id: string, dbOrTx?: unknown): Promise<UserWithRoles | null> {
-        const row = await this.model.findById(id, dbOrTx);
+    async findById(id: string, dbOrTx: any = db): Promise<UserWithRoles | null> {
+        const row = await dbOrTx.query.users.findFirst({
+            where: eq(users.id, id),
+            with: { roles: { with: { role: true } } }
+        });
         return row as UserWithRoles | null;
     }
 }

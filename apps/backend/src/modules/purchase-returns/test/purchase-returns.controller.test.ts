@@ -1,11 +1,16 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
-import { PurchaseReturnsController } from "../controllers/purchase-returns.controller";
-import { PurchaseReturnsService } from "../services/purchase-returns.service";
+import { PurchaseReturnsController } from "../presentation/purchase-returns.controller";
+import { PurchaseReturnsService } from "../purchase-returns-container";
 import { createMockContext } from "../../../../test/factories";
 
 describe("PurchaseReturnsController", () => {
+    let service: PurchaseReturnsService;
+    let controller: PurchaseReturnsController;
+
     beforeEach(() => {
         vi.clearAllMocks();
+        service = new PurchaseReturnsService();
+        controller = new PurchaseReturnsController(service);
     });
 
     afterEach(() => {
@@ -14,41 +19,42 @@ describe("PurchaseReturnsController", () => {
 
     it("getAll should return 200", async () => {
         const ctx = createMockContext();
-        vi.spyOn(PurchaseReturnsService.prototype, "getAll").mockResolvedValue([]);
-        expect((await PurchaseReturnsController.getAll(ctx)).status).toBe(200);
+        vi.spyOn(service, "getAll").mockResolvedValue([]);
+        expect((await controller.getAll(ctx)).status).toBe(200);
     });
 
     it("getAll should return 500 on error", async () => {
         const ctx = createMockContext();
-        vi.spyOn(PurchaseReturnsService.prototype, "getAll").mockRejectedValue(new Error("Err"));
-        expect((await PurchaseReturnsController.getAll(ctx)).status).toBe(500);
+        vi.spyOn(service, "getAll").mockRejectedValue(new Error("Err"));
+        expect((await controller.getAll(ctx)).status).toBe(500);
     });
 
     it("getById should return 200", async () => {
         const ctx = createMockContext();
         vi.spyOn(ctx.req, "param").mockReturnValue("1");
-        vi.spyOn(PurchaseReturnsService.prototype, "getById").mockResolvedValue({});
-        expect((await PurchaseReturnsController.getById(ctx)).status).toBe(200);
+        vi.spyOn(service, "getById").mockResolvedValue({} as any);
+        expect((await controller.getById(ctx)).status).toBe(200);
     });
 
     it("getById should return 404 if not found", async () => {
         const ctx = createMockContext();
         vi.spyOn(ctx.req, "param").mockReturnValue("1");
-        vi.spyOn(PurchaseReturnsService.prototype, "getById").mockResolvedValue(null);
-        expect((await PurchaseReturnsController.getById(ctx)).status).toBe(404);
+        // The service now throws 404 error internally, so we mock the rejection
+        vi.spyOn(service, "getById").mockRejectedValue({ status: 404, message: "Not found" });
+        expect((await controller.getById(ctx)).status).toBe(404);
     });
 
     it("create should return 201", async () => {
         const ctx = createMockContext();
         vi.spyOn(ctx.req, "json").mockResolvedValue({});
-        vi.spyOn(PurchaseReturnsService.prototype, "create").mockResolvedValue({});
-        expect((await PurchaseReturnsController.create(ctx)).status).toBe(201);
+        vi.spyOn(service, "create").mockResolvedValue({} as any);
+        expect((await controller.create(ctx)).status).toBe(201);
     });
 
     it("create should return 500 on error", async () => {
         const ctx = createMockContext();
         vi.spyOn(ctx.req, "json").mockResolvedValue({});
-        vi.spyOn(PurchaseReturnsService.prototype, "create").mockRejectedValue(new Error("Err"));
-        expect((await PurchaseReturnsController.create(ctx)).status).toBe(500);
+        vi.spyOn(service, "create").mockRejectedValue(new Error("Err"));
+        expect((await controller.create(ctx)).status).toBe(500);
     });
 });

@@ -1,35 +1,43 @@
+import { db } from "../../../../db";
+import { brands } from "../../../../db/schema";
+import { eq, desc, ilike } from "drizzle-orm";
 import { DBContext } from "../../../../shared/types/db-context";
 import { IBrandRepository, Brand, CreateBrandData, UpdateBrandData } from "../../domain";
-import { BrandsModel } from "../../models/brands.model";
 
 export class BrandRepositoryAdapter implements IBrandRepository {
-    private model: typeof BrandsModel;
-
-    constructor() {
-        this.model = BrandsModel;
+    async findAll(dbOrTx: any = db): Promise<Brand[]> {
+        return await dbOrTx.select().from(brands).orderBy(desc(brands.createdAt));
     }
 
-    async findAll(dbOrTx?: DBContext): Promise<Brand[]> {
-        return await this.model.findAll(dbOrTx);
+    async findById(id: string, dbOrTx: any = db): Promise<Brand | null> {
+        const results = await dbOrTx
+            .select()
+            .from(brands)
+            .where(eq(brands.id, id));
+        return results[0] || null;
     }
 
-    async findById(id: string, dbOrTx?: DBContext): Promise<Brand | null> {
-        return await this.model.findById(id, dbOrTx);
+    async findByName(name: string, dbOrTx: any = db): Promise<Brand | null> {
+        const results = await dbOrTx
+            .select()
+            .from(brands)
+            .where(ilike(brands.name, name));
+        return results[0] || null;
     }
 
-    async findByName(name: string, dbOrTx?: DBContext): Promise<Brand | null> {
-        return await this.model.findByName(name, dbOrTx);
+    async create(data: CreateBrandData, dbOrTx: any = db): Promise<Brand[]> {
+        return await dbOrTx.insert(brands).values(data).returning();
     }
 
-    async create(data: CreateBrandData, dbOrTx?: DBContext): Promise<Brand[]> {
-        return await this.model.create(data, dbOrTx);
+    async update(id: string, data: UpdateBrandData, dbOrTx: any = db): Promise<Brand[]> {
+        return await dbOrTx
+            .update(brands)
+            .set(data)
+            .where(eq(brands.id, id))
+            .returning();
     }
 
-    async update(id: string, data: UpdateBrandData, dbOrTx?: DBContext): Promise<Brand[]> {
-        return await this.model.update(id, data, dbOrTx);
-    }
-
-    async delete(id: string, dbOrTx?: DBContext): Promise<Brand[]> {
-        return await this.model.delete(id, dbOrTx);
+    async delete(id: string, dbOrTx: any = db): Promise<Brand[]> {
+        return await dbOrTx.delete(brands).where(eq(brands.id, id)).returning();
     }
 }

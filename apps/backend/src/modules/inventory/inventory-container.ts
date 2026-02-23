@@ -19,6 +19,7 @@ import { UpdateOpnameItemUseCase } from "./application/use-cases/update-opname-i
 import { FinalizeOpnameSessionUseCase } from "./application/use-cases/finalize-opname-session.use-case";
 import { CancelOpnameSessionUseCase } from "./application/use-cases/cancel-opname-session.use-case";
 import { GetAdjustmentHistoryUseCase } from "./application/use-cases/get-adjustment-history.use-case";
+import { ReduceBatchStockUseCase } from "./application/use-cases/reduce-batch-stock.use-case";
 
 import { InventoryService } from "./services/inventory.service";
 import { StockOpnameService } from "./services/stock-opname.service";
@@ -35,6 +36,7 @@ const deductStockFIFOUC = new DeductStockFIFOUseCase(stockGateway);
 const addStockFromPurchaseUC = new AddStockFromPurchaseUseCase(stockGateway);
 const reverseStockUC = new ReverseStockUseCase(stockGateway);
 const getLastBatchUC = new GetLastBatchUseCase(batchRepository);
+const reduceBatchStockUC = new ReduceBatchStockUseCase(stockGateway, batchRepository);
 
 // Opname use cases
 const createOpnameSessionUC = new CreateOpnameSessionUseCase(stockOpnameRepo, activityLogger);
@@ -51,6 +53,8 @@ export const inventoryService = new InventoryService(
     addStockFromPurchaseUC,
     reverseStockUC,
     getLastBatchUC,
+    reduceBatchStockUC,
+    batchRepository,
     productsService
 );
 

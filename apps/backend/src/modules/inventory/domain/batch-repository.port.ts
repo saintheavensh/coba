@@ -17,5 +17,6 @@ export interface ProductBatchEntity {
 }
 
 export interface IBatchRepository {
-    getLastBatchByProduct(productId: string, dbOrTx?: unknown): Promise<ProductBatchEntity | null>;
+    getLastBatchByProduct(productId: string, dbOrTx?: any): Promise<ProductBatchEntity | null>;
+    findById(batchId: string, dbOrTx?: any): Promise<ProductBatchEntity | null>;
 }

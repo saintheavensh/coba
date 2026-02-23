@@ -13,22 +13,24 @@ export class DeletePurchaseUseCase {
             const purchase = await this.purchaseRepo.findById(purchaseId);
             if (!purchase) return; // Idempotent delete
 
-            const wasCompleted = purchase.status === "COMPLETED";
+            // Reversal Trigger: Any item already received must be reversed in inventory
+            const itemsToReverse = purchase.items
+                .filter(i => i.qtyReceived > 0)
+                .map(i => ({
+                    productId: i.productId,
+                    batchId: i.batchId || null,
+                    qtyReceived: i.qtyReceived
+                }));
 
-            // Reversal Trigger
-            if (wasCompleted) {
+            if (itemsToReverse.length > 0) {
                 await this.inventoryService.reverseStockFromPurchaseDeletion({
                     purchaseId: purchase.id,
-                    items: purchase.items.map(i => ({
-                        productId: i.productId,
-                        batchId: i.batchId || null,
-                        qtyReceived: i.qtyReceived
-                    }))
+                    items: itemsToReverse
                 }, tx);
             }
 
             // Persistence
-            await this.purchaseRepo.delete(purchaseId);
+            await this.purchaseRepo.delete(purchaseId, tx);
         });
     }
 }
