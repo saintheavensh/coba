@@ -1,6 +1,6 @@
 import { DBContext } from "../../../../shared/types/db-context";
 import { ICategoryRepository } from "../../domain";
-import { generateId, ID_PREFIX } from "../../../../lib/utils";
+import { generateId, ID_PREFIX } from "../../../../shared/utils/validation/IdGenerator";
 
 export interface CreateCategoryInput {
     name: string;

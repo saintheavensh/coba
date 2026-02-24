@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { exec } from "node:child_process";
 import util from "node:util";
-import { Logger } from "../lib/logger";
+import { Logger } from "../shared/utils/logger/Logger";
 
 const execAsync = util.promisify(exec);
 

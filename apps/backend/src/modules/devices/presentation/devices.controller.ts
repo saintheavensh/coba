@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { devicesFacade, DevicesFacade } from "../devices-container";
-import { apiSuccess, apiError } from "../../../lib/response";
+import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
 
 export class DevicesController {
     constructor(

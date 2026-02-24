@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { dashboardFacade } from "../dashboard-container";
-import { apiSuccess, apiError } from "../../../lib/response";
+import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
 
 export class DashboardController {
     async getDashboardData(c: Context) {

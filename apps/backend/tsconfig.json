@@ -17,6 +17,8 @@
         "allowSyntheticDefaultImports": true,
         "forceConsistentCasingInFileNames": true,
         "allowJs": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
         "baseUrl": ".",
         "paths": {
             "@repo/shared": [

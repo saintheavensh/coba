@@ -1,10 +1,10 @@
 import { DBContext } from "../../../../shared/types/db-context";
-import { NotificationService } from "../../../../lib/notification.service";
+import { NotificationService } from "../../../../shared/infrastructure/messaging/NotificationService";
 import { SettingsService } from "../../../settings/services/settings.service";
 import { db } from "../../../../db";
 import { users } from "../../../../db/schema";
 import { eq } from "drizzle-orm";
-import { Logger } from "../../../../lib/logger";
+import { Logger } from "../../../../shared/utils/logger/Logger";
 import { INotificationGateway, ISettingsGateway, IUserGateway } from "../../domain";
 
 export class NotificationGatewayAdapter implements INotificationGateway {

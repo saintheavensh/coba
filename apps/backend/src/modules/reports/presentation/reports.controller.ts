@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { reportsService, ReportsService } from "../reports-container";
-import { apiSuccess, apiError } from "../../../lib/response";
+import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
 
 export class ReportsController {
     constructor(

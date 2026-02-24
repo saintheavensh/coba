@@ -1,6 +1,6 @@
 import { DBContext } from "../../../../shared/types/db-context";
 import { normalizeName } from "../../../../shared/utils/normalize-name";
-import { generateId, ID_PREFIX } from "../../../../lib/utils";
+import { generateId, ID_PREFIX } from "../../../../shared/utils/validation/IdGenerator";
 import { ISupplierRepository, CreateSupplierData } from "../../domain";
 
 export class CreateSupplierUseCase {

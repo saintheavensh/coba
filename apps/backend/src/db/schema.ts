@@ -2,6 +2,11 @@ import { relations, sql } from "drizzle-orm";
 import { text, integer, boolean, timestamp, pgTable, json, foreignKey, primaryKey, unique } from "drizzle-orm/pg-core";
 import { randomUUID } from "crypto";
 
+// Import modules for local schema bindings
+import { categories } from "../modules/categories/infrastructure/schema/CategorySchema";
+import { products } from "../modules/products/infrastructure/schema/ProductSchema";
+import { productBatches, productBatchesRelations } from "../modules/inventory/infrastructure/schema/BatchSchema";
+
 // Helper for default UUID
 function uuid() {
     return text("id").primaryKey().$defaultFn(() => randomUUID());
@@ -71,19 +76,7 @@ export const userRolesRelations = relations(userRoles, ({ one }) => ({
 // MASTER DATA
 // ============================================
 
-export const categories = pgTable("categories", {
-    id: text("id").primaryKey(), // UUID (Keep as is, but add timestamps)
-    name: text("name").notNull(),
-    description: text("description"),
-    parentId: text("parent_id"),
-    ...timestamps(),
-}, (table) => ({
-    parentReference: foreignKey({
-        columns: [table.parentId],
-        foreignColumns: [table.id],
-        name: "categories_parent_id_fkey"
-    })
-}));
+export * from "../modules/categories/infrastructure/schema/CategorySchema";
 
 export const categoryVariants = pgTable("category_variants", {
     id: uuid(), // CHANGED: serial -> uuid
@@ -128,40 +121,12 @@ export const supplierCategories = pgTable("supplier_categories", {
 // INVENTORY
 // ============================================
 
-export const products = pgTable("products", {
-    id: text("id").primaryKey(), // PRD-XXX (Keep)
-    code: text("code").unique(),
-    name: text("name").notNull(),
-    categoryId: text("category_id").references(() => categories.id),
-    image: text("image"),
-    stock: integer("stock").notNull().default(0),
-    minStock: integer("min_stock").default(5),
-    ...timestamps(), // Added timestamps + deletedAt
-});
+export * from "../modules/products/infrastructure/schema/ProductSchema";
 
-export const productVariants = pgTable("product_variants", {
-    id: text("id").primaryKey(), // VAR-XXX (Keep)
-    productId: text("product_id").notNull().references(() => products.id),
-    name: text("name").notNull(),
-    image: text("image"),
-    sku: text("sku"),
-    defaultPrice: integer("default_price"),
-    ...timestamps(), // Added timestamps + deletedAt
-});
-
-export const productBatches = pgTable("product_batches", {
-    id: text("id").primaryKey(), // B-XXX (Keep)
-    productId: text("product_id").notNull().references(() => products.id),
-    variantId: text("variant_id").references(() => productVariants.id),
-    supplierId: text("supplier_id").references(() => suppliers.id),
-
-    supplierName: text("supplier_name"),
-    buyPrice: integer("buy_price").notNull(),
-    sellPrice: integer("sell_price").notNull(),
-    initialStock: integer("initial_stock").notNull(),
-    currentStock: integer("current_stock").notNull(),
-    ...timestamps(), // Added timestamps + deletedAt
-});
+export * from "../modules/inventory/infrastructure/schema/VariantSchema";
+export * from "../modules/inventory/infrastructure/schema/BatchSchema";
+export * from "../modules/inventory/infrastructure/schema/StockOpnameSchema";
+export * from "../modules/inventory/infrastructure/schema/DefectiveItemSchema";
 
 // ============================================
 // PURCHASES (Stock In)
@@ -241,6 +206,8 @@ export const saleItems = pgTable("sale_items", {
 // ============================================
 // DEVICES
 // ============================================
+
+export { storeDeviceTable } from "../shared/infrastructure/external-api/devices/infrastructure/schema";
 
 export const devices = pgTable("devices", {
     id: text("id").primaryKey(), // DEV-XXX or UUID (Keep)
@@ -344,6 +311,15 @@ export const notifications = pgTable("notifications", {
 export const settings = pgTable("settings", {
     key: text("key").primaryKey(),
     value: json("value").notNull(),
+    type: text("type").notNull().default('json'),
+    scope: text("scope").notNull().default('system'),
+    module: text("module"),
+    userId: text("user_id"),
+    storeId: text("store_id"),
+    description: text("description"),
+    isEditable: boolean("is_editable").notNull().default(true),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // ============================================
@@ -721,19 +697,7 @@ export const salePayments = pgTable("sale_payments", {
 // RELATIONS
 // ============================================
 
-export const categoriesRelations = relations(categories, ({ one, many }) => ({
-    products: many(products),
-    parent: one(categories, {
-        fields: [categories.parentId],
-        references: [categories.id],
-        relationName: "category_hierarchy"
-    }),
-    children: many(categories, {
-        relationName: "category_hierarchy"
-    }),
-    variantTemplates: many(categoryVariants),
-    suppliers: many(supplierCategories),
-}));
+
 
 export const supplierCategoriesRelations = relations(supplierCategories, ({ one }) => ({
     supplier: one(suppliers, {
@@ -755,26 +719,6 @@ export const categoryVariantsRelations = relations(categoryVariants, ({ one }) =
         fields: [categoryVariants.supplierId],
         references: [suppliers.id],
     }),
-}));
-
-export const productsRelations = relations(products, ({ one, many }) => ({
-    category: one(categories, {
-        fields: [products.categoryId],
-        references: [categories.id],
-    }),
-    batches: many(productBatches),
-    purchaseItems: many(purchaseItems),
-    saleItems: many(saleItems),
-    compatibility: many(productDeviceCompatibility),
-    variants: many(productVariants),
-}));
-
-export const productVariantsRelations = relations(productVariants, ({ one, many }) => ({
-    product: one(products, {
-        fields: [productVariants.productId],
-        references: [products.id],
-    }),
-    batches: many(productBatches),
 }));
 
 export const devicesRelations = relations(devices, ({ many }) => ({
@@ -800,23 +744,6 @@ export const suppliersRelations = relations(suppliers, ({ many }) => ({
 
 export const membersRelations = relations(members, ({ many }) => ({
     sales: many(sales),
-}));
-
-export const productBatchesRelations = relations(productBatches, ({ one, many }) => ({
-    product: one(products, {
-        fields: [productBatches.productId],
-        references: [products.id],
-    }),
-    supplier: one(suppliers, {
-        fields: [productBatches.supplierId],
-        references: [suppliers.id],
-    }),
-    variantLink: one(productVariants, {
-        fields: [productBatches.variantId],
-        references: [productVariants.id],
-    }),
-    purchaseItems: many(purchaseItems),
-    saleItems: many(saleItems),
 }));
 
 export const purchasesRelations = relations(purchases, ({ one, many }) => ({

@@ -1,20 +1,25 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { createMockContext, createMockUser } from "../../../../test/factories";
 
-const mockService = vi.hoisted(() => ({
-    createSession: vi.fn(),
-    getSessions: vi.fn(),
-    getSessionDetails: vi.fn(),
-    updateItem: vi.fn(),
-    finalizeSession: vi.fn(),
-    cancelSession: vi.fn(),
-    getAdjustmentHistory: vi.fn()
-}));
+vi.mock("../inventory-container", () => {
+    const mockService = {
+        createSession: vi.fn(),
+        getSessions: vi.fn(),
+        getSessionDetails: vi.fn(),
+        updateItem: vi.fn(),
+        finalizeSession: vi.fn(),
+        cancelSession: vi.fn(),
+        getAdjustmentHistory: vi.fn()
+    };
+    return {
+        stockOpnameService: mockService,
+        stockOpnameApplicationService: mockService,
+    };
+});
 
-vi.mock("../inventory-container", () => ({
-    stockOpnameService: mockService,
-    stockOpnameApplicationService: mockService
-}));
+// Access the initialized mock service via standard import
+import { stockOpnameService } from "../inventory-container";
+const mockService = stockOpnameService as any;
 
 import { StockOpnameController } from "../presentation/stock-opname.controller";
 

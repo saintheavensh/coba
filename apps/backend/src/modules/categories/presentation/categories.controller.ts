@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { categoriesFacade } from "../categories-container";
-import { apiSuccess, apiError } from "../../../lib/response";
+import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
 
 export class CategoriesController {
     async getAll(c: Context) {

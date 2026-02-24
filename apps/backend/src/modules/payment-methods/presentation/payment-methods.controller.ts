@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { paymentMethodsService, PaymentMethodsService } from "../payment-methods-container";
-import { apiSuccess, apiError } from "../../../lib/response";
+import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
 
 export class PaymentMethodsController {
     constructor(private readonly service: PaymentMethodsService = paymentMethodsService) { }

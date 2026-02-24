@@ -1,6 +1,6 @@
 import { db } from "../../db";
 import { activityLogs } from "../../db/schema";
-import { Logger } from "../../lib/logger";
+import { Logger } from "../../shared/utils/logger/Logger";
 
 export interface LogParams {
     userId: string;

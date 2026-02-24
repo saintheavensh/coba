@@ -1,0 +1,38 @@
+$ tsc --noEmit
+src/middlewares/test/permission.middleware.test.ts(88,16): error TS18046: 'body' is of type 'unknown'.
+src/middlewares/test/permission.middleware.test.ts(89,16): error TS18046: 'body' is of type 'unknown'.
+src/middlewares/test/permission.middleware.test.ts(90,16): error TS18046: 'body' is of type 'unknown'.
+src/middlewares/test/permission.middleware.test.ts(104,16): error TS18046: 'body' is of type 'unknown'.
+src/middlewares/test/permission.middleware.test.ts(146,16): error TS18046: 'body' is of type 'unknown'.
+src/middlewares/test/permission.middleware.test.ts(209,16): error TS18046: 'body' is of type 'unknown'.
+src/middlewares/test/permission.middleware.test.ts(210,16): error TS18046: 'body' is of type 'unknown'.
+src/middlewares/test/permission.middleware.test.ts(211,16): error TS18046: 'body' is of type 'unknown'.
+src/modules/brands/test/brands.controller.test.ts(3,31): error TS2307: Cannot find module '../services/brands.service' or its corresponding type declarations.
+src/modules/categories/test/categories.controller.test.ts(3,35): error TS2307: Cannot find module '../services/categories.service' or its corresponding type declarations.
+src/modules/dashboard/test/dashboard.controller.test.ts(2,37): error TS2307: Cannot find module '../controllers/dashboard.controller' or its corresponding type declarations.
+src/modules/dashboard/test/dashboard.controller.test.ts(3,34): error TS2307: Cannot find module '../services/dashboard.service' or its corresponding type declarations.
+src/modules/defective-items/test/defective-items.controller.test.ts(2,42): error TS2307: Cannot find module '../controllers/defective-items.controller' or its corresponding type declarations.
+src/modules/defective-items/test/defective-items.controller.test.ts(3,39): error TS2307: Cannot find module '../services/defective-items.service' or its corresponding type declarations.
+src/modules/devices/test/devices.controller.test.ts(3,32): error TS2307: Cannot find module '../services/devices.service' or its corresponding type declarations.
+src/modules/devices/test/devices.controller.test.ts(4,32): error TS2307: Cannot find module '../services/scraper.service' or its corresponding type declarations.
+src/modules/inventory/infrastructure/schema/BatchSchema.ts(5,53): error TS2307: Cannot find module '../../../db/schema' or its corresponding type declarations.
+src/modules/inventory/infrastructure/schema/DefectiveItemSchema.ts(5,27): error TS2307: Cannot find module '../../../db/schema' or its corresponding type declarations.
+src/modules/inventory/infrastructure/schema/StockOpnameSchema.ts(3,23): error TS2307: Cannot find module '../../../db/schema' or its corresponding type declarations.
+src/modules/inventory/inventory-container.ts(26,10): error TS2305: Module '"../products/products-container"' has no exported member 'productsService'.
+src/modules/inventory/services/inventory.service.ts(12,15): error TS2305: Module '"../../products/products-container"' has no exported member 'ProductsService'.
+src/modules/operational-costs/test/operational-costs.controller.test.ts(2,44): error TS2307: Cannot find module '../controllers/operational-costs.controller' or its corresponding type declarations.
+src/modules/operational-costs/test/operational-costs.controller.test.ts(3,41): error TS2307: Cannot find module '../services/operational-costs.service' or its corresponding type declarations.
+src/modules/products/presentation/products.controller.ts(6,15): error TS2305: Module '"../products-container"' has no exported member 'ProductsService'.
+src/modules/products/presentation/products.routes.ts(9,10): error TS2305: Module '"../products-container"' has no exported member 'productsService'.
+src/modules/purchases/application/use-cases/verify-and-complete-purchase.use-case.ts(3,10): error TS2305: Module '"../../../products/products-container"' has no exported member 'ProductsService'.
+src/modules/purchases/purchases-container.ts(15,10): error TS2305: Module '"../products/products-container"' has no exported member 'productsService'.
+src/modules/purchases/test/purchases-verify.test.ts(2,34): error TS2307: Cannot find module '../services/purchases.service' or its corresponding type declarations.
+src/modules/purchases/test/purchases.controller.test.ts(2,37): error TS2307: Cannot find module '../controllers/purchases.controller' or its corresponding type declarations.
+src/modules/purchases/test/purchases.controller.test.ts(20,81): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ message: string; id: string; }'.
+src/modules/reports/test/reports.controller.test.ts(2,35): error TS2307: Cannot find module '../controllers/reports.controller' or its corresponding type declarations.
+src/modules/reports/test/reports.controller.test.ts(3,32): error TS2307: Cannot find module '../services/reports.service' or its corresponding type declarations.
+src/modules/sales/infrastructure/gateways/settings.gateway.adapter.ts(2,33): error TS2307: Cannot find module '../../../settings/services/settings.service' or its corresponding type declarations.
+src/modules/service/infrastructure/gateways/external.gateway.adapter.ts(3,33): error TS2307: Cannot find module '../../../settings/services/settings.service' or its corresponding type declarations.
+src/modules/suppliers/test/suppliers.controller.test.ts(2,37): error TS2307: Cannot find module '../controllers/suppliers.controller' or its corresponding type declarations.
+src/modules/suppliers/test/suppliers.controller.test.ts(3,34): error TS2307: Cannot find module '../services/suppliers.service' or its corresponding type declarations.
+src/shared/infrastructure/config/presentation/routes/config.routes.ts(4,34): error TS2307: Cannot find module './controllers/ConfigController' or its corresponding type declarations.

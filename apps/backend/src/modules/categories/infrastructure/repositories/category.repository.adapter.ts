@@ -1,7 +1,7 @@
 import { db } from "../../../../db";
 import { categories, categoryVariants, products, productVariants } from "../../../../db/schema";
 import { eq, desc, asc, and, eq as eqFn } from "drizzle-orm";
-import { generateId, ID_PREFIX } from "../../../../lib/utils";
+import { generateId, ID_PREFIX } from "../../../../shared/utils/validation/IdGenerator";
 import { DBContext } from "../../../../shared/types/db-context";
 import { ICategoryRepository } from "../../domain";
 

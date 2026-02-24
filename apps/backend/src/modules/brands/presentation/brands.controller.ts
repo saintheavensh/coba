@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { brandsFacade } from "../brands-container";
-import { apiSuccess, apiError } from "../../../lib/response";
+import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
 
 export class BrandsController {
     async getAll(c: Context) {

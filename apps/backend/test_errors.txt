@@ -1,0 +1,290 @@
+bun test v1.3.3 (274e01c7)
+
+src\middlewares\test\permission.middleware.test.ts:
+(pass) requirePermission middleware > should call next() when user has the required permission
+(pass) requirePermission middleware > should call next() when user has 'all' permission (super_admin bypass)
+(pass) requirePermission middleware > should return 403 when user lacks required permission
+(pass) requirePermission middleware > should return 403 when user has no role in context
+(pass) requirePermission middleware > should pass when user has ANY of multiple required permissions
+(pass) requirePermission middleware > should handle role field as an object with id
+(pass) requirePermission middleware > should handle role not found in database
+(pass) requirePermission middleware > should use cache on subsequent calls for same role
+(pass) requireRole middleware > should call next() when user role is in allowed list
+(pass) requireRole middleware > should always allow super_admin
+(pass) requireRole middleware > should return 403 when user role is not in allowed list
+(pass) requireRole middleware > should return 403 when user has no role
+(pass) requireRole middleware > should handle role as object with id
+
+src\modules\sales\sales.validation.test.ts:
+(pass) Sales Validation Schema (Strict Data Integrity) > should accept a valid sale payload
+(pass) Sales Validation Schema (Strict Data Integrity) > should reject payload with missing required fields (userId)
+(pass) Sales Validation Schema (Strict Data Integrity) > should reject payload with empty items array (min 1)
+(pass) Sales Validation Schema (Strict Data Integrity) > should reject payload with negative quantity or price
+(pass) Sales Validation Schema (Strict Data Integrity) > should reject payload with negative payment amount
+
+src\modules\brands\test\brands.controller.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '../services/brands.service' from 'C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\brands\test\brands.controller.test.ts'
+-------------------------------
+
+
+src\modules\categories\test\categories.controller.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '../services/categories.service' from 'C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\categories\test\categories.controller.test.ts'
+-------------------------------
+
+
+src\modules\customers\test\customers.controller.test.ts:
+(pass) CustomersController > getAll > should return 200 and list
+(pass) CustomersController > getAll > should return 500 on error
+(pass) CustomersController > getById > should return 200 and data if found
+(pass) CustomersController > getById > should return 404 if not found
+(pass) CustomersController > create > should return 201 on success
+(pass) CustomersController > update > should return 200 on success
+(pass) CustomersController > delete > should return 200 on success
+(pass) CustomersController > getSales > should return 200 and sales
+(pass) CustomersController > getUnpaidSales > should return 200 and unpaid sales
+(pass) CustomersController > processPayment > should return 200 on success
+
+src\modules\dashboard\test\dashboard.controller.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '../controllers/dashboard.controller' from 'C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\dashboard\test\dashboard.controller.test.ts'
+-------------------------------
+
+
+src\modules\defective-items\test\defective-items.controller.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '../controllers/defective-items.controller' from 'C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\defective-items\test\defective-items.controller.test.ts'
+-------------------------------
+
+
+src\modules\devices\test\devices.controller.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '../services/devices.service' from 'C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\devices\test\devices.controller.test.ts'
+-------------------------------
+
+
+src\modules\inventory\__tests__\fifo-deduction.test.ts:
+(pass) FIFO across 2 batches (Use Case) > drains oldest batch first, then spills to newer batch
+(pass) FIFO across 2 batches (Use Case) > calculates COGS correctly from mixed buy prices
+(pass) FIFO across 2 batches (Use Case) > calls assertStockConsistency after deduction
+(pass) FIFO across 2 batches (Use Case) > throws when requested quantity exceeds total stock across batches
+
+src\modules\inventory\__tests__\inventory.controller.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+29 |     bind<DrizzleClient>(TYPES.DrizzleClient).to(DrizzleClient).inSingletonScope();
+30 | 
+31 |     // External dependencies bindings required for adapters
+32 |     bind(TYPES.InventoryFacade).toDynamicValue(() => {
+33 |         // Late require to avoid circular dependency
+34 |         const { inventoryService } = require("../inventory/inventory-container");
+                     ^
+ReferenceError: Cannot access 'inventoryService' before initialization.
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\products\products-container.ts:34:17)
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\node_modules\@inversifyjs\core\lib\esm\index.js:1:36033)
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\node_modules\@inversifyjs\core\lib\esm\index.js:1:38444)
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\node_modules\@inversifyjs\core\lib\esm\index.js:1:38300)
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\node_modules\@inversifyjs\core\lib\esm\index.js:1:36033)
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\node_modules\@inversifyjs\core\lib\esm\index.js:1:38444)
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\node_modules\@inversifyjs\core\lib\esm\index.js:1:38300)
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\node_modules\@inversifyjs\core\lib\esm\index.js:1:36223)
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\node_modules\@inversifyjs\core\lib\esm\index.js:1:38444)
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\node_modules\@inversifyjs\core\lib\esm\index.js:1:38300)
+-------------------------------
+
+
+src\modules\inventory\__tests__\stock-consistency.test.ts:
+(pass) StockMutationGatewayAdapter.assertStockConsistency > does not throw when product.stock equals sum(batches.current_stock)
+(pass) StockMutationGatewayAdapter.assertStockConsistency > throws when product.stock does not equal sum(batches.current_stock)
+(pass) StockMutationGatewayAdapter.assertStockConsistency > checks all given product ids
+
+src\modules\inventory\__tests__\stock-opname.controller.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+1 | })
+2 | {
+    ^
+SyntaxError: Export named '__mockService' not found in module 'C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\inventory\inventory-container.ts'.
+      at loadAndEvaluateModule (2:1)
+-------------------------------
+
+
+src\modules\operational-costs\test\operational-costs.controller.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '../controllers/operational-costs.controller' from 'C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\operational-costs\test\operational-costs.controller.test.ts'
+-------------------------------
+
+
+src\modules\payment-methods\test\payment-methods.controller.test.ts:
+(pass) PaymentMethodsController > Payment Methods > getAll should return 200 [16.00ms]
+(pass) PaymentMethodsController > Payment Methods > getEnabled should return 200
+(pass) PaymentMethodsController > Payment Methods > create should return 201
+(pass) PaymentMethodsController > Variants > addVariant should return 201
+(pass) PaymentMethodsController > Variants > updateVariant should return 200
+
+src\modules\purchase-returns\test\purchase-returns.controller.test.ts:
+(pass) PurchaseReturnsController > getAll should return 200
+(pass) PurchaseReturnsController > getAll should return 500 on error
+(pass) PurchaseReturnsController > getById should return 200
+(pass) PurchaseReturnsController > getById should return 404 if not found
+(pass) PurchaseReturnsController > create should return 201
+(pass) PurchaseReturnsController > create should return 500 on error
+
+src\modules\purchases\test\purchases-verify.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '../services/purchases.service' from 'C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\purchases\test\purchases-verify.test.ts'
+-------------------------------
+
+
+src\modules\purchases\test\purchases.controller.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '../controllers/purchases.controller' from 'C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\purchases\test\purchases.controller.test.ts'
+-------------------------------
+
+
+src\modules\reports\test\reports.controller.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '../controllers/reports.controller' from 'C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\reports\test\reports.controller.test.ts'
+-------------------------------
+
+
+src\modules\sales\test\sales.controller.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '../../../settings/services/settings.service' from 'C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\sales\infrastructure\gateways\settings.gateway.adapter.ts'
+-------------------------------
+
+
+src\modules\service\test\service.controller.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '../../../settings/services/settings.service' from 'C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\service\infrastructure\gateways\external.gateway.adapter.ts'
+-------------------------------
+
+
+src\modules\suppliers\test\suppliers.controller.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '../controllers/suppliers.controller' from 'C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\modules\suppliers\test\suppliers.controller.test.ts'
+-------------------------------
+
+
+src\modules\users\test\users.controller.test.ts:
+(pass) UsersController > getAll > should return 200 and list
+(pass) UsersController > getAll > should return 500 on error
+(pass) UsersController > getById > should return 200 if found
+(pass) UsersController > getById > should return 404 if not found
+(pass) UsersController > create > should return 201 on success
+(pass) UsersController > update > should return 200 on success
+(pass) UsersController > delete > should return 200 on success
+
+src\modules\products\application\__tests__\ActivateProductUseCase.test.ts:
+(pass) ActivateProductUseCase > should activate product successfully
+
+src\modules\products\application\__tests__\CreateProductUseCase.test.ts:
+(pass) CreateProductUseCase > should create a product successfully
+(pass) CreateProductUseCase > should fail if SKU format is invalid
+(pass) CreateProductUseCase > should fail if price is negative
+
+src\modules\products\application\__tests__\DeleteProductUseCase.test.ts:
+(pass) DeleteProductUseCase > should delete product successfully if DRAFT and no references
+(pass) DeleteProductUseCase > should fail if product is ACTIVE
+(pass) DeleteProductUseCase > should fail if active inventory records exist
+
+src\modules\products\application\__tests__\GetProductUseCase.test.ts:
+(pass) GetProductUseCase > should return a product when it exists
+(pass) GetProductUseCase > should return fail when product does not exist
+
+src\modules\products\application\__tests__\ProductsFacade.test.ts:
+(pass) ProductsFacade > should delegate createProduct to use case
+(pass) ProductsFacade > should delegate getProduct to use case
+(pass) ProductsFacade > should delegate updateProduct to use case
+
+src\modules\products\application\__tests__\UpdateProductUseCase.test.ts:
+(pass) UpdateProductUseCase > should update name and price successfully
+(pass) UpdateProductUseCase > should fail to update archived product
+
+src\modules\products\domain\__tests__\Price.vo.test.ts:
+(pass) Price Value Object > should create a valid price
+(pass) Price Value Object > should fail for negative amount
+(pass) Price Value Object > should fail for non-integer amount
+(pass) Price Value Object > should add two prices of the same currency
+(pass) Price Value Object > should fail adding different currencies
+(pass) Price Value Object > should subtract two prices
+(pass) Price Value Object > should fail if subtraction results in negative
+(pass) Price Value Object > should multiply price by a factor
+
+src\modules\products\domain\__tests__\Product.entity.test.ts:
+(pass) Product Entity > should create a product with default DRAFT status
+(pass) Product Entity > should fail to create product with empty name
+(pass) Product Entity > should activate a DRAFT product
+(pass) Product Entity > should deactivate an ACTIVE product
+(pass) Product Entity > should archive a product
+(pass) Product Entity > should not allow transition from ARCHIVED
+(pass) Product Entity > should update product price
+(pass) Product Entity > should check if can be deleted
+
+src\modules\products\domain\__tests__\ProductValidationService.test.ts:
+(pass) ProductValidationService > should validate product for sale successfully
+(pass) ProductValidationService > should fail if product is not active
+(pass) ProductValidationService > should fail if stock is insufficient
+(pass) ProductValidationService > should check product references
+
+src\modules\products\infrastructure\__tests__\DrizzleProductRepository.test.ts:
+(pass) DrizzleProductRepository > should find product by id
+(pass) DrizzleProductRepository > should return fail if product not found
+
+src\modules\products\infrastructure\__tests__\InventoryGatewayAdapter.test.ts:
+(pass) InventoryGatewayAdapter > should get stock level successfully
+(pass) InventoryGatewayAdapter > should handle facade failure in getStockLevel
+
+src\shared\presentation\dashboard\__tests__\DashboardAggregator.test.ts:
+(pass) DashboardAggregator > should successfully aggregate dashboard stats from all modules
+(pass) DashboardAggregator > should fail gracefully if primary sales data fails
+(pass) DashboardAggregator > should aggregate data even if secondary modules fail
+
+src\shared\presentation\dashboard\__tests__\DashboardController.test.ts:
+(pass) DashboardController > should return dashboard stats on success [16.00ms]
+(pass) DashboardController > should return 500 error if stats aggregation fails
+
+src\shared\infrastructure\config\application\__tests__\GetSettingUseCase.test.ts:
+(pass) GetSettingUseCase > should return the setting value if found
+(pass) GetSettingUseCase > should return default value if setting not found and default is provided
+(pass) GetSettingUseCase > should return failure if setting not found and no default provided
+
+src\shared\infrastructure\config\presentation\__tests__\ConfigController.test.ts:
+(pass) ConfigController > should get system config successfully
+(pass) ConfigController > should return 404 if config not found
+(pass) ConfigController > should update config successfully
+
+14 tests failed:
+
+ 102 pass
+ 14 fail
+ 14 errors
+ 189 expect() calls
+Ran 116 tests across 37 files. [478.00ms]

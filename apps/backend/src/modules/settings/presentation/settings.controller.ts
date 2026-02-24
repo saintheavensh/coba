@@ -12,7 +12,7 @@ import {
     DEFAULT_ACCOUNT_MAPPINGS, DEFAULT_GENERAL_SETTINGS, DEFAULT_TAX_SETTINGS,
     DEFAULT_SYSTEM_SETTINGS
 } from "../application";
-import { apiSuccess, apiError } from "../../../lib/response";
+import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
 
 export class SettingsController {
     constructor(

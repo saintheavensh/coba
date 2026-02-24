@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { salesService, SalesService } from "../sales-container";
-import { apiSuccess, apiError } from "../../../lib/response";
+import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
 
 export class SalesController {
     constructor(private readonly service: SalesService = salesService) { }

@@ -5,19 +5,23 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { createMockContext } from "../../../../test/factories";
 
-const mockService = vi.hoisted(() => ({
-    createSession: vi.fn(),
-    getSessions: vi.fn(),
-    getSessionDetails: vi.fn(),
-    updateItem: vi.fn(),
-    finalizeSession: vi.fn(),
-    cancelSession: vi.fn(),
-    getAdjustmentHistory: vi.fn()
-}));
+vi.mock("../inventory-container", () => {
+    const mockService = {
+        createSession: vi.fn(),
+        getSessions: vi.fn(),
+        getSessionDetails: vi.fn(),
+        updateItem: vi.fn(),
+        finalizeSession: vi.fn(),
+        cancelSession: vi.fn(),
+        getAdjustmentHistory: vi.fn()
+    };
+    return {
+        stockOpnameService: mockService
+    };
+});
 
-vi.mock("../inventory-container", () => ({
-    stockOpnameService: mockService
-}));
+import { stockOpnameService } from "../inventory-container";
+const mockService = stockOpnameService as any;
 
 import { StockOpnameController } from "../presentation/stock-opname.controller";
 

@@ -1,137 +1,62 @@
-/**
- * Products module composition root.
- * Wires infrastructure adapters → use cases and exposes a service facade.
- * No other module should instantiate adapters directly.
- */
-import {
-    ProductRepositoryAdapter,
-    VariantRepositoryAdapter,
-    CategoryRepositoryAdapter,
-    RegisterGateAdapter,
-    PrintGatewayAdapter
-} from "./infrastructure";
-import {
-    GetProductsUseCase,
-    GetProductByIdUseCase,
-    CreateProductUseCase,
-    UpdateProductUseCase,
-    DeleteProductUseCase,
-    GetProductVariantsUseCase,
-    CreateVariantUseCase,
-    UpdateVariantUseCase,
-    DeleteVariantUseCase,
-    GetSupplierVariantsUseCase,
-    BulkUpdateMinStockUseCase,
-    GetProductCountByCategoryUseCase,
-    GetInventoryStatsUseCase,
-    SearchProductUseCase,
-    PrintLabelUseCase
-} from "./application";
+import { ContainerModule } from "inversify";
+import { TYPES } from "./types";
 
-import type { ProductEntity, VariantEntity, InventoryStats, SearchResult, LabelData } from "./domain";
-import { productSchema } from "@repo/shared";
-import { z } from "zod";
+// Infrastructure
+import { DrizzleProductRepository } from "./infrastructure/persistence/DrizzleProductRepository";
+import { InventoryGatewayAdapter } from "./infrastructure/adapters/InventoryGatewayAdapter";
+import { DrizzleClient } from "../../shared/infrastructure/database/DrizzleClient";
 
-type CreateProductDto = z.infer<typeof productSchema>;
+// Use Cases
+import { CreateProductUseCase } from "./application/use-cases/CreateProductUseCase";
+import { GetProductUseCase } from "./application/use-cases/GetProductUseCase";
+import { UpdateProductUseCase } from "./application/use-cases/UpdateProductUseCase";
+import { ActivateProductUseCase } from "./application/use-cases/ActivateProductUseCase";
+import { DeleteProductUseCase } from "./application/use-cases/DeleteProductUseCase";
 
-// Infrastructure adapters (singletons within the module)
-const productRepository = new ProductRepositoryAdapter();
-const variantRepository = new VariantRepositoryAdapter();
-const categoryRepository = new CategoryRepositoryAdapter();
-const registerGate = new RegisterGateAdapter();
-const printGateway = new PrintGatewayAdapter();
+// Facade
+import { ProductsFacade } from "./application/facades/ProductsFacade";
 
-// Use cases
-const getProductsUC = new GetProductsUseCase(productRepository);
-const getProductByIdUC = new GetProductByIdUseCase(productRepository);
-const createProductUC = new CreateProductUseCase(productRepository, variantRepository, categoryRepository, registerGate);
-const updateProductUC = new UpdateProductUseCase(productRepository, registerGate);
-const deleteProductUC = new DeleteProductUseCase(productRepository);
-const getProductVariantsUC = new GetProductVariantsUseCase(variantRepository);
-const createVariantUC = new CreateVariantUseCase(variantRepository, registerGate);
-const updateVariantUC = new UpdateVariantUseCase(variantRepository, registerGate);
-const deleteVariantUC = new DeleteVariantUseCase(variantRepository);
-const getSupplierVariantsUC = new GetSupplierVariantsUseCase(variantRepository);
-const bulkUpdateMinStockUC = new BulkUpdateMinStockUseCase(productRepository, registerGate);
-const getProductCountByCategoryUC = new GetProductCountByCategoryUseCase(productRepository);
-const getInventoryStatsUC = new GetInventoryStatsUseCase(productRepository);
-const searchProductUC = new SearchProductUseCase(productRepository);
-const printLabelUC = new PrintLabelUseCase(printGateway);
+// Repository Interfaces (Ports)
+import { IProductRepository } from "./domain/ports/IProductRepository";
+import { IInventoryGateway } from "./domain/ports/IInventoryGateway";
 
 /**
- * ProductsService — facade that external modules use.
- * Method signatures match the old InventoryApplicationService for product-related methods.
+ * Products Module Container
+ * Configures all dependencies for the Products module using Inversify.
  */
-export class ProductsService {
-    async getAllProducts(deviceId?: string, search?: string, categoryId?: string, dbOrTx?: unknown): Promise<ProductEntity[]> {
-        return getProductsUC.execute(deviceId, search, categoryId, dbOrTx);
-    }
+export const productsContainerModule = new ContainerModule(({ bind }) => {
+    // Database
+    bind<DrizzleClient>(TYPES.DrizzleClient).to(DrizzleClient).inSingletonScope();
 
-    async getProductById(id: string, dbOrTx?: unknown): Promise<ProductEntity | null> {
-        return getProductByIdUC.execute(id, dbOrTx);
-    }
+    // External dependencies bindings required for adapters
+    bind(TYPES.InventoryFacade).toDynamicValue(() => {
+        // Late require to avoid circular dependency
+        const { inventoryService } = require("../inventory/inventory-container");
+        return inventoryService;
+    }).inSingletonScope();
 
-    async createProduct(data: CreateProductDto, user?: unknown, dbOrTx?: unknown): Promise<ProductEntity> {
-        return createProductUC.execute(data, user, dbOrTx);
-    }
+    // Repositories
+    bind<IProductRepository>(TYPES.IProductRepository).to(DrizzleProductRepository).inSingletonScope();
 
-    async updateProduct(id: string, data: CreateProductDto, user?: unknown, dbOrTx?: unknown): Promise<ProductEntity> {
-        return updateProductUC.execute(id, data, user, dbOrTx);
-    }
+    // Gateways
+    bind<IInventoryGateway>(TYPES.IInventoryGateway).to(InventoryGatewayAdapter).inSingletonScope();
 
-    async deleteProduct(id: string, dbOrTx?: unknown): Promise<void> {
-        return deleteProductUC.execute(id, dbOrTx);
-    }
+    // Application / Use Cases
+    bind<CreateProductUseCase>(TYPES.CreateProductUseCase).to(CreateProductUseCase);
+    bind<GetProductUseCase>(TYPES.GetProductsUseCase).to(GetProductUseCase);
+    bind<UpdateProductUseCase>(TYPES.UpdateProductUseCase).to(UpdateProductUseCase);
+    bind<DeleteProductUseCase>(TYPES.DeleteProductUseCase).to(DeleteProductUseCase);
+    // Note: ActivateProductUseCase isn't in TYPES yet, let's add it if needed or bind to self
+    bind<ActivateProductUseCase>(ActivateProductUseCase).toSelf();
 
-    async getSupplierVariants(supplierId: string, dbOrTx?: unknown): Promise<VariantEntity[]> {
-        return getSupplierVariantsUC.execute(supplierId, dbOrTx);
-    }
+    // Application / Facade
+    bind<ProductsFacade>(TYPES.ProductsFacade).to(ProductsFacade).inSingletonScope();
+});
 
-    async createVariant(
-        data: { productId: string; name: string; image?: string; sku?: string; defaultPrice?: number },
-        user?: unknown,
-        dbOrTx?: unknown
-    ): Promise<VariantEntity> {
-        return createVariantUC.execute(data, user, dbOrTx);
-    }
+import { Container } from "inversify";
+// Exposing a singleton instance directly if external modules expect `productsService` rather than resolving from global container
+const tempContainer = new Container();
+tempContainer.load(productsContainerModule);
+const productsService = tempContainer.get<ProductsFacade>(TYPES.ProductsFacade);
 
-    async updateVariant(
-        id: string,
-        data: Partial<{ name: string; image?: string; sku?: string; defaultPrice?: number }>,
-        user?: unknown,
-        dbOrTx?: unknown
-    ): Promise<VariantEntity> {
-        return updateVariantUC.execute(id, data, user, dbOrTx);
-    }
-
-    async getProductVariants(productId: string, supplierId?: string, dbOrTx?: unknown): Promise<VariantEntity[]> {
-        return getProductVariantsUC.execute(productId, supplierId, dbOrTx);
-    }
-
-    async deleteVariant(id: string, dbOrTx?: unknown): Promise<void> {
-        return deleteVariantUC.execute(id, dbOrTx);
-    }
-
-    async bulkUpdateMinStock(categoryId: string, minStock: number, user?: unknown, dbOrTx?: unknown): Promise<number> {
-        return bulkUpdateMinStockUC.execute(categoryId, minStock, user, dbOrTx);
-    }
-
-    async getProductCountByCategory(categoryId: string, dbOrTx?: unknown): Promise<number> {
-        return getProductCountByCategoryUC.execute(categoryId, dbOrTx);
-    }
-
-    async getStats(dbOrTx?: unknown): Promise<InventoryStats> {
-        return getInventoryStatsUC.execute(dbOrTx);
-    }
-
-    async searchProduct(search?: string, dbOrTx?: unknown): Promise<SearchResult[]> {
-        return searchProductUC.execute(search, dbOrTx);
-    }
-
-    async printLabel(data: LabelData): Promise<{ success: boolean; error?: unknown }> {
-        return printLabelUC.execute(data);
-    }
-}
-
-/** Singleton service instance */
-export const productsService = new ProductsService();
+export { ProductsFacade, productsService };

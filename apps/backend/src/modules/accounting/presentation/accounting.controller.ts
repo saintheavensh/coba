@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { accountingService, AccountingService } from "../accounting-container";
-import { apiSuccess, apiError } from "../../../lib/response";
+import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
 
 export class AccountingController {
     constructor(

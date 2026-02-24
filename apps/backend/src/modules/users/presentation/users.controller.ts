@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { usersService, UsersService } from "../users-container";
-import { apiSuccess, apiError } from "../../../lib/response";
+import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
 
 export class UsersController {
     constructor(private readonly service: UsersService = usersService) { }

@@ -1,4 +1,4 @@
-import { generateId, ID_PREFIX } from "../../../../lib/utils";
+import { generateId, ID_PREFIX } from "../../../../shared/utils/validation/IdGenerator";
 import { DBContext } from "../../../../shared/types/db-context";
 import { ICustomerRepository, Customer, CreateCustomerData, UpdateCustomerData } from "../../domain";
 import { HTTPException } from "hono/http-exception";

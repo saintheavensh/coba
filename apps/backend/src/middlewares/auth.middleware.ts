@@ -1,11 +1,11 @@
 import { createMiddleware } from "hono/factory";
 import { verify } from "hono/jwt";
 import { getCookie } from "hono/cookie";
-import { apiError } from "../lib/response";
-
-const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
+import { apiError } from "../shared/application/middlewares/ResponseHelpers";
+import { appConfig } from "../shared/infrastructure/config/AppConfig";
 
 export const authMiddleware = createMiddleware(async (c, next) => {
+    const JWT_SECRET = appConfig.jwtSecret;
     // Try to get token from cookie first (preferred), then fallback to Authorization header
     let token = getCookie(c, "auth_token");
 

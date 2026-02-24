@@ -23,7 +23,7 @@ import { ReduceBatchStockUseCase } from "./application/use-cases/reduce-batch-st
 
 import { InventoryService } from "./services/inventory.service";
 import { StockOpnameService } from "./services/stock-opname.service";
-import { productsService } from "../products/products-container";
+// No longer eagerly importing productsService to break initialization cycle
 
 // Infrastructure adapters
 const stockGateway = new StockMutationGatewayAdapter();
@@ -55,7 +55,7 @@ export const inventoryService = new InventoryService(
     getLastBatchUC,
     reduceBatchStockUC,
     batchRepository,
-    productsService
+    () => require("../products/products-container").productsService
 );
 
 export const stockOpnameService = new StockOpnameService(

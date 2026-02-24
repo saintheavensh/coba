@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { purchaseReturnsService, PurchaseReturnsService } from "../purchase-returns-container";
-import { apiSuccess, apiError } from "../../../lib/response";
+import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
 
 export class PurchaseReturnsController {
     constructor(private readonly service: PurchaseReturnsService = purchaseReturnsService) { }

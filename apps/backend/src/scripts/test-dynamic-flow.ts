@@ -1,4 +1,4 @@
-import { NotificationService } from "../lib/notification.service";
+import { NotificationService } from "../shared/infrastructure/messaging/NotificationService";
 
 async function testDynamicFlow() {
     console.log("🚀 Starting Dynamic Notification Flow Test...");

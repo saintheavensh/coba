@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { purchasesService } from "../purchases-container";
-import { apiSuccess, apiError } from "../../../lib/response";
+import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
 
 export class PurchasesController {
     async getAll(c: Context) {

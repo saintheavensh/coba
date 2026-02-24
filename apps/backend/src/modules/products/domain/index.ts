@@ -1,25 +1,14 @@
-/**
- * Barrel export for the Products domain layer.
- */
+// Entities
+export { Product } from "./entities/Product.entity";
 
-// Entities & DTOs
-export type {
-    ProductEntity,
-    ProductBatchView,
-    VariantEntity,
-    InventoryStats,
-    SearchResult,
-    CreateProductData,
-    UpdateProductData,
-    CreateVariantData,
-    UpdateVariantData,
-    CategoryWithTemplates,
-    LabelData
-} from "./product.entity";
+// Value Objects
+export { Price } from "./value-objects/Price.vo";
+export { Sku } from "./value-objects/Sku.vo";
+export { ProductStatus, Status } from "./value-objects/ProductStatus.vo";
 
-// Port interfaces
-export type { IProductRepository } from "./product-repository.port";
-export type { IVariantRepository } from "./variant-repository.port";
-export type { ICategoryRepository } from "./category-repository.port";
-export type { IRegisterGate } from "./register-gate.port";
-export type { IPrintGateway } from "./print-gateway.port";
+// Services
+export { ProductValidationService } from "./services/ProductValidationService";
+
+// Ports
+export type { IProductRepository } from "./ports/IProductRepository";
+export type { IInventoryGateway } from "./ports/IInventoryGateway";

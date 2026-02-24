@@ -5,34 +5,37 @@ import { logger } from "hono/logger";
 import { db } from "./db";
 import { users } from "./db/schema";
 import { sql } from "drizzle-orm";
-import { Logger } from "./lib/logger";
+import { appConfig } from "./shared/infrastructure/config/AppConfig";
+import { Logger } from "./shared/utils/logger/Logger";
 import { rateLimiterMiddleware } from "./middlewares/rate-limiter.middleware";
 import { secureHeadersMiddleware } from "./middlewares/secure-headers.middleware";
 
-import authController from "./modules/auth/presentation/auth.routes";
+import authController from "./shared/infrastructure/auth/presentation/routes/AuthRoutes";
 import inventoryController from "./modules/inventory/presentation/inventory.routes";
 import productsController from "./modules/products/presentation/products.routes";
 import categoryController from "./modules/categories/presentation/categories.routes";
 import { suppliersRoutes } from "./modules/suppliers/presentation";
-import uploadsController from "./modules/uploads/presentation/uploads.routes";
+import uploadsController from "./shared/infrastructure/storage/presentation/routes/StorageRoutes";
 import purchaseReturnsController from "./modules/purchase-returns/presentation/purchase-returns.routes";
 import { purchasesRoutes } from "./modules/purchases/presentation";
 import salesController from "./modules/sales/presentation/sales.routes";
-import notificationsController from "./modules/notifications/presentation/notifications.routes";
+import messagingRoutes from "./shared/infrastructure/messaging/presentation/routes/MessagingRoutes";
 import customersController from "./modules/customers/presentation/customers.routes";
 import defectiveItemsController from "./modules/defective-items/presentation/defective-items.routes";
 import serviceController from "./modules/service/presentation/service.routes";
 import reportsController from "./modules/reports/presentation/reports.routes";
-import settingsController from "./modules/settings/presentation/settings.routes";
+import { configRoutes } from "./shared/infrastructure/config/presentation/routes/config.routes";
 import paymentMethodsController from "./modules/payment-methods/presentation/payment-methods.routes";
 import dashboardController from "./modules/dashboard/presentation/dashboard.routes";
 import usersController from "./modules/users/presentation/users.routes";
 import { devicesRoutes } from "./modules/devices/presentation";
 import { brandRoutes } from "./modules/brands/presentation";
+import { storeDevicesRoutes } from "./shared/infrastructure/external-api/devices";
 import serviceTools from "./modules/service-tools/presentation/service-tools.routes";
 import operationalCostsController from "./modules/operational-costs/presentation/operational-costs.routes";
 import accountingController from "./modules/accounting/presentation/accounting.routes";
-import whatsappController from "./modules/whatsapp/presentation/whatsapp.routes";
+import { dashboardRoutes } from "./shared/presentation/dashboard/routes/dashboard.routes";
+// import whatsappController removed
 
 export const app = new Hono();
 
@@ -40,11 +43,11 @@ export const app = new Hono();
 app.use("*", cors({
     origin: (origin) => {
         // Allow all origins in development (including HTTPS frontend proxying to HTTP backend)
-        if (process.env.NODE_ENV !== "production") {
+        if (appConfig.isDevelopment) {
             return origin || "*";
         }
         // In production, check against allowed origins
-        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [];
+        const allowedOrigins = appConfig.allowedOrigins;
         if (origin && allowedOrigins.includes(origin)) {
             return origin;
         }
@@ -74,21 +77,22 @@ app.route("/suppliers", suppliersRoutes);
 app.route("/purchases", purchasesRoutes);
 app.route("/purchase-returns", purchaseReturnsController);
 app.route("/sales", salesController);
-app.route("/notifications", notificationsController);
+app.route("/notifications", messagingRoutes);
 app.route("/uploads", uploadsController);
 app.route("/users", usersController);
 app.route("/customers", customersController);
 app.route("/defective-items", defectiveItemsController);
 app.route("/reports", reportsController);
-app.route("/settings", settingsController);
+app.route("/api/settings", configRoutes);
 app.route("/payment-methods", paymentMethodsController);
-app.route("/dashboard", dashboardController);
+app.route("/api/dashboard", dashboardRoutes);
 app.route("/devices", devicesRoutes);
 app.route("/brands", brandRoutes);
 app.route("/service-tools", serviceTools);
 app.route("/operational-costs", operationalCostsController);
 app.route("/accounting", accountingController);
-app.route("/whatsapp", whatsappController);
+app.route("/store-devices", storeDevicesRoutes);
+app.route("/whatsapp", messagingRoutes);
 
 
 // Root endpoint
@@ -111,12 +115,8 @@ app.get("/health", async (c) => {
     }
 });
 
-const port = parseInt(process.env.PORT || "4000");
-const hostname = process.env.HOST || "0.0.0.0";
-
-if (!process.env.JWT_SECRET) {
-    Logger.warn("⚠️  JWT_SECRET is not set! Using default 'supersecret'. This is insecure for production.");
-}
+const port = appConfig.port;
+const hostname = appConfig.host;
 
 Logger.info(`🚀 Server starting on http://${hostname}:${port}`);
 
