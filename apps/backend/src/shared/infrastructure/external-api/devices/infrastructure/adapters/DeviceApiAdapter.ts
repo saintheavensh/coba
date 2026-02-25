@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
 import { TYPES } from "../../types";
-import { IDeviceApiGateway, DeviceRegistration, ApiDeviceStatus } from "../../domain";
+import type { IDeviceApiGateway, DeviceRegistration, ApiDeviceStatus } from "../../domain";
 import { Result } from "../../../../../core/Result";
 import { HttpClient } from "../../../client/HttpClient";
 import { AppConfigService } from "../../../../config/AppConfig";
@@ -14,28 +14,28 @@ export class DeviceApiAdapter implements IDeviceApiGateway {
     ) { }
 
     async registerDevice(device: DeviceRegistration): Promise<Result<{ id: string }>> {
-        Logger.info(`[DeviceAPI] Registering device ${device.deviceId}`);
+        new Logger("Legacy").info(`[DeviceAPI] Registering device ${device.deviceId}`);
         return this.httpClient.post('/devices/register', device, {
             'X-API-Key': this.config.deviceApiKey
         });
     }
 
     async getDeviceStatus(deviceId: string): Promise<Result<ApiDeviceStatus>> {
-        Logger.info(`[DeviceAPI] Getting status for ${deviceId}`);
+        new Logger("Legacy").info(`[DeviceAPI] Getting status for ${deviceId}`);
         return this.httpClient.get(`/devices/${deviceId}/status`, {
             'X-API-Key': this.config.deviceApiKey
         });
     }
 
     async sendCommand(deviceId: string, command: string, payload?: any): Promise<Result<any>> {
-        Logger.info(`[DeviceAPI] Sending command ${command} to ${deviceId}`);
+        new Logger("Legacy").info(`[DeviceAPI] Sending command ${command} to ${deviceId}`);
         return this.httpClient.post(`/devices/${deviceId}/command`, { command, payload }, {
             'X-API-Key': this.config.deviceApiKey
         });
     }
 
     async ping(deviceId: string): Promise<Result<boolean>> {
-        Logger.info(`[DeviceAPI] Pinging ${deviceId}`);
+        new Logger("Legacy").info(`[DeviceAPI] Pinging ${deviceId}`);
         const result = await this.httpClient.get<any>(`/devices/${deviceId}/ping`, {
             'X-API-Key': this.config.deviceApiKey
         });

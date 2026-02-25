@@ -84,7 +84,7 @@ describe("requirePermission middleware", () => {
 
         expect(next).not.toHaveBeenCalled();
         expect(response).toBeDefined();
-        const body = await response?.json();
+        const body = (await response?.json()) as any;
         expect(body.success).toBe(false);
         expect(body.message).toBe("Forbidden");
         expect(body.error_code).toBe("FORBIDDEN");
@@ -100,7 +100,7 @@ describe("requirePermission middleware", () => {
         const response = await middleware(c, next);
 
         expect(next).not.toHaveBeenCalled();
-        const body = await response?.json();
+        const body = (await response?.json()) as any;
         expect(body.success).toBe(false);
     });
 
@@ -142,7 +142,7 @@ describe("requirePermission middleware", () => {
         const response = await middleware(c, next);
 
         expect(next).not.toHaveBeenCalled();
-        const body = await response?.json();
+        const body = (await response?.json()) as any;
         expect(body.success).toBe(false);
     });
 
@@ -205,7 +205,7 @@ describe("requireRole middleware", () => {
         const response = await middleware(c, next);
 
         expect(next).not.toHaveBeenCalled();
-        const body = await response?.json();
+        const body = (await response?.json()) as any;
         expect(body.success).toBe(false);
         expect(body.message).toBe("Forbidden");
         expect(body.errors[0]).toContain("teknisi");

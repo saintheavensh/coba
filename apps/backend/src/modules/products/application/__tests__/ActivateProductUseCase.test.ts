@@ -11,12 +11,23 @@ describe("ActivateProductUseCase", () => {
     let useCase: ActivateProductUseCase;
     let mockRepo: IProductRepository;
 
+    let mockLoggerFactory: any;
+
     beforeEach(() => {
+        mockLoggerFactory = {
+            createLogger: vi.fn().mockReturnValue({
+                info: vi.fn(),
+                error: vi.fn(),
+                debug: vi.fn(),
+                warn: vi.fn(),
+                child: vi.fn().mockReturnThis()
+            })
+        };
         mockRepo = {
             findById: vi.fn(),
             save: vi.fn(),
         } as any;
-        useCase = new ActivateProductUseCase(mockRepo);
+        useCase = new ActivateProductUseCase(mockRepo, mockLoggerFactory);
     });
 
     it("should activate product successfully", async () => {

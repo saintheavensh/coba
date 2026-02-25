@@ -1,48 +1,121 @@
-import { appConfig } from "../../infrastructure/config/AppConfig";
+import { injectable } from 'inversify';
 
+export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+
+export interface LogEntry {
+    level: LogLevel;
+    context: string;
+    message: string;
+    timestamp: string;
+    data?: any;
+    error?: {
+        code?: string;
+        stack?: string;
+    };
+    requestId?: string;
+    userId?: string;
+    duration?: number;
+}
+
+@injectable()
 export class Logger {
-    private static isDev = !appConfig.isProduction;
+    private context: string;
+    private requestId?: string;
+    private userId?: string;
 
-    static info(message: string, meta?: any) {
-        if (process.env.NODE_ENV === 'test') return;
+    constructor(context: string) {
+        this.context = context;
+    }
 
-        if (this.isDev) {
-            const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
-            console.log(`[INFO] ${message}${metaStr}`);
-        } else {
-            console.log(JSON.stringify({ level: 'INFO', message, meta, timestamp: new Date().toISOString() }));
+    /**
+     * Create a child logger with additional context
+     */
+    child(additionalContext: Partial<{ requestId: string; userId: string }>): Logger {
+        const logger = new Logger(this.context);
+        logger.requestId = additionalContext.requestId || this.requestId;
+        logger.userId = additionalContext.userId || this.userId;
+        return logger;
+    }
+
+    /**
+     * Log debug message (development only)
+     */
+    debug(message: string, data?: any): void {
+        if (process.env.NODE_ENV === 'development') {
+            this.log('DEBUG', message, data);
         }
     }
 
-    static error(message: string, error?: any) {
-        if (process.env.NODE_ENV === 'test') return;
+    /**
+     * Log info message
+     */
+    info(message: string, data?: any): void {
+        this.log('INFO', message, data);
+    }
 
-        const errorDetails = error instanceof Error ?
-            { message: error.message, stack: error.stack } :
-            error;
+    /**
+     * Log warning message
+     */
+    warn(message: string, data?: any): void {
+        this.log('WARN', message, data);
+    }
 
-        if (this.isDev) {
-            console.error(`[ERROR] ${message}`, errorDetails);
-        } else {
-            console.error(JSON.stringify({ level: 'ERROR', message, error: errorDetails, timestamp: new Date().toISOString() }));
+    /**
+     * Log error message
+     */
+    error(message: string, error?: any, data?: any): void {
+        const errorData = error instanceof Error ? {
+            message: error.message,
+            code: (error as any).code,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        } : error;
+
+        this.log('ERROR', message, { ...data, error: errorData });
+    }
+
+    /**
+     * Log with execution time measurement
+     */
+    async time<T>(operation: string, fn: () => Promise<T>, data?: any): Promise<T> {
+        const start = Date.now();
+        try {
+            const result = await fn();
+            const duration = Date.now() - start;
+            this.info(`${operation} completed`, { ...data, duration });
+            return result;
+        } catch (error) {
+            const duration = Date.now() - start;
+            this.error(`${operation} failed`, error, { ...data, duration });
+            throw error;
         }
     }
 
-    static warn(message: string, meta?: any) {
-        if (process.env.NODE_ENV === 'test') return;
+    private log(level: LogLevel, message: string, data?: any): void {
+        const entry: LogEntry = {
+            level,
+            context: this.context,
+            message,
+            timestamp: new Date().toISOString(),
+            data,
+            requestId: this.requestId,
+            userId: this.userId
+        };
 
-        if (this.isDev) {
-            const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
-            console.warn(`[WARN] ${message}${metaStr}`);
-        } else {
-            console.warn(JSON.stringify({ level: 'WARN', message, meta, timestamp: new Date().toISOString() }));
-        }
+        // In production, you might send this to a logging service
+        // For now, we'll use console with appropriate level
+        const logFn = level === 'ERROR' ? console.error :
+            level === 'WARN' ? console.warn :
+                level === 'DEBUG' ? console.debug :
+                    console.log;
+
+        logFn(JSON.stringify(entry));
     }
+}
 
-    static debug(message: string, meta?: any) {
-        if (!this.isDev) return;
-
-        const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
-        console.debug(`[DEBUG] ${message}${metaStr}`);
+// Factory to create loggers (for DI)
+@injectable()
+export class LoggerFactory {
+    createLogger(context: string): Logger {
+        return new Logger(context);
     }
 }

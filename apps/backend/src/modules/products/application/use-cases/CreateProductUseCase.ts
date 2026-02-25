@@ -8,6 +8,8 @@ import { ProductDTO } from "../dtos/ProductDTO";
 import { Product } from "../../domain/entities/Product.entity";
 import { Price } from "../../domain/value-objects/Price.vo";
 import { Sku } from "../../domain/value-objects/Sku.vo";
+import { ProductStatus } from "../../domain/value-objects/ProductStatus.vo";
+import { Logger, LoggerFactory } from "../../../../shared/utils/logger/Logger";
 import { ProductMapper } from "../mappers/ProductMapper";
 
 /**
@@ -16,12 +18,15 @@ import { ProductMapper } from "../mappers/ProductMapper";
  */
 @injectable()
 export class CreateProductUseCase implements UseCase<CreateProductDTO, Result<ProductDTO>> {
+    private logger: Logger;
     constructor(
-        @inject(TYPES.IProductRepository)
-        private readonly productRepo: IProductRepository
-    ) { }
+        @inject(TYPES.IProductRepository) private readonly productRepo: IProductRepository,
+        @inject(TYPES.LoggerFactory) private loggerFactory: LoggerFactory
+    ) {
+        this.logger = loggerFactory.createLogger('CreateProductUseCase');
+    }
 
-    public async execute(request: CreateProductDTO): Promise<Result<ProductDTO>> {
+    public async execute(request: CreateProductDTO, context?: { requestId?: string; userId?: string }): Promise<Result<ProductDTO>> {
         // 1. Create Value Objects
         const skuResult = Sku.create(request.sku);
         const priceResult = Price.create(request.price);

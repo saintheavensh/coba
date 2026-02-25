@@ -35,6 +35,30 @@ export class SettingsService {
     async factoryReset(mode: "data" | "full") {
         await factoryResetUC.execute(mode);
     }
+
+    // --- Legacy Helper Methods for Adapters ---
+
+    async getWhatsAppSettings() {
+        return await this.get("whatsapp", {
+            enabled: false,
+            autoSendOnNewService: false,
+            newServiceTemplate: "",
+            autoSendOnStatusChange: false,
+            statusUpdateTemplate: "",
+            autoSendOnComplete: false,
+            readyForPickupTemplate: ""
+        });
+    }
+
+    async getServiceSettings(dbOrTx?: any) {
+        return await this.get<{ warrantyPresets: { label: string, days: number }[] }>("service", {
+            warrantyPresets: []
+        });
+    }
+
+    async getPaymentMethods(dbOrTx?: any) {
+        return await this.get("payment_methods", []);
+    }
 }
 
 /** Singleton instance */

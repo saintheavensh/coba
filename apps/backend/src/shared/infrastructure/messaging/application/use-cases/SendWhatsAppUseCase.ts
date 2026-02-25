@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
 import { TYPES } from "../../types";
-import { IWhatsAppGateway } from "../../domain";
+import type { IWhatsAppGateway } from "../../domain";
 import { Result } from "../../../../core/Result";
 
 export interface SendWhatsAppInput {

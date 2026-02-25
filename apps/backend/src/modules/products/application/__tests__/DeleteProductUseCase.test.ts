@@ -22,7 +22,18 @@ describe("DeleteProductUseCase", () => {
         }, "prod-1").getValue();
     };
 
+    let mockLoggerFactory: any;
+
     beforeEach(() => {
+        mockLoggerFactory = {
+            createLogger: vi.fn().mockReturnValue({
+                info: vi.fn(),
+                error: vi.fn(),
+                debug: vi.fn(),
+                warn: vi.fn(),
+                child: vi.fn().mockReturnThis()
+            })
+        };
         mockRepo = {
             findById: vi.fn(),
             delete: vi.fn(),
@@ -30,7 +41,7 @@ describe("DeleteProductUseCase", () => {
         mockInventoryGateway = {
             hasActiveTransactions: vi.fn(),
         };
-        useCase = new DeleteProductUseCase(mockRepo, mockInventoryGateway);
+        useCase = new DeleteProductUseCase(mockRepo, mockInventoryGateway, mockLoggerFactory);
     });
 
     it("should delete product successfully if DRAFT and no references", async () => {

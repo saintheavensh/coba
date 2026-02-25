@@ -23,7 +23,7 @@ export class HttpClient {
             const data = await response.json();
             return Result.ok(data as T);
         } catch (error: any) {
-            Logger.error(`HttpClient GET Exception: ${error.message}`);
+            new Logger("Legacy").error(`HttpClient GET Exception: ${error.message}`);
             return Result.fail(error.message);
         }
     }
@@ -54,7 +54,7 @@ export class HttpClient {
 
             return Result.ok(resultData as T);
         } catch (error: any) {
-            Logger.error(`HttpClient POST Exception: ${error.message}`);
+            new Logger("Legacy").error(`HttpClient POST Exception: ${error.message}`);
             return Result.fail(error.message);
         }
     }

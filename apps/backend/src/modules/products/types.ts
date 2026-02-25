@@ -13,5 +13,6 @@ export const TYPES = {
     DeleteProductUseCase: Symbol.for("DeleteProductUseCase"),
     ProductsFacade: Symbol.for("ProductsFacade"),
     DrizzleClient: Symbol.for("DrizzleClient"),
-    InventoryFacade: Symbol.for("InventoryFacade")
+    InventoryFacade: Symbol.for("InventoryFacade"),
+    LoggerFactory: Symbol.for("LoggerFactory")
 };

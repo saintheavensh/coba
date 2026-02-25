@@ -54,8 +54,11 @@ export const productsContainerModule = new ContainerModule(({ bind }) => {
 });
 
 import { Container } from "inversify";
+import { LoggerFactory } from "../../shared/utils/logger/Logger";
+
 // Exposing a singleton instance directly if external modules expect `productsService` rather than resolving from global container
 const tempContainer = new Container();
+tempContainer.bind(TYPES.LoggerFactory).to(LoggerFactory).inSingletonScope();
 tempContainer.load(productsContainerModule);
 const productsService = tempContainer.get<ProductsFacade>(TYPES.ProductsFacade);
 

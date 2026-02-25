@@ -10,11 +10,22 @@ describe("GetProductUseCase", () => {
     let useCase: GetProductUseCase;
     let mockRepo: any;
 
+    let mockLoggerFactory: any;
+
     beforeEach(() => {
+        mockLoggerFactory = {
+            createLogger: vi.fn().mockReturnValue({
+                info: vi.fn(),
+                error: vi.fn(),
+                debug: vi.fn(),
+                warn: vi.fn(),
+                child: vi.fn().mockReturnThis()
+            })
+        };
         mockRepo = {
             findById: vi.fn(),
         };
-        useCase = new GetProductUseCase(mockRepo);
+        useCase = new GetProductUseCase(mockRepo, mockLoggerFactory);
     });
 
     it("should return a product when it exists", async () => {

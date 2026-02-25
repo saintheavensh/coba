@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
 import { TYPES } from "../../types";
-import { IWhatsAppGateway } from "../../domain";
+import type { IWhatsAppGateway } from "../../domain";
 import { Result } from "../../../../core/Result";
 import { HttpClient } from "../../../external-api/client/HttpClient";
 import { appConfig } from "../../../../infrastructure/config/AppConfig";
@@ -23,7 +23,7 @@ export class WhatsAppAdapter implements IWhatsAppGateway {
 
         for (let i = 0; i < maxRetries; i++) {
             try {
-                Logger.info(`[WhatsApp] Sending to ${to} (Attempt ${i + 1}/${maxRetries})`);
+                new Logger("Legacy").info(`[WhatsApp] Sending to ${to} (Attempt ${i + 1}/${maxRetries})`);
 
                 const result = await this.httpClient.post<any>(
                     gatewayUrl,
@@ -40,14 +40,14 @@ export class WhatsAppAdapter implements IWhatsAppGateway {
                     return Result.ok();
                 }
 
-                Logger.warn(`[WhatsApp] Attempt ${i + 1} failed: ${result.errorValue()}`);
+                new Logger("Legacy").warn(`[WhatsApp] Attempt ${i + 1} failed: ${result.errorValue()}`);
 
                 if (i < maxRetries - 1) {
                     const delay = 1000 * Math.pow(2, i);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
             } catch (error: any) {
-                Logger.error(`[WhatsApp] Exception in attempt ${i + 1}: ${error.message}`);
+                new Logger("Legacy").error(`[WhatsApp] Exception in attempt ${i + 1}: ${error.message}`);
                 if (i === maxRetries - 1) {
                     return Result.fail(`WhatsApp send failed after ${maxRetries} retries: ${error.message}`);
                 }
@@ -58,7 +58,7 @@ export class WhatsAppAdapter implements IWhatsAppGateway {
 
     async sendTemplate(to: string, template: string, data: any): Promise<Result<void>> {
         // Implementation for template sending
-        Logger.info(`[WhatsApp] Sending template ${template} to ${to}`);
+        new Logger("Legacy").info(`[WhatsApp] Sending template ${template} to ${to}`);
         return await this.sendMessage(to, `[Template: ${template}] ${JSON.stringify(data)}`);
     }
 }

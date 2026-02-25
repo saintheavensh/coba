@@ -1,5 +1,5 @@
 export * from "./entities/notification.entity";
-export * from "./ports/INotificationService";
-export * from "./ports/IWhatsAppGateway";
-export * from "./ports/INotificationRepository";
-export * from "./ports/ITemplateService";
+export type * from "./ports/INotificationService";
+export type * from "./ports/IWhatsAppGateway";
+export type * from "./ports/INotificationRepository";
+export type * from "./ports/ITemplateService";

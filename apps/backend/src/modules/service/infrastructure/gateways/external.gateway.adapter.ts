@@ -1,6 +1,6 @@
 import { DBContext } from "../../../../shared/types/db-context";
 import { NotificationService } from "../../../../shared/infrastructure/messaging/NotificationService";
-import { SettingsService } from "../../../settings/services/settings.service";
+import { SettingsService } from "../../../settings/settings-container";
 import { db } from "../../../../db";
 import { users } from "../../../../db/schema";
 import { eq } from "drizzle-orm";
@@ -12,7 +12,7 @@ export class NotificationGatewayAdapter implements INotificationGateway {
         try {
             await NotificationService.technicianAssigned(technicianId, serviceNo, serviceId);
         } catch (e) {
-            Logger.error("Failed to send technician assignment notification", e);
+            new Logger("NotificationGateway").error("Failed to send technician assignment notification", e);
         }
     }
 
@@ -20,7 +20,7 @@ export class NotificationGatewayAdapter implements INotificationGateway {
         try {
             await NotificationService.serviceStatusChanged(userId, serviceNo, status, serviceId);
         } catch (e) {
-            Logger.error("Failed to send cashier status update notification", e);
+            new Logger("NotificationGateway").error("Failed to send cashier status update notification", e);
         }
     }
 
@@ -76,9 +76,9 @@ export class NotificationGatewayAdapter implements INotificationGateway {
                 .replace(/{total}/g, total)
                 .replace(/{days}/g, "0");
 
-            Logger.info(`[WHATSAPP] Sending to ${customerPhone}: ${message}`);
+            new Logger("NotificationGateway").info(`[WHATSAPP] Sending to ${customerPhone}: ${message}`);
         } catch (e) {
-            Logger.error("[WHATSAPP] Failed to send notification", e);
+            new Logger("NotificationGateway").error("[WHATSAPP] Failed to send notification", e);
         }
     }
 }
@@ -91,7 +91,7 @@ export class SettingsGatewayAdapter implements ISettingsGateway {
             const preset = settings.warrantyPresets.find((p: any) => p.label === label);
             if (preset) return preset.days;
         } catch (e) {
-            Logger.error("Error fetching warranty settings", e);
+            new Logger("SettingsGateway").error("Error fetching warranty settings", e);
         }
         return 0;
     }

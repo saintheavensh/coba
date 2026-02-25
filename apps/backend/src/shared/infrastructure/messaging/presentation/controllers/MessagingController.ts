@@ -21,7 +21,7 @@ export class MessagingController {
 
             return apiSuccess(c, result.getValue());
         } catch (e: any) {
-            Logger.error("MessagingController.getUserNotifications error", e);
+            new Logger("Legacy").error("MessagingController.getUserNotifications error", e);
             return apiError(c, e.message || String(e));
         }
     }
@@ -36,7 +36,7 @@ export class MessagingController {
 
             return apiSuccess(c, null, "Notification marked as read");
         } catch (e: any) {
-            Logger.error("MessagingController.markAsRead error", e);
+            new Logger("Legacy").error("MessagingController.markAsRead error", e);
             return apiError(c, e.message || String(e));
         }
     }
@@ -51,7 +51,7 @@ export class MessagingController {
 
             return apiSuccess(c, null, "WhatsApp message sent");
         } catch (e: any) {
-            Logger.error("MessagingController.sendWhatsApp error", e);
+            new Logger("Legacy").error("MessagingController.sendWhatsApp error", e);
             return apiError(c, e.message || String(e));
         }
     }
@@ -78,7 +78,7 @@ export class MessagingController {
 
             return apiSuccess(c, null, "Notification dispatched");
         } catch (e: any) {
-            Logger.error("MessagingController.sendNotification error", e);
+            new Logger("Legacy").error("MessagingController.sendNotification error", e);
             return apiError(c, e.message || String(e));
         }
     }

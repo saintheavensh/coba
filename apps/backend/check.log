@@ -1,0 +1,15 @@
+$ tsc --noEmit
+src/modules/products/presentation/products.routes.ts(137,41): error TS2322: Type 'Promise<JSONRespondReturn<any, ContentfulStatusCode>>' is not assignable to type 'MaybePromise<TypedResponse<{ data: any[]; meta?: { limit: number; page: number; totalItems: number; totalPages: number; hasNext: boolean; hasPrev: boolean; } | undefined; }, 200, "json">>'.
+  Type 'Promise<JSONRespondReturn<any, ContentfulStatusCode>>' is not assignable to type 'Promise<TypedResponse<{ data: any[]; meta?: { limit: number; page: number; totalItems: number; totalPages: number; hasNext: boolean; hasPrev: boolean; } | undefined; }, 200, "json">>'.
+    Type 'JSONRespondReturn<any, ContentfulStatusCode>' is not assignable to type 'TypedResponse<{ data: any[]; meta?: { limit: number; page: number; totalItems: number; totalPages: number; hasNext: boolean; hasPrev: boolean; } | undefined; }, 200, "json">'.
+      Types of property '_status' are incompatible.
+        Type 'ContentfulStatusCode' is not assignable to type '200'.
+          Type '100' is not assignable to type '200'.
+src/modules/products/presentation/products.routes.ts(138,41): error TS2322: Type 'Promise<JSONRespondReturn<any, ContentfulStatusCode>>' is not assignable to type 'MaybePromise<TypedResponse<any, 200, "json">>'.
+  Type 'Promise<JSONRespondReturn<any, ContentfulStatusCode>>' is not assignable to type 'Promise<TypedResponse<any, 200, "json">>'.
+    Type 'JSONRespondReturn<any, ContentfulStatusCode>' is not assignable to type 'TypedResponse<any, 200, "json">'.
+      Types of property '_status' are incompatible.
+        Type 'ContentfulStatusCode' is not assignable to type '200'.
+          Type '100' is not assignable to type '200'.
+src/shared/presentation/docs/swagger.ts(28,5): error TS2353: Object literal may only specify known properties, and 'components' does not exist in type 'OpenAPIObjectConfigure<Env, "/spec">'.
+error: script "check" exited with code 1

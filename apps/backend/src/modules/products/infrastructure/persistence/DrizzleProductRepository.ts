@@ -1,5 +1,5 @@
 import { inject, injectable } from "inversify";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, ilike, or, and } from "drizzle-orm";
 import { TYPES } from "../../types";
 import type { IProductRepository } from "../../domain/ports/IProductRepository";
 import { Product } from "../../domain/entities/Product.entity";
@@ -9,6 +9,7 @@ import { Result } from "../../../../shared/core/Result";
 import { ProductMapper } from "../../application/mappers/ProductMapper";
 import { products } from "../schema/ProductSchema";
 import { DrizzleClient } from "../../../../shared/infrastructure/database/DrizzleClient";
+import { Pagination, PaginationParams, PaginatedResult } from "../../../../shared/application/pagination/Pagination";
 
 /**
  * DrizzleProductRepository
@@ -95,6 +96,124 @@ export class DrizzleProductRepository implements IProductRepository {
             return Result.ok(productEntities);
         } catch (error: any) {
             return Result.fail(`Database error: ${error.message}`);
+        }
+    }
+
+    public async findAllPaginated(params: PaginationParams, dbOrTx?: any): Promise<Result<PaginatedResult<Product>>> {
+        const client = dbOrTx || this.drizzleClient.getClient();
+        const pagination = Pagination.fromQuery(params);
+        const sqlParams = Pagination.toSql(pagination);
+
+        try {
+            const countResult = await client.select({ count: sql<number>`count(*)` }).from(products);
+            const total = Number(countResult[0].count);
+
+            const sortCol = (products as any)[pagination.sortBy as string] || products.createdAt;
+
+            const rows = await client
+                .select()
+                .from(products)
+                .limit(sqlParams.limit)
+                .offset(sqlParams.offset)
+                .orderBy(
+                    pagination.sortOrder === 'asc'
+                        ? sortCol
+                        : sql`${sortCol} DESC`
+                );
+
+            const domainProducts: Product[] = [];
+            for (const row of rows) {
+                const productResult = ProductMapper.toDomain(row);
+                if (productResult.isSuccess) {
+                    domainProducts.push(productResult.getValue());
+                }
+            }
+
+            const result = Pagination.createResult(domainProducts, total, pagination);
+            return Result.ok(result);
+        } catch (error: any) {
+            return Result.fail(`Failed to fetch paginated products: ${error.message}`);
+        }
+    }
+
+    public async findByCategoryPaginated(categoryId: string, params: PaginationParams, dbOrTx?: any): Promise<Result<PaginatedResult<Product>>> {
+        const client = dbOrTx || this.drizzleClient.getClient();
+        const pagination = Pagination.fromQuery(params);
+        const sqlParams = Pagination.toSql(pagination);
+
+        try {
+            const countResult = await client.select({ count: sql<number>`count(*)` }).from(products).where(eq(products.categoryId, categoryId));
+            const total = Number(countResult[0].count);
+
+            const sortCol = (products as any)[pagination.sortBy as string] || products.createdAt;
+
+            const rows = await client
+                .select()
+                .from(products)
+                .where(eq(products.categoryId, categoryId))
+                .limit(sqlParams.limit)
+                .offset(sqlParams.offset)
+                .orderBy(
+                    pagination.sortOrder === 'asc'
+                        ? sortCol
+                        : sql`${sortCol} DESC`
+                );
+
+            const domainProducts: Product[] = [];
+            for (const row of rows) {
+                const productResult = ProductMapper.toDomain(row);
+                if (productResult.isSuccess) {
+                    domainProducts.push(productResult.getValue());
+                }
+            }
+
+            const result = Pagination.createResult(domainProducts, total, pagination);
+            return Result.ok(result);
+        } catch (error: any) {
+            return Result.fail(`Failed to fetch category products: ${error.message}`);
+        }
+    }
+
+    public async searchProducts(query: string, params: PaginationParams, dbOrTx?: any): Promise<Result<PaginatedResult<Product>>> {
+        const client = dbOrTx || this.drizzleClient.getClient();
+        const pagination = Pagination.fromQuery(params);
+        const sqlParams = Pagination.toSql(pagination);
+
+        try {
+            const searchCondition = or(
+                ilike(products.name, `%${query}%`),
+                ilike(products.code, `%${query}%`)
+            );
+
+            const countResult = await client.select({ count: sql<number>`count(*)` }).from(products).where(searchCondition!);
+            const total = Number(countResult[0].count);
+
+            const sortCol = (products as any)[pagination.sortBy as string] || products.createdAt;
+
+            const rows = await client
+                .select()
+                .from(products)
+                .where(searchCondition!)
+                .limit(sqlParams.limit)
+                .offset(sqlParams.offset)
+                .orderBy(
+                    pagination.sortOrder === 'asc'
+                        ? sortCol
+                        : sql`${sortCol} DESC`
+                );
+
+            const domainProducts: Product[] = [];
+            for (const row of rows) {
+                const productResult = ProductMapper.toDomain(row);
+                if (productResult.isSuccess) {
+                    domainProducts.push(productResult.getValue());
+                }
+            }
+
+            const result = Pagination.createResult(domainProducts, total, pagination);
+            return Result.ok(result);
+        } catch (error: any) {
+            return Result.fail(`Failed to search products: ${error.message}`);
         }
     }
 }

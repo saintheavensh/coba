@@ -2,24 +2,45 @@ import { inject, injectable } from "inversify";
 import { Result } from "../../../core/Result";
 import { DashboardStatsDTO, TimeRangeDTO } from "../dtos/dashboard.dto";
 import { TYPES } from "../../../../types";
+import { CacheService } from "../../../../shared/infrastructure/cache/CacheService";
+import { LoggerFactory, Logger } from "../../../../shared/utils/logger/Logger";
 
 @injectable()
 export class DashboardAggregator {
+    private logger: Logger;
+
     constructor(
-        // Sales Facade
         @inject(TYPES.SalesFacade) private salesFacade: any,
-        // Inventory Facade
         @inject(TYPES.InventoryFacade) private inventoryFacade: any,
-        // Products Facade
         @inject(TYPES.ProductsFacade) private productsFacade: any,
-        // Customers Facade
         @inject(TYPES.CustomersFacade) private customersFacade: any,
-        // StoreDevices Facade
-        @inject(TYPES.StoreDeviceFacade) private deviceFacade: any
-    ) { }
+        @inject(TYPES.StoreDeviceFacade) private deviceFacade: any,
+        @inject(TYPES.CacheService) private cache: CacheService,
+        @inject(TYPES.LoggerFactory) private loggerFactory: LoggerFactory
+    ) {
+        this.logger = loggerFactory.createLogger('DashboardAggregator');
+    }
 
     async getDashboardStats(timeRange?: TimeRangeDTO): Promise<Result<DashboardStatsDTO>> {
+        const cacheKey = CacheService.key('dashboard:stats', JSON.stringify(timeRange || {}));
+
+        // Check if Logger has a time method and handle if it doesn't
+        if (typeof (this.logger as any).time === 'function') {
+            return (this.logger as any).time('getDashboardStats', async () => this.executeGetDashboardStats(timeRange, cacheKey));
+        } else {
+            return this.executeGetDashboardStats(timeRange, cacheKey);
+        }
+    }
+
+    private async executeGetDashboardStats(timeRange: TimeRangeDTO | undefined, cacheKey: string): Promise<Result<DashboardStatsDTO>> {
         try {
+            // Try cache first
+            const cached = this.cache.get<DashboardStatsDTO>(cacheKey);
+            if (cached) {
+                this.logger.debug('Dashboard stats served from cache', { cacheKey });
+                return Result.ok(cached);
+            }
+
             // Parallel calls to all modules for performance
             const [
                 todaySalesResult,
@@ -32,9 +53,9 @@ export class DashboardAggregator {
                 this.salesFacade.getTodaySales(),
                 this.salesFacade.getWeeklySales(),
                 this.inventoryFacade.getLowStock(),
-                this.productsFacade.getTotalCount(),
+                this.productsFacade.getTotalCount ? this.productsFacade.getTotalCount() : Promise.resolve(Result.ok(0)), // Fallback if no totalCount
                 this.customersFacade.getNewCustomersToday(),
-                this.deviceFacade.getStatus ? this.deviceFacade.getStatus("all") : Promise.resolve(Result.ok({ online: 0, offline: 0, total: 0 })) // Fallback for now
+                this.deviceFacade.getStatus ? this.deviceFacade.getStatus("all") : Promise.resolve(Result.ok({ online: 0, offline: 0, total: 0 }))
             ]);
 
             // Check for failures
@@ -47,22 +68,26 @@ export class DashboardAggregator {
                 todaySales: {
                     count: todaySalesResult.getValue().count,
                     revenue: todaySalesResult.getValue().revenue,
-                    target: 10000000, // This could come from settings module
-                    percentage: 75 // Calculate based on target
+                    target: 10000000,
+                    percentage: 75
                 },
                 weeklySales: weeklySalesResult.isSuccess ? weeklySalesResult.getValue() : { days: [], values: [] },
                 lowStockItems: inventoryResult.isSuccess ? inventoryResult.getValue() : [],
-                outOfStockItems: 0, // Calculate from inventory
+                outOfStockItems: 0,
                 totalProducts: productsResult.isSuccess ? productsResult.getValue() : 0,
                 todayRevenue: todaySalesResult.getValue().revenue,
-                weeklyRevenue: 0, // Calculate
-                monthlyRevenue: 0, // Calculate
+                weeklyRevenue: 0,
+                monthlyRevenue: 0,
                 newCustomersToday: customersResult.isSuccess ? customersResult.getValue() : 0,
-                activeCustomers: 0, // From customers module
-                pendingOrders: 0, // From sales module
-                openTickets: 0, // From support module if exists
+                activeCustomers: 0,
+                pendingOrders: 0,
+                openTickets: 0,
                 deviceStatus: devicesResult.isSuccess ? devicesResult.getValue() : { online: 0, offline: 0, total: 0 }
             };
+
+            // Cache for 5 minutes
+            this.cache.set(cacheKey, stats, 300);
+            this.logger.debug('Dashboard stats cached', { cacheKey });
 
             return Result.ok(stats);
         } catch (error: any) {

@@ -29,6 +29,26 @@ describe("DashboardAggregator", () => {
         getStatus: vi.fn()
     };
 
+    const mockCacheService = {
+        get: vi.fn(),
+        set: vi.fn(),
+        delete: vi.fn(),
+        clear: vi.fn(),
+        remember: vi.fn()
+    };
+
+    const mockLogger = {
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        time: vi.fn((name, cb) => cb())
+    };
+
+    const mockLoggerFactory = {
+        createLogger: vi.fn().mockReturnValue(mockLogger)
+    };
+
     beforeEach(() => {
         vi.resetAllMocks();
         aggregator = new DashboardAggregator(
@@ -36,7 +56,9 @@ describe("DashboardAggregator", () => {
             mockInventoryFacade,
             mockProductsFacade,
             mockCustomersFacade,
-            mockDeviceFacade
+            mockDeviceFacade,
+            mockCacheService as any,
+            mockLoggerFactory as any
         );
     });
 

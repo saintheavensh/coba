@@ -17,7 +17,7 @@ export class StorageController {
             const result = await storageFacade.uploadFile(file, folder);
             return apiSuccess(c, result, "File uploaded successfully");
         } catch (e: any) {
-            Logger.error("Failed to upload file", e);
+            new Logger("Legacy").error("Failed to upload file", e);
             const message = e.message || "Failed to upload file";
             const status = message.includes("Invalid file type") ? 400 : 500;
             return apiError(c, e, message, status);

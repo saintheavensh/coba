@@ -1,0 +1,41 @@
+bun test v1.3.3 (274e01c7)
+
+src\shared\presentation\dashboard\__tests__\DashboardAggregator.test.ts:
+77 |         // Assert
+78 |         expect(result.isSuccess).toBe(true);
+79 |         const stats = result.getValue();
+80 |         expect(stats.todaySales.revenue).toBe(500000);
+81 |         expect(stats.lowStockItems.length).toBe(1);
+82 |         expect(stats.totalProducts).toBe(150);
+                                         ^
+error: expect(received).toBe(expected)
+
+Expected: 150
+Received: {
+  length: 0,
+}
+
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\shared\presentation\dashboard\__tests__\DashboardAggregator.test.ts:82:37)
+(fail) DashboardAggregator > should successfully aggregate dashboard stats from all modules
+(pass) DashboardAggregator > should fail gracefully if primary sales data fails [16.00ms]
+117 |         // Assert
+118 |         expect(result.isSuccess).toBe(true);
+119 |         const stats = result.getValue();
+120 |         expect(stats.todaySales.revenue).toBe(500000);
+121 |         expect(stats.lowStockItems).toEqual([]); // Fallback value
+122 |         expect(stats.totalProducts).toBe(150);
+                                          ^
+error: expect(received).toBe(expected)
+
+Expected: 150
+Received: {
+  length: 0,
+}
+
+      at <anonymous> (C:\Users\riyan\OneDrive\Documents\VsCode\coba\apps\backend\src\shared\presentation\dashboard\__tests__\DashboardAggregator.test.ts:122:37)
+(fail) DashboardAggregator > should aggregate data even if secondary modules fail
+
+ 1 pass
+ 2 fail
+ 10 expect() calls
+Ran 3 tests across 1 file. [162.00ms]

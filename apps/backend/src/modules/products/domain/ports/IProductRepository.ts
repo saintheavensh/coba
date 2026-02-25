@@ -1,6 +1,7 @@
 import { Result } from "../../../../shared/core/Result";
 import { Product } from "../entities/Product.entity";
 import { Sku } from "../value-objects/Sku.vo";
+import { PaginationParams, PaginatedResult } from "../../../../shared/application/pagination/Pagination";
 
 /**
  * IProductRepository
@@ -31,4 +32,9 @@ export interface IProductRepository {
      * Returns all active products.
      */
     findActive(): Promise<Result<Product[]>>;
+
+    // Paginated methods
+    findAllPaginated(params: PaginationParams): Promise<Result<PaginatedResult<Product>>>;
+    findByCategoryPaginated(categoryId: string, params: PaginationParams): Promise<Result<PaginatedResult<Product>>>;
+    searchProducts(query: string, params: PaginationParams): Promise<Result<PaginatedResult<Product>>>;
 }

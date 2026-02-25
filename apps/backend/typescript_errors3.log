@@ -1,0 +1,32 @@
+src/modules/brands/test/brands.controller.test.ts(3,31): error TS2307: Cannot find module '../services/brands.service' or its corresponding type declarations.
+src/modules/categories/test/categories.controller.test.ts(3,35): error TS2307: Cannot find module '../services/categories.service' or its corresponding type declarations.
+src/modules/dashboard/test/dashboard.controller.test.ts(2,37): error TS2307: Cannot find module '../controllers/dashboard.controller' or its corresponding type declarations.
+src/modules/dashboard/test/dashboard.controller.test.ts(3,34): error TS2307: Cannot find module '../services/dashboard.service' or its corresponding type declarations.
+src/modules/defective-items/test/defective-items.controller.test.ts(2,42): error TS2307: Cannot find module '../controllers/defective-items.controller' or its corresponding type declarations.
+src/modules/defective-items/test/defective-items.controller.test.ts(3,39): error TS2307: Cannot find module '../services/defective-items.service' or its corresponding type declarations.
+src/modules/devices/test/devices.controller.test.ts(3,32): error TS2307: Cannot find module '../services/devices.service' or its corresponding type declarations.
+src/modules/devices/test/devices.controller.test.ts(4,32): error TS2307: Cannot find module '../services/scraper.service' or its corresponding type declarations.
+src/modules/operational-costs/test/operational-costs.controller.test.ts(2,44): error TS2307: Cannot find module '../controllers/operational-costs.controller' or its corresponding type declarations.
+src/modules/operational-costs/test/operational-costs.controller.test.ts(3,41): error TS2307: Cannot find module '../services/operational-costs.service' or its corresponding type declarations.
+src/modules/products/presentation/products.controller.ts(14,49): error TS2551: Property 'getAllProducts' does not exist on type 'ProductsFacade'. Did you mean 'getProduct'?
+src/modules/products/presentation/products.controller.ts(24,48): error TS2551: Property 'getProductById' does not exist on type 'ProductsFacade'. Did you mean 'getProduct'?
+src/modules/products/presentation/products.controller.ts(36,68): error TS2554: Expected 1 arguments, but got 2.
+src/modules/products/presentation/products.controller.ts(48,72): error TS2554: Expected 2 arguments, but got 3.
+src/modules/products/presentation/products.controller.ts(68,49): error TS2339: Property 'getSupplierVariants' does not exist on type 'ProductsFacade'.
+src/modules/products/presentation/products.controller.ts(79,48): error TS2339: Property 'createVariant' does not exist on type 'ProductsFacade'.
+src/modules/products/presentation/products.controller.ts(91,48): error TS2339: Property 'updateVariant' does not exist on type 'ProductsFacade'.
+src/modules/products/presentation/products.controller.ts(102,49): error TS2339: Property 'getProductVariants' does not exist on type 'ProductsFacade'.
+src/modules/products/presentation/products.controller.ts(112,32): error TS2339: Property 'deleteVariant' does not exist on type 'ProductsFacade'.
+src/modules/products/presentation/products.controller.ts(123,46): error TS2339: Property 'bulkUpdateMinStock' does not exist on type 'ProductsFacade'.
+src/modules/products/presentation/products.controller.ts(133,46): error TS2339: Property 'getProductCountByCategory' does not exist on type 'ProductsFacade'.
+src/modules/products/presentation/products.controller.ts(142,46): error TS2339: Property 'getStats' does not exist on type 'ProductsFacade'.
+src/modules/products/presentation/products.controller.ts(152,48): error TS2339: Property 'searchProduct' does not exist on type 'ProductsFacade'.
+src/modules/products/presentation/products.controller.ts(162,47): error TS2339: Property 'printLabel' does not exist on type 'ProductsFacade'.
+src/modules/purchases/application/use-cases/verify-and-complete-purchase.use-case.ts(3,10): error TS2724: '"../../../products/products-container"' has no exported member named 'ProductsService'. Did you mean 'productsService'?
+src/modules/purchases/test/purchases-verify.test.ts(2,34): error TS2307: Cannot find module '../services/purchases.service' or its corresponding type declarations.
+src/modules/purchases/test/purchases.controller.test.ts(2,37): error TS2307: Cannot find module '../controllers/purchases.controller' or its corresponding type declarations.
+src/modules/purchases/test/purchases.controller.test.ts(20,81): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ message: string; id: string; }'.
+src/modules/reports/test/reports.controller.test.ts(2,35): error TS2307: Cannot find module '../controllers/reports.controller' or its corresponding type declarations.
+src/modules/reports/test/reports.controller.test.ts(3,32): error TS2307: Cannot find module '../services/reports.service' or its corresponding type declarations.
+src/modules/suppliers/test/suppliers.controller.test.ts(2,37): error TS2307: Cannot find module '../controllers/suppliers.controller' or its corresponding type declarations.
+src/modules/suppliers/test/suppliers.controller.test.ts(3,34): error TS2307: Cannot find module '../services/suppliers.service' or its corresponding type declarations.

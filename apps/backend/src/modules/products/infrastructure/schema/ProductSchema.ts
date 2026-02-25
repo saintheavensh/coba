@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, index } from "drizzle-orm/pg-core";
 import { categories } from "../../../categories/infrastructure/schema/CategorySchema";
 
 // Importing relations from the monolithic schema hub for unmigrated modules
@@ -22,7 +22,11 @@ export const products = pgTable("products", {
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").$onUpdate(() => new Date()),
     deletedAt: timestamp("deleted_at"),
-});
+}, (table) => ({
+    categoryIdx: index("products_category_idx").on(table.categoryId),
+    createdAtIdx: index("products_created_at_idx").on(table.createdAt),
+    codeIdx: index("products_code_idx").on(table.code),
+}));
 
 export const productsRelations = relations(products, ({ one, many }) => ({
     category: one(categories, {

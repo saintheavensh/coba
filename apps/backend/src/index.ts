@@ -1,7 +1,6 @@
 import { serveStatic } from "hono/bun";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
 import { db } from "./db";
 import { users } from "./db/schema";
 import { sql } from "drizzle-orm";
@@ -9,6 +8,7 @@ import { appConfig } from "./shared/infrastructure/config/AppConfig";
 import { Logger } from "./shared/utils/logger/Logger";
 import { rateLimiterMiddleware } from "./middlewares/rate-limiter.middleware";
 import { secureHeadersMiddleware } from "./middlewares/secure-headers.middleware";
+import { swaggerApp } from "./shared/presentation/docs/swagger";
 
 import authController from "./shared/infrastructure/auth/presentation/routes/AuthRoutes";
 import inventoryController from "./modules/inventory/presentation/inventory.routes";
@@ -57,13 +57,18 @@ app.use("*", cors({
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
 }));
-app.use("*", logger());
+import { loggerMiddleware } from "./shared/application/middlewares/LoggerMiddleware";
+const globalLogger = new Logger('App');
+app.use("*", loggerMiddleware);
 app.use("*", rateLimiterMiddleware);
 // Secure headers
 app.use("*", secureHeadersMiddleware);
 
 // Serve static files
 app.use("/uploads/*", serveStatic({ root: "./public" }));
+
+// Swagger UI
+app.route("/api-docs", swaggerApp);
 
 // Routes
 app.route("/auth", authController);
@@ -115,10 +120,34 @@ app.get("/health", async (c) => {
     }
 });
 
+// Error handler
+app.onError((err, c) => {
+    const requestId = (c.get as any)('requestId');
+    globalLogger.child({ requestId }).error('Unhandled error', err);
+    return c.json({
+        error: {
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'An unexpected error occurred'
+        }
+    }, 500);
+});
+
+// Not found handler
+app.notFound((c) => {
+    const requestId = (c.get as any)('requestId');
+    globalLogger.child({ requestId }).warn('Route not found', { path: c.req.path });
+    return c.json({
+        error: {
+            code: 'NOT_FOUND',
+            message: `Route ${c.req.method} ${c.req.path} not found`
+        }
+    }, 404);
+});
+
 const port = appConfig.port;
 const hostname = appConfig.host;
 
-Logger.info(`🚀 Server starting on http://${hostname}:${port}`);
+globalLogger.info(`🚀 Server starting on http://${hostname}:${port}`);
 
 export default {
     port,

@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
 import { TYPES } from "../../types";
-import { INotificationRepository } from "../../domain";
+import type { INotificationRepository } from "../../domain";
 import { Result } from "../../../../core/Result";
 
 export interface MarkNotificationAsReadInput {

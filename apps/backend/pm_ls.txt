@@ -1,0 +1,6 @@
+C:\Users\riyan\OneDrive\Documents\VsCode\coba node_modules (480)
+[2m├──[0m @repo/shared[0m[2m@workspace:packages\shared[0m
+[2m├──[0m backend[0m[2m@workspace:apps\backend[0m
+[2m├──[0m dotenv[0m[2m@17.3.1[0m
+[2m├──[0m frontend[0m[2m@workspace:apps\frontend[0m
+[2m└──[0m turbo[0m[2m@2.7.2[0m

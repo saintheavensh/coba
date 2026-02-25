@@ -1,11 +1,11 @@
-CREATE TABLE "account_types" (
+CREATE TABLE IF NOT EXISTS "account_types" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"normal_balance" text NOT NULL,
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "accounts" (
+CREATE TABLE IF NOT EXISTS "accounts" (
 	"id" text PRIMARY KEY NOT NULL,
 	"code" text NOT NULL,
 	"name" text NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE "accounts" (
 	CONSTRAINT "accounts_code_unique" UNIQUE("code")
 );
 --> statement-breakpoint
-CREATE TABLE "activity_logs" (
+CREATE TABLE IF NOT EXISTS "activity_logs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"action" text NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE "activity_logs" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "asset_depreciation_logs" (
+CREATE TABLE IF NOT EXISTS "asset_depreciation_logs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"asset_id" text NOT NULL,
 	"period" text NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE "asset_depreciation_logs" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "assets" (
+CREATE TABLE IF NOT EXISTS "assets" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"category" text NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE "assets" (
 	"deleted_at" timestamp
 );
 --> statement-breakpoint
-CREATE TABLE "audit_logs" (
+CREATE TABLE IF NOT EXISTS "audit_logs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"timestamp" timestamp DEFAULT now() NOT NULL,
 	"user_id" text,
@@ -81,14 +81,14 @@ CREATE TABLE "audit_logs" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "brands" (
+CREATE TABLE IF NOT EXISTS "brands" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"logo" text,
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "cash_register_transactions" (
+CREATE TABLE IF NOT EXISTS "cash_register_transactions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"register_id" text NOT NULL,
 	"transaction_type" text NOT NULL,
@@ -99,7 +99,7 @@ CREATE TABLE "cash_register_transactions" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "cash_registers" (
+CREATE TABLE IF NOT EXISTS "cash_registers" (
 	"id" text PRIMARY KEY NOT NULL,
 	"date" timestamp NOT NULL,
 	"opened_by" text NOT NULL,
@@ -114,7 +114,7 @@ CREATE TABLE "cash_registers" (
 	"closed_at" timestamp
 );
 --> statement-breakpoint
-CREATE TABLE "category_variants" (
+CREATE TABLE IF NOT EXISTS "category_variants" (
 	"id" text PRIMARY KEY NOT NULL,
 	"category_id" text NOT NULL,
 	"name" text NOT NULL,
@@ -122,7 +122,7 @@ CREATE TABLE "category_variants" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "commission_payments" (
+CREATE TABLE IF NOT EXISTS "commission_payments" (
 	"id" text PRIMARY KEY NOT NULL,
 	"technician_id" text NOT NULL,
 	"period" text NOT NULL,
@@ -136,7 +136,7 @@ CREATE TABLE "commission_payments" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "defective_items" (
+CREATE TABLE IF NOT EXISTS "defective_items" (
 	"id" text PRIMARY KEY NOT NULL,
 	"product_id" text NOT NULL,
 	"batch_id" text NOT NULL,
@@ -149,7 +149,7 @@ CREATE TABLE "defective_items" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "devices" (
+CREATE TABLE IF NOT EXISTS "devices" (
 	"id" text PRIMARY KEY NOT NULL,
 	"brand" text NOT NULL,
 	"series" text,
@@ -165,7 +165,7 @@ CREATE TABLE "devices" (
 	"deleted_at" timestamp
 );
 --> statement-breakpoint
-CREATE TABLE "journal_lines" (
+CREATE TABLE IF NOT EXISTS "journal_lines" (
 	"id" text PRIMARY KEY NOT NULL,
 	"journal_id" text NOT NULL,
 	"account_id" text NOT NULL,
@@ -175,7 +175,7 @@ CREATE TABLE "journal_lines" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "journals" (
+CREATE TABLE IF NOT EXISTS "journals" (
 	"id" text PRIMARY KEY NOT NULL,
 	"date" timestamp DEFAULT now() NOT NULL,
 	"description" text NOT NULL,
@@ -194,7 +194,7 @@ CREATE TABLE "journals" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "members" (
+CREATE TABLE IF NOT EXISTS "members" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"phone" text NOT NULL,
@@ -210,7 +210,7 @@ CREATE TABLE "members" (
 	CONSTRAINT "members_phone_unique" UNIQUE("phone")
 );
 --> statement-breakpoint
-CREATE TABLE "notifications" (
+CREATE TABLE IF NOT EXISTS "notifications" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"type" text NOT NULL,
@@ -222,7 +222,7 @@ CREATE TABLE "notifications" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "operational_costs" (
+CREATE TABLE IF NOT EXISTS "operational_costs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"category" text NOT NULL,
 	"amount" integer NOT NULL,
@@ -235,7 +235,7 @@ CREATE TABLE "operational_costs" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "payment_methods" (
+CREATE TABLE IF NOT EXISTS "payment_methods" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"type" text NOT NULL,
@@ -248,7 +248,7 @@ CREATE TABLE "payment_methods" (
 	"deleted_at" timestamp
 );
 --> statement-breakpoint
-CREATE TABLE "payment_variants" (
+CREATE TABLE IF NOT EXISTS "payment_variants" (
 	"id" text PRIMARY KEY NOT NULL,
 	"method_id" text NOT NULL,
 	"name" text NOT NULL,
@@ -259,7 +259,7 @@ CREATE TABLE "payment_variants" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "period_locks" (
+CREATE TABLE IF NOT EXISTS "period_locks" (
 	"id" text PRIMARY KEY NOT NULL,
 	"period" text NOT NULL,
 	"status" text DEFAULT 'open',
@@ -273,7 +273,7 @@ CREATE TABLE "period_locks" (
 	CONSTRAINT "period_locks_period_unique" UNIQUE("period")
 );
 --> statement-breakpoint
-CREATE TABLE "product_batches" (
+CREATE TABLE IF NOT EXISTS "product_batches" (
 	"id" text PRIMARY KEY NOT NULL,
 	"product_id" text NOT NULL,
 	"variant_id" text,
@@ -288,13 +288,13 @@ CREATE TABLE "product_batches" (
 	"deleted_at" timestamp
 );
 --> statement-breakpoint
-CREATE TABLE "product_device_compatibility" (
+CREATE TABLE IF NOT EXISTS "product_device_compatibility" (
 	"product_id" text NOT NULL,
 	"device_id" text NOT NULL,
 	CONSTRAINT "product_device_compatibility_product_id_device_id_pk" PRIMARY KEY("product_id","device_id")
 );
 --> statement-breakpoint
-CREATE TABLE "product_variants" (
+CREATE TABLE IF NOT EXISTS "product_variants" (
 	"id" text PRIMARY KEY NOT NULL,
 	"product_id" text NOT NULL,
 	"name" text NOT NULL,
@@ -306,7 +306,7 @@ CREATE TABLE "product_variants" (
 	"deleted_at" timestamp
 );
 --> statement-breakpoint
-CREATE TABLE "purchase_items" (
+CREATE TABLE IF NOT EXISTS "purchase_items" (
 	"id" text PRIMARY KEY NOT NULL,
 	"purchase_id" text NOT NULL,
 	"product_id" text NOT NULL,
@@ -321,7 +321,7 @@ CREATE TABLE "purchase_items" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "purchase_payments" (
+CREATE TABLE IF NOT EXISTS "purchase_payments" (
 	"id" text PRIMARY KEY NOT NULL,
 	"purchase_id" text NOT NULL,
 	"supplier_id" text NOT NULL,
@@ -336,7 +336,7 @@ CREATE TABLE "purchase_payments" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "purchase_return_items" (
+CREATE TABLE IF NOT EXISTS "purchase_return_items" (
 	"id" text PRIMARY KEY NOT NULL,
 	"return_id" text NOT NULL,
 	"product_id" text NOT NULL,
@@ -346,7 +346,7 @@ CREATE TABLE "purchase_return_items" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "purchase_returns" (
+CREATE TABLE IF NOT EXISTS "purchase_returns" (
 	"id" text PRIMARY KEY NOT NULL,
 	"supplier_id" text NOT NULL,
 	"user_id" text NOT NULL,
@@ -355,7 +355,7 @@ CREATE TABLE "purchase_returns" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "purchases" (
+CREATE TABLE IF NOT EXISTS "purchases" (
 	"id" text PRIMARY KEY NOT NULL,
 	"supplier_id" text NOT NULL,
 	"user_id" text,
@@ -376,7 +376,7 @@ CREATE TABLE "purchases" (
 	"payment_due_date" timestamp
 );
 --> statement-breakpoint
-CREATE TABLE "revenue_targets" (
+CREATE TABLE IF NOT EXISTS "revenue_targets" (
 	"id" text PRIMARY KEY NOT NULL,
 	"month" text NOT NULL,
 	"working_days" integer DEFAULT 26 NOT NULL,
@@ -392,14 +392,14 @@ CREATE TABLE "revenue_targets" (
 	CONSTRAINT "revenue_targets_month_unique" UNIQUE("month")
 );
 --> statement-breakpoint
-CREATE TABLE "roles" (
+CREATE TABLE IF NOT EXISTS "roles" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"permissions" json DEFAULT '[]'::json NOT NULL,
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "sale_items" (
+CREATE TABLE IF NOT EXISTS "sale_items" (
 	"id" text PRIMARY KEY NOT NULL,
 	"sale_id" text NOT NULL,
 	"product_id" text NOT NULL,
@@ -410,7 +410,7 @@ CREATE TABLE "sale_items" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "sale_payments" (
+CREATE TABLE IF NOT EXISTS "sale_payments" (
 	"id" text PRIMARY KEY NOT NULL,
 	"sale_id" text NOT NULL,
 	"amount" integer NOT NULL,
@@ -423,7 +423,7 @@ CREATE TABLE "sale_payments" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "sales" (
+CREATE TABLE IF NOT EXISTS "sales" (
 	"id" text PRIMARY KEY NOT NULL,
 	"member_id" text,
 	"customer_name" text,
@@ -436,7 +436,7 @@ CREATE TABLE "sales" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "service_tool_requests" (
+CREATE TABLE IF NOT EXISTS "service_tool_requests" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"tool_name" text NOT NULL,
@@ -445,7 +445,7 @@ CREATE TABLE "service_tool_requests" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "service_tools" (
+CREATE TABLE IF NOT EXISTS "service_tools" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"brand" text,
@@ -458,7 +458,7 @@ CREATE TABLE "service_tools" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "services" (
+CREATE TABLE IF NOT EXISTS "services" (
 	"id" text PRIMARY KEY NOT NULL,
 	"no" text NOT NULL,
 	"customer" json NOT NULL,
@@ -487,7 +487,7 @@ CREATE TABLE "services" (
 	CONSTRAINT "services_no_unique" UNIQUE("no")
 );
 --> statement-breakpoint
-CREATE TABLE "settings" (
+CREATE TABLE IF NOT EXISTS "settings" (
 	"key" text PRIMARY KEY NOT NULL,
 	"value" json NOT NULL,
 	"type" text DEFAULT 'json' NOT NULL,
@@ -501,7 +501,7 @@ CREATE TABLE "settings" (
 	"updated_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "stock_opname_items" (
+CREATE TABLE IF NOT EXISTS "stock_opname_items" (
 	"id" text PRIMARY KEY NOT NULL,
 	"session_id" text NOT NULL,
 	"product_id" text NOT NULL,
@@ -512,7 +512,7 @@ CREATE TABLE "stock_opname_items" (
 	"adjustment_reason" text
 );
 --> statement-breakpoint
-CREATE TABLE "stock_opname_sessions" (
+CREATE TABLE IF NOT EXISTS "stock_opname_sessions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"status" text DEFAULT 'draft',
 	"user_id" text NOT NULL,
@@ -521,7 +521,7 @@ CREATE TABLE "stock_opname_sessions" (
 	"completed_at" timestamp
 );
 --> statement-breakpoint
-CREATE TABLE "store_devices" (
+CREATE TABLE IF NOT EXISTS "store_devices" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"device_id" varchar NOT NULL,
 	"name" varchar NOT NULL,
@@ -536,14 +536,14 @@ CREATE TABLE "store_devices" (
 	CONSTRAINT "store_devices_device_id_unique" UNIQUE("device_id")
 );
 --> statement-breakpoint
-CREATE TABLE "supplier_categories" (
+CREATE TABLE IF NOT EXISTS "supplier_categories" (
 	"id" text PRIMARY KEY NOT NULL,
 	"supplier_id" text NOT NULL,
 	"category_id" text NOT NULL,
 	CONSTRAINT "sup_cat_unique" UNIQUE("supplier_id","category_id")
 );
 --> statement-breakpoint
-CREATE TABLE "suppliers" (
+CREATE TABLE IF NOT EXISTS "suppliers" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"contact" text,
@@ -555,13 +555,13 @@ CREATE TABLE "suppliers" (
 	"deleted_at" timestamp
 );
 --> statement-breakpoint
-CREATE TABLE "user_roles" (
+CREATE TABLE IF NOT EXISTS "user_roles" (
 	"user_id" text NOT NULL,
 	"role_id" text NOT NULL,
 	CONSTRAINT "user_roles_user_id_role_id_pk" PRIMARY KEY("user_id","role_id")
 );
 --> statement-breakpoint
-CREATE TABLE "users" (
+CREATE TABLE IF NOT EXISTS "users" (
 	"id" text PRIMARY KEY NOT NULL,
 	"username" text NOT NULL,
 	"password" text NOT NULL,
@@ -576,7 +576,7 @@ CREATE TABLE "users" (
 	CONSTRAINT "users_username_unique" UNIQUE("username")
 );
 --> statement-breakpoint
-CREATE TABLE "categories" (
+CREATE TABLE IF NOT EXISTS "categories" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
@@ -586,7 +586,7 @@ CREATE TABLE "categories" (
 	"deleted_at" timestamp
 );
 --> statement-breakpoint
-CREATE TABLE "products" (
+CREATE TABLE IF NOT EXISTS "products" (
 	"id" text PRIMARY KEY NOT NULL,
 	"code" text,
 	"name" text NOT NULL,
@@ -681,5 +681,5 @@ ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_role_id_roles_id_fk" FOREIGN
 ALTER TABLE "users" ADD CONSTRAINT "users_role_roles_id_fk" FOREIGN KEY ("role") REFERENCES "public"."roles"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "categories" ADD CONSTRAINT "categories_parent_id_fkey" FOREIGN KEY ("parent_id") REFERENCES "public"."categories"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "products" ADD CONSTRAINT "products_category_id_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."categories"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "store_idx" ON "store_devices" USING btree ("store_id");--> statement-breakpoint
-CREATE INDEX "status_idx" ON "store_devices" USING btree ("status");
+CREATE INDEX IF NOT EXISTS "store_idx" ON "store_devices" USING btree ("store_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "status_idx" ON "store_devices" USING btree ("status");

@@ -1,6 +1,7 @@
 import { injectable, inject } from "inversify";
 import { TYPES } from "../../types";
-import { INotificationService, INotificationRepository, Notification, NotificationChannel, NotificationType } from "../../domain";
+import type { INotificationService, INotificationRepository, NotificationChannel, NotificationType } from "../../domain";
+import { Notification } from "../../domain";
 import { Result } from "../../../../core/Result";
 
 export interface SendNotificationInput {

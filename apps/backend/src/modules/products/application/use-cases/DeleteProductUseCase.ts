@@ -3,6 +3,9 @@ import { UseCase } from "../../../../shared/core/UseCase";
 import { Result } from "../../../../shared/core/Result";
 import { TYPES } from "../../types";
 import type { IProductRepository } from "../../domain/ports/IProductRepository";
+import type { IInventoryGateway } from "../../domain/ports/IInventoryGateway";
+import { Status } from "../../domain/value-objects/ProductStatus.vo";
+import { Logger, LoggerFactory } from "../../../../shared/utils/logger/Logger";
 import { ProductValidationService } from "../../domain/services/ProductValidationService";
 
 /**
@@ -11,14 +14,16 @@ import { ProductValidationService } from "../../domain/services/ProductValidatio
  */
 @injectable()
 export class DeleteProductUseCase implements UseCase<string, Result<void>> {
+    private logger: Logger;
     constructor(
-        @inject(TYPES.IProductRepository)
-        private readonly productRepo: IProductRepository,
-        @inject(TYPES.IInventoryGateway)
-        private readonly inventoryGateway: any // Using specific type later
-    ) { }
+        @inject(TYPES.IProductRepository) private readonly productRepo: IProductRepository,
+        @inject(TYPES.IInventoryGateway) private readonly inventoryGateway: any, // Using specific type later
+        @inject(TYPES.LoggerFactory) private loggerFactory: LoggerFactory
+    ) {
+        this.logger = loggerFactory.createLogger('DeleteProductUseCase');
+    }
 
-    public async execute(productId: string): Promise<Result<void>> {
+    public async execute(productId: string, context?: { requestId?: string; userId?: string }): Promise<Result<void>> {
         // 1. Find product
         const productResult = await this.productRepo.findById(productId);
         if (productResult.isFailure) {

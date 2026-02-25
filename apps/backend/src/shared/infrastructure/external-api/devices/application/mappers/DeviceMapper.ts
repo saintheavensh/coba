@@ -1,6 +1,6 @@
 import { Result } from "../../../../../core/Result";
 import { StoreDevice } from "../../domain/entities/StoreDevice.entity";
-import { DeviceStatus as ApiDeviceStatus } from "../../domain/ports/IDeviceApiGateway";
+import type { DeviceStatus as ApiDeviceStatus } from "../../domain/ports/IDeviceApiGateway";
 
 export interface RegisterDeviceDTO {
     deviceId: string;

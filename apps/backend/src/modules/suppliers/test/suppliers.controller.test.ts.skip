@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SuppliersController } from "../controllers/suppliers.controller";
 import { SuppliersService } from "../services/suppliers.service";

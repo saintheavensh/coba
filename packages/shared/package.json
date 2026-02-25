@@ -9,7 +9,8 @@
         "check-types": "tsc --noEmit"
     },
     "dependencies": {
-        "zod": "^3.25.0"
+        "zod": "3.25.0",
+        "@hono/zod-openapi": "^1.2.2"
     },
     "devDependencies": {
         "typescript": "^5.0.0"

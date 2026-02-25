@@ -8,6 +8,9 @@ export const TYPES = {
     DashboardAggregator: Symbol.for('DashboardAggregator'),
     DashboardController: Symbol.for('DashboardController'),
 
+    // Services
+    CacheService: Symbol.for('CacheService'),
+
     // Facades (Infrastructure/External)
     SalesFacade: Symbol.for('SalesFacade'),
     InventoryFacade: Symbol.for('InventoryFacade'),
@@ -22,5 +25,6 @@ export const TYPES = {
     GetModuleSettingsUseCase: Symbol.for('GetModuleSettingsUseCase'),
     ConfigFacade: Symbol.for('ConfigFacade'),
     ConfigController: Symbol.for('ConfigController'),
+    LoggerFactory: Symbol.for('LoggerFactory'),
 };
 

@@ -24,7 +24,7 @@ export class DeviceScraperAdapter implements IDeviceScraper {
                 throw new ApiError("Invalid URL format", 400);
             }
 
-            Logger.info(`Parsing URL: ${url}`);
+            new Logger("Legacy").info(`Parsing URL: ${url}`);
 
             const response = await fetch(url, { headers: HEADERS });
             if (!response.ok) {
@@ -114,7 +114,7 @@ export class DeviceScraperAdapter implements IDeviceScraper {
             };
 
         } catch (error) {
-            Logger.error("Scraping error", error);
+            new Logger("Legacy").error("Scraping error", error);
             if (error instanceof ApiError) throw error;
             throw new ApiError("Failed to scrape URL", 500);
         }
@@ -124,7 +124,7 @@ export class DeviceScraperAdapter implements IDeviceScraper {
         try {
             const response = await fetch(url, { headers: HEADERS });
             if (!response.ok) {
-                Logger.warn(`Failed to download image from ${url}: ${response.statusText}`);
+                new Logger("Legacy").warn(`Failed to download image from ${url}: ${response.statusText}`);
                 return "";
             }
 
@@ -158,7 +158,7 @@ export class DeviceScraperAdapter implements IDeviceScraper {
 
             return `/uploads/${safeBrand}/${filename}`;
         } catch (e) {
-            Logger.error("Failed to download image", e);
+            new Logger("Legacy").error("Failed to download image", e);
             return "";
         }
     }
@@ -185,7 +185,7 @@ export class DeviceScraperAdapter implements IDeviceScraper {
 
             return results;
         } catch (e) {
-            Logger.error("Failed to parse list", e);
+            new Logger("Legacy").error("Failed to parse list", e);
             throw new ApiError("Failed to parse device list", 500);
         }
     }

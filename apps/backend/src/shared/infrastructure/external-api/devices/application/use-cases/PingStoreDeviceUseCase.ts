@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
 import { TYPES } from "../../types";
-import { IDeviceApiGateway, IStoreDeviceRepository } from "../../domain";
+import type { IDeviceApiGateway, IStoreDeviceRepository } from "../../domain";
 import { Result } from "../../../../../core/Result";
 
 @injectable()

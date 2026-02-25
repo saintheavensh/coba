@@ -1,3 +1,3 @@
 export * from "./entities/StoreDevice.entity";
-export * from "./ports/IStoreDeviceRepository";
-export { IDeviceApiGateway, DeviceRegistration, DeviceStatus as ApiDeviceStatus } from "./ports/IDeviceApiGateway";
+export type * from "./ports/IStoreDeviceRepository";
+export type { IDeviceApiGateway, DeviceRegistration, DeviceStatus as ApiDeviceStatus } from "./ports/IDeviceApiGateway";

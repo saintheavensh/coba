@@ -26,9 +26,9 @@ export class ActivityLogService {
                 oldValue: params.details?.oldValue ? JSON.stringify(params.details.oldValue) : null,
                 newValue: params.details?.newValue ? JSON.stringify(params.details.newValue) : null,
             } as any);
-            Logger.info(`[ACTIVITY_LOG] ${params.action} on ${params.entityType}:${params.entityId} by User:${params.userId}`);
+            new Logger("Legacy").info(`[ACTIVITY_LOG] ${params.action} on ${params.entityType}:${params.entityId} by User:${params.userId}`);
         } catch (error) {
-            Logger.error(`[ACTIVITY_LOG_ERROR] Failed to insert log:`, error);
+            new Logger("Legacy").error(`[ACTIVITY_LOG_ERROR] Failed to insert log:`, error);
             // Don't throw error to avoid breaking main flow
         }
     }

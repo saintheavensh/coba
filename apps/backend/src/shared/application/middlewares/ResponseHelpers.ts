@@ -58,7 +58,7 @@ export function apiError(
     }
 
     if (status === 500) {
-        Logger.error(`[API_ERROR] ${message}`, error);
+        new Logger("Legacy").error(`[API_ERROR] ${message}`, error);
         // Here you could also stream to a log file or external service (Sentry, etc.)
     }
 

@@ -1,4 +1,4 @@
-import { INotificationService } from "../../domain";
+import type { INotificationService } from "../../domain";
 import { Result } from "../../../../core/Result";
 import { injectable, inject } from "inversify";
 import { TYPES } from "../../types";
@@ -9,7 +9,7 @@ import { Logger } from "../../../../utils/logger/Logger";
 export class NodemailerAdapter implements INotificationService {
     async sendEmail(to: string, subject: string, body: string): Promise<Result<void>> {
         try {
-            Logger.info(`[Email] Sending to ${to}: ${subject}`);
+            new Logger("Legacy").info(`[Email] Sending to ${to}: ${subject}`);
             // Implementation would go here using nodemailer
             // For now, logging success to simulate implementation
             return Result.ok();
@@ -20,7 +20,7 @@ export class NodemailerAdapter implements INotificationService {
 
     async sendPush(userId: string, title: string, body: string): Promise<Result<void>> {
         try {
-            Logger.info(`[Push] Sending to ${userId}: ${title}`);
+            new Logger("Legacy").info(`[Push] Sending to ${userId}: ${title}`);
             // Implementation would go here using OneSignal/Firebase
             return Result.ok();
         } catch (error: any) {

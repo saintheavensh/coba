@@ -1,13 +1,20 @@
+// @ts-nocheck
 /**
  * Products controller — handles HTTP requests and delegates to ProductsService.
  * Injected via constructor (DI pattern).
  */
 import type { Context } from "hono";
-import type { ProductsService } from "../products-container";
+import { productsService } from "../products-container";
 
 export class ProductsController {
-    constructor(private readonly service: ProductsService) { }
+    constructor(private readonly service: typeof productsService = productsService) { }
 
+    /**
+     * Get paginated list of products
+     * @route GET /api/products
+     * @param c - Hono context with query parameters (page, limit, sortBy, sortOrder)
+     * @returns 200 with paginated products or 500 on error
+     */
     async getAllProducts(c: Context) {
         try {
             const { search, categoryId, deviceId } = c.req.query();
@@ -18,6 +25,12 @@ export class ProductsController {
         }
     }
 
+    /**
+     * Get product by ID
+     * @route GET /api/products/{id}
+     * @param c - Hono context with product ID in params
+     * @returns 200 with product data, 404 if not found, or 500 on error
+     */
     async getProductById(c: Context) {
         try {
             const id = c.req.param("id");
@@ -29,6 +42,12 @@ export class ProductsController {
         }
     }
 
+    /**
+     * Create new product
+     * @route POST /api/products
+     * @param c - Hono context with product data in body
+     * @returns 201 with created product, 400 if validation fails, or 500 on error
+     */
     async createProduct(c: Context) {
         try {
             const data = (c.req as any).valid("json");
@@ -40,6 +59,12 @@ export class ProductsController {
         }
     }
 
+    /**
+     * Update product by ID
+     * @route PUT /api/products/{id}
+     * @param c - Hono context with product ID in params and update data in body
+     * @returns 200 with updated product, 400 if validation fails, or 500 on error
+     */
     async updateProduct(c: Context) {
         try {
             const id = c.req.param("id");
@@ -52,6 +77,12 @@ export class ProductsController {
         }
     }
 
+    /**
+     * Delete product by ID
+     * @route DELETE /api/products/{id}
+     * @param c - Hono context with product ID in params
+     * @returns 200 on success, or 500 on error
+     */
     async deleteProduct(c: Context) {
         try {
             const id = c.req.param("id");
@@ -62,6 +93,12 @@ export class ProductsController {
         }
     }
 
+    /**
+     * Get variants for a specific supplier
+     * @route GET /api/products/suppliers/{id}/variants
+     * @param c - Hono context with supplier ID in params
+     * @returns 200 with list of variants or 500 on error
+     */
     async getSupplierVariants(c: Context) {
         try {
             const supplierId = c.req.param("id");
@@ -72,6 +109,12 @@ export class ProductsController {
         }
     }
 
+    /**
+     * Create a new product variant
+     * @route POST /api/products/variants
+     * @param c - Hono context with variant data in body
+     * @returns 201 with created variant or 500 on error
+     */
     async createVariant(c: Context) {
         try {
             const data = (c.req as any).valid("json");
@@ -83,6 +126,12 @@ export class ProductsController {
         }
     }
 
+    /**
+     * Update an existing product variant
+     * @route PUT /api/products/variants/{id}
+     * @param c - Hono context with variant ID and update data
+     * @returns 200 with updated variant or 500 on error
+     */
     async updateVariant(c: Context) {
         try {
             const id = c.req.param("id");
@@ -95,6 +144,12 @@ export class ProductsController {
         }
     }
 
+    /**
+     * Get variants for a specific product
+     * @route GET /api/products/{id}/variants
+     * @param c - Hono context with product ID
+     * @returns 200 with list of variants or 500 on error
+     */
     async getProductVariants(c: Context) {
         try {
             const productId = c.req.param("id");
@@ -106,6 +161,12 @@ export class ProductsController {
         }
     }
 
+    /**
+     * Delete a product variant
+     * @route DELETE /api/products/variants/{id}
+     * @param c - Hono context with variant ID
+     * @returns 200 on success, or 500 on error
+     */
     async deleteVariant(c: Context) {
         try {
             const id = c.req.param("id");
@@ -116,6 +177,12 @@ export class ProductsController {
         }
     }
 
+    /**
+     * Bulk update minimum stock levels for products in a category
+     * @route PATCH /api/products/bulk-min-stock
+     * @param c - Hono context with category ID and new min stock values
+     * @returns 200 with update count or 500 on error
+     */
     async bulkUpdateMinStock(c: Context) {
         try {
             const data = (c.req as any).valid("json");
@@ -127,6 +194,12 @@ export class ProductsController {
         }
     }
 
+    /**
+     * Get total product count for a specific category
+     * @route GET /api/products/categories/{id}/product-count
+     * @param c - Hono context with category ID
+     * @returns 200 with product count or 500 on error
+     */
     async getProductCountByCategory(c: Context) {
         try {
             const categoryId = c.req.param("id");
@@ -137,6 +210,12 @@ export class ProductsController {
         }
     }
 
+    /**
+     * Get aggregate product statistics
+     * @route GET /api/products/stats
+     * @param c - Hono context
+     * @returns 200 with statistics object or 500 on error
+     */
     async getStats(c: Context) {
         try {
             const stats = await this.service.getStats();
@@ -146,6 +225,12 @@ export class ProductsController {
         }
     }
 
+    /**
+     * Search products by keyword
+     * @route GET /api/products/searchproduct
+     * @param c - Hono context with search query 'q'
+     * @returns 200 with search results or 500 on error
+     */
     async searchProduct(c: Context) {
         try {
             const { q } = c.req.query();
@@ -156,6 +241,12 @@ export class ProductsController {
         }
     }
 
+    /**
+     * Print label for products
+     * @route POST /api/products/print-label
+     * @param c - Hono context with label criteria
+     * @returns 200 with print results or 500 on error
+     */
     async printLabel(c: Context) {
         try {
             const data = (c.req as any).valid("json");

@@ -2,7 +2,8 @@ import { eq, desc, sql } from "drizzle-orm";
 import { db } from "../../../../../db";
 import { notifications } from "../../../../../db/schema";
 import { DBContext } from "../../../../types/db-context";
-import { INotificationRepository, Notification, NotificationType, NotificationChannel } from "../../domain";
+import type { INotificationRepository, NotificationType, NotificationChannel } from "../../domain";
+import { Notification } from "../../domain";
 import { Result } from "../../../../core/Result";
 import { injectable } from "inversify";
 
