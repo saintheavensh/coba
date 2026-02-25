@@ -1,12 +1,24 @@
-import { Container } from "inversify";
 import { deviceContainer } from "./DeviceContainer";
 import { StoreDeviceFacade } from "./application/facades/StoreDeviceFacade";
 import { TYPES } from "./types";
 
-const container = new Container();
-container.load(deviceContainer);
+import { Container } from "inversify";
 
-export const storeDeviceFacade = container.get<StoreDeviceFacade>(TYPES.StoreDeviceFacade);
+const getStoreDeviceFacade = (): StoreDeviceFacade => {
+    const { container } = require("../../../../container");
+    return (container as Container).get<StoreDeviceFacade>(TYPES.StoreDeviceFacade);
+};
+
+export const storeDeviceFacade = new Proxy({} as StoreDeviceFacade, {
+    get: (target, prop) => {
+        const facade = getStoreDeviceFacade();
+        const value = (facade as any)[prop];
+        if (typeof value === 'function') {
+            return value.bind(facade);
+        }
+        return value;
+    }
+});
 
 export * from "./application";
 export * from "./domain";

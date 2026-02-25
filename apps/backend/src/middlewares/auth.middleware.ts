@@ -22,7 +22,7 @@ export const authMiddleware = createMiddleware(async (c, next) => {
     }
 
     try {
-        const payload = await verify(token, JWT_SECRET);
+        const payload = await verify(token, JWT_SECRET, "HS256");
         c.set("jwtPayload", payload);
         c.set("user", payload); // Also set as "user" for controllers
         await next();

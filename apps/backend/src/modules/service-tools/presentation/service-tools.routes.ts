@@ -12,6 +12,7 @@ app.get("/", (c) => controller.getAll(c));
 app.get("/my", (c) => controller.getMyTools(c));
 app.get("/requests/my", (c) => controller.getMyRequests(c));
 app.get("/requests/all", (c) => controller.getAllRequests(c));
+app.get("/requests", (c) => controller.getAllRequests(c)); // Alias for ManagerDigest
 
 app.post("/", requireRole("super_admin", "owner", "manager"), (c) => controller.create(c));
 app.post("/requests", (c) => controller.createRequest(c));

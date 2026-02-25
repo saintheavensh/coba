@@ -6,6 +6,7 @@ import { CreateProductDTO } from "../dtos/CreateProductDTO";
 import { UpdateProductDTO } from "../dtos/UpdateProductDTO";
 import { CreateProductUseCase } from "../use-cases/CreateProductUseCase";
 import { GetProductUseCase } from "../use-cases/GetProductUseCase";
+import { GetProductsUseCase } from "../use-cases/GetProductsUseCase";
 import { UpdateProductUseCase } from "../use-cases/UpdateProductUseCase";
 import { ActivateProductUseCase } from "../use-cases/ActivateProductUseCase";
 import { DeleteProductUseCase } from "../use-cases/DeleteProductUseCase";
@@ -20,7 +21,9 @@ export class ProductsFacade {
     constructor(
         @inject(TYPES.CreateProductUseCase)
         private readonly createProductUC: CreateProductUseCase,
-        @inject(TYPES.GetProductsUseCase) // Note: Map to correct symbol
+        @inject(TYPES.GetProductsUseCase)
+        private readonly getProductsUC: GetProductsUseCase,
+        @inject(TYPES.GetProductUseCase || Symbol.for("GetProductUseCase"))
         private readonly getProductUC: GetProductUseCase,
         @inject(TYPES.UpdateProductUseCase)
         private readonly updateProductUC: UpdateProductUseCase,
@@ -38,8 +41,26 @@ export class ProductsFacade {
         return this.getProductUC.execute({ id });
     }
 
+    public async getAllProducts(deviceId?: string, search?: string, categoryId?: string, page?: number, limit?: number): Promise<any> {
+        const result = await this.getProductsUC.execute({ search, categoryId, page, limit });
+        if (result.isFailure) throw new Error(result.errorValue() as string);
+        return result.getValue();
+    }
+
     public async getProductBySku(sku: string): Promise<Result<ProductDTO>> {
         return this.getProductUC.execute({ sku });
+    }
+
+    public async searchProduct(query: string): Promise<any> {
+        const result = await this.getProductsUC.execute({ search: query });
+        if (result.isFailure) throw new Error(result.errorValue() as string);
+        return result.getValue().data;
+    }
+
+    public async getStats(): Promise<any> {
+        // Stub for dashboard or admin stats 
+        // Real implementation would need a dedicated GetProductStatsUseCase
+        return { totalProducts: 0, activeProducts: 0, lowStock: 0 };
     }
 
     public async updateProduct(id: string, data: UpdateProductDTO): Promise<Result<ProductDTO>> {

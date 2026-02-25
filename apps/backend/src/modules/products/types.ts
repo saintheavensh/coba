@@ -7,6 +7,7 @@ export const TYPES = {
 
     // Application/UseCases
     GetProductsUseCase: Symbol.for("GetProductsUseCase"),
+    GetProductUseCase: Symbol.for("GetProductUseCase"),
     GetProductByIdUseCase: Symbol.for("GetProductByIdUseCase"),
     CreateProductUseCase: Symbol.for("CreateProductUseCase"),
     UpdateProductUseCase: Symbol.for("UpdateProductUseCase"),

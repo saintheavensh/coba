@@ -9,7 +9,6 @@ import { LoggerFactory } from "./shared/utils/logger/Logger";
 import { salesService } from "./modules/sales/sales-container";
 import { inventoryService } from "./modules/inventory/inventory-container";
 import { customersService } from "./modules/customers/customers-container";
-import { storeDeviceFacade } from "./shared/infrastructure/external-api/devices";
 // For products, we don't have a singleton yet, we'll need to load its container module if it exists
 import { productsContainerModule } from "./modules/products/products-container";
 
@@ -22,13 +21,16 @@ container.load(productsContainerModule);
 container.load(configContainer);
 
 import { CacheService } from "./shared/infrastructure/cache/CacheService";
+import { DrizzleClient } from "./shared/infrastructure/database/DrizzleClient";
+
+// Global Bindings
+container.bind<DrizzleClient>(TYPES.DrizzleClient).to(DrizzleClient).inSingletonScope();
 container.bind<CacheService>(TYPES.CacheService).to(CacheService).inSingletonScope();
 
 // Bind legacy facades as constants
 container.bind(TYPES.SalesFacade).toConstantValue(salesService);
 container.bind(TYPES.InventoryFacade).toConstantValue(inventoryService);
 container.bind(TYPES.CustomersFacade).toConstantValue(customersService);
-container.bind(TYPES.StoreDeviceFacade).toConstantValue(storeDeviceFacade);
 
 // Register logger factory as singleton
 container.bind<LoggerFactory>(TYPES.LoggerFactory)

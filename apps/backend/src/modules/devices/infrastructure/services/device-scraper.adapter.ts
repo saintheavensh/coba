@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import * as fs from "node:fs/promises";
 import { Logger } from "../../../../shared/utils/logger/Logger";
 import { ApiError } from "../../../../shared/core/errors/ApiError";
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 import { IDeviceScraper, DeviceScraperResult } from "../../domain";
 
 const ScrapeUrlSchema = z.string().url();

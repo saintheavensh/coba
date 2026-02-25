@@ -1,5 +1,5 @@
 import { serveStatic } from "hono/bun";
-import { Hono } from "hono";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import { db } from "./db";
 import { users } from "./db/schema";
@@ -8,7 +8,7 @@ import { appConfig } from "./shared/infrastructure/config/AppConfig";
 import { Logger } from "./shared/utils/logger/Logger";
 import { rateLimiterMiddleware } from "./middlewares/rate-limiter.middleware";
 import { secureHeadersMiddleware } from "./middlewares/secure-headers.middleware";
-import { swaggerApp } from "./shared/presentation/docs/swagger";
+import { swaggerApp, openApiConfig } from "./shared/presentation/docs/swagger";
 
 import authController from "./shared/infrastructure/auth/presentation/routes/AuthRoutes";
 import inventoryController from "./modules/inventory/presentation/inventory.routes";
@@ -24,7 +24,7 @@ import customersController from "./modules/customers/presentation/customers.rout
 import defectiveItemsController from "./modules/defective-items/presentation/defective-items.routes";
 import serviceController from "./modules/service/presentation/service.routes";
 import reportsController from "./modules/reports/presentation/reports.routes";
-import { configRoutes } from "./shared/infrastructure/config/presentation/routes/config.routes";
+import settingsRoutes from "./modules/settings/presentation/settings.routes";
 import paymentMethodsController from "./modules/payment-methods/presentation/payment-methods.routes";
 import dashboardController from "./modules/dashboard/presentation/dashboard.routes";
 import usersController from "./modules/users/presentation/users.routes";
@@ -37,7 +37,17 @@ import accountingController from "./modules/accounting/presentation/accounting.r
 import { dashboardRoutes } from "./shared/presentation/dashboard/routes/dashboard.routes";
 // import whatsappController removed
 
-export const app = new Hono();
+export const app = new OpenAPIHono();
+
+// Configure OpenAPI Spec
+app.doc('/api-docs/spec', openApiConfig as any);
+
+// Register Security Scheme globally
+app.openAPIRegistry.registerComponent('securitySchemes', 'bearerAuth', {
+    type: 'http',
+    scheme: 'bearer',
+    bearerFormat: 'JWT'
+});
 
 // CORS configuration - allow credentials for cookie-based auth
 app.use("*", cors({
@@ -74,8 +84,6 @@ app.route("/api-docs", swaggerApp);
 app.route("/auth", authController);
 app.route("/products", productsController);
 app.route("/inventory", inventoryController);
-// Backward-compat: /inventory also serves product routes for existing frontend calls
-app.route("/inventory", productsController);
 app.route("/categories", categoryController);
 app.route("/service", serviceController);
 app.route("/suppliers", suppliersRoutes);
@@ -88,8 +96,10 @@ app.route("/users", usersController);
 app.route("/customers", customersController);
 app.route("/defective-items", defectiveItemsController);
 app.route("/reports", reportsController);
-app.route("/api/settings", configRoutes);
+app.route("/settings", settingsRoutes);
 app.route("/payment-methods", paymentMethodsController);
+app.route("/payments/methods", paymentMethodsController); // Alias for frontend
+app.route("/dashboard", dashboardController);
 app.route("/api/dashboard", dashboardRoutes);
 app.route("/devices", devicesRoutes);
 app.route("/brands", brandRoutes);

@@ -19,7 +19,7 @@ export class AccountingReportService {
         if (params.endDate) query.append("endDate", params.endDate.toISOString());
 
         const response = await api.get(`/accounting/reports/gl?${query.toString()}`);
-        return response.data;
+        return response.data.data;
     }
 
     static async getIncomeStatement(params: DateRangeParams = {}) {
@@ -28,7 +28,7 @@ export class AccountingReportService {
         if (params.endDate) query.append("endDate", params.endDate.toISOString());
 
         const response = await api.get(`/accounting/reports/pl?${query.toString()}`);
-        return response.data;
+        return response.data.data;
     }
 
     static async getBalanceSheet(date?: Date) {
@@ -36,6 +36,6 @@ export class AccountingReportService {
         if (date) query.append("date", date.toISOString());
 
         const response = await api.get(`/accounting/reports/balance-sheet?${query.toString()}`);
-        return response.data;
+        return response.data.data;
     }
 }

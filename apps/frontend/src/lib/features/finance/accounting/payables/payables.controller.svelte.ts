@@ -25,7 +25,7 @@ export class PayablesController {
                 api.get("/accounting/payables/summary")
             ]);
             this.payables = payablesRes;
-            this.summary = summaryRes.data;
+            this.summary = summaryRes.data.data;
         } catch (e) {
             console.error("Failed to fetch payables data", e);
         } finally {

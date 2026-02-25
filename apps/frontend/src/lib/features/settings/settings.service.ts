@@ -125,7 +125,6 @@ export interface WhatsAppSettings {
     statusUpdateTemplate: string;
     readyForPickupTemplate: string;
     warrantyReminderTemplate: string;
-    warrantyReminderTemplate: string;
     // Mode
     mode: "client" | "server";
     // Gateway (Server Mode)

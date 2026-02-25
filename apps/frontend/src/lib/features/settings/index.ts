@@ -1,6 +1,5 @@
 // Settings Feature Module
 export { SettingsController } from "./settings.controller.svelte";
-export { LegacySettingsController } from "./legacy.controller.svelte";
 export {
     SettingsService,
     PaymentMethodsService,

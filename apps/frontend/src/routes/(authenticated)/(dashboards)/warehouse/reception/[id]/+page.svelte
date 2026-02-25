@@ -27,8 +27,11 @@
     } from "lucide-svelte";
     import { onMount } from "svelte";
 
+    let purchaseDetail: any = $state(null);
+    let error: string | null = $state(null);
+
     const id = $page.params.id;
-    const controller = new PurchaseDetailController(id);
+    const controller = new PurchaseDetailController(id || "");
 
     onMount(() => {
         controller.load();

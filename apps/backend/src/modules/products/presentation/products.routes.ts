@@ -144,35 +144,247 @@ const deleteProductRoute = createRoute({
     }
 });
 
+const getStatsRoute = createRoute({
+    method: 'get',
+    path: '/stats',
+    tags: ['Products'],
+    description: 'Get aggregate product statistics',
+    responses: {
+        200: {
+            description: 'Product statistics',
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        data: z.object({
+                            totalProducts: z.number(),
+                            totalValue: z.number(),
+                            lowStockCount: z.number(),
+                            outOfStockCount: z.number()
+                        })
+                    })
+                }
+            }
+        }
+    }
+});
+
+const searchProductRoute = createRoute({
+    method: 'get',
+    path: '/searchproduct',
+    tags: ['Products'],
+    description: 'Search products by keyword',
+    request: {
+        query: z.object({
+            q: z.string().openapi({ description: 'Search query' })
+        })
+    },
+    responses: {
+        200: {
+            description: 'Search results',
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        data: z.array(z.any())
+                    })
+                }
+            }
+        }
+    }
+});
+
+const getProductCountByCategoryRoute = createRoute({
+    method: 'get',
+    path: '/categories/{id}/product-count',
+    tags: ['Products'],
+    description: 'Get total product count for a specific category',
+    request: {
+        params: z.object({
+            id: z.string().openapi({ description: 'Category ID' })
+        })
+    },
+    responses: {
+        200: {
+            description: 'Product count',
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        count: z.number()
+                    })
+                }
+            }
+        }
+    }
+});
+
+const getSupplierVariantsRoute = createRoute({
+    method: 'get',
+    path: '/suppliers/{id}/variants',
+    tags: ['Products'],
+    description: 'Get variants for a specific supplier',
+    request: {
+        params: z.object({
+            id: z.string().openapi({ description: 'Supplier ID' })
+        })
+    },
+    responses: {
+        200: {
+            description: 'List of variants',
+            content: {
+                'application/json': {
+                    schema: z.array(z.any())
+                }
+            }
+        }
+    }
+});
+
+const getProductVariantsRoute = createRoute({
+    method: 'get',
+    path: '/{id}/variants',
+    tags: ['Products'],
+    description: 'Get variants for a specific product',
+    request: {
+        params: z.object({
+            id: z.string().openapi({ description: 'Product ID' })
+        }),
+        query: z.object({
+            supplierId: z.string().optional().openapi({ description: 'Optional Supplier ID' })
+        })
+    },
+    responses: {
+        200: {
+            description: 'List of variants',
+            content: {
+                'application/json': {
+                    schema: z.array(z.any())
+                }
+            }
+        }
+    }
+});
+
+const createVariantRoute = createRoute({
+    method: 'post',
+    path: '/variants',
+    tags: ['Products'],
+    description: 'Create a new product variant',
+    security: [{ bearerAuth: [] }],
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: createVariantSchema
+                }
+            }
+        }
+    },
+    responses: {
+        201: { description: 'Variant created' },
+        400: { description: 'Validation Error' }
+    }
+});
+
+const updateVariantRoute = createRoute({
+    method: 'put',
+    path: '/variants/{id}',
+    tags: ['Products'],
+    description: 'Update an existing product variant',
+    security: [{ bearerAuth: [] }],
+    request: {
+        params: z.object({
+            id: z.string().openapi({ description: 'Variant ID' })
+        }),
+        body: {
+            content: {
+                'application/json': {
+                    schema: variantSchema.partial()
+                }
+            }
+        }
+    },
+    responses: {
+        200: { description: 'Variant updated' },
+        400: { description: 'Validation Error' }
+    }
+});
+
+const deleteVariantRoute = createRoute({
+    method: 'delete',
+    path: '/variants/{id}',
+    tags: ['Products'],
+    description: 'Delete a product variant',
+    security: [{ bearerAuth: [] }],
+    request: {
+        params: z.object({
+            id: z.string().openapi({ description: 'Variant ID' })
+        })
+    },
+    responses: {
+        200: { description: 'Variant deleted' }
+    }
+});
+
+const bulkUpdateMinStockRoute = createRoute({
+    method: 'patch',
+    path: '/bulk-min-stock',
+    tags: ['Products'],
+    description: 'Bulk update minimum stock levels for products in a category',
+    security: [{ bearerAuth: [] }],
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: bulkMinStockSchema
+                }
+            }
+        }
+    },
+    responses: {
+        200: { description: 'Bulk update successful' },
+        400: { description: 'Validation Error' }
+    }
+});
+
+const printLabelRoute = createRoute({
+    method: 'post',
+    path: '/print-label',
+    tags: ['Products'],
+    description: 'Print label for products',
+    security: [{ bearerAuth: [] }],
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: labelSchema
+                }
+            }
+        }
+    },
+    responses: {
+        200: { description: 'Label printed' },
+        400: { description: 'Validation Error' }
+    }
+});
+
 // ============================================
 // BIND OPENAPI ROUTES TO CONTROLLER
 // ============================================
 
-app.openapi(getAllProductsRoute, (c) => controller.getAllProducts(c) as any);
-app.openapi(getProductByIdRoute, (c) => controller.getProductById(c) as any);
-// Note: for openapi, middlewares are applied inside createRoute if fully migrating, 
-// but we just map directly to controller, the security: [{ bearerAuth: [] }] documents it.
-app.openapi(createProductRoute, (c) => controller.createProduct(c) as any);
-app.openapi(updateProductRoute, (c) => controller.updateProduct(c) as any);
-app.openapi(deleteProductRoute, (c) => controller.deleteProduct(c) as any);
-
-// ============================================
-// STANDARD ROUTES (Undocumented / Legacy)
-// ============================================
-
-app.get("/suppliers/:id/variants", (c) => controller.getSupplierVariants(c));
-app.get("/stats", (c) => controller.getStats(c));
-app.get("/:id/variants", (c) => controller.getProductVariants(c));
-app.get("/searchproduct", authMiddleware, (c) => controller.searchProduct(c));
-
-// Variants
-app.post("/variants", authMiddleware, requirePermission("inventory.manage"), zValidator("json", createVariantSchema), (c) => controller.createVariant(c));
-app.put("/variants/:id", authMiddleware, requirePermission("inventory.manage"), zValidator("json", variantSchema.partial()), (c) => controller.updateVariant(c));
-app.delete("/variants/:id", authMiddleware, requirePermission("inventory.manage"), (c) => controller.deleteVariant(c));
-
-// Bulk Min Stock
-app.get("/categories/:id/product-count", (c) => controller.getProductCountByCategory(c));
-app.patch("/bulk-min-stock", authMiddleware, requirePermission("inventory.manage"), zValidator("json", bulkMinStockSchema), (c) => controller.bulkUpdateMinStock(c));
-app.post("/print-label", authMiddleware, requirePermission("inventory.manage"), zValidator("json", labelSchema), (c) => controller.printLabel(c));
+// OpenAPI Routes
+app.openapi(getStatsRoute, ((c: any) => controller.getStats(c)) as any);
+app.openapi(searchProductRoute, ((c: any) => controller.searchProduct(c)) as any);
+app.openapi(getProductCountByCategoryRoute, ((c: any) => controller.getProductCountByCategory(c)) as any);
+app.openapi(getAllProductsRoute, ((c: any) => controller.getAllProducts(c)) as any);
+app.openapi(getSupplierVariantsRoute, ((c: any) => controller.getSupplierVariants(c)) as any);
+app.openapi(getProductVariantsRoute, ((c: any) => controller.getProductVariants(c)) as any);
+app.openapi(getProductByIdRoute, ((c: any) => controller.getProductById(c)) as any);
+app.openapi(createProductRoute, ((c: any) => controller.createProduct(c)) as any);
+app.openapi(updateProductRoute, ((c: any) => controller.updateProduct(c)) as any);
+app.openapi(deleteProductRoute, ((c: any) => controller.deleteProduct(c)) as any);
+app.openapi(createVariantRoute, ((c: any) => controller.createVariant(c)) as any);
+app.openapi(updateVariantRoute, ((c: any) => controller.updateVariant(c)) as any);
+app.openapi(deleteVariantRoute, ((c: any) => controller.deleteVariant(c)) as any);
+app.openapi(bulkUpdateMinStockRoute, ((c: any) => controller.bulkUpdateMinStock(c)) as any);
+app.openapi(printLabelRoute, ((c: any) => controller.printLabel(c)) as any);
 
 export default app;

@@ -126,4 +126,13 @@ export class ReportsController {
             return apiError(c, e, "Failed to retrieve stock value report");
         }
     }
+
+    async getStockAdjustments(c: Context) {
+        try {
+            const data = await this.service.getStockAdjustments();
+            return apiSuccess(c, data, "Stock adjustments retrieved successfully");
+        } catch (e: any) {
+            return apiError(c, e, "Failed to retrieve stock adjustments");
+        }
+    }
 }

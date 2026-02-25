@@ -3,24 +3,24 @@ import { api } from "$lib/shared/core/api";
 export class LiabilitiesService {
     static async getSummary() {
         const res = await api.get("/accounting/liabilities/summary");
-        return res.data;
+        return res.data.data;
     }
 
     static async getSupplierDebts() {
         const res = await api.get("/accounting/liabilities/suppliers");
-        return res.data;
+        return res.data.data;
     }
 
     static async getExpenseDebts() {
         const res = await api.get("/accounting/liabilities/expenses");
-        return res.data;
+        return res.data.data;
     }
 
     static async getCommissionDebts(period?: string) {
         let url = "/accounting/liabilities/commissions";
         if (period) url += `?period=${period}`;
         const res = await api.get(url);
-        return res.data;
+        return res.data.data;
     }
 
     // Payment methods rely on existing services usually, but we might add helper here if needed.
@@ -37,6 +37,6 @@ export class LiabilitiesService {
 
         // Let's assume I will add `POST /accounting/liabilities/expenses/:id/pay` to LiabilitiesController.
         const res = await api.post(`/accounting/liabilities/expenses/${id}/pay`, payload);
-        return res.data;
+        return res.data.data;
     }
 }

@@ -9,3 +9,4 @@ export * from "./use-cases/get-parts-usage-report.use-case";
 export * from "./use-cases/get-activity-logs.use-case";
 export * from "./use-cases/get-profit-and-loss.use-case";
 export * from "./use-cases/get-stock-value-report.use-case";
+export * from "./use-cases/get-stock-adjustments.use-case";

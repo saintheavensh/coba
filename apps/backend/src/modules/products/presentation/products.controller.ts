@@ -5,6 +5,7 @@
  */
 import type { Context } from "hono";
 import { productsService } from "../products-container";
+import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
 
 export class ProductsController {
     constructor(private readonly service: typeof productsService = productsService) { }
@@ -18,10 +19,11 @@ export class ProductsController {
     async getAllProducts(c: Context) {
         try {
             const { search, categoryId, deviceId } = c.req.query();
-            const products = await this.service.getAllProducts(deviceId, search, categoryId);
-            return c.json(products);
+            const result = await this.service.getAllProducts(deviceId, search, categoryId);
+            return apiSuccess(c, result.data, "Products retrieved successfully", 200, result.meta);
         } catch (e: any) {
-            return c.json({ error: e.message }, 500);
+            console.error('ProductsController.getAllProducts Error:', e);
+            return apiError(c, e, "Failed to retrieve products");
         }
     }
 
@@ -35,10 +37,11 @@ export class ProductsController {
         try {
             const id = c.req.param("id");
             const product = await this.service.getProductById(id);
-            if (!product) return c.json({ error: "Not found" }, 404);
-            return c.json(product);
+            if (!product) return apiError(c, null, "Product not found", 404);
+            return apiSuccess(c, product);
         } catch (e: any) {
-            return c.json({ error: e.message }, 500);
+            console.error('ProductsController.getProductById Error:', e);
+            return apiError(c, e, "Failed to retrieve product");
         }
     }
 
@@ -219,9 +222,10 @@ export class ProductsController {
     async getStats(c: Context) {
         try {
             const stats = await this.service.getStats();
-            return c.json(stats);
+            return apiSuccess(c, stats, "Statistics retrieved successfully");
         } catch (e: any) {
-            return c.json({ error: e.message }, 500);
+            console.error('ProductsController.getStats Error:', e);
+            return apiError(c, e, "Failed to retrieve statistics");
         }
     }
 
@@ -235,9 +239,10 @@ export class ProductsController {
         try {
             const { q } = c.req.query();
             const results = await this.service.searchProduct(q);
-            return c.json(results);
+            return apiSuccess(c, results);
         } catch (e: any) {
-            return c.json({ error: e.message }, 500);
+            console.error('ProductsController.searchProduct Error:', e);
+            return apiError(c, e, "Failed to search product");
         }
     }
 

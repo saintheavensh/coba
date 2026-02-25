@@ -19,7 +19,8 @@
 		"axios": "^1.13.2",
 		"chart.js": "^4.5.1",
 		"qrcode": "^1.5.4",
-		"xlsx": "^0.18.5"
+		"xlsx": "^0.18.5",
+		"zod": "3.24.2"
 	},
 	"devDependencies": {
 		"@lucide/svelte": "^0.482.0",

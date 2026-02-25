@@ -36,12 +36,12 @@ export type RegisterHistoryItem = {
 export class CashRegisterService {
     static async getStatus(): Promise<CashRegisterStatus> {
         const res = await api.get("/accounting/register/status");
-        return res.data;
+        return res.data.data;
     }
 
     static async open(openingBalance: number) {
         const res = await api.post("/accounting/register/open", { openingBalance });
-        return res.data;
+        return res.data.data;
     }
 
     static async close(data: {
@@ -51,7 +51,7 @@ export class CashRegisterService {
         targetAccountId?: string;
     }) {
         const res = await api.post("/accounting/register/close", data);
-        return res.data;
+        return res.data.data;
     }
 
     static async recordExpense(data: {
@@ -60,11 +60,11 @@ export class CashRegisterService {
         description: string;
     }) {
         const res = await api.post("/accounting/register/expense", data);
-        return res.data;
+        return res.data.data;
     }
 
     static async getHistory(params?: { startDate?: string; endDate?: string; limit?: number }) {
         const res = await api.get("/accounting/register/history", { params });
-        return res.data;
+        return res.data.data;
     }
 }

@@ -3,7 +3,7 @@ import { OperationalCostsController } from "./operational-costs.controller";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
 import { requireRole } from "../../../middlewares/permission.middleware";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 
 const app = new Hono();
 const controller = new OperationalCostsController();

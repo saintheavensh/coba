@@ -1,0 +1,30 @@
+$ vite build
+[36mvite v7.3.1 [32mbuilding ssr environment for production...[36m[39m
+transforming...
+14.51.55 [vite-plugin-svelte] src/routes/(authenticated)/(settings)/settings/accounting/+page.svelte:269:28 `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated
+267:                             )}"
+268:                         >
+269:                             <svelte:component
+                                   ^
+270:                                 this={group.icon}
+271:                                 class="h-5 w-5"
+14.51.55 [vite-plugin-svelte] src/routes/(authenticated)/(settings)/settings/accounting/+page.svelte:291:44 `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated
+289:                                     >
+290:                                         {#if TYPE_ICONS[type]}
+291:                                             <svelte:component
+                                                   ^
+292:                                                 this={TYPE_ICONS[type]}
+293:                                                 class="h-4 w-4 text-slate-400 shrink-0"
+[32m✓[39m 3322 modules transformed.
+[31m✗[39m Build failed in 20.41s
+[31merror during build:
+[31m[vite:load-fallback] Could not load C:\Users\Good\Documents\web\coba\apps\frontend\src\lib/features/settings/legacy.controller.svelte (imported by src/routes/(authenticated)/(settings)/settings/legacy/+page.svelte): ENOENT: no such file or directory, open 'C:\Users\Good\Documents\web\coba\apps\frontend\src\lib\features\settings\legacy.controller.svelte'[31m
+    at async open (node:internal/fs/promises:641:25)
+    at async Object.readFile (node:internal/fs/promises:1279:14)
+    at async Object.handler (file:///C:/Users/Good/Documents/web/coba/node_modules/.bun/vite@7.3.1/node_modules/vite/dist/node/chunks/config.js:33169:21)
+    at async PluginDriver.hookFirstAndGetPlugin (file:///C:/Users/Good/Documents/web/coba/node_modules/.bun/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:22453:28)
+    at async file:///C:/Users/Good/Documents/web/coba/node_modules/.bun/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:21445:33
+    at async Queue.work (file:///C:/Users/Good/Documents/web/coba/node_modules/.bun/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:22681:32)[39m
+error: script "build" exited with code 1

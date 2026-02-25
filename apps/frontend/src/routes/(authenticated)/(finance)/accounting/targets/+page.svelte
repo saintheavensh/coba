@@ -38,8 +38,8 @@
                 api.get("/accounting/targets/today"),
                 api.get(`/accounting/targets/${selectedMonth}`),
             ]);
-            todayProgress = todayRes.data;
-            monthProgress = monthRes.data;
+            todayProgress = todayRes.data.data;
+            monthProgress = monthRes.data.data;
 
             if (monthProgress && !monthProgress.error) {
                 workingDays = monthProgress.workingDays || 22;

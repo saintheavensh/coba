@@ -31,22 +31,22 @@ export type PaymentMethodVariant = {
 export class PaymentService {
     static async getAll(): Promise<PaymentMethod[]> {
         const response = await api.get<PaymentMethod[]>("payments/methods");
-        return response.data;
+        return (response.data as any).data;
     }
 
     static async getEnabledMethods(): Promise<PaymentMethod[]> {
         const response = await api.get<PaymentMethod[]>("payments/methods?enabled=true");
-        return response.data;
+        return (response.data as any).data;
     }
 
     static async create(data: Partial<PaymentMethod>): Promise<PaymentMethod> {
         const response = await api.post<PaymentMethod>("payments/methods", data);
-        return response.data;
+        return (response.data as any).data;
     }
 
     static async update(id: string, data: Partial<PaymentMethod>): Promise<PaymentMethod> {
         const response = await api.put<PaymentMethod>(`payments/methods/${id}`, data);
-        return response.data;
+        return (response.data as any).data;
     }
 
     static async delete(id: string): Promise<void> {
@@ -55,6 +55,6 @@ export class PaymentService {
 
     static async setDefault(id: string): Promise<PaymentMethod> {
         const response = await api.post<PaymentMethod>(`payments/methods/${id}/default`, {});
-        return response.data;
+        return (response.data as any).data;
     }
 }

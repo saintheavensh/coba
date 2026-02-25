@@ -7,8 +7,11 @@ export const configRoutes = new Hono();
 
 const getController = () => container.get<ConfigController>(TYPES.ConfigController);
 
-// System settings
+// System settings (explicit with scope)
 configRoutes.get('/system/:key', (c) => getController().getSystemConfig(c));
 configRoutes.put('/system/:key', (c) => getController().updateConfig(c));
 
-// If we need other scopes later, we can add them here
+// Generic setting routes used by frontend (assumes system scope by default)
+configRoutes.get('/', (c) => getController().getAllSettings(c));
+configRoutes.get('/:key', (c) => getController().getSystemConfig(c));
+configRoutes.put('/:key', (c) => getController().updateConfig(c));

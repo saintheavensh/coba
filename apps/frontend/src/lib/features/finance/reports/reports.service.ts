@@ -119,46 +119,46 @@ export class ReportsService {
     // Missing Methods Implementation
     static async getSummary(params: any): Promise<any> {
         const response = await api.get("reports/sales/summary", { params });
-        return response.data;
+        return response.data.data;
     }
 
     static async getTransactions(params: any): Promise<any> {
         const response = await api.get("reports/sales/transactions", { params });
-        return response.data;
+        return response.data.data;
     }
 
     static async getPurchasesSummary(params: any): Promise<any> {
         const response = await api.get("reports/purchases/summary", { params });
-        return response.data;
+        return response.data.data;
     }
 
     static async getPurchaseTransactions(params: any): Promise<any> {
         const response = await api.get("reports/purchases/transactions", { params });
-        return response.data;
+        return response.data.data;
     }
 
     static async getServiceStats(params: any): Promise<any> {
         const response = await api.get("reports/services/stats", { params });
-        return response.data;
+        return response.data.data;
     }
 
     static async getServiceTransactions(params: any): Promise<any> {
         const response = await api.get("reports/services/transactions", { params });
-        return response.data;
+        return response.data.data;
     }
 
     static async getTechnicianStats(params: any): Promise<any> {
         const response = await api.get("reports/services/technicians", { params });
-        return response.data;
+        return response.data.data;
     }
 
     static async getPartsUsageReport(params: any): Promise<any> {
         const response = await api.get("reports/services/parts-usage", { params });
-        return response.data;
+        return response.data.data;
     }
 
     static async getStockAdjustments(): Promise<StockAdjustmentReport[]> {
         const response = await api.get("reports/inventory/adjustments");
-        return response.data;
+        return response.data.data;
     }
 }

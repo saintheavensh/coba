@@ -13,10 +13,7 @@ export const deviceContainer = new ContainerModule(({ bind }) => {
         const { appConfig } = require("../../../infrastructure/config/AppConfig");
         return appConfig;
     }).inSingletonScope();
-    bind(TYPES.DrizzleClient).toDynamicValue(() => {
-        const { DrizzleClient } = require("../../database/DrizzleClient");
-        return new DrizzleClient();
-    }).inSingletonScope();
+    // Note: DrizzleClient is provided by global container
 
     // Ports
     bind<IDeviceApiGateway>(TYPES.IDeviceApiGateway).to(DeviceApiAdapter).inSingletonScope();

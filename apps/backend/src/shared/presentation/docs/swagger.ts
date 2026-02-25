@@ -1,10 +1,7 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
 
-export const swaggerApp = new OpenAPIHono();
-
-// Configure OpenAPI info
-swaggerApp.doc('/spec', {
+export const openApiConfig = {
     openapi: '3.0.0',
     info: {
         title: 'Coba App Backend API',
@@ -17,7 +14,7 @@ swaggerApp.doc('/spec', {
     },
     servers: [
         {
-            url: 'http://localhost:3000',
+            url: 'http://localhost:4000',
             description: 'Development server'
         },
         {
@@ -32,14 +29,8 @@ swaggerApp.doc('/spec', {
         { name: 'Auth', description: 'Authentication endpoints' },
         { name: 'Dashboard', description: 'Dashboard and analytics' }
     ]
-});
+};
 
-// Register Security Scheme
-swaggerApp.openAPIRegistry.registerComponent('securitySchemes', 'bearerAuth', {
-    type: 'http',
-    scheme: 'bearer',
-    bearerFormat: 'JWT'
-});
-
-// Serve Swagger UI
-swaggerApp.get('/docs', swaggerUI({ url: '/spec' }));
+export const swaggerApp = new OpenAPIHono();
+// This will be used for the UI itself, pointing to the main spec
+swaggerApp.get('/docs', swaggerUI({ url: '/api-docs/spec' }));

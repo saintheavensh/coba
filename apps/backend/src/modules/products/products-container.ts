@@ -4,11 +4,11 @@ import { TYPES } from "./types";
 // Infrastructure
 import { DrizzleProductRepository } from "./infrastructure/persistence/DrizzleProductRepository";
 import { InventoryGatewayAdapter } from "./infrastructure/adapters/InventoryGatewayAdapter";
-import { DrizzleClient } from "../../shared/infrastructure/database/DrizzleClient";
 
 // Use Cases
 import { CreateProductUseCase } from "./application/use-cases/CreateProductUseCase";
 import { GetProductUseCase } from "./application/use-cases/GetProductUseCase";
+import { GetProductsUseCase } from "./application/use-cases/GetProductsUseCase";
 import { UpdateProductUseCase } from "./application/use-cases/UpdateProductUseCase";
 import { ActivateProductUseCase } from "./application/use-cases/ActivateProductUseCase";
 import { DeleteProductUseCase } from "./application/use-cases/DeleteProductUseCase";
@@ -25,15 +25,10 @@ import { IInventoryGateway } from "./domain/ports/IInventoryGateway";
  * Configures all dependencies for the Products module using Inversify.
  */
 export const productsContainerModule = new ContainerModule(({ bind }) => {
-    // Database
-    bind<DrizzleClient>(TYPES.DrizzleClient).to(DrizzleClient).inSingletonScope();
+    // Database is now bound in global container, so we don't bind DrizzleClient here
 
     // External dependencies bindings required for adapters
-    bind(TYPES.InventoryFacade).toDynamicValue(() => {
-        // Late require to avoid circular dependency
-        const { inventoryService } = require("../inventory/inventory-container");
-        return inventoryService;
-    }).inSingletonScope();
+    // Note: InventoryFacade is provided by global container
 
     // Repositories
     bind<IProductRepository>(TYPES.IProductRepository).to(DrizzleProductRepository).inSingletonScope();
@@ -43,7 +38,8 @@ export const productsContainerModule = new ContainerModule(({ bind }) => {
 
     // Application / Use Cases
     bind<CreateProductUseCase>(TYPES.CreateProductUseCase).to(CreateProductUseCase);
-    bind<GetProductUseCase>(TYPES.GetProductsUseCase).to(GetProductUseCase);
+    bind<GetProductUseCase>(TYPES.GetProductUseCase || Symbol.for("GetProductUseCase")).to(GetProductUseCase);
+    bind<GetProductsUseCase>(TYPES.GetProductsUseCase).to(GetProductsUseCase);
     bind<UpdateProductUseCase>(TYPES.UpdateProductUseCase).to(UpdateProductUseCase);
     bind<DeleteProductUseCase>(TYPES.DeleteProductUseCase).to(DeleteProductUseCase);
     // Note: ActivateProductUseCase isn't in TYPES yet, let's add it if needed or bind to self
@@ -54,12 +50,21 @@ export const productsContainerModule = new ContainerModule(({ bind }) => {
 });
 
 import { Container } from "inversify";
-import { LoggerFactory } from "../../shared/utils/logger/Logger";
 
-// Exposing a singleton instance directly if external modules expect `productsService` rather than resolving from global container
-const tempContainer = new Container();
-tempContainer.bind(TYPES.LoggerFactory).to(LoggerFactory).inSingletonScope();
-tempContainer.load(productsContainerModule);
-const productsService = tempContainer.get<ProductsFacade>(TYPES.ProductsFacade);
+const getProductsFacade = (): ProductsFacade => {
+    const { container } = require("../../container");
+    return (container as Container).get<ProductsFacade>(TYPES.ProductsFacade);
+};
+
+const productsService = new Proxy({} as ProductsFacade, {
+    get: (target, prop) => {
+        const facade = getProductsFacade();
+        const value = (facade as any)[prop];
+        if (typeof value === 'function') {
+            return value.bind(facade);
+        }
+        return value;
+    }
+});
 
 export { ProductsFacade, productsService };

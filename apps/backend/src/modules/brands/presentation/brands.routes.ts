@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 import { zValidator } from "@hono/zod-validator";
 import { BrandsController } from "./brands.controller";
 import { authMiddleware } from "../../../middlewares/auth.middleware";

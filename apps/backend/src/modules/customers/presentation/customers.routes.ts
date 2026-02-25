@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { CustomersController } from "./customers.controller";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
+import { z } from "@hono/zod-openapi";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
 import { permissionGuard } from "../../../middlewares/permission.middleware";
 

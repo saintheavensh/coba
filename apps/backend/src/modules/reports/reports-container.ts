@@ -11,7 +11,8 @@ import {
     GetPartsUsageReportUseCase,
     GetActivityLogsUseCase,
     GetProfitAndLossUseCase,
-    GetStockValueReportUseCase
+    GetStockValueReportUseCase,
+    GetStockAdjustmentsUseCase
 } from "./application";
 
 // Adapters
@@ -29,6 +30,7 @@ const getPartsUsageReportUC = new GetPartsUsageReportUseCase(repository);
 const getActivityLogsUC = new GetActivityLogsUseCase(repository);
 const getProfitAndLossUC = new GetProfitAndLossUseCase(repository);
 const getStockValueReportUC = new GetStockValueReportUseCase(repository);
+const getStockAdjustmentsUC = new GetStockAdjustmentsUseCase(repository);
 
 /**
  * ReportsService — Facade for external and presentation layers.
@@ -76,6 +78,10 @@ export class ReportsService {
 
     async getStockValueReport() {
         return await getStockValueReportUC.execute();
+    }
+
+    async getStockAdjustments() {
+        return await getStockAdjustmentsUC.execute();
     }
 }
 

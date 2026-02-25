@@ -106,7 +106,7 @@ export class ReportsController {
             queryKey: ["accounting", "tree"],
             queryFn: async () => {
                 const res = await api.get("/accounting/accounts/tree");
-                return res.data;
+                return res.data.data;
             },
             enabled: !!(this.accountingMode === "professional"),
         }));
