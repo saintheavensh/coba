@@ -5,6 +5,7 @@
 import { LoginUseCase } from "./application/use-cases/LoginUseCase";
 import { GetCurrentUserUseCase } from "./application/use-cases/GetCurrentUserUseCase";
 import { GetRolesUseCase } from "./application/use-cases/GetRolesUseCase";
+import { SwitchRoleUseCase } from "./application/use-cases/SwitchRoleUseCase";
 import {
     DrizzleAuthRepository,
 } from "./infrastructure/persistence/DrizzleAuthRepository";
@@ -25,6 +26,7 @@ const roleRepository = new DrizzleRoleRepository();
 export const loginUseCase = new LoginUseCase(userRepository, passwordVerifier, tokenIssuer);
 export const getCurrentUserUseCase = new GetCurrentUserUseCase(userRepository);
 export const getRolesUseCase = new GetRolesUseCase(roleRepository);
+export const switchRoleUseCase = new SwitchRoleUseCase(tokenIssuer);
 
 /**
  * Auth Facade - Standard entry point for the module

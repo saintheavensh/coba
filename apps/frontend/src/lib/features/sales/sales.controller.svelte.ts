@@ -41,6 +41,10 @@ export class SalesController {
         label: "Tax",
         inclusive: false
     });
+    discountAmount = $state(0);
+    approvalId = $state("");
+    showApprovalModal = $state(false);
+    pendingApprovalData = $state<any>(null);
 
     // UI State
     searchTerm = $state("");
@@ -172,21 +176,21 @@ export class SalesController {
 
     get taxAmount() {
         if (!this.taxSettings.enabled) return 0;
+        const subtotalAfterDiscount = Math.max(0, this.subtotal - this.discountAmount);
         const rate = this.taxSettings.rate / 100;
         if (this.taxSettings.inclusive) {
-            // Implied Tax: Price = Base + Tax. Tax = Price - (Price / (1 + rate))
-            return this.subtotal - (this.subtotal / (1 + rate));
+            return subtotalAfterDiscount - (subtotalAfterDiscount / (1 + rate));
         } else {
-            // Additive Tax: Tax = Price * rate
-            return this.subtotal * rate;
+            return subtotalAfterDiscount * rate;
         }
     }
 
     get totalWithTax() {
+        const subtotalAfterDiscount = Math.max(0, this.subtotal - this.discountAmount);
         if (this.taxSettings.inclusive) {
-            return this.subtotal; // Price already includes tax
+            return subtotalAfterDiscount;
         }
-        return this.subtotal + this.taxAmount;
+        return subtotalAfterDiscount + this.taxAmount;
     }
 
     get transactionFees() {
@@ -284,6 +288,8 @@ export class SalesController {
         this.selectedCustomerId = "";
         this.customerNameManual = "Walk-in Consumen";
         this.notes = "";
+        this.discountAmount = 0;
+        this.approvalId = "";
         const defaultMethod =
             this.availableMethods.find((m) => m.type === "cash") ||
             this.availableMethods[0];
@@ -409,6 +415,8 @@ export class SalesController {
             }),
             userId: authStore.user?.id || "USR-ADMIN", // Use real user ID
             notes: this.notes,
+            discountAmount: this.discountAmount,
+            approvalId: this.approvalId || undefined,
             items: this.cart.map((c) => ({
                 productId: c.productId,
                 variant: c.variant,
@@ -441,7 +449,14 @@ export class SalesController {
             this.paymentOpen = false;
             this.resetPaymentForm();
         } catch (e: any) {
-            toast.error("Gagal: " + (e.response?.data?.message || e.message));
+            const extra = e.response?.data?.extra;
+            if (extra?.type === 'APPROVAL_REQUIRED') {
+                this.pendingApprovalData = extra;
+                this.showApprovalModal = true;
+                toast.warning("Discount level requires manager approval");
+            } else {
+                toast.error("Gagal: " + (e.response?.data?.message || e.message));
+            }
         } finally {
             this.loading = false;
         }

@@ -130,12 +130,34 @@
         <div class="space-y-2">
             <div class="flex justify-between text-sm text-muted-foreground">
                 <span>Subtotal</span>
-                <span>{formatCurrency(controller.totalAmount)}</span>
+                <span>{formatCurrency(controller.subtotal)}</span>
             </div>
-            <div class="flex justify-between items-end">
+
+            <div class="flex justify-between items-center text-sm text-red-600">
+                <span>Diskon</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs">-</span>
+                    <input
+                        type="number"
+                        bind:value={controller.discountAmount}
+                        class="w-24 h-8 bg-muted rounded-lg text-right px-2 font-bold focus:outline-none focus:ring-1 focus:ring-red-500"
+                    />
+                </div>
+            </div>
+
+            {#if controller.taxSettings.enabled}
+                <div class="flex justify-between text-sm text-muted-foreground">
+                    <span>{controller.taxSettings.label}</span>
+                    <span>{formatCurrency(controller.taxAmount)}</span>
+                </div>
+            {/if}
+
+            <div
+                class="flex justify-between items-end border-t border-dashed pt-2 mt-2"
+            >
                 <span class="font-bold text-base">Total Tagihan</span>
                 <span class="font-bold text-xl text-blue-600"
-                    >{formatCurrency(controller.totalAmount)}</span
+                    >{formatCurrency(controller.totalWithTax)}</span
                 >
             </div>
         </div>

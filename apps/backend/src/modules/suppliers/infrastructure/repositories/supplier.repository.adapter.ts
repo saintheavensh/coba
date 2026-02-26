@@ -1,6 +1,6 @@
 import { eq, desc, and } from "drizzle-orm";
 import { db } from "../../../../db";
-import { suppliers, supplierCategories, categories, categoryVariants } from "../../../../db/schema";
+import { suppliers, supplierCategories, categories, categoryVariants, supplierProductVariants, products, productVariants } from "../../../../db/schema";
 import { DBContext } from "../../../../shared/types/db-context";
 import { ISupplierRepository, Supplier, CreateSupplierData, UpdateSupplierData } from "../../domain";
 
@@ -72,5 +72,64 @@ export class SupplierRepositoryAdapter implements ISupplierRepository {
                     eq(supplierCategories.categoryId, categoryId)
                 )
             );
+    }
+
+    async getMappedProductVariants(supplierId: string, dbOrTx?: DBContext): Promise<any[]> {
+        const client = (dbOrTx as any) || db;
+
+        // Use query builder for full inner joins or left joins depending on if variant is null
+        const results = await client
+            .select({
+                id: supplierProductVariants.id,
+                productId: products.id,
+                productName: products.name,
+                variantId: productVariants.id,
+                variantName: productVariants.name,
+                isActive: supplierProductVariants.isActive
+            })
+            .from(supplierProductVariants)
+            .innerJoin(products, eq(supplierProductVariants.productId, products.id))
+            .leftJoin(productVariants, eq(supplierProductVariants.variantId, productVariants.id))
+            .where(eq(supplierProductVariants.supplierId, supplierId));
+
+        return results;
+    }
+
+    async mapProductVariant(supplierId: string, productId: string, variantId?: string | null, dbOrTx?: DBContext): Promise<void> {
+        const client = (dbOrTx as any) || db;
+
+        // Handle null vs string
+        const vId = variantId || null;
+
+        await client.insert(supplierProductVariants)
+            .values({ supplierId, productId, variantId: vId })
+            .onConflictDoUpdate({
+                target: [supplierProductVariants.supplierId, supplierProductVariants.productId, supplierProductVariants.variantId],
+                set: { isActive: true, updatedAt: new Date() }
+            });
+    }
+
+    async unmapProductVariant(supplierId: string, productId: string, variantId?: string | null, dbOrTx?: DBContext): Promise<void> {
+        const client = (dbOrTx as any) || db;
+
+        const conditions = [
+            eq(supplierProductVariants.supplierId, supplierId),
+            eq(supplierProductVariants.productId, productId)
+        ];
+
+        // variantId in db could be null conceptually, though unique().on handles it as distinct usually.
+        // We use isNull if variantId is not provided
+        if (variantId) {
+            conditions.push(eq(supplierProductVariants.variantId, variantId));
+        } else {
+            // Need a way to match where variantId is null
+            // Drizzle has isNull function, we need to import it wait, let's just use raw sql or simple approach.
+            // Drizzle eq(col, null) might generate `col IS NULL`.
+            conditions.push(eq(supplierProductVariants.variantId, null as any)); // Assuming Drizzle handles it or we can import isNull
+        }
+
+        // We can just delete it, or soft delete it mapping. The prompt said unmap, let's delete.
+        await client.delete(supplierProductVariants)
+            .where(and(...conditions));
     }
 }

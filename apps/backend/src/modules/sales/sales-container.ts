@@ -4,8 +4,12 @@ import {
     InventoryGatewayAdapter,
     AccountingGatewayAdapter,
     MemberGatewayAdapter,
-    SettingsGatewayAdapter
+    SettingsGatewayAdapter,
+    ApprovalGatewayAdapter
 } from "./infrastructure";
+import { ApprovalCheckService } from "../approvals/domain/services/ApprovalCheckService";
+import { DrizzleApprovalRepository } from "../approvals/infrastructure/repositories/DrizzleApprovalRepository";
+import { SettingsRepositoryAdapter } from "../settings/infrastructure/repositories/settings.repository.adapter";
 import { GetSalesUseCase, GetSaleByIdUseCase, CreateSaleUseCase } from "./application";
 import { Sale, CreateSaleInput } from "./domain";
 
@@ -16,6 +20,12 @@ const accountingGateway = new AccountingGatewayAdapter();
 const memberGateway = new MemberGatewayAdapter();
 const settingsGateway = new SettingsGatewayAdapter();
 
+// Dependency from other modules (Approvals)
+const settingsRepo = new SettingsRepositoryAdapter();
+const approvalRepo = new DrizzleApprovalRepository();
+const approvalCheckService = new ApprovalCheckService(settingsRepo);
+const approvalGateway = new ApprovalGatewayAdapter(approvalCheckService, approvalRepo);
+
 // Use Cases
 const getSalesUC = new GetSalesUseCase(repository);
 const getSaleByIdUC = new GetSaleByIdUseCase(repository);
@@ -25,6 +35,7 @@ const createSaleUC = new CreateSaleUseCase(
     accountingGateway,
     memberGateway,
     settingsGateway,
+    approvalGateway,
     db as any
 );
 

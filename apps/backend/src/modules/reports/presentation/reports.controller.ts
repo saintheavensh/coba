@@ -135,4 +135,24 @@ export class ReportsController {
             return apiError(c, e, "Failed to retrieve stock adjustments");
         }
     }
+
+    async getKasirDailyReport(c: Context) {
+        try {
+            const { startDate, endDate } = c.req.query();
+            const data = await this.service.getKasirDailyReport({ startDate, endDate });
+            return apiSuccess(c, data, "Daily cashier report retrieved successfully");
+        } catch (e: any) {
+            return apiError(c, e, "Failed to retrieve daily cashier report");
+        }
+    }
+
+    async getLowStockReport(c: Context) {
+        try {
+            const { threshold } = c.req.query();
+            const data = await this.service.getLowStockReport(threshold ? parseInt(threshold) : undefined);
+            return apiSuccess(c, data, "Low stock report retrieved successfully");
+        } catch (e: any) {
+            return apiError(c, e, "Failed to retrieve low stock report");
+        }
+    }
 }

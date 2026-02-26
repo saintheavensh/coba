@@ -125,7 +125,7 @@ async function seed() {
             // Assign initial role to user_roles table
             await db.insert(userRoles).values({
                 userId: user.id,
-                roleId: user.role
+                role: user.role
             }).onConflictDoNothing();
         }
 

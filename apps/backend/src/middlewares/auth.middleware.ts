@@ -18,6 +18,7 @@ export const authMiddleware = createMiddleware(async (c, next) => {
     }
 
     if (!token) {
+        console.log("[AuthMiddleware] No token found in cookies or headers");
         return apiError(c, "No token provided", "Unauthorized", 401);
     }
 
@@ -26,7 +27,11 @@ export const authMiddleware = createMiddleware(async (c, next) => {
         c.set("jwtPayload", payload);
         c.set("user", payload); // Also set as "user" for controllers
         await next();
-    } catch (e) {
+    } catch (e: any) {
+        console.error("[AuthMiddleware] Token verification failed:", e.message);
+        console.log("[AuthMiddleware] Token used:", token.substring(0, 10) + "...");
+        console.log("[AuthMiddleware] Secret exists:", !!JWT_SECRET);
         return apiError(c, e, "Invalid Token", 401);
     }
 });
+

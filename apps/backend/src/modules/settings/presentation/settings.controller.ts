@@ -10,9 +10,10 @@ import {
     DEFAULT_PAYMENT_METHODS, DEFAULT_STORE_INFO, DEFAULT_RECEIPT_SETTINGS,
     DEFAULT_SERVICE_SETTINGS, DEFAULT_WHATSAPP_SETTINGS, DEFAULT_COMMISSION_SETTINGS,
     DEFAULT_ACCOUNT_MAPPINGS, DEFAULT_GENERAL_SETTINGS, DEFAULT_TAX_SETTINGS,
-    DEFAULT_SYSTEM_SETTINGS
+    DEFAULT_SYSTEM_SETTINGS, DEFAULT_ROLE_BEHAVIOR
 } from "../application";
 import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
+import type { RoleBehavior } from "../../../../../../packages/shared/src/types/service";
 
 export class SettingsController {
     constructor(
@@ -227,6 +228,25 @@ export class SettingsController {
             return apiSuccess(c, null, "Factory reset completed successfully");
         } catch (e: any) {
             return apiError(c, e, "Factory reset failed");
+        }
+    }
+
+    async getRoleBehavior(c: Context) {
+        try {
+            const settings = await this.service.get("role_behavior", DEFAULT_ROLE_BEHAVIOR);
+            return apiSuccess(c, settings);
+        } catch (e: any) {
+            return apiError(c, e, "Failed to fetch role behavior settings");
+        }
+    }
+
+    async setRoleBehavior(c: Context) {
+        try {
+            const body = await c.req.json<RoleBehavior>();
+            await this.service.set("role_behavior", body);
+            return apiSuccess(c, null, "Role behavior settings updated");
+        } catch (e: any) {
+            return apiError(c, e, "Failed to update role behavior settings");
         }
     }
 

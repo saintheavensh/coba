@@ -182,14 +182,21 @@ export class TicketDetailController {
 
     // Derived Financials
     totalParts = $derived(
-        this.serviceOrder?.parts?.reduce(
+        this.serviceOrder?.items?.reduce(
+            (itemSum: number, item: any) =>
+                itemSum + (item.parts?.reduce((partSum: number, p: any) => partSum + (p.sellingPrice * p.quantity), 0) || 0),
+            0
+        ) || this.serviceOrder?.parts?.reduce(
             (sum: number, p: any) => sum + (p.subtotal || p.price * p.qty),
             0,
         ) || 0,
     );
 
     grandTotal = $derived(
-        this.serviceOrder?.actualCost || this.serviceOrder?.costEstimate || 0,
+        this.serviceOrder?.items?.reduce(
+            (sum: number, item: any) => sum + (item.actualCost || item.estimatedCost || 0),
+            0
+        ) || this.serviceOrder?.actualCost || this.serviceOrder?.costEstimate || 0,
     );
 
     derivedServiceFee = $derived(Math.max(0, this.grandTotal - this.totalParts));

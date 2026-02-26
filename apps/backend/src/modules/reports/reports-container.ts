@@ -12,7 +12,9 @@ import {
     GetActivityLogsUseCase,
     GetProfitAndLossUseCase,
     GetStockValueReportUseCase,
-    GetStockAdjustmentsUseCase
+    GetStockAdjustmentsUseCase,
+    GetLowStockReportUseCase,
+    GetKasirDailyReportUseCase
 } from "./application";
 
 // Adapters
@@ -31,6 +33,8 @@ const getActivityLogsUC = new GetActivityLogsUseCase(repository);
 const getProfitAndLossUC = new GetProfitAndLossUseCase(repository);
 const getStockValueReportUC = new GetStockValueReportUseCase(repository);
 const getStockAdjustmentsUC = new GetStockAdjustmentsUseCase(repository);
+const getLowStockReportUC = new GetLowStockReportUseCase(repository);
+const getKasirDailyReportUC = new GetKasirDailyReportUseCase(repository);
 
 /**
  * ReportsService — Facade for external and presentation layers.
@@ -82,6 +86,14 @@ export class ReportsService {
 
     async getStockAdjustments() {
         return await getStockAdjustmentsUC.execute();
+    }
+
+    async getLowStockReport(threshold?: number) {
+        return await getLowStockReportUC.execute(threshold);
+    }
+
+    async getKasirDailyReport(filters: any) {
+        return await getKasirDailyReportUC.execute(filters);
     }
 }
 

@@ -1,5 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { StockOpnameController } from "./stock-opname.controller";
+import gamblingController from "./gambling.controller";
+import kanibalController from "./kanibal.controller";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
 import { requirePermission } from "../../../middlewares/permission.middleware";
 
@@ -162,5 +164,9 @@ app.openapi(getSessionDetailsRoute, ((c: any) => stockOpnameController.getSessio
 app.openapi(updateOpnameItemRoute, ((c: any) => stockOpnameController.updateItem(c)) as any);
 app.openapi(finalizeSessionRoute, ((c: any) => stockOpnameController.finalizeSession(c)) as any);
 app.openapi(cancelSessionRoute, ((c: any) => stockOpnameController.cancelSession(c)) as any);
+
+// Standard Hono routes for Gambling & Kanibal
+app.route("/gambling", gamblingController);
+app.route("/kanibal", kanibalController);
 
 export default app;

@@ -71,6 +71,14 @@
             </Button>
             <Button
                 variant="outline"
+                class="hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200"
+                onclick={() => goto("/kasir/daily-report")}
+            >
+                <DollarSign class="mr-2 h-4 w-4" />
+                Laporan Shift
+            </Button>
+            <Button
+                variant="outline"
                 class="hover:bg-green-50 hover:text-green-600 hover:border-green-200"
                 onclick={() => goto("/sale/new")}
             >

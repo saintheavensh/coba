@@ -12,6 +12,7 @@
     import ProductCatalog from "$lib/features/sales/components/ProductCatalog.svelte";
     import SalesCart from "$lib/features/sales/components/SalesCart.svelte";
     import PaymentDialog from "$lib/features/sales/components/PaymentDialog.svelte";
+    import ApprovalModal from "$lib/features/sales/components/ApprovalModal.svelte";
     import { CashRegisterService } from "$lib/features/accounting/services/cash-register.service"; // Import Service
     import { authStore } from "$lib/features/auth/auth.svelte"; // Import Auth
     import { toast } from "svelte-sonner"; // Import Toast
@@ -81,4 +82,5 @@
     </div>
 
     <PaymentDialog {controller} />
+    <ApprovalModal {controller} />
 </div>

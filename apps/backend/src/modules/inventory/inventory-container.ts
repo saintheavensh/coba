@@ -1,17 +1,20 @@
-/**
- * Inventory module composition root.
- * Wires infrastructure adapters → use cases → service facades.
- * Maintains backward-compatible exports for external consumers.
- */
 import { StockMutationGatewayAdapter } from "./infrastructure/adapters/stock-mutation-gateway.adapter";
 import { StockOpnameRepositoryAdapter } from "./infrastructure/adapters/stock-opname-repository.adapter";
 import { ActivityLoggerAdapter } from "./infrastructure/adapters/activity-logger.adapter";
 import { BatchRepositoryAdapter } from "./infrastructure/adapters/batch-repository.adapter";
+import { GamblingRepositoryAdapter } from "./infrastructure/adapters/gambling-repository.adapter";
+import { KanibalRepositoryAdapter } from "./infrastructure/adapters/kanibal-repository.adapter";
 
 import { DeductStockFIFOUseCase } from "./application/use-cases/deduct-stock-fifo.use-case";
 import { AddStockFromPurchaseUseCase } from "./application/use-cases/add-stock-from-purchase.use-case";
 import { ReverseStockUseCase } from "./application/use-cases/reverse-stock.use-case";
 import { GetLastBatchUseCase } from "./application/use-cases/get-last-batch.use-case";
+import { ReduceBatchStockUseCase } from "./application/use-cases/reduce-batch-stock.use-case";
+import { RecordDeadPhonePurchaseUseCase } from "./application/use-cases/record-dead-phone-purchase.use-case";
+import { RecordTestLogUseCase } from "./application/use-cases/record-test-log.use-case";
+import { HarvestPartUseCase } from "./application/use-cases/harvest-part.use-case";
+import { ForfeitServiceDeviceUseCase } from "./application/use-cases/forfeit-service-device.use-case";
+
 import { CreateOpnameSessionUseCase } from "./application/use-cases/create-opname-session.use-case";
 import { GetOpnameSessionsUseCase } from "./application/use-cases/get-opname-sessions.use-case";
 import { GetOpnameSessionDetailsUseCase } from "./application/use-cases/get-opname-session-details.use-case";
@@ -19,26 +22,29 @@ import { UpdateOpnameItemUseCase } from "./application/use-cases/update-opname-i
 import { FinalizeOpnameSessionUseCase } from "./application/use-cases/finalize-opname-session.use-case";
 import { CancelOpnameSessionUseCase } from "./application/use-cases/cancel-opname-session.use-case";
 import { GetAdjustmentHistoryUseCase } from "./application/use-cases/get-adjustment-history.use-case";
-import { ReduceBatchStockUseCase } from "./application/use-cases/reduce-batch-stock.use-case";
 
 import { InventoryService } from "./services/inventory.service";
 import { StockOpnameService } from "./services/stock-opname.service";
-// No longer eagerly importing productsService to break initialization cycle
 
-// Infrastructure adapters
+// Adapters
 const stockGateway = new StockMutationGatewayAdapter();
 const stockOpnameRepo = new StockOpnameRepositoryAdapter();
 const activityLogger = new ActivityLoggerAdapter();
 const batchRepository = new BatchRepositoryAdapter();
+const gamblingRepository = new GamblingRepositoryAdapter();
+const kanibalRepository = new KanibalRepositoryAdapter();
 
-// Stock use cases
+// Use Cases
 const deductStockFIFOUC = new DeductStockFIFOUseCase(stockGateway);
 const addStockFromPurchaseUC = new AddStockFromPurchaseUseCase(stockGateway);
 const reverseStockUC = new ReverseStockUseCase(stockGateway);
 const getLastBatchUC = new GetLastBatchUseCase(batchRepository);
 const reduceBatchStockUC = new ReduceBatchStockUseCase(stockGateway, batchRepository);
+const recordDeadPhoneUC = new RecordDeadPhonePurchaseUseCase(gamblingRepository);
+const recordTestLogUC = new RecordTestLogUseCase(gamblingRepository);
+const harvestPartUC = new HarvestPartUseCase(gamblingRepository, kanibalRepository, stockGateway);
+const forfeitServiceDeviceUC = new ForfeitServiceDeviceUseCase(kanibalRepository);
 
-// Opname use cases
 const createOpnameSessionUC = new CreateOpnameSessionUseCase(stockOpnameRepo, activityLogger);
 const getOpnameSessionsUC = new GetOpnameSessionsUseCase(stockOpnameRepo);
 const getOpnameSessionDetailsUC = new GetOpnameSessionDetailsUseCase(stockOpnameRepo);
@@ -47,7 +53,7 @@ const finalizeOpnameSessionUC = new FinalizeOpnameSessionUseCase(stockOpnameRepo
 const cancelOpnameSessionUC = new CancelOpnameSessionUseCase(stockOpnameRepo, activityLogger);
 const getAdjustmentHistoryUC = new GetAdjustmentHistoryUseCase(stockOpnameRepo);
 
-// Service facades
+// Service Facades
 export const inventoryService = new InventoryService(
     deductStockFIFOUC,
     addStockFromPurchaseUC,
@@ -55,6 +61,12 @@ export const inventoryService = new InventoryService(
     getLastBatchUC,
     reduceBatchStockUC,
     batchRepository,
+    recordDeadPhoneUC,
+    recordTestLogUC,
+    harvestPartUC,
+    forfeitServiceDeviceUC,
+    gamblingRepository,
+    kanibalRepository,
     () => require("../products/products-container").productsService
 );
 
@@ -68,9 +80,5 @@ export const stockOpnameService = new StockOpnameService(
     getAdjustmentHistoryUC
 );
 
-/**
- * Backward-compatible aliases.
- * External modules (sales, purchases) import these names.
- */
 export const inventoryApplicationService = inventoryService;
 export const stockOpnameApplicationService = stockOpnameService;

@@ -18,6 +18,11 @@ const supplierSchema = z.object({
 
 const linkCategorySchema = z.object({ categoryId: z.string() });
 
+const mapProductVariantSchema = z.object({
+    productId: z.string().min(1, "Product ID is required"),
+    variantId: z.string().optional().nullable()
+});
+
 app.use("*", authMiddleware);
 
 app.get("/", (c) => controller.getAll(c));
@@ -28,5 +33,10 @@ app.delete("/:id", requirePermission("inventory.manage"), (c) => controller.dele
 
 app.post("/:id/categories", requirePermission("inventory.manage"), zValidator("json", linkCategorySchema), (c) => controller.linkCategory(c));
 app.delete("/:id/categories/:categoryId", requirePermission("inventory.manage"), (c) => controller.unlinkCategory(c));
+
+// Product Variant Mapping
+app.get("/:id/product-variants", requirePermission("inventory.manage", "purchase.create"), (c) => controller.getMappedProductVariants(c));
+app.post("/:id/product-variants", requirePermission("inventory.manage", "purchase.create"), zValidator("json", mapProductVariantSchema), (c) => controller.mapProductVariant(c));
+app.delete("/:id/product-variants/:productId", requirePermission("inventory.manage", "purchase.create"), (c) => controller.unmapProductVariant(c));
 
 export default app;

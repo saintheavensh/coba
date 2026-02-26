@@ -1,6 +1,5 @@
-import { relations } from "drizzle-orm";
 import { text, integer, timestamp, pgTable } from "drizzle-orm/pg-core";
-import { users } from "../../../../db/schema"; // Hub reference
+import { users } from "../../../users/infrastructure/schema/UserSchema";
 import { products } from "../../../products/infrastructure/schema/ProductSchema";
 import { productBatches } from "./BatchSchema";
 
@@ -27,25 +26,3 @@ export const stockOpnameItems = pgTable("stock_opname_items", {
     adjustmentReason: text("adjustment_reason"),
 });
 
-export const stockOpnameSessionsRelations = relations(stockOpnameSessions, ({ one, many }) => ({
-    user: one(users, {
-        fields: [stockOpnameSessions.userId],
-        references: [users.id],
-    }),
-    items: many(stockOpnameItems),
-}));
-
-export const stockOpnameItemsRelations = relations(stockOpnameItems, ({ one }) => ({
-    session: one(stockOpnameSessions, {
-        fields: [stockOpnameItems.sessionId],
-        references: [stockOpnameSessions.id],
-    }),
-    product: one(products, {
-        fields: [stockOpnameItems.productId],
-        references: [products.id],
-    }),
-    batch: one(productBatches, {
-        fields: [stockOpnameItems.batchId],
-        references: [productBatches.id],
-    }),
-}));

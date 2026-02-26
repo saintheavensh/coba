@@ -23,7 +23,14 @@ export class ServiceRepositoryAdapter implements IServiceRepository {
             ) : undefined,
             orderBy: [desc(services.dateIn)],
             with: {
-                technician: true
+                technician: true,
+                items: {
+                    with: {
+                        parts: true,
+                        serviceType: true,
+                        technician: true
+                    }
+                }
             }
         });
 
@@ -37,6 +44,15 @@ export class ServiceRepositoryAdapter implements IServiceRepository {
             with: {
                 technician: true,
                 creator: true,
+                items: {
+                    with: {
+                        parts: {
+                            with: { variantBatch: true }
+                        },
+                        serviceType: true,
+                        technician: true
+                    }
+                }
             }
         });
 

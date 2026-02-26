@@ -3,6 +3,7 @@ import {
     WhatsAppSettings, CommissionSettings, AccountMappingSettings,
     GeneralSettings, TaxSettings, SystemSettings
 } from "../domain";
+import type { RoleBehavior } from "../../../../../../packages/shared/src/types/service";
 
 export const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig = {
     methods: [
@@ -120,4 +121,8 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
 export const DEFAULT_GENERAL_SETTINGS: GeneralSettings = {
     accountingMode: 'simple',
     accountingSetupComplete: false,
+};
+
+export const DEFAULT_ROLE_BEHAVIOR: RoleBehavior = {
+    mode: 'strict'
 };

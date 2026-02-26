@@ -12,6 +12,8 @@
         Truck,
         Archive,
         AlertTriangle,
+        Smartphone,
+        Scissors,
     } from "lucide-svelte";
     import { authStore } from "$lib/features/auth/auth.svelte";
 
@@ -98,6 +100,22 @@
             >
                 <Search class="h-6 w-6" />
                 <span>Cari Stok</span>
+            </Button>
+            <Button
+                variant="outline"
+                class="h-24 flex flex-col gap-2 border-indigo-100 bg-indigo-50/50 hover:border-indigo-500"
+                href="/warehouse/gambling"
+            >
+                <Smartphone class="h-6 w-6 text-indigo-600" />
+                <span>Gambling (HP Mati)</span>
+            </Button>
+            <Button
+                variant="outline"
+                class="h-24 flex flex-col gap-2 border-red-100 bg-red-50/50 hover:border-red-500"
+                href="/warehouse/kanibal"
+            >
+                <Scissors class="h-6 w-6 text-red-600" />
+                <span>Kanibal (Panen Part)</span>
             </Button>
             <Button
                 variant="outline"

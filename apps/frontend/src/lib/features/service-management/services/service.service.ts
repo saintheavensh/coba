@@ -61,6 +61,26 @@ export const ServiceService = {
         const res = await api.get<ApiResponse<{ id: string, name: string }[]>>("/users?role=teknisi");
         return res.data?.data ?? [];
     },
+    getServiceTypes: async (): Promise<any[]> => {
+        const res = await api.get<any>("/service-types");
+        return res.data?.data ?? [];
+    },
+    createServiceItem: async (data: any): Promise<any> => {
+        const res = await api.post<any>("/service-items", data);
+        return res.data?.data;
+    },
+    createServicePart: async (itemId: string, data: any): Promise<any> => {
+        const res = await api.post<any>(`/service-items/${itemId}/parts`, data);
+        return res.data?.data;
+    },
+    completeServiceItem: async (itemId: string): Promise<any> => {
+        const res = await api.put<any>(`/service-items/${itemId}/complete`);
+        return res.data?.data;
+    },
+    deleteServicePart: async (itemId: string, partId: string): Promise<any> => {
+        const res = await api.delete<any>(`/service-items/${itemId}/parts/${partId}`);
+        return res.data?.data;
+    },
     assignTechnician: async (id: number | string, technicianId: string): Promise<void> => {
         await api.patch(`/service/${id}/assign`, { technicianId });
     }

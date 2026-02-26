@@ -8,6 +8,7 @@ export interface InsertBatchData {
     variantId: string | null;
     buyPrice: number;
     sellPrice: number;
+    supplierName?: string | null;
     initialStock: number;
     currentStock: number;
 }

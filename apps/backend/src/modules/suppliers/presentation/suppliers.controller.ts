@@ -84,4 +84,41 @@ export class SuppliersController {
             return apiError(c, e, "Failed to unlink category", 500);
         }
     }
+
+    async getMappedProductVariants(c: Context) {
+        try {
+            const supplierId = c.req.param("id");
+            const list = await this.facade.getMappedProductVariants(supplierId);
+            return apiSuccess(c, list, "Mapped product variants retrieved successfully");
+        } catch (e) {
+            return apiError(c, e, "Failed to retrieve mapped product variants", 500);
+        }
+    }
+
+    async mapProductVariant(c: Context) {
+        try {
+            const supplierId = c.req.param("id");
+            const body = (c.req as any).valid("json");
+            await this.facade.mapProductVariant(supplierId, body.productId, body.variantId);
+            return apiSuccess(c, null, "Product variant mapped successfully");
+        } catch (e) {
+            return apiError(c, e, "Failed to map product variant", 500);
+        }
+    }
+
+    async unmapProductVariant(c: Context) {
+        try {
+            const supplierId = c.req.param("id");
+            const productId = c.req.param("productId");
+            // variantId is optional. If provided via query params or another path param we can extract it.
+            // Let's assume it can be in the body or query params if multiple variants share the same product ID.
+            // Alternatively require body using DELETE, or just read from query e.g. ?variantId=123
+            const variantId = c.req.query("variantId");
+
+            await this.facade.unmapProductVariant(supplierId, productId, variantId);
+            return apiSuccess(c, null, "Product variant unmapped successfully");
+        } catch (e) {
+            return apiError(c, e, "Failed to unmap product variant", 500);
+        }
+    }
 }

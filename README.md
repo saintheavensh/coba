@@ -30,9 +30,13 @@ bun run dev
 
 ## 📖 Panduan Penggunaan
 
-### 1. Login
+### 1. Login & Role Behavior
 *   **Email**: `admin` (Default)
 *   **Password**: `admin` (Default)
+
+Sistem mendukung 2 mode role behavior yang bisa diatur oleh Owner di menu Pengaturan:
+*   **Mode Flexible** (Default): User langsung masuk ke dashboard setelah login dan bisa berganti role kapan saja via dropdown switcher di header.
+*   **Mode Strict**: User diwajibkan memilih satu role spesifik setelah login, dan tidak bisa berganti role di tengah jalan (harus logout).
 
 ### 2. Manajemen Master Data (Setup Awal)
 Sebelum transaksi, pastikan data master terisi:

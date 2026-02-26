@@ -45,7 +45,8 @@ export class StockMutationGatewayAdapter implements IStockMutationGateway {
                     : isNull(productBatches.variantId),
                 gt(productBatches.currentStock, 0)
             ))
-            .orderBy(asc(productBatches.createdAt));
+            .orderBy(asc(productBatches.createdAt))
+            .for('update');
     }
 
     async updateBatchStockDelta(batchId: string, delta: number, dbOrTx: unknown): Promise<void> {
@@ -71,6 +72,7 @@ export class StockMutationGatewayAdapter implements IStockMutationGateway {
             id: data.id,
             productId: data.productId,
             supplierId: data.supplierId,
+            supplierName: data.supplierName,
             variantId: data.variantId,
             buyPrice: data.buyPrice,
             sellPrice: data.sellPrice,

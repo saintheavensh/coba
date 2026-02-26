@@ -36,3 +36,8 @@ export interface IMemberGateway {
 export interface ISettingsGateway {
     getPaymentMethods(dbOrTx?: DBContext): Promise<any>;
 }
+
+export interface IApprovalGateway {
+    needsApproval(type: 'DISCOUNT' | 'VOID' | 'REFUND', amount: number, data?: any): Promise<boolean>;
+    isApproved(approvalId: string, entityType: string, entityId?: string): Promise<boolean>;
+}

@@ -16,7 +16,10 @@ export class GetCurrentUserUseCase {
         const user = await this.userRepository.findById(input.userId, input.dbOrTx);
         if (!user) return null;
 
-        const userRoles = (user as UserWithRoles).roles?.map((ur: { role: { id: string } }) => ur.role.id) ?? (user.role ? [user.role] : []);
+        let userRoles = (user as UserWithRoles).roles?.map((ur: { role: { id: string } }) => ur.role.id) || [];
+        if (userRoles.length === 0 && user.role) {
+            userRoles = [user.role];
+        }
         const { password: _p, ...userWithoutPassword } = user;
 
         return {

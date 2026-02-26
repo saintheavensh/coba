@@ -5,13 +5,17 @@ const TOKEN_EXPIRY_DAYS = 7;
 export interface LoginInput {
     username: string;
     password: string;
+    roleId?: string;
+    roleBehaviorMode?: 'strict' | 'flexible';
     dbOrTx?: unknown;
 }
 
-export interface LoginResult {
-    user: Omit<UserWithRoles, "password" | "roles"> & { roles: string[] };
-    token: string;
-}
+export type LoginResult = {
+    requiresRoleSelection: boolean;
+    availableRoles?: string[];
+    user?: Omit<UserWithRoles, "password" | "roles"> & { roles: string[] };
+    token?: string;
+};
 
 export class LoginUseCase {
     constructor(
@@ -32,26 +36,69 @@ export class LoginUseCase {
             throw new Error("Invalid username or password");
         }
 
-        const userRoles = (user as UserWithRoles).roles?.map((ur: { role: { id: string } }) => ur.role.id) ?? (user.role ? [user.role] : []);
+        let userRoles = (user as UserWithRoles).roles?.map((ur: { role: { id: string } }) => ur.role.id) || [];
+        if (userRoles.length === 0 && user.role) {
+            userRoles = [user.role];
+        }
 
-        const payload = {
-            id: user.id,
-            username: user.username,
-            name: user.name,
-            role: userRoles.includes("owner") ? "owner" : userRoles[0],
-            roles: userRoles,
-            exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * TOKEN_EXPIRY_DAYS
-        };
 
-        const token = await this.tokenIssuer.sign(payload);
+        const isStrict = input.roleBehaviorMode === 'strict';
 
-        const { password: _p, ...userWithoutPassword } = user;
-        return {
-            user: {
-                ...userWithoutPassword,
-                roles: userRoles
-            },
-            token
-        };
+        if (isStrict) {
+            // Strict Mode: Must have a selected role if multiple available
+            if (userRoles.length > 1 && !input.roleId) {
+                return {
+                    requiresRoleSelection: true,
+                    availableRoles: userRoles
+                };
+            }
+
+            const selectedRole = input.roleId && userRoles.includes(input.roleId) ? input.roleId : userRoles[0];
+            const sessionId = await this.userRepository.createSession(user.id, selectedRole, input.dbOrTx);
+
+            const payload = {
+                id: user.id,
+                sid: sessionId,
+                username: user.username,
+                name: user.name,
+                role: selectedRole,
+                roles: userRoles,
+                exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * TOKEN_EXPIRY_DAYS
+            };
+
+            const token = await this.tokenIssuer.sign(payload);
+            const { password: _p, ...userWithoutPassword } = user;
+
+            return {
+                requiresRoleSelection: false,
+                user: { ...userWithoutPassword, roles: userRoles },
+                token
+            };
+        } else {
+            // Flexible Mode: Automatically accept and grant all roles, optionally setting primary
+            const selectedRole = input.roleId && userRoles.includes(input.roleId) ? input.roleId :
+                (userRoles.includes("owner") ? "owner" : userRoles[0]);
+            const sessionId = await this.userRepository.createSession(user.id, selectedRole, input.dbOrTx);
+
+
+            const payload = {
+                id: user.id,
+                sid: sessionId,
+                username: user.username,
+                name: user.name,
+                role: selectedRole,
+                roles: userRoles,
+                exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * TOKEN_EXPIRY_DAYS
+            };
+
+            const token = await this.tokenIssuer.sign(payload);
+            const { password: _p, ...userWithoutPassword } = user;
+
+            return {
+                requiresRoleSelection: false,
+                user: { ...userWithoutPassword, roles: userRoles },
+                token
+            };
+        }
     }
 }

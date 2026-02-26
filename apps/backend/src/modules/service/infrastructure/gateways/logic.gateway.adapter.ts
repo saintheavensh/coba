@@ -42,9 +42,11 @@ export class AccountingGatewayAdapter implements IAccountingGateway {
 export class InventoryGatewayAdapter implements IInventoryGateway {
     async getBatch(batchId: string, dbOrTx?: DBContext): Promise<any> {
         const client = (dbOrTx as any) || db;
-        return await client.query.productBatches.findFirst({
-            where: eq(productBatches.id, batchId)
-        });
+        const rows = await client.select()
+            .from(productBatches)
+            .where(eq(productBatches.id, batchId))
+            .for('update');
+        return rows[0];
     }
 
     async updateStock(batchId: string, delta: number, dbOrTx?: DBContext): Promise<void> {

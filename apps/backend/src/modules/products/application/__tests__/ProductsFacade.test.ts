@@ -8,14 +8,16 @@ describe("ProductsFacade", () => {
     let mockGetUC: any;
     let mockUpdateUC: any;
     let mockDeleteUC: any;
+    let mockActivateUC: any;
 
     beforeEach(() => {
         mockCreateUC = { execute: vi.fn() };
         mockGetUC = { execute: vi.fn() };
         mockUpdateUC = { execute: vi.fn() };
         mockDeleteUC = { execute: vi.fn() };
+        mockActivateUC = { execute: vi.fn() };
 
-        facade = new ProductsFacade(mockCreateUC, mockGetUC, mockUpdateUC, mockDeleteUC);
+        facade = new ProductsFacade(mockCreateUC, mockGetUC, mockUpdateUC, mockDeleteUC, mockActivateUC);
     });
 
     it("should delegate createProduct to use case", async () => {

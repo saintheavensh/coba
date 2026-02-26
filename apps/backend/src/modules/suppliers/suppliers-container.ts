@@ -6,7 +6,10 @@ import {
     DeleteSupplierUseCase,
     LinkCategoryUseCase,
     UnlinkCategoryUseCase,
-    GetSupplierCategoriesUseCase
+    GetSupplierCategoriesUseCase,
+    GetMappedProductVariantsUseCase,
+    MapProductVariantUseCase,
+    UnmapProductVariantUseCase
 } from "./application";
 
 // Adapters
@@ -20,6 +23,9 @@ const deleteSupplierUC = new DeleteSupplierUseCase(supplierRepository);
 const linkCategoryUC = new LinkCategoryUseCase(supplierRepository);
 const unlinkCategoryUC = new UnlinkCategoryUseCase(supplierRepository);
 const getSupplierCategoriesUC = new GetSupplierCategoriesUseCase(supplierRepository);
+const getMappedProductVariantsUC = new GetMappedProductVariantsUseCase(supplierRepository);
+const mapProductVariantUC = new MapProductVariantUseCase(supplierRepository);
+const unmapProductVariantUC = new UnmapProductVariantUseCase(supplierRepository);
 
 /**
  * SuppliersService — Facade for external and presentation layers.
@@ -52,6 +58,18 @@ export class SuppliersFacade {
     async unlinkCategory(supplierId: string, categoryId: string) {
         return await unlinkCategoryUC.execute(supplierId, categoryId);
     }
+
+    async getMappedProductVariants(supplierId: string) {
+        return await getMappedProductVariantsUC.execute(supplierId);
+    }
+
+    async mapProductVariant(supplierId: string, productId: string, variantId?: string | null) {
+        return await mapProductVariantUC.execute(supplierId, productId, variantId);
+    }
+
+    async unmapProductVariant(supplierId: string, productId: string, variantId?: string | null) {
+        return await unmapProductVariantUC.execute(supplierId, productId, variantId);
+    }
 }
 
 /** Singleton instance */
@@ -64,5 +82,8 @@ export {
     deleteSupplierUC,
     linkCategoryUC,
     unlinkCategoryUC,
-    getSupplierCategoriesUC
+    getSupplierCategoriesUC,
+    getMappedProductVariantsUC,
+    mapProductVariantUC,
+    unmapProductVariantUC
 };

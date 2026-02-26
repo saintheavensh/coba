@@ -1,7 +1,5 @@
-import { relations } from "drizzle-orm";
 import { text, integer, timestamp, pgTable, index } from "drizzle-orm/pg-core";
 import { products } from "../../../products/infrastructure/schema/ProductSchema";
-import { productBatches } from "./BatchSchema";
 
 export const productVariants = pgTable("product_variants", {
     id: text("id").primaryKey(), // VAR-XXX (Keep)
@@ -18,10 +16,3 @@ export const productVariants = pgTable("product_variants", {
     skuIdx: index("product_variants_sku_idx").on(table.sku),
 }));
 
-export const productVariantsRelations = relations(productVariants, ({ one, many }) => ({
-    product: one(products, {
-        fields: [productVariants.productId],
-        references: [products.id],
-    }),
-    batches: many(productBatches),
-}));

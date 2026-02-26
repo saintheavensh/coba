@@ -60,6 +60,10 @@ app.put("/system", (c) => controller.setSystemSettings(c));
 // Reset
 app.post("/reset", (c) => controller.factoryReset(c));
 
+// Role Behavior
+app.get("/role-behavior", (c) => controller.getRoleBehavior(c));
+app.put("/role-behavior", (c) => controller.setRoleBehavior(c));
+
 // Generic (Fallback)
 app.get("/:key", (c) => controller.getByKey(c));
 app.put("/:key", (c) => controller.setByKey(c));

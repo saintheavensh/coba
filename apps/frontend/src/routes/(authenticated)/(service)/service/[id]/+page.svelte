@@ -10,7 +10,7 @@
     import PhotosCard from "$lib/features/service-management/tickets/components/ticket-detail/cards/PhotosCard.svelte";
     import DiagnosisCard from "$lib/features/service-management/tickets/components/ticket-detail/cards/DiagnosisCard.svelte";
     import QCCard from "$lib/features/service-management/tickets/components/ticket-detail/cards/QCCard.svelte";
-    import PartsCard from "$lib/features/service-management/tickets/components/ticket-detail/cards/PartsCard.svelte";
+    import ServiceItemsCard from "$lib/features/service-management/tickets/components/ticket-detail/cards/ServiceItemsCard.svelte";
     import PaymentCard from "$lib/features/service-management/tickets/components/ticket-detail/cards/PaymentCard.svelte";
     import CostSummary from "$lib/features/service-management/tickets/components/ticket-detail/cards/CostSummary.svelte";
     import ActionButtons from "$lib/features/service-management/tickets/components/ticket-detail/ActionButtons.svelte";
@@ -47,7 +47,7 @@
                     <PhotosCard {controller} />
                     <DiagnosisCard {controller} />
                     <QCCard {controller} />
-                    <PartsCard {controller} />
+                    <ServiceItemsCard {controller} />
                     <PaymentCard {controller} />
                     <CostSummary {controller} />
                 </div>

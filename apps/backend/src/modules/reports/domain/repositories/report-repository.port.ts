@@ -11,4 +11,6 @@ export interface IReportRepository {
     getActivityLogs(conditions: any[], limit?: number, dbOrTx?: DBContext): Promise<any[]>;
     getOperationalCosts(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
     getCategoriesWithStock(dbOrTx?: DBContext): Promise<any[]>;
+    getLowStockItems(threshold: number, dbOrTx?: DBContext): Promise<any[]>;
+    getSalesPayments(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
 }

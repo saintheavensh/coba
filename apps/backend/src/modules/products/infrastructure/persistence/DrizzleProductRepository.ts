@@ -8,6 +8,7 @@ import { Status } from "../../domain/value-objects/ProductStatus.vo";
 import { Result } from "../../../../shared/core/Result";
 import { ProductMapper } from "../../application/mappers/ProductMapper";
 import { products } from "../schema/ProductSchema";
+import { productBatches } from "../../../inventory/infrastructure/schema/BatchSchema";
 import { DrizzleClient } from "../../../../shared/infrastructure/database/DrizzleClient";
 import { Pagination, PaginationParams, PaginatedResult } from "../../../../shared/application/pagination/Pagination";
 
@@ -24,7 +25,22 @@ export class DrizzleProductRepository implements IProductRepository {
     public async findById(id: string, dbOrTx?: any): Promise<Result<Product>> {
         const client = dbOrTx || this.drizzleClient.getClient();
         try {
-            const rows = await client.select().from(products).where(eq(products.id, id));
+            const rows = await client
+                .select({
+                    id: products.id,
+                    code: products.code,
+                    name: products.name,
+                    price: sql<number>`COALESCE(MAX(${productBatches.sellPrice}), 0)`.mapWith(Number),
+                    categoryId: products.categoryId,
+                    createdAt: products.createdAt,
+                    updatedAt: products.updatedAt,
+                    stock: sql<number>`COALESCE(SUM(${productBatches.currentStock}), 0)`.mapWith(Number)
+                })
+                .from(products)
+                .leftJoin(productBatches, eq(products.id, productBatches.productId))
+                .where(eq(products.id, id))
+                .groupBy(products.id);
+
             if (rows.length === 0) {
                 return Result.fail(`Product with id ${id} not found`);
             }
@@ -37,7 +53,22 @@ export class DrizzleProductRepository implements IProductRepository {
     public async findBySku(sku: Sku, dbOrTx?: any): Promise<Result<Product>> {
         const client = dbOrTx || this.drizzleClient.getClient();
         try {
-            const rows = await client.select().from(products).where(eq(products.code, sku.value));
+            const rows = await client
+                .select({
+                    id: products.id,
+                    code: products.code,
+                    name: products.name,
+                    price: sql<number>`COALESCE(MAX(${productBatches.sellPrice}), 0)`.mapWith(Number),
+                    categoryId: products.categoryId,
+                    createdAt: products.createdAt,
+                    updatedAt: products.updatedAt,
+                    stock: sql<number>`COALESCE(SUM(${productBatches.currentStock}), 0)`.mapWith(Number)
+                })
+                .from(products)
+                .leftJoin(productBatches, eq(products.id, productBatches.productId))
+                .where(eq(products.code, sku.value))
+                .groupBy(products.id);
+
             if (rows.length === 0) {
                 return Result.fail(`Product with sku ${sku.value} not found`);
             }
@@ -84,7 +115,20 @@ export class DrizzleProductRepository implements IProductRepository {
     public async findActive(dbOrTx?: any): Promise<Result<Product[]>> {
         const client = dbOrTx || this.drizzleClient.getClient();
         try {
-            const rows = await client.select().from(products);
+            const rows = await client
+                .select({
+                    id: products.id,
+                    code: products.code,
+                    name: products.name,
+                    price: sql<number>`COALESCE(MAX(${productBatches.sellPrice}), 0)`.mapWith(Number),
+                    categoryId: products.categoryId,
+                    createdAt: products.createdAt,
+                    updatedAt: products.updatedAt,
+                    stock: sql<number>`COALESCE(SUM(${productBatches.currentStock}), 0)`.mapWith(Number)
+                })
+                .from(products)
+                .leftJoin(productBatches, eq(products.id, productBatches.productId))
+                .groupBy(products.id);
 
             const productEntities: Product[] = [];
             for (const row of rows) {
@@ -111,8 +155,19 @@ export class DrizzleProductRepository implements IProductRepository {
             const sortCol = (products as any)[pagination.sortBy as string] || products.createdAt;
 
             const rows = await client
-                .select()
+                .select({
+                    id: products.id,
+                    code: products.code,
+                    name: products.name,
+                    price: sql<number>`COALESCE(MAX(${productBatches.sellPrice}), 0)`.mapWith(Number),
+                    categoryId: products.categoryId,
+                    createdAt: products.createdAt,
+                    updatedAt: products.updatedAt,
+                    stock: sql<number>`COALESCE(SUM(${productBatches.currentStock}), 0)`.mapWith(Number)
+                })
                 .from(products)
+                .leftJoin(productBatches, eq(products.id, productBatches.productId))
+                .groupBy(products.id)
                 .limit(sqlParams.limit)
                 .offset(sqlParams.offset)
                 .orderBy(
@@ -148,9 +203,20 @@ export class DrizzleProductRepository implements IProductRepository {
             const sortCol = (products as any)[pagination.sortBy as string] || products.createdAt;
 
             const rows = await client
-                .select()
+                .select({
+                    id: products.id,
+                    code: products.code,
+                    name: products.name,
+                    price: sql<number>`COALESCE(MAX(${productBatches.sellPrice}), 0)`.mapWith(Number),
+                    categoryId: products.categoryId,
+                    createdAt: products.createdAt,
+                    updatedAt: products.updatedAt,
+                    stock: sql<number>`COALESCE(SUM(${productBatches.currentStock}), 0)`.mapWith(Number)
+                })
                 .from(products)
+                .leftJoin(productBatches, eq(products.id, productBatches.productId))
                 .where(eq(products.categoryId, categoryId))
+                .groupBy(products.id)
                 .limit(sqlParams.limit)
                 .offset(sqlParams.offset)
                 .orderBy(
@@ -191,9 +257,20 @@ export class DrizzleProductRepository implements IProductRepository {
             const sortCol = (products as any)[pagination.sortBy as string] || products.createdAt;
 
             const rows = await client
-                .select()
+                .select({
+                    id: products.id,
+                    code: products.code,
+                    name: products.name,
+                    price: sql<number>`COALESCE(MAX(${productBatches.sellPrice}), 0)`.mapWith(Number),
+                    categoryId: products.categoryId,
+                    createdAt: products.createdAt,
+                    updatedAt: products.updatedAt,
+                    stock: sql<number>`COALESCE(SUM(${productBatches.currentStock}), 0)`.mapWith(Number)
+                })
                 .from(products)
+                .leftJoin(productBatches, eq(products.id, productBatches.productId))
                 .where(searchCondition!)
+                .groupBy(products.id)
                 .limit(sqlParams.limit)
                 .offset(sqlParams.offset)
                 .orderBy(

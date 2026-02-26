@@ -14,4 +14,7 @@ export interface UserWithRoles {
 export interface IUserRepository {
     findByUsername(username: string, dbOrTx?: unknown): Promise<UserWithRoles | null>;
     findById(id: string, dbOrTx?: unknown): Promise<UserWithRoles | null>;
+    createSession(userId: string, role: string, dbOrTx?: unknown): Promise<string>;
+    deactivateSession(sessionId: string, dbOrTx?: unknown): Promise<void>;
 }
+

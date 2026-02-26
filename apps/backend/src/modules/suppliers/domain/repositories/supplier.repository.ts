@@ -10,4 +10,8 @@ export interface ISupplierRepository {
     delete(id: string, dbOrTx?: DBContext): Promise<any>;
     addCategoryLink(supplierId: string, categoryId: string, dbOrTx?: DBContext): Promise<void>;
     removeCategoryLink(supplierId: string, categoryId: string, dbOrTx?: DBContext): Promise<void>;
+
+    getMappedProductVariants(supplierId: string, dbOrTx?: DBContext): Promise<any[]>;
+    mapProductVariant(supplierId: string, productId: string, variantId?: string | null, dbOrTx?: DBContext): Promise<void>;
+    unmapProductVariant(supplierId: string, productId: string, variantId?: string | null, dbOrTx?: DBContext): Promise<void>;
 }

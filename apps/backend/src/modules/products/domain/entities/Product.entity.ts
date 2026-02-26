@@ -8,6 +8,7 @@ interface ProductProps {
     sku: Sku;
     name: string;
     price: Price;
+    stock: number;
     status: ProductStatus;
     categoryId: string;
     createdAt: Date;
@@ -26,6 +27,7 @@ export class Product extends Entity<ProductProps> {
     get sku(): Sku { return this.props.sku; }
     get name(): string { return this.props.name; }
     get price(): Price { return this.props.price; }
+    get stock(): number { return this.props.stock; }
     get status(): ProductStatus { return this.props.status; }
     get categoryId(): string { return this.props.categoryId; }
     get createdAt(): Date { return this.props.createdAt; }
@@ -36,6 +38,7 @@ export class Product extends Entity<ProductProps> {
             sku: Sku;
             name: string;
             price: Price;
+            stock?: number;
             status?: ProductStatus;
             categoryId: string;
             createdAt?: Date;
@@ -53,6 +56,7 @@ export class Product extends Entity<ProductProps> {
             new Product(
                 {
                     ...props,
+                    stock: props.stock ?? 0,
                     status: defaultStatus,
                     createdAt: props.createdAt || new Date(),
                     updatedAt: props.updatedAt || new Date()

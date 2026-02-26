@@ -5,6 +5,7 @@ import {
     IAccountingGateway,
     IMemberGateway,
     ISettingsGateway,
+    IApprovalGateway,
     CreateSaleInput,
     PaymentMethodType,
     PaymentStatus
@@ -19,13 +20,35 @@ export class CreateSaleUseCase {
         private readonly accountingGateway: IAccountingGateway,
         private readonly memberGateway: IMemberGateway,
         private readonly settingsGateway: ISettingsGateway,
+        private readonly approvalGateway: IApprovalGateway,
         private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
     ) { }
 
     async execute(data: CreateSaleInput): Promise<{ message: string; id: string; change: number }> {
         const saleId = "SAL-" + Date.now().toString();
         const subtotal = data.items.reduce((sum, item) => sum + multiplyMoney(item.price, item.qty), 0);
-        const finalAmount = computeNetAmount(subtotal, 0, data.discountAmount || 0);
+        const discountAmount = data.discountAmount || 0;
+        const finalAmount = computeNetAmount(subtotal, 0, discountAmount);
+
+        // 0. Approval Check (Discounts)
+        if (discountAmount > 0) {
+            const discountPercent = (discountAmount / subtotal) * 100;
+            const needsApproval = await this.approvalGateway.needsApproval('DISCOUNT', discountPercent, { isPercent: true });
+
+            if (needsApproval) {
+                if (!data.approvalId) {
+                    throw new HTTPException(400, {
+                        message: "Approval required for this discount level.",
+                        // @ts-ignore
+                        extra: { type: 'APPROVAL_REQUIRED', approvalType: 'DISCOUNT', amount: discountPercent }
+                    });
+                }
+                const isApproved = await this.approvalGateway.isApproved(data.approvalId, 'sale');
+                if (!isApproved) {
+                    throw new HTTPException(400, { message: "Invalid or unapproved approval ID." });
+                }
+            }
+        }
 
         // 1. Validate Payments
         const totalPaid = data.payments.reduce((sum, p) => sum + p.amount, 0);
@@ -116,7 +139,7 @@ export class CreateSaleUseCase {
                 saleId,
                 items: data.items.map((i) => ({
                     productId: i.productId,
-                    variant: i.variant,
+                    variant: i.variant || "",
                     quantity: i.qty,
                     unitPrice: i.price
                 }))
@@ -133,7 +156,7 @@ export class CreateSaleUseCase {
                     saleId,
                     productId: a.productId,
                     batchId: a.batchId,
-                    variant: a.variantName,
+                    variant: a.variantName || "",
                     qty: a.quantity,
                     price: unitPrice
                 }, tx);

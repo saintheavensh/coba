@@ -19,6 +19,7 @@ export class ProductMapper {
             sku: product.sku.value,
             name: product.name,
             price: product.price.amount,
+            stock: product.stock,
             status: product.status.value,
             categoryId: product.categoryId,
             createdAt: product.createdAt,
@@ -30,9 +31,9 @@ export class ProductMapper {
      * Maps a raw database persistence object to a Domain Entity.
      */
     public static toDomain(raw: any): Result<Product> {
-        const skuResult = Sku.create(raw.sku);
-        const priceResult = Price.create(raw.price);
-        const statusResult = ProductStatus.create(raw.status as Status);
+        const skuResult = Sku.create(raw.code || raw.sku);
+        const priceResult = Price.create(raw.price || 0); // Default price to 0 if not fetched from batch
+        const statusResult = ProductStatus.create((raw.status || Status.ACTIVE) as Status);
 
         const result = Result.combine([skuResult, priceResult, statusResult]);
         if (result.isFailure) {
@@ -44,6 +45,7 @@ export class ProductMapper {
                 sku: skuResult.getValue(),
                 name: raw.name,
                 price: priceResult.getValue(),
+                stock: raw.stock || 0,
                 status: statusResult.getValue(),
                 categoryId: raw.categoryId,
                 createdAt: raw.createdAt,
@@ -59,10 +61,8 @@ export class ProductMapper {
     public static toPersistence(product: Product): any {
         return {
             id: product.id,
-            sku: product.sku.value,
+            code: product.sku.value, // Maps back to the DB `code` field
             name: product.name,
-            price: product.price.amount,
-            status: product.status.value,
             categoryId: product.categoryId,
             createdAt: product.createdAt,
             updatedAt: product.updatedAt

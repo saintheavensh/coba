@@ -38,4 +38,8 @@ app.get("/logs", (c) => controller.getActivityLogs(c));
 app.get("/profit-loss", (c) => controller.getProfitAndLoss(c));
 app.get("/stock-value", (c) => controller.getStockValueReport(c));
 
+// Kasir Daily & Warehouse Low Stock
+app.get("/kasir/daily", (c) => controller.getKasirDailyReport(c));
+app.get("/warehouse/low-stock", (c) => controller.getLowStockReport(c));
+
 export default app;

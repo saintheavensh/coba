@@ -4,6 +4,8 @@
     import TopProductsChart from "$lib/shared/components/dashboard/TopProductsChart.svelte";
     import ActivityLog from "$lib/shared/components/dashboard/ActivityLog.svelte";
     import ProfitLossSummary from "$lib/shared/components/dashboard/ProfitLossSummary.svelte";
+    import ReportWidget from "$lib/shared/components/dashboard/ReportWidget.svelte";
+    import ApprovalList from "$lib/shared/components/dashboard/ApprovalList.svelte";
     import {
         Card,
         CardContent,
@@ -64,7 +66,6 @@
 
             dashboardData = dashRes.data.data;
             activities = actRes.data.data;
-            // The AccountingReportService returns the data directly (response.data)
             profitLossData = plRes;
         } catch (e: any) {
             console.error("Failed to fetch dashboard data", e);
@@ -169,7 +170,7 @@
             </CardContent>
         </Card>
 
-        <!-- Customer Base (Example: using Active Services as proxy or placeholder if no customer count API) -->
+        <!-- Customer Base -->
         <Card>
             <CardHeader
                 class="flex flex-row items-center justify-between space-y-0 pb-2"
@@ -221,77 +222,73 @@
         <!-- Main Content Column -->
         <div class="xl:col-span-2 space-y-8">
             <!-- Revenue Chart -->
-            <Card
-                class="border-0 shadow-lg bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm overflow-hidden rounded-3xl"
+            <ReportWidget
+                title="Revenue Analytics"
+                description="Income trends (Last 7 Days)"
             >
-                <CardHeader class="border-b border-slate-100/50 pb-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <CardTitle class="text-lg font-bold"
-                                >Revenue Analytics</CardTitle
-                            >
-                            <CardDescription
-                                >Income trends (Last 7 Days)</CardDescription
-                            >
-                        </div>
+                {#if dashboardData && dashboardData.charts.revenueTrend}
+                    <div class="h-[350px] w-full">
+                        <RevenueChart
+                            data={dashboardData.charts.revenueTrend}
+                        />
                     </div>
-                </CardHeader>
-                <CardContent class="p-6">
-                    {#if dashboardData && dashboardData.charts.revenueTrend}
-                        <div class="h-[350px] w-full">
-                            <RevenueChart
-                                data={dashboardData.charts.revenueTrend}
+                {:else if loading}
+                    <div
+                        class="h-[350px] w-full bg-slate-100 animate-pulse rounded-2xl"
+                    ></div>
+                {/if}
+            </ReportWidget>
+
+            <div class="grid gap-8 grid-cols-1 md:grid-cols-2">
+                <ReportWidget
+                    title="Manager Approvals"
+                    description="Pending requests requiring your action"
+                >
+                    <ApprovalList />
+                </ReportWidget>
+
+                <div class="space-y-4 flex flex-col gap-4">
+                    <Button
+                        variant="outline"
+                        class="w-full h-32 flex flex-col items-start p-6 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 rounded-3xl"
+                        href="/reports"
+                    >
+                        <div
+                            class="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg mb-3"
+                        >
+                            <BarChart3
+                                class="h-6 w-6 text-blue-600 dark:text-blue-400"
                             />
                         </div>
-                    {:else if loading}
+                        <div class="text-lg font-bold">Laporan Lengkap</div>
                         <div
-                            class="h-[350px] w-full bg-slate-100 animate-pulse rounded-2xl"
-                        ></div>
-                    {/if}
-                </CardContent>
-            </Card>
+                            class="text-sm text-muted-foreground text-left font-normal mt-1"
+                        >
+                            Analisis penjualan, stok, dan performa teknisi
+                            secara detail.
+                        </div>
+                    </Button>
 
-            <div class="grid gap-4 grid-cols-1 md:grid-cols-2">
-                <Button
-                    variant="outline"
-                    class="h-32 flex flex-col items-start p-6 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10"
-                    href="/reports"
-                >
-                    <div
-                        class="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg mb-3"
+                    <Button
+                        variant="outline"
+                        class="w-full h-32 flex flex-col items-start p-6 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/10 rounded-3xl"
+                        href="/accounting"
                     >
-                        <BarChart3
-                            class="h-6 w-6 text-blue-600 dark:text-blue-400"
-                        />
-                    </div>
-                    <div class="text-lg font-bold">Laporan Lengkap</div>
-                    <div
-                        class="text-sm text-muted-foreground text-left font-normal mt-1"
-                    >
-                        Analisis penjualan, stok, dan performa teknisi secara
-                        detail.
-                    </div>
-                </Button>
-
-                <Button
-                    variant="outline"
-                    class="h-32 flex flex-col items-start p-6 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/10"
-                    href="/accounting"
-                >
-                    <div
-                        class="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg mb-3"
-                    >
-                        <Wallet
-                            class="h-6 w-6 text-purple-600 dark:text-purple-400"
-                        />
-                    </div>
-                    <div class="text-lg font-bold">Akuntansi</div>
-                    <div
-                        class="text-sm text-muted-foreground text-left font-normal mt-1"
-                    >
-                        Jurnal, Buku Besar, Neraca, dan Laporan Laba Rugi.
-                    </div>
-                </Button>
+                        <div
+                            class="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg mb-3"
+                        >
+                            <Wallet
+                                class="h-6 w-6 text-purple-600 dark:text-purple-400"
+                            />
+                        </div>
+                        <div class="text-lg font-bold">Akuntansi</div>
+                        <div
+                            class="text-sm text-muted-foreground text-left font-normal mt-1"
+                        >
+                            Jurnal, Buku Besar, Neraca, dan Laporan Laba Rugi.
+                        </div>
+                    </Button>
+                </div>
             </div>
         </div>
 

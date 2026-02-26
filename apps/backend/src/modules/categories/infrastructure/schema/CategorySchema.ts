@@ -1,8 +1,8 @@
-import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, foreignKey } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, foreignKey, unique } from "drizzle-orm/pg-core";
+import { randomUUID } from "crypto";
+import { suppliers } from "../../../suppliers/infrastructure/schema/SupplierSchema";
 
-// We import other tables from the monolithic hub for cross-module relations to avoid breaking them during migration.
-import { products, categoryVariants, supplierCategories } from "../../../../db/schema";
+const uuid = () => text("id").primaryKey().$defaultFn(() => randomUUID());
 
 export const categories = pgTable("categories", {
     id: text("id").primaryKey(), // UUID
@@ -20,19 +20,23 @@ export const categories = pgTable("categories", {
     })
 }));
 
-export const categoriesRelations = relations(categories, ({ one, many }) => ({
-    products: many(products),
-    parent: one(categories, {
-        fields: [categories.parentId],
-        references: [categories.id],
-        relationName: "category_hierarchy"
-    }),
-    children: many(categories, {
-        relationName: "category_hierarchy"
-    }),
-    variantTemplates: many(categoryVariants),
-    suppliers: many(supplierCategories),
+export const categoryVariants = pgTable("category_variants", {
+    id: uuid(),
+    categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: 'cascade' }),
+    name: text("name").notNull(),
+    supplierId: text("supplier_id").references(() => suppliers.id, { onDelete: 'cascade' }),
+    createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const supplierCategories = pgTable("supplier_categories", {
+    id: uuid(),
+    supplierId: text("supplier_id").notNull().references(() => suppliers.id, { onDelete: 'cascade' }),
+    categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: 'cascade' }),
+}, (t) => ({
+    unq: unique("sup_cat_unique").on(t.supplierId, t.categoryId),
 }));
+
+
 
 export type CategoryRow = typeof categories.$inferSelect;
 export type NewCategoryRow = typeof categories.$inferInsert;

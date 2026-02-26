@@ -7,6 +7,7 @@ export interface ProductDTO {
     sku: string;
     name: string;
     price: number; // in cents
+    stock: number; // calculated from batches
     status: string;
     categoryId: string;
     createdAt: Date;

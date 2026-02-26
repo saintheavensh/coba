@@ -1,6 +1,6 @@
 import { db } from "../../../../../db";
-import { users } from "../../../../../db/schema";
-import { eq } from "drizzle-orm";
+import { users, userSessions } from "../../../../../db/schema";
+import { eq, and } from "drizzle-orm";
 import type { IUserRepository, UserWithRoles } from "../../domain";
 
 export class DrizzleAuthRepository implements IUserRepository {
@@ -19,4 +19,20 @@ export class DrizzleAuthRepository implements IUserRepository {
         });
         return row as UserWithRoles | null;
     }
+
+    async createSession(userId: string, role: string, dbOrTx: any = db): Promise<string> {
+        const [session] = await dbOrTx.insert(userSessions).values({
+            userId,
+            role,
+            isActive: true
+        }).returning({ id: userSessions.id });
+        return session.id;
+    }
+
+    async deactivateSession(sessionId: string, dbOrTx: any = db): Promise<void> {
+        await dbOrTx.update(userSessions)
+            .set({ isActive: false, logoutTime: new Date() })
+            .where(eq(userSessions.id, sessionId));
+    }
 }
+
