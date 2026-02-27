@@ -1,6 +1,7 @@
 import { Context, Next } from 'hono';
 import { Logger } from '../../utils/logger/Logger';
 import { randomUUID } from 'crypto';
+import fs from "fs";
 
 const logger = new Logger('HTTP');
 
@@ -11,6 +12,11 @@ export async function loggerMiddleware(c: Context, next: Next) {
     // Add requestId to context for child loggers
     c.set('requestId', requestId);
     c.set('logger', logger.child({ requestId }));
+
+    const path = c.req.path;
+    try {
+        fs.appendFileSync("request_paths.log", `\n[${new Date().toISOString()}] ${c.req.method} ${path}`);
+    } catch (e) { }
 
     // Log request
     logger.info('Incoming request', {

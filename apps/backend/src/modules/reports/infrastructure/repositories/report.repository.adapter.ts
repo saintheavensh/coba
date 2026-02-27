@@ -114,7 +114,7 @@ export class ReportRepositoryAdapter implements IReportRepository {
         return await client.query.productBatches.findMany({
             where: lte(productBatches.currentStock, threshold),
             with: {
-                variant: {
+                variantLink: {
                     with: {
                         product: true
                     }

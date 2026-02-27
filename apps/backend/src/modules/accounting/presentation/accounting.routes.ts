@@ -67,4 +67,7 @@ app.get("/reports/gl", (c) => controller.getGeneralLedger(c));
 app.get("/reports/pl", (c) => controller.getIncomeStatement(c));
 app.get("/reports/balance-sheet", (c) => controller.getBalanceSheet(c));
 
+// Audit Logs
+app.get("/audit-logs", (c) => controller.getAuditLogs(c));
+
 export default app;

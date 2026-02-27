@@ -1,0 +1,8 @@
+$ svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+> The "/(authenticated)/(inventory)/service-tools" and "/(authenticated)/(service)/service-tools" routes conflict with each other
+    at prevent_conflicts (file:///C:/Users/Good/Documents/web/coba/node_modules/.bun/@sveltejs+kit@2.53.1+03680d62c662b18c/node_modules/@sveltejs/kit/src/core/sync/create_manifest_data/index.js:586:11)
+    at create_routes_and_nodes (file:///C:/Users/Good/Documents/web/coba/node_modules/.bun/@sveltejs+kit@2.53.1+03680d62c662b18c/node_modules/@sveltejs/kit/src/core/sync/create_manifest_data/index.js:390:2)
+    at create_manifest_data (file:///C:/Users/Good/Documents/web/coba/node_modules/.bun/@sveltejs+kit@2.53.1+03680d62c662b18c/node_modules/@sveltejs/kit/src/core/sync/create_manifest_data/index.js:33:28)
+    at Module.all_types (file:///C:/Users/Good/Documents/web/coba/node_modules/.bun/@sveltejs+kit@2.53.1+03680d62c662b18c/node_modules/@sveltejs/kit/src/core/sync/sync.js:85:24)
+    at file:///C:/Users/Good/Documents/web/coba/node_modules/.bun/@sveltejs+kit@2.53.1+03680d62c662b18c/node_modules/@sveltejs/kit/src/cli.js:87:8
+error: script "check" exited with code 1

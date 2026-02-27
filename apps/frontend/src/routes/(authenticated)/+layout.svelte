@@ -5,8 +5,8 @@
 
     let { children } = $props();
 
-    // All roles use the same SpecializedLayout with RoleSpecificNav.
-    // The nav items change dynamically based on activeRole (handled by RoleSpecificNav).
+    // All roles use the same SpecializedLayout with Navbar.
+    // The nav items change dynamically based on activeRole (handled by Navbar).
     const isReady = $derived(
         browser &&
             authStore.isAuthenticated &&

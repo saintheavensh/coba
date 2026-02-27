@@ -179,7 +179,7 @@ export class AccountingController {
     // Cash Register
     async getCurrentRegister(c: Context) {
         try {
-            const register = await this.service.getCurrentRegister();
+            const register = await this.service.getTodayRegisterProgress();
             return apiSuccess(c, register, "Current register status retrieved");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve register status");
@@ -394,6 +394,22 @@ export class AccountingController {
             return apiSuccess(c, null, "Target updated successfully");
         } catch (e: any) {
             return apiError(c, e, "Failed to update target");
+        }
+    }
+
+    async getAuditLogs(c: Context) {
+        try {
+            const { limit, offset, entityType, entityId } = c.req.query();
+            const filters = {
+                limit: limit ? parseInt(limit) : 50,
+                offset: offset ? parseInt(offset) : 0,
+                entityType,
+                entityId
+            };
+            const logs = await import("../services/audit.service").then(m => m.AuditService.getAll(filters));
+            return apiSuccess(c, logs, "Audit logs retrieved successfully");
+        } catch (e: any) {
+            return apiError(c, e, "Failed to retrieve audit logs");
         }
     }
 }

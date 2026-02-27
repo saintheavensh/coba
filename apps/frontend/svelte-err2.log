@@ -1,0 +1,160 @@
+$ svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+Loading svelte-check in workspace: c:\Users\Good\Documents\web\coba\apps\frontend
+Getting Svelte diagnostics...
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:25:15
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m    let formData = $state<CreateServiceToolDTO>({
+        name: [35mtool[36m?.name || "",
+        brand: tool?.brand || "",[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:26:16
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        name: tool?.name || "",
+        brand: [35mtool[36m?.brand || "",
+        qty: tool?.qty || 1,[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:27:14
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        brand: tool?.brand || "",
+        qty: [35mtool[36m?.qty || 1,
+        condition: tool?.condition || "good",[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:28:20
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        qty: tool?.qty || 1,
+        condition: [35mtool[36m?.condition || "good",
+        price: tool?.price || 0,[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:29:16
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        condition: tool?.condition || "good",
+        price: [35mtool[36m?.price || 0,
+        notes: tool?.notes || "",[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:30:16
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        price: tool?.price || 0,
+        notes: [35mtool[36m?.notes || "",
+        userId: tool?.userId || "",[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:31:17
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        notes: tool?.notes || "",
+        userId: [35mtool[36m?.userId || "",
+        purchaseDate: tool?.purchaseDate[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:32:23
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        userId: tool?.userId || "",
+        purchaseDate: [35mtool[36m?.purchaseDate
+            ? new Date(tool.purchaseDate).toISOString().split("T")[0][39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:33:24
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        purchaseDate: tool?.purchaseDate
+            ? new Date([35mtool[36m.purchaseDate).toISOString().split("T")[0]
+            : "",[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:269:29
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                        >
+                            [35m<svelte:component
+                                this={group.icon}
+                                class="h-5 w-5"
+                            />[36m
+                        </div>[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:291:45
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                                        {#if TYPE_ICONS[type]}
+                                            [35m<svelte:component
+                                                this={TYPE_ICONS[type]}
+                                                class="h-4 w-4 text-slate-400 shrink-0"
+                                            />[36m
+                                        {:else}[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\owner\approvals\+page.svelte[39m:130:15
+[31mError[39m: Property 'Root' does not exist on type 'Component<TabsRootProps, {}, "value" | "ref">'. (ts)
+[36m    >
+        <Tabs.[35mRoot[36m value="pending" class="w-full">
+            <Tabs.List class="grid w-full grid-cols-2 md:w-[400px]">[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\owner\approvals\+page.svelte[39m:131:19
+[31mError[39m: Property 'List' does not exist on type 'Component<TabsRootProps, {}, "value" | "ref">'. (ts)
+[36m        <Tabs.Root value="pending" class="w-full">
+            <Tabs.[35mList[36m class="grid w-full grid-cols-2 md:w-[400px]">
+                <Tabs.Trigger value="pending">[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\owner\approvals\+page.svelte[39m:132:23
+[31mError[39m: Property 'Trigger' does not exist on type 'Component<TabsRootProps, {}, "value" | "ref">'. (ts)
+[36m            <Tabs.List class="grid w-full grid-cols-2 md:w-[400px]">
+                <Tabs.[35mTrigger[36m value="pending">
+                    Pending ({controller.pendingApprovals.length})[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\owner\approvals\+page.svelte[39m:134:24
+[31mError[39m: Property 'Trigger' does not exist on type 'Component<TabsRootProps, {}, "value" | "ref">'. (ts)
+[36m                    Pending ({controller.pendingApprovals.length})
+                </Tabs.[35mTrigger[36m>
+                <Tabs.Trigger value="history">History</Tabs.Trigger>[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\owner\approvals\+page.svelte[39m:135:23
+[31mError[39m: Property 'Trigger' does not exist on type 'Component<TabsRootProps, {}, "value" | "ref">'. (ts)
+[36m                </Tabs.Trigger>
+                <Tabs.[35mTrigger[36m value="history">History</Tabs.Trigger>
+            </Tabs.List>[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\owner\approvals\+page.svelte[39m:135:61
+[31mError[39m: Property 'Trigger' does not exist on type 'Component<TabsRootProps, {}, "value" | "ref">'. (ts)
+[36m                </Tabs.Trigger>
+                <Tabs.Trigger value="history">History</Tabs.[35mTrigger[36m>
+            </Tabs.List>[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\owner\approvals\+page.svelte[39m:136:20
+[31mError[39m: Property 'List' does not exist on type 'Component<TabsRootProps, {}, "value" | "ref">'. (ts)
+[36m                <Tabs.Trigger value="history">History</Tabs.Trigger>
+            </Tabs.[35mList[36m>[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\owner\approvals\+page.svelte[39m:138:19
+[31mError[39m: Property 'Content' does not exist on type 'Component<TabsRootProps, {}, "value" | "ref">'. (ts)
+[36m
+            <Tabs.[35mContent[36m value="pending" class="mt-6">
+                <PendingApprovalsTable[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\owner\approvals\+page.svelte[39m:146:20
+[31mError[39m: Property 'Content' does not exist on type 'Component<TabsRootProps, {}, "value" | "ref">'. (ts)
+[36m                />
+            </Tabs.[35mContent[36m>[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\owner\approvals\+page.svelte[39m:148:19
+[31mError[39m: Property 'Content' does not exist on type 'Component<TabsRootProps, {}, "value" | "ref">'. (ts)
+[36m
+            <Tabs.[35mContent[36m value="history" class="mt-6">
+                <ApprovalHistoryTable[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\owner\approvals\+page.svelte[39m:156:20
+[31mError[39m: Property 'Content' does not exist on type 'Component<TabsRootProps, {}, "value" | "ref">'. (ts)
+[36m                />
+            </Tabs.[35mContent[36m>
+        </Tabs.Root>[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\owner\approvals\+page.svelte[39m:157:16
+[31mError[39m: Property 'Root' does not exist on type 'Component<TabsRootProps, {}, "value" | "ref">'. (ts)
+[36m            </Tabs.Content>
+        </Tabs.[35mRoot[36m>
+    </div>[39m
+
+====================================
+[31msvelte-check found 12 errors and 11 warnings in 3 files
+[39merror: script "check" exited with code 1

@@ -7,17 +7,35 @@ export class DrizzleAuthRepository implements IUserRepository {
     async findByUsername(username: string, dbOrTx: any = db): Promise<UserWithRoles | null> {
         const row = await dbOrTx.query.users.findFirst({
             where: eq(users.username, username),
-            with: { roles: { with: { role: true } } }
+            with: { roles: { with: { roleDetail: true } } }
         });
-        return row as UserWithRoles | null;
+
+        if (!row) return null;
+
+        return {
+            ...row,
+            roles: row.roles?.map((ur: any) => ({
+                ...ur,
+                role: ur.roleDetail // Map roleDetail to role for domain
+            }))
+        } as UserWithRoles;
     }
 
     async findById(id: string, dbOrTx: any = db): Promise<UserWithRoles | null> {
         const row = await dbOrTx.query.users.findFirst({
             where: eq(users.id, id),
-            with: { roles: { with: { role: true } } }
+            with: { roles: { with: { roleDetail: true } } }
         });
-        return row as UserWithRoles | null;
+
+        if (!row) return null;
+
+        return {
+            ...row,
+            roles: row.roles?.map((ur: any) => ({
+                ...ur,
+                role: ur.roleDetail
+            }))
+        } as UserWithRoles;
     }
 
     async createSession(userId: string, role: string, dbOrTx: any = db): Promise<string> {

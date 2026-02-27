@@ -51,4 +51,27 @@ export class AuditService {
             )
             .orderBy(desc(auditLogs.createdAt));
     }
+
+    /**
+     * Get audit logs with pagination and optional filtering
+     */
+    static async getAll(filters: { limit?: number; offset?: number; entityType?: string; entityId?: string } = {}) {
+        const { limit = 100, offset = 0, entityType, entityId } = filters;
+
+        const conditions = [];
+        if (entityType) conditions.push(eq(auditLogs.entityType, entityType));
+        if (entityId) conditions.push(eq(auditLogs.entityId, entityId));
+
+        const query = db.query.auditLogs.findMany({
+            where: conditions.length > 0 ? and(...conditions) : undefined,
+            limit,
+            offset,
+            orderBy: [desc(auditLogs.createdAt)],
+            with: {
+                user: true
+            }
+        });
+
+        return await query;
+    }
 }

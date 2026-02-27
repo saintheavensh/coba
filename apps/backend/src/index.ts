@@ -1,4 +1,5 @@
 import { serveStatic } from "hono/bun";
+import fs from "fs";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import { db } from "./db";
@@ -88,7 +89,8 @@ app.route("/api-docs", swaggerApp);
 // Routes
 app.route("/auth", authController);
 app.route("/products", productsController);
-app.route("/inventory", inventoryController);
+app.route("/inventory", productsController); // Alias for frontend compatibility
+app.route("/inventory", inventoryController); // Keep original mounting for opname/gambling/kanibal
 app.route("/categories", categoryController);
 app.route("/service", serviceController);
 app.route("/service-categories", serviceCategoriesController);
@@ -110,7 +112,7 @@ app.route("/settings", settingsRoutes);
 app.route("/payment-methods", paymentMethodsController);
 app.route("/payments/methods", paymentMethodsController); // Alias for frontend
 app.route("/dashboard", dashboardController);
-app.route("/api/dashboard", dashboardRoutes);
+app.route("/dashboard", dashboardRoutes);
 app.route("/devices", devicesRoutes);
 app.route("/brands", brandRoutes);
 app.route("/service-tools", serviceTools);
@@ -119,6 +121,12 @@ app.route("/accounting", accountingController);
 app.route("/store-devices", storeDevicesRoutes);
 app.route("/whatsapp", messagingRoutes);
 
+
+// List all routes for diagnosis
+try {
+    const routesStr = app.routes.map(r => `${r.method} ${r.path}`).join("\n");
+    fs.appendFileSync("C:/Users/Good/Documents/web/coba/apps/backend/debug.log", `\n--- REGISTERED ROUTES ---\n${routesStr}\n-------------------------\n`);
+} catch (e) { }
 
 // Root endpoint
 app.get("/", (c) => {
@@ -144,10 +152,18 @@ app.get("/health", async (c) => {
 app.onError((err, c) => {
     const requestId = (c.get as any)('requestId');
     globalLogger.child({ requestId }).error('Unhandled error', err);
+
+    // Log to file for agent diagnosis
+    try {
+        const logMsg = `\n[${new Date().toISOString()}] APP_ON_ERROR: ${err.message}\n${err.stack}\n`;
+        fs.appendFileSync("C:/Users/Good/Documents/web/coba/apps/backend/debug.log", logMsg);
+    } catch (e) { }
+
     return c.json({
         error: {
             code: 'INTERNAL_SERVER_ERROR',
-            message: 'An unexpected error occurred'
+            message: 'An unexpected error occurred',
+            details: process.env.NODE_ENV === 'development' ? err.message : undefined
         }
     }, 500);
 });
@@ -156,6 +172,13 @@ app.onError((err, c) => {
 app.notFound((c) => {
     const requestId = (c.get as any)('requestId');
     globalLogger.child({ requestId }).warn('Route not found', { path: c.req.path });
+
+    // Log to file for agent diagnosis
+    try {
+        const logMsg = `\n[${new Date().toISOString()}] APP_NOT_FOUND: ${c.req.method} ${c.req.path}\n`;
+        fs.appendFileSync("C:/Users/Good/Documents/web/coba/apps/backend/debug.log", logMsg);
+    } catch (e) { }
+
     return c.json({
         error: {
             code: 'NOT_FOUND',

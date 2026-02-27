@@ -1,0 +1,112 @@
+Loading svelte-check in workspace: c:\Users\Good\Documents\web\coba\apps\frontend
+Getting Svelte diagnostics...
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\services\service-tools.service.ts[39m:1:21
+[31mError[39m: Cannot find module '$lib/shared/core/api-client' or its corresponding type declarations. 
+[36mimport { api } from [35m"$lib/shared/core/api-client"[36m;
+import type { ApiResponse } from "@repo/shared";[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:25:15
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m    let formData = $state<CreateServiceToolDTO>({
+        name: [35mtool[36m?.name || "",
+        brand: tool?.brand || "",[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:26:16
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        name: tool?.name || "",
+        brand: [35mtool[36m?.brand || "",
+        qty: tool?.qty || 1,[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:27:14
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        brand: tool?.brand || "",
+        qty: [35mtool[36m?.qty || 1,
+        condition: tool?.condition || "good",[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:28:20
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        qty: tool?.qty || 1,
+        condition: [35mtool[36m?.condition || "good",
+        price: tool?.price || 0,[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:29:16
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        condition: tool?.condition || "good",
+        price: [35mtool[36m?.price || 0,
+        notes: tool?.notes || "",[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:30:16
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        price: tool?.price || 0,
+        notes: [35mtool[36m?.notes || "",
+        userId: tool?.userId || "",[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:31:17
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        notes: tool?.notes || "",
+        userId: [35mtool[36m?.userId || "",
+        purchaseDate: tool?.purchaseDate[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:32:23
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        userId: tool?.userId || "",
+        purchaseDate: [35mtool[36m?.purchaseDate
+            ? new Date(tool.purchaseDate).toISOString().split("T")[0][39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolForm.svelte[39m:33:24
+[33mWarn[39m: This reference only captures the initial value of `tool`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+[36m        purchaseDate: tool?.purchaseDate
+            ? new Date([35mtool[36m.purchaseDate).toISOString().split("T")[0]
+            : "",[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ServiceToolsTable.svelte[39m:5:28
+[31mError[39m: Cannot find module 'date-fns' or its corresponding type declarations. (ts)
+[36m    import { Wrench, Edit, Trash2, ShieldAlert } from "lucide-svelte";
+    import { format } from [35m"date-fns"[36m;
+    import type { ServiceTool } from "../types/service-tools.types";[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ToolRequestsTable.svelte[39m:5:28
+[31mError[39m: Cannot find module 'date-fns' or its corresponding type declarations. (ts)
+[36m    import { ClipboardList, CheckCircle, XCircle } from "lucide-svelte";
+    import { format } from [35m"date-fns"[36m;
+    import type {[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\features\inventory\service-tools\components\ToolRequestsTable.svelte[39m:58:25
+[31mError[39m: Type 'string' is not assignable to type 'number'. (ts)
+[36m                    <td
+                        [35mcolspan[36m={canApprove ? "6" : "5"}
+                        class="px-6 py-12 text-center text-slate-500"[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:269:29
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                        >
+                            [35m<svelte:component
+                                this={group.icon}
+                                class="h-5 w-5"
+                            />[36m
+                        </div>[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:291:45
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                                        {#if TYPE_ICONS[type]}
+                                            [35m<svelte:component
+                                                this={TYPE_ICONS[type]}
+                                                class="h-4 w-4 text-slate-400 shrink-0"
+                                            />[36m
+                                        {:else}[39m
+
+====================================
+[31msvelte-check found 4 errors and 11 warnings in 5 files
+[39m

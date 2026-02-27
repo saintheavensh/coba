@@ -28,7 +28,7 @@ export const userRolesRelations = relations(UserSchema.userRoles, ({ one }) => (
         fields: [UserSchema.userRoles.userId],
         references: [UserSchema.users.id],
     }),
-    role: one(UserSchema.roles, {
+    roleDetail: one(UserSchema.roles, {
         fields: [UserSchema.userRoles.role],
         references: [UserSchema.roles.id],
     }),
@@ -41,7 +41,7 @@ export const rolesRelations = relations(UserSchema.roles, ({ many }) => ({
 
 export const usersRelations = relations(UserSchema.users, ({ many, one }) => ({
     roles: many(UserSchema.userRoles),
-    role: one(UserSchema.roles, {
+    roleDetail: one(UserSchema.roles, {
         fields: [UserSchema.users.role],
         references: [UserSchema.roles.id],
     }),
@@ -200,6 +200,17 @@ export const salePaymentsRelations = relations(SaleSchema.salePayments, ({ one }
     }),
 }));
 
+export const paymentMethodsRelations = relations(SaleSchema.paymentMethods, ({ many }) => ({
+    variants: many(SaleSchema.paymentVariants),
+}));
+
+export const paymentVariantsRelations = relations(SaleSchema.paymentVariants, ({ one }) => ({
+    method: one(SaleSchema.paymentMethods, {
+        fields: [SaleSchema.paymentVariants.methodId],
+        references: [SaleSchema.paymentMethods.id],
+    }),
+}));
+
 // ============================================
 // PURCHASES
 // ============================================
@@ -322,12 +333,17 @@ export const productBatchesRelations = relations(BatchSchema.productBatches, ({ 
 
 export const categoriesRelations = relations(CategorySchema.categories, ({ many }) => ({
     products: many(ProductSchema.products),
+    variantTemplates: many(CategorySchema.categoryVariants),
 }));
 
 export const categoryVariantsRelations = relations(CategorySchema.categoryVariants, ({ one }) => ({
     category: one(CategorySchema.categories, {
         fields: [CategorySchema.categoryVariants.categoryId],
         references: [CategorySchema.categories.id],
+    }),
+    supplier: one(SupplierSchema.suppliers, {
+        fields: [CategorySchema.categoryVariants.supplierId],
+        references: [SupplierSchema.suppliers.id],
     }),
 }));
 

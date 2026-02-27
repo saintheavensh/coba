@@ -8,29 +8,47 @@ export class UserRepositoryAdapter implements IUserRepository {
     async findAll(role?: string, dbOrTx?: DBContext): Promise<User[]> {
         const client = (dbOrTx as any) || db;
 
+        let rows;
         if (role) {
-            return await client.query.users.findMany({
+            rows = await client.query.users.findMany({
                 where: sql`EXISTS (
                     SELECT 1 FROM user_roles 
                     WHERE user_roles.user_id = users.id 
-                    AND user_roles.role_id = ${role}
+                    AND user_roles.role = ${role}
                 )`,
-                with: { roles: { with: { role: true } } }
-            }) as User[];
+                with: { roles: { with: { roleDetail: true } } }
+            });
+        } else {
+            rows = await client.query.users.findMany({
+                with: { roles: { with: { roleDetail: true } } }
+            });
         }
 
-        return await client.query.users.findMany({
-            with: { roles: { with: { role: true } } }
-        }) as User[];
+        return rows.map((row: any) => ({
+            ...row,
+            roles: row.roles?.map((ur: any) => ({
+                ...ur,
+                role: ur.roleDetail // Map roleDetail to role for domain compatibility
+            }))
+        })) as User[];
     }
 
     async findById(id: string, dbOrTx?: DBContext): Promise<User | null> {
         const client = (dbOrTx as any) || db;
-        const result = await client.query.users.findFirst({
+        const row = await client.query.users.findFirst({
             where: eq(users.id, id),
-            with: { roles: { with: { role: true } } }
+            with: { roles: { with: { roleDetail: true } } }
         });
-        return (result as User) || null;
+
+        if (!row) return null;
+
+        return {
+            ...row,
+            roles: row.roles?.map((ur: any) => ({
+                ...ur,
+                role: ur.roleDetail
+            }))
+        } as User;
     }
 
     async create(data: any, dbOrTx?: DBContext): Promise<User> {
@@ -63,7 +81,7 @@ export class UserRepositoryAdapter implements IUserRepository {
         if (roles.length > 0) {
             const roleValues = roles.map((roleId: string) => ({
                 userId: userId,
-                roleId: roleId
+                role: roleId
             }));
             await client.insert(userRoles).values(roleValues);
         }

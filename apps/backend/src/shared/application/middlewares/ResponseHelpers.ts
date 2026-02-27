@@ -1,4 +1,5 @@
 import { Context } from "hono";
+import fs from "fs";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ApiResponse } from "@repo/shared";
 import { Logger } from "../../utils/logger/Logger";
@@ -59,7 +60,11 @@ export function apiError(
 
     if (status === 500) {
         new Logger("Legacy").error(`[API_ERROR] ${message}`, error);
-        // Here you could also stream to a log file or external service (Sentry, etc.)
+        // Log to a file we can read
+        try {
+            const logMsg = `\n[${new Date().toISOString()}] ${message}\n${error instanceof Error ? error.stack : JSON.stringify(error)}\n`;
+            fs.appendFileSync("C:/Users/Good/Documents/web/coba/apps/backend/debug.log", logMsg);
+        } catch (e) { }
     }
 
     return c.json({

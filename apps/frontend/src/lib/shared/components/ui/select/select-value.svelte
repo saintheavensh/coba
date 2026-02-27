@@ -1,9 +1,4 @@
 <script lang="ts">
-    import { Select as SelectPrimitive } from "bits-ui";
-
-    let { ref = $bindable(null), placeholder, ...restProps }: any = $props();
+    // Leftover from older shadcn-svelte/bits-ui version
+    // SelectValue goes into the Trigger now natively in Bits v1+
 </script>
-
-<!-- svelte-ignore node_invalid_placement_ssr -->
-<!-- svelte-ignore a11y_missing_attribute -->
-<SelectPrimitive.Value bind:ref {placeholder} {...restProps} />

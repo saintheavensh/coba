@@ -11,6 +11,7 @@ export class UsersController {
             const users = await this.service.findAll(role);
             return apiSuccess(c, users, "Users retrieved successfully");
         } catch (e: any) {
+            console.error("[UsersController] GetAll Error:", e);
             return apiError(c, e.message || String(e));
         }
     }

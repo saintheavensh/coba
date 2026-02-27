@@ -1,0 +1,31 @@
+Loading svelte-check in workspace: c:\Users\Good\Documents\web\coba\apps\frontend
+Getting Svelte diagnostics...
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\lib\shared\components\ui\select\select-value.svelte[39m:9:18
+[31mError[39m: Property 'Value' does not exist on type 'typeof import("C:/Users/Good/Documents/web/coba/node_modules/.bun/bits-ui@1.8.0+3fc9a5d0a3d5bfca/node_modules/bits-ui/dist/bits/select/exports")'. (ts)
+[36m<!-- svelte-ignore a11y_missing_attribute -->
+<SelectPrimitive.[35mValue[36m bind:ref {placeholder} {...restProps} />[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:269:29
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                        >
+                            [35m<svelte:component
+                                this={group.icon}
+                                class="h-5 w-5"
+                            />[36m
+                        </div>[39m
+
+c:\Users\Good\Documents\web\coba\apps\frontend\[32msrc\routes\(authenticated)\(settings)\settings\accounting\+page.svelte[39m:291:45
+[33mWarn[39m: `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+https://svelte.dev/e/svelte_component_deprecated (svelte)
+[36m                                        {#if TYPE_ICONS[type]}
+                                            [35m<svelte:component
+                                                this={TYPE_ICONS[type]}
+                                                class="h-4 w-4 text-slate-400 shrink-0"
+                                            />[36m
+                                        {:else}[39m
+
+====================================
+[31msvelte-check found 1 error and 2 warnings in 2 files
+[39m
