@@ -3,8 +3,8 @@
     import { Badge } from "$lib/shared/components/ui/badge";
     import { Package, Plus } from "lucide-svelte";
     import * as Popover from "$lib/shared/components/ui/popover";
-    import { formatCurrency } from "$lib/shared/core/utils";
-    import type { SalesController } from "../sales.controller.svelte";
+    import { formatCurrency } from "$lib/shared/lib/utils";
+    import type { SalesController } from "./sales.controller.svelte";
 
     let { controller, product }: { controller: SalesController; product: any } =
         $props();

@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import { container } from "../../../../../container";
-import { TYPES } from "../../../../../types";
+import { container } from "../../../../../shared/core/container";
+import { TYPES } from "../../../../../shared/core/types";
 import { ConfigController } from '../controllers/ConfigController';
 
 export const configRoutes = new Hono();

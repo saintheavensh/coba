@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { injectable, inject } from "inversify";
-import { TYPES } from "../../types";
+import { TYPES } from "../../../../../core/types";
 import { StoreDeviceFacade } from "../../application/facades/StoreDeviceFacade";
 import { apiSuccess, apiError } from "../../../../../../shared/application/middlewares/ResponseHelpers";
 

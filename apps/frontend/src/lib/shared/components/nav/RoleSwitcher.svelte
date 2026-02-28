@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { authStore, ROLE_CONFIG } from "$lib/features/auth/auth.svelte";
+    import { authStore, ROLE_CONFIG } from "$lib/shared/lib/auth-store.svelte";
     import { goto } from "$app/navigation";
-    import { cn } from "$lib/shared/core/utils";
+    import { cn } from "$lib/shared/lib/utils";
     import * as DropdownMenu from "$lib/shared/components/ui/dropdown-menu";
     import { Button } from "$lib/shared/components/ui/button";
     import { ArrowLeftRight } from "lucide-svelte";

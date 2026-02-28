@@ -1,6 +1,6 @@
 import { Context } from "hono";
 import { injectable, inject } from "inversify";
-import { TYPES } from "../../types";
+import { TYPES } from "../../../../core/types";
 import { MessagingFacade } from "../../application/facades/MessagingFacade";
 import { apiSuccess, apiError } from "../../../../application/middlewares/ResponseHelpers";
 import { Logger } from "../../../../utils/logger/Logger";

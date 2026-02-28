@@ -1,11 +1,11 @@
 <script lang="ts">
     import { Button } from "$lib/shared/components/ui/button";
     import { Upload, X, Image as ImageIcon, Loader2 } from "lucide-svelte";
-    import { api } from "$lib/shared/core/api";
+    import { api } from "$lib/shared/lib/api-client";
     import { toast } from "svelte-sonner";
-    import { API_URL } from "$lib/shared/core/api";
+    import { API_URL } from "$lib/shared/lib/api-client";
 
-    import { cn } from "$lib/shared/core/utils";
+    import { cn } from "$lib/shared/lib/utils";
 
     let {
         value = $bindable(""),

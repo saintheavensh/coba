@@ -3,8 +3,8 @@ import { apiSuccess, apiError } from "../../../../application/middlewares/Respon
 import { setCookie } from "hono/cookie";
 import { loginUseCase, getCurrentUserUseCase, switchRoleUseCase } from "../../AuthContainer";
 import { appConfig } from "../../../../infrastructure/config/AppConfig";
-import { settingsService } from "../../../../../modules/settings/settings-container";
-import { DEFAULT_ROLE_BEHAVIOR } from "../../../../../modules/settings/application/constants";
+import { settingsService } from "../../../../../modules/05-shared/settings/settings-container";
+import { DEFAULT_ROLE_BEHAVIOR } from "../../../../../modules/05-shared/settings/application/constants";
 
 export class AuthController {
     async login(c: Context) {

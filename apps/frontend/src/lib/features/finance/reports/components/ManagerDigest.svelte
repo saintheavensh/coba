@@ -28,8 +28,8 @@
     import { toast } from "svelte-sonner";
     import { onMount } from "svelte";
     import { Button } from "$lib/shared/components/ui/button";
-    import { api } from "$lib/shared/core/api";
-    import { authStore } from "$lib/features/auth/auth.svelte";
+    import { api } from "$lib/shared/lib/api-client";
+    import { authStore } from "$lib/shared/lib/auth-store.svelte";
 
     interface Props {
         salesSummary: any;
@@ -72,7 +72,7 @@
         loadToolRequests();
     });
 
-    import { formatCurrency } from "$lib/shared/core/utils";
+    import { formatCurrency } from "$lib/shared/lib/utils";
 
     function copySummary() {
         const summary = `

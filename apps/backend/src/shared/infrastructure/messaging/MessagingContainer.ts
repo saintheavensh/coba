@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { ContainerModule } from "inversify";
-import { TYPES } from "./types";
+import { TYPES } from "../../core/types";
 import type {
     INotificationService,
     IWhatsAppGateway,

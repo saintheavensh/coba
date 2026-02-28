@@ -26,8 +26,8 @@
         X,
     } from "lucide-svelte";
     import CurrencyInput from "$lib/shared/components/custom/currency-input.svelte";
-    import { formatCurrency, cn } from "$lib/shared/core/utils";
-    import type { SalesController } from "../sales.controller.svelte";
+    import { formatCurrency, cn } from "$lib/shared/lib/utils";
+    import type { SalesController } from "./sales.controller.svelte";
 
     let { controller }: { controller: SalesController } = $props();
 </script>

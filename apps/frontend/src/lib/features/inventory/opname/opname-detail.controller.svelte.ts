@@ -137,7 +137,86 @@ export class OpnameDetailController {
     }
 
     handlePrint() {
-        // TODO: Implement print functionality
-        toast.info("Print report coming soon");
+        if (!this.session) {
+            toast.error("No session data to print");
+            return;
+        }
+
+        const sessionDate = new Date(this.session.createdAt).toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+        });
+
+        const itemRows = this.items
+            .map(
+                (item) => `
+                <tr>
+                    <td>${item.product?.name ?? "-"}</td>
+                    <td>${item.variantName ?? "-"}</td>
+                    <td style="text-align:center">${item.systemStock}</td>
+                    <td style="text-align:center">${item.physicalStock ?? "-"}</td>
+                    <td style="text-align:center;color:${(item.difference || 0) < 0 ? "#dc2626" : (item.difference || 0) > 0 ? "#16a34a" : "inherit"}">${item.difference ?? "-"}</td>
+                    <td>${item.adjustmentReason ?? "-"}</td>
+                </tr>`,
+            )
+            .join("");
+
+        const printContent = `<!DOCTYPE html>
+<html>
+<head>
+    <title>Laporan Stock Opname - ${this.session.id}</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 24px; color: #333; }
+        h1 { font-size: 20px; margin-bottom: 4px; }
+        .meta { color: #666; font-size: 13px; margin-bottom: 16px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+        th { background: #f3f4f6; padding: 8px 10px; text-align: left; border-bottom: 2px solid #d1d5db; }
+        td { padding: 6px 10px; border-bottom: 1px solid #e5e7eb; }
+        .summary { margin-top: 20px; padding: 12px 16px; background: #f9fafb; border-radius: 6px; font-size: 14px; }
+        .summary p { margin: 4px 0; }
+        @media print { body { padding: 0; } }
+    </style>
+</head>
+<body>
+    <h1>Laporan Stock Opname</h1>
+    <div class="meta">
+        <p>Session: ${this.session.id} &nbsp;|&nbsp; Tanggal: ${sessionDate} &nbsp;|&nbsp; Status: ${this.session.status}</p>
+        <p>Petugas: ${this.session.user?.name ?? "-"}</p>
+        ${this.session.notes ? `<p>Catatan: ${this.session.notes}</p>` : ""}
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Produk</th>
+                <th>Varian</th>
+                <th style="text-align:center">Stok Sistem</th>
+                <th style="text-align:center">Stok Fisik</th>
+                <th style="text-align:center">Selisih</th>
+                <th>Alasan</th>
+            </tr>
+        </thead>
+        <tbody>${itemRows}</tbody>
+    </table>
+
+    <div class="summary">
+        <p><strong>Total Item:</strong> ${this.totalItemsCount}</p>
+        <p><strong>Sudah Dihitung:</strong> ${this.countedItemsCount} / ${this.totalItemsCount}</p>
+        <p><strong>Total Selisih:</strong> ${this.totalDifference}</p>
+    </div>
+</body>
+</html>`;
+
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        document.body.appendChild(iframe);
+        iframe.contentDocument?.write(printContent);
+        iframe.contentDocument?.close();
+        iframe.contentWindow?.print();
+
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
     }
 }

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { authMiddleware } from "../../../../../../middlewares/auth.middleware";
+import { authMiddleware } from "../../../../../../shared/infrastructure/auth/presentation/middlewares/auth.middleware";
 import { StoreDevicesController } from "../controllers/StoreDevicesController";
-import { container } from "../../../../../../container";
+import { container } from "../../../../../../shared/core/container";
 
 const app = new Hono();
 

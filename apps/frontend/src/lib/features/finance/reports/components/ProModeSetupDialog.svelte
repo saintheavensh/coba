@@ -13,7 +13,7 @@
         SettingsService,
         type GeneralSettings,
     } from "$lib/features/settings/settings.service";
-    import { api } from "$lib/shared/core/api";
+    import { api } from "$lib/shared/lib/api-client";
     import { toast } from "svelte-sonner";
 
     interface Props {

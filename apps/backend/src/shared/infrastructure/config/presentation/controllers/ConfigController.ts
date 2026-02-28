@@ -1,7 +1,7 @@
 import { inject, injectable } from "inversify";
 import { Context } from "hono";
 import { ConfigFacade } from "../../application/facades/ConfigFacade";
-import { TYPES } from "../../../../../types";
+import { TYPES } from "../../../../../shared/core/types";
 
 @injectable()
 export class ConfigController {

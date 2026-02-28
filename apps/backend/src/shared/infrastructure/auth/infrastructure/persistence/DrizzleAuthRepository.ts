@@ -1,5 +1,5 @@
-import { db } from "../../../../../db";
-import { users, userSessions } from "../../../../../db/schema";
+import { db } from "../../../../../shared/infrastructure/database/client";
+import { users, userSessions } from "../../../../../shared/infrastructure/database/schema";
 import { eq, and } from "drizzle-orm";
 import type { IUserRepository, UserWithRoles } from "../../domain";
 

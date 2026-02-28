@@ -1,5 +1,5 @@
-import { db } from "../../db";
-import { activityLogs } from "../../db/schema";
+import { db } from "../../shared/infrastructure/database/client";
+import { activityLogs } from "../../shared/infrastructure/database/schema";
 import { Logger } from "../../shared/utils/logger/Logger";
 
 export interface LogParams {

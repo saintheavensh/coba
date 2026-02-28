@@ -1,5 +1,5 @@
 
-import { api } from "$lib/shared/core/api";
+import { api } from "$lib/shared/lib/api-client";
 import type { Supplier, Category, ApiResponse } from "@repo/shared";
 
 /** Input type for creating a supplier */

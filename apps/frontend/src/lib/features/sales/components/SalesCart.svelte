@@ -8,8 +8,8 @@
         Plus,
         CreditCard,
     } from "lucide-svelte";
-    import { formatCurrency } from "$lib/shared/core/utils";
-    import type { SalesController } from "../sales.controller.svelte";
+    import { formatCurrency } from "$lib/shared/lib/utils";
+    import type { SalesController } from "./sales.controller.svelte";
 
     let { controller }: { controller: SalesController } = $props();
 </script>

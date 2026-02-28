@@ -6,7 +6,7 @@
     import { Textarea } from "$lib/shared/components/ui/textarea";
     import { CashRegisterService } from "../services/cash-register.service";
     import { toast } from "svelte-sonner";
-    import { cn } from "$lib/shared/core/utils";
+    import { cn } from "$lib/shared/lib/utils";
 
     let { open = $bindable(false), expectedClosing = 0, onSuccess } = $props();
 

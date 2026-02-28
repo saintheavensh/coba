@@ -15,8 +15,8 @@ import {
     type StockAdjustmentReport,
 } from "./reports.service";
 import { SettingsService, type GeneralSettings, type AccountingMode } from "$lib/features/settings/settings.service";
-import { api } from "$lib/shared/core/api";
-import { authStore } from "$lib/features/auth/auth.svelte";
+import { api } from "$lib/shared/lib/api-client";
+import { authStore } from "$lib/shared/lib/auth-store.svelte";
 import * as XLSX from "xlsx";
 
 export class ReportsController {

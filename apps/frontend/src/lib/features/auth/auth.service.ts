@@ -1,4 +1,4 @@
-import { api } from "$lib/shared/core/api";
+import { api } from "$lib/shared/lib/api-client";
 import type { LoginRequest, LoginResponse, ApiResponse } from "@repo/shared";
 
 export const AuthService = {

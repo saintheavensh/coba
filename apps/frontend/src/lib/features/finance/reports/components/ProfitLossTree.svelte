@@ -1,6 +1,6 @@
 <script lang="ts">
     import { ChevronDown, ChevronRight, Calculator } from "lucide-svelte";
-    import { cn } from "$lib/shared/core/utils";
+    import { cn } from "$lib/shared/lib/utils";
     import { Separator } from "$lib/shared/components/ui/separator";
     import { Badge } from "$lib/shared/components/ui/badge";
     import type { AccountMappingSettings } from "$lib/features/settings/settings.service";

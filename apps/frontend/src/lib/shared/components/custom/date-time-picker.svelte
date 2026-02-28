@@ -1,7 +1,7 @@
 <script lang="ts">
     import { Button } from "$lib/shared/components/ui/button";
     import * as Popover from "$lib/shared/components/ui/popover";
-    import { cn } from "$lib/shared/core/utils";
+    import { cn } from "$lib/shared/lib/utils";
     import {
         Calendar as CalendarIcon,
         ChevronLeft,

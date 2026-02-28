@@ -1,5 +1,5 @@
 
-import { api } from "$lib/shared/core/api";
+import { api } from "$lib/shared/lib/api-client";
 import type { Product, Device, ApiResponse } from "@repo/shared";
 import * as XLSX from "xlsx";
 import { BrandsService, type Brand } from "../brands/brands.service";

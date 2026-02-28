@@ -1,4 +1,4 @@
-import { api } from "$lib/shared/core/api";
+import { api } from "$lib/shared/lib/api-client";
 
 export class LiabilitiesService {
     static async getSummary() {

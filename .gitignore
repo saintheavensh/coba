@@ -2,15 +2,20 @@
 node_modules
 
 # output
-out
-dist
-*.tgz
+dist/
+build/
+.svelte-kit/
+apps/frontend/build/
+apps/frontend/.svelte-kit/
 
-# code coverage
-coverage
-*.lcov
+# Database migrations
+drizzle/*.sql
+apps/backend/drizzle/*.sql
 
 # logs
+*.log
+*.txt
+debug.log
 logs
 _.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
@@ -21,10 +26,13 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .env.test.local
 .env.production.local
 .env.local
+.env.production
 
 # caches
 .eslintcache
-.cache
+.cache/
+node_modules/.cache/
+apps/*/node_modules/.cache/
 *.tsbuildinfo
 
 # IntelliJ based IDEs

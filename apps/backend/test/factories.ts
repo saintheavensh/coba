@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 import type { Context } from "hono";
-import * as schema from "../src/db/schema";
+import * as schema from "../src/shared/infrastructure/database/schema";
 import { type InferInsertModel, type InferSelectModel } from "drizzle-orm";
 
 // Simple "Faker-like" helpers to generate random data

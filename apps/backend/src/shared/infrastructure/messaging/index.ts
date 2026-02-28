@@ -2,7 +2,7 @@ import { Container } from "inversify";
 import { messagingContainer } from "./MessagingContainer";
 export { messagingContainer };
 import { MessagingFacade } from "./application/facades/MessagingFacade";
-import { TYPES } from "./types";
+import { TYPES } from "../../core/types";
 
 // Create a standalone container for external access if needed, or just export the module
 const container = new Container();
@@ -12,4 +12,5 @@ export const messagingFacade = container.get<MessagingFacade>(TYPES.MessagingFac
 
 export * from "./application/facades/MessagingFacade";
 export * from "./domain";
-export * from "./types";
+export { TYPES } from "../../core/types";
+export * from "../../core/types";

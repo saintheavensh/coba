@@ -1,5 +1,5 @@
-import { db } from "../../../../../db";
-import { roles } from "../../../../../db/schema";
+import { db } from "../../../../../shared/infrastructure/database/client";
+import { roles } from "../../../../../shared/infrastructure/database/schema";
 import { IRoleRepository, Role } from "../../domain";
 
 export class DrizzleRoleRepository implements IRoleRepository {

@@ -7,7 +7,7 @@
         CardDescription,
     } from "$lib/shared/components/ui/card";
     import { Skeleton } from "$lib/shared/components/ui/skeleton";
-    import { cn } from "$lib/shared/core/utils";
+    import { cn } from "$lib/shared/lib/utils";
     import type { Snippet } from "svelte";
 
     interface Props {

@@ -1,7 +1,7 @@
 import { inject, injectable } from "inversify";
 import { Result } from "../../../core/Result";
 import { DashboardStatsDTO, TimeRangeDTO } from "../dtos/dashboard.dto";
-import { TYPES } from "../../../../types";
+import { TYPES } from "../../../../shared/core/types";
 import { CacheService } from "../../../../shared/infrastructure/cache/CacheService";
 import { LoggerFactory, Logger } from "../../../../shared/utils/logger/Logger";
 

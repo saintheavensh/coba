@@ -47,7 +47,7 @@
 </script>
 
 <script lang="ts">
-	import { cn } from "$lib/shared/core/utils";
+	import { cn } from "$lib/shared/lib/utils";
 
 	let {
 		class: className,

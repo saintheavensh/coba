@@ -1,6 +1,6 @@
 import { inject, injectable } from "inversify";
 import { Result } from "../../../../core/Result";
-import { TYPES } from "../../../../../types";
+import { TYPES } from "../../../../../shared/core/types";
 import { GetSettingUseCase } from "../use-cases/GetSettingUseCase";
 import { UpdateSettingUseCase, UpdateSettingDTO } from "../use-cases/UpdateSettingUseCase";
 import { GetModuleSettingsUseCase } from "../use-cases/GetModuleSettingsUseCase";

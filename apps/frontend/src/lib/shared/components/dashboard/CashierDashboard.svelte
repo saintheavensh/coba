@@ -19,7 +19,7 @@
         Plus,
         ShoppingCart,
     } from "lucide-svelte";
-    import { api } from "$lib/shared/core/api";
+    import { api } from "$lib/shared/lib/api-client";
     import { goto } from "$app/navigation";
 
     let loading = $state(true);

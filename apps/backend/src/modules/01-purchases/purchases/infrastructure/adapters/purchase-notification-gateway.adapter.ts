@@ -1,0 +1,40 @@
+import { db } from "../../../../../shared/infrastructure/database/client";
+import { notifications } from "../../../../../shared/infrastructure/database/schema";
+import { INotificationGateway } from "../../domain/purchase-repository.port";
+
+export class PurchaseNotificationGatewayAdapter implements INotificationGateway {
+    async notifyPurchaseOrderCreated(
+        payload: { purchaseId: string; userId: string; supplierId: string },
+        dbOrTx?: unknown
+    ): Promise<void> {
+        const client: any = dbOrTx || db;
+
+        await client.insert(notifications).values({
+            userId: "user-warehouse-001",
+            type: "po_action_required",
+            title: "New Purchase Order",
+            message: `New Order ${payload.purchaseId} requires receiving.`,
+            entityType: "purchase",
+            entityId: payload.purchaseId,
+        });
+    }
+
+    async notifyGoodsReceived(
+        payload: { purchaseId: string; userId: string; hasDiscrepancy: boolean },
+        dbOrTx?: unknown
+    ): Promise<void> {
+        const client: any = dbOrTx || db;
+
+        await client.insert(notifications).values({
+            userId: payload.userId,
+            type: payload.hasDiscrepancy ? "po_discrepancy" : "po_action_required",
+            title: payload.hasDiscrepancy ? "PO Discrepancy Found" : "Goods Received",
+            message: payload.hasDiscrepancy
+                ? `Order ${payload.purchaseId} has quantity mismatches. Please verify.`
+                : `Order ${payload.purchaseId} has been received. Please verify and set prices.`,
+            entityType: "purchase",
+            entityId: payload.purchaseId,
+        });
+    }
+}
+

@@ -8,6 +8,3 @@ export { ProductListController } from "./controllers/product-list.controller.sve
 export { BulkStockController } from "./controllers/bulk-stock.controller.svelte";
 
 // Components
-export { default as ProductList } from "./components/product-list.svelte";
-export { default as ProductMasterForm } from "./components/product-master-form.svelte";
-export { default as BulkMinStockDialog } from "./components/bulk-min-stock-dialog.svelte";

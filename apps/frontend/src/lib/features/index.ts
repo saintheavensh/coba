@@ -4,6 +4,5 @@
 export * from "./auth";
 export * from "./finance";
 export * from "./inventory";
-export * from "./sales";
-export * from "./service-management";
+export * from "./services";
 export * from "./settings";

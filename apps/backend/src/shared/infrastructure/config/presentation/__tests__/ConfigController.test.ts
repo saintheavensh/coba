@@ -33,17 +33,17 @@ describe("ConfigController", () => {
 
         const response = await controller.getSystemConfig(c) as any;
 
-        expect(c.json).toHaveBeenCalledWith({ key: "theme", value: "dark" });
+        expect(c.json).toHaveBeenCalledWith({ data: "dark", message: "Success" });
         expect(response.status).toBe(200);
     });
 
     it("should return 404 if config not found", async () => {
-        mockFacade.getSystemConfig.mockResolvedValue(Result.fail("Not found"));
+        mockFacade.getSystemConfig.mockResolvedValue(Result.fail("Setting unknown not found"));
         const c = createMockContext("unknown");
 
         const response = await controller.getSystemConfig(c) as any;
 
-        expect(c.json).toHaveBeenCalledWith({ error: "Not found" }, 404);
+        expect(c.json).toHaveBeenCalledWith({ error: "Setting unknown not found" }, 404);
         expect(response.status).toBe(404);
     });
 
@@ -53,7 +53,7 @@ describe("ConfigController", () => {
 
         const response = await controller.updateConfig(c) as any;
 
-        expect(c.json).toHaveBeenCalledWith({ message: "Setting updated successfully" });
+        expect(c.json).toHaveBeenCalledWith({ data: "light", message: "Setting updated successfully" });
         expect(response.status).toBe(200);
     });
 });

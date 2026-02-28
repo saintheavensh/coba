@@ -91,3 +91,42 @@ Untuk mencatat servis HP/Elektronik:
 Untuk developer yang ingin mengembangkan aplikasi:
 *   Baca **`docs/core_concepts.md`** untuk pemahaman logika bisnis.
 *   Baca **`docs/development-standards.md`** untuk aturan coding.
+
+---
+
+## ☁️ Production Deployment
+
+### 1. Environment Variables
+Buat file `.env.production` di setiap folder app dengan mengikuti template `.env.example`.
+Variabel utama yang dibutuhkan:
+- `DATABASE_URL`: Connection string PostgreSQL.
+- `JWT_SECRET`: Kode rahasia untuk autentikasi.
+- `PUBLIC_API_URL`: URL public backend.
+- `PUBLIC_SENTRY_DSN`: (Optional) DSN untuk error tracking.
+
+### 2. Build & Deploy
+Gunakan perintah berikut untuk persiapan production:
+```bash
+# Di root folder
+# 1. Type check (Backend & Frontend)
+bun run check
+
+# 2. Build Frontend
+cd apps/frontend
+npm run build:prod
+
+# 3. Build/Run Backend
+cd ../backend
+bun src/main.ts (atau gunakan PM2 untuk production)
+```
+
+### 3. Monitoring
+Sistem sudah terintegrasi dengan **Sentry** untuk pelacakan error secara realtime. Pastikan `PUBLIC_SENTRY_DSN` sudah terkonfigurasi untuk mengaktifkannya di production.
+
+---
+
+## 🛠️ Stack Teknologi
+- **Frontend**: SvelteKit 5 (Runes), TailwindCSS, TanStack Query.
+- **Backend**: Hono, Drizzle ORM, Inversify (DI).
+- **Database**: PostgreSQL (Supabase).
+- **Architecture**: Hybrid Feature-Based Clean Architecture.

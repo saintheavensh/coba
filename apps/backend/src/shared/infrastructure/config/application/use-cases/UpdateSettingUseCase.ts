@@ -1,6 +1,6 @@
 import { inject, injectable } from "inversify";
 import { Result } from "../../../../core/Result";
-import { TYPES } from "../../../../../types";
+import { TYPES } from "../../../../../shared/core/types";
 import type { ISettingRepository } from "../../domain/ports/ISettingRepository";
 import { Setting, SettingScope, SettingType } from "../../domain/entities/Setting.entity";
 

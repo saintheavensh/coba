@@ -1,5 +1,5 @@
 import { ContainerModule } from "inversify";
-import { TYPES } from "./types";
+import { TYPES } from "../../../core/types";
 import { DeviceApiAdapter, DrizzleStoreDeviceRepository } from "./infrastructure/index";
 import { RegisterStoreDeviceUseCase, GetStoreDeviceStatusUseCase, PingStoreDeviceUseCase, StoreDeviceFacade } from "./application/index";
 import { StoreDevicesController } from "./presentation/controllers/StoreDevicesController";

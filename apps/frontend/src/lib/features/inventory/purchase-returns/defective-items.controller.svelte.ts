@@ -2,6 +2,7 @@ import { createQuery, useQueryClient, type CreateQueryResult } from "@tanstack/s
 import { toast } from "svelte-sonner";
 import { goto } from "$app/navigation";
 import { PurchaseReturnsService, type DefectiveItem } from "./purchase-returns.service";
+import { authStore } from "$lib/shared/lib/auth-store.svelte";
 
 /**
  * Controller for the Defective Items List component
@@ -77,7 +78,7 @@ export class DefectiveItemsController {
         if (this.selectedIds.length === 0) return;
 
         try {
-            const userId = "USR-ADMIN"; // TODO: Get from auth context
+            const userId = authStore.user?.id ?? "unknown";
 
             const result = await PurchaseReturnsService.createReturn(userId, this.selectedIds);
 

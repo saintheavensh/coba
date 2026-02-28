@@ -8,7 +8,7 @@
         ChevronDown,
     } from "lucide-svelte";
     import { Button } from "$lib/shared/components/ui/button";
-    import { authStore } from "$lib/features/auth/auth.svelte";
+    import { authStore } from "$lib/shared/lib/auth-store.svelte";
     import { fade, slide } from "svelte/transition";
 
     import { goto } from "$app/navigation";

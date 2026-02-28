@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { api } from "$lib/shared/core/api";
+    import { api } from "$lib/shared/lib/api-client";
     import { onMount } from "svelte";
     import { Button } from "$lib/shared/components/ui/button";
     import { Badge } from "$lib/shared/components/ui/badge";
     import { Check, X, Clock, AlertCircle, Loader2 } from "lucide-svelte";
     import { toast } from "svelte-sonner";
-    import { formatCurrency } from "$lib/shared/core/utils";
+    import { formatCurrency } from "$lib/shared/lib/utils";
 
     let approvals = $state<any[]>([]);
     let loading = $state(true);

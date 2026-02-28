@@ -4,7 +4,7 @@ import { Result } from "../../../../../core/Result";
 import { StoreDevice } from "../../domain/entities/StoreDevice.entity";
 import { IStoreDeviceRepository } from "../../domain/ports/IStoreDeviceRepository";
 import { storeDeviceTable, StoreDeviceRow } from "../schema";
-import { TYPES } from "../../types";
+import { TYPES } from "../../../../../core/types";
 
 @injectable()
 export class DrizzleStoreDeviceRepository implements IStoreDeviceRepository {

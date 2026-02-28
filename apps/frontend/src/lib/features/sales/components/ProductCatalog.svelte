@@ -1,7 +1,7 @@
 <script lang="ts">
     import { Search } from "lucide-svelte";
     import ProductCard from "./ProductCard.svelte";
-    import type { SalesController } from "../sales.controller.svelte";
+    import type { SalesController } from "./sales.controller.svelte";
 
     let { controller }: { controller: SalesController } = $props();
 </script>

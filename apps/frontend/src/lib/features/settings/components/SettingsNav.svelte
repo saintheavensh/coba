@@ -1,7 +1,7 @@
 <script lang="ts">
     import { page } from "$app/stores";
-    import { cn } from "$lib/shared/core/utils";
-    import { authStore } from "$lib/features/auth/auth.svelte";
+    import { cn } from "$lib/shared/lib/utils";
+    import { authStore } from "$lib/shared/lib/auth-store.svelte";
     import {
         Store,
         Users,

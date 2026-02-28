@@ -1,6 +1,6 @@
 import { eq, desc, sql } from "drizzle-orm";
-import { db } from "../../../../../db";
-import { notifications } from "../../../../../db/schema";
+import { db } from "../../../../../shared/infrastructure/database/client";
+import { notifications } from "../../../../../shared/infrastructure/database/schema";
 import { DBContext } from "../../../../types/db-context";
 import type { INotificationRepository, NotificationType, NotificationChannel } from "../../domain";
 import { Notification } from "../../domain";

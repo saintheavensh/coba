@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { StorageController } from "../controllers/StorageController";
-import { authMiddleware } from "../../../../../middlewares/auth.middleware";
+import { authMiddleware } from "../../../../../shared/infrastructure/auth/presentation/middlewares/auth.middleware";
 
 const app = new Hono();
 const storageController = new StorageController();

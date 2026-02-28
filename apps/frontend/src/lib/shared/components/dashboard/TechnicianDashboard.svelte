@@ -22,14 +22,14 @@
         Plus,
         Send,
     } from "lucide-svelte";
-    import { api } from "$lib/shared/core/api";
+    import { api } from "$lib/shared/lib/api-client";
     import { goto } from "$app/navigation";
-    import { cn } from "$lib/shared/core/utils";
+    import { cn } from "$lib/shared/lib/utils";
     import {
         ServiceToolsService,
         type ServiceTool,
         type ServiceToolRequest,
-    } from "$lib/features/service-management/services/service-tools.service";
+    } from "$lib/features/services/services/service-tools.service";
     import * as Dialog from "$lib/shared/components/ui/dialog";
     import { Label } from "$lib/shared/components/ui/label";
     import { Input } from "$lib/shared/components/ui/input";

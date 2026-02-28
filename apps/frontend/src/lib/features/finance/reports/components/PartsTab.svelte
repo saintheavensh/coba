@@ -15,7 +15,7 @@
     } from "$lib/shared/components/ui/table";
     import { Badge } from "$lib/shared/components/ui/badge";
     import type { PartsUsageReport } from "$lib/features/finance/reports/reports.service";
-    import { formatCurrency, formatDate } from "$lib/shared/core/utils";
+    import { formatCurrency, formatDate } from "$lib/shared/lib/utils";
 
     interface Props {
         partsUsage: PartsUsageReport[];

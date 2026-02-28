@@ -16,7 +16,7 @@
     } from "$lib/shared/components/ui/table";
     import { Badge } from "$lib/shared/components/ui/badge";
     import type { TechnicianReport } from "$lib/features/finance/reports/reports.service";
-    import { formatCurrency } from "$lib/shared/core/utils";
+    import { formatCurrency } from "$lib/shared/lib/utils";
 
     interface Props {
         technicians: TechnicianReport[];

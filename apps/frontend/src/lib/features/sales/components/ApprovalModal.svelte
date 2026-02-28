@@ -3,7 +3,7 @@
     import { Input } from "$lib/shared/components/ui/input";
     import { Button } from "$lib/shared/components/ui/button";
     import { ShieldCheck, Loader2 } from "lucide-svelte";
-    import { SalesController } from "../sales.controller.svelte";
+    import { SalesController } from "./sales.controller.svelte";
 
     let { controller }: { controller: SalesController } = $props();
 </script>

@@ -1,5 +1,5 @@
-import { db } from "../../../db";
-import { notifications } from "../../../db/schema";
+import { db } from "../../../shared/infrastructure/database/client";
+import { notifications } from "../../../shared/infrastructure/database/schema";
 
 type NotificationType = "low_stock" | "service_update" | "new_assignment" | "sale_complete" | "purchase_complete";
 

@@ -50,7 +50,7 @@ describe("DashboardAggregator", () => {
     };
 
     beforeEach(() => {
-        vi.resetAllMocks();
+        vi.clearAllMocks();
         aggregator = new DashboardAggregator(
             mockSalesFacade,
             mockInventoryFacade,

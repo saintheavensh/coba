@@ -1,10 +1,10 @@
 import { inject, injectable } from "inversify";
 import { Result } from "../../../../core/Result";
-import { TYPES } from "../../../../../types";
+import { TYPES } from "../../../../../shared/core/types";
 import type { ISettingRepository } from "../../domain/ports/ISettingRepository";
 import { Setting, SettingScope, SettingType } from "../../domain/entities/Setting.entity";
 import { DrizzleClient } from "../../../database/DrizzleClient";
-import { settings } from "../../../../../db/schema";
+import { settings } from "../../../../../shared/infrastructure/database/schema";
 import { eq, and } from "drizzle-orm";
 
 @injectable()

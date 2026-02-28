@@ -8,7 +8,7 @@
         SelectTrigger,
     } from "$lib/shared/components/ui/select";
     import { History, Search, Filter } from "lucide-svelte";
-    import type { SalesController } from "../sales.controller.svelte";
+    import type { SalesController } from "./sales.controller.svelte";
 
     let { controller }: { controller: SalesController } = $props();
 </script>

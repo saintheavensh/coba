@@ -21,7 +21,7 @@
         ServiceStats,
         ServiceReport,
     } from "$lib/features/finance/reports/reports.service";
-    import { formatCurrency, formatDate } from "$lib/shared/core/utils";
+    import { formatCurrency, formatDate } from "$lib/shared/lib/utils";
 
     interface Props {
         servicesStats: ServiceStats;

@@ -2,7 +2,7 @@
     import * as Popover from "$lib/shared/components/ui/popover";
     import * as Command from "$lib/shared/components/ui/command";
     import { Check, ChevronsUpDown } from "lucide-svelte";
-    import { cn } from "$lib/shared/core/utils";
+    import { cn } from "$lib/shared/lib/utils";
     import { buttonVariants } from "$lib/shared/components/ui/button";
 
     let {

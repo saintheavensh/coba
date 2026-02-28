@@ -1,6 +1,6 @@
 <script lang="ts">
     import { page } from "$app/stores";
-    import { authStore } from "$lib/features/auth/auth.svelte";
+    import { authStore } from "$lib/shared/lib/auth-store.svelte";
     import {
         NAV_ITEMS,
         filterNavByRole,
@@ -11,7 +11,7 @@
     import { Button } from "$lib/shared/components/ui/button";
     import * as Sheet from "$lib/shared/components/ui/sheet";
     import { Menu, LogOut, Package, Bell } from "lucide-svelte";
-    import { cn } from "$lib/shared/core/utils";
+    import { cn } from "$lib/shared/lib/utils";
     import * as DropdownMenu from "$lib/shared/components/ui/dropdown-menu";
     import { Avatar, AvatarFallback } from "$lib/shared/components/ui/avatar";
 

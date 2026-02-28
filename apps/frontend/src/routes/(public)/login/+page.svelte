@@ -20,7 +20,7 @@
     } from "lucide-svelte";
     import { fade, fly } from "svelte/transition";
 
-    import { api } from "$lib/shared/core/api";
+    import { api } from "$lib/shared/lib/api-client";
 
     let username = $state("");
     let password = $state("");
@@ -47,7 +47,7 @@
                 throw new Error("Invalid response format from server");
             }
 
-            const { authStore } = await import("$lib/features/auth/auth.svelte");
+            const { authStore } = await import("$lib/shared/lib/auth-store.svelte");
             authStore.setUserInfo(user);
 
             toast.success("Login Berhasil", {

@@ -1,7 +1,7 @@
 <script lang="ts">
     import { Input } from "$lib/shared/components/ui/input";
     import { Search, Barcode } from "lucide-svelte";
-    import { cn } from "$lib/shared/core/utils";
+    import { cn } from "$lib/shared/lib/utils";
     import { onMount } from "svelte";
 
     let {

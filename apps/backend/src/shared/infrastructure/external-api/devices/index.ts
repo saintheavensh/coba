@@ -1,11 +1,11 @@
 import { deviceContainer } from "./DeviceContainer";
 import { StoreDeviceFacade } from "./application/facades/StoreDeviceFacade";
-import { TYPES } from "./types";
+import { TYPES } from "../../../core/types";
 
 import { Container } from "inversify";
 
 const getStoreDeviceFacade = (): StoreDeviceFacade => {
-    const { container } = require("../../../../container");
+    const { container } = require("../../../../shared/core/container");
     return (container as Container).get<StoreDeviceFacade>(TYPES.StoreDeviceFacade);
 };
 
@@ -24,5 +24,5 @@ export * from "./application";
 export * from "./domain";
 export * from "./infrastructure";
 export * from "./presentation";
-export * from "./types";
+export * from "../../../core/types";
 export { deviceContainer };

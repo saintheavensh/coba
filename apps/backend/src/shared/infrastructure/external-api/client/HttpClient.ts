@@ -1,5 +1,5 @@
 import { injectable, inject } from "inversify";
-import { TYPES } from "../../messaging/types";
+import { TYPES } from "../../../core/types";
 import { Result } from "../../../core/Result";
 import { Logger } from "../../../utils/logger/Logger";
 

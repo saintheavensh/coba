@@ -1,5 +1,5 @@
 import { injectable, inject } from "inversify";
-import { TYPES } from "../../types";
+import { TYPES } from "../../../../../core/types";
 import type { IDeviceApiGateway, IStoreDeviceRepository } from "../../domain";
 import { Result } from "../../../../../core/Result";
 import { DeviceStatusDTO, DeviceMapper } from "../mappers/DeviceMapper";

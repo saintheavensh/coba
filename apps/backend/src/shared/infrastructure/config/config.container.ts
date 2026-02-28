@@ -1,5 +1,5 @@
 import { ContainerModule } from "inversify";
-import { TYPES } from "../../../types";
+import { TYPES } from "../../../shared/core/types";
 import type { ISettingRepository } from "./domain/ports/ISettingRepository";
 import { DrizzleSettingRepository } from "./infrastructure/persistence/DrizzleSettingRepository";
 import { GetSettingUseCase } from "./application/use-cases/GetSettingUseCase";

@@ -1,13 +1,13 @@
 import { injectable } from "inversify";
 import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import * as legacySchema from "../../../db/schema";
-import * as products from "../../../modules/products/infrastructure/schema/ProductSchema";
-import * as categories from "../../../modules/categories/infrastructure/schema/CategorySchema";
-import * as inventoryBatches from "../../../modules/inventory/infrastructure/schema/BatchSchema";
-import * as inventoryVariants from "../../../modules/inventory/infrastructure/schema/VariantSchema";
-import * as inventoryOpname from "../../../modules/inventory/infrastructure/schema/StockOpnameSchema";
-import * as defectiveItems from "../../../modules/inventory/infrastructure/schema/DefectiveItemSchema";
+import * as legacySchema from "./schema";
+import * as products from "../../../modules/02-inventory/products/infrastructure/schema/ProductSchema";
+import * as categories from "../../../modules/02-inventory/categories/infrastructure/schema/CategorySchema";
+import * as inventoryBatches from "../../../modules/02-inventory/inventory/infrastructure/schema/BatchSchema";
+import * as inventoryVariants from "../../../modules/02-inventory/inventory/infrastructure/schema/VariantSchema";
+import * as inventoryOpname from "../../../modules/02-inventory/inventory/infrastructure/schema/StockOpnameSchema";
+import * as defectiveItems from "../../../modules/02-inventory/inventory/infrastructure/schema/DefectiveItemSchema";
 import { appConfig } from "../config/AppConfig";
 
 const schema = {

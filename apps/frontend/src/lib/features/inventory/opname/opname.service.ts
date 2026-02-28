@@ -1,5 +1,5 @@
 
-import { api } from "$lib/shared/core/api";
+import { api } from "$lib/shared/lib/api-client";
 import type { ApiResponse } from "@repo/shared";
 
 export const OpnameService = {

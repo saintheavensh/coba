@@ -1,3 +1,0 @@
-$ tsc --noEmit
-src/db/schema.ts(721,7): error TS1005: ',' expected.
-src/db/schema.ts(721,8): error TS1005: ')' expected.

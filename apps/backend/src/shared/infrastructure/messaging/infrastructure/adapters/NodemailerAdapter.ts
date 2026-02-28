@@ -1,7 +1,7 @@
 import type { INotificationService } from "../../domain";
 import { Result } from "../../../../core/Result";
 import { injectable, inject } from "inversify";
-import { TYPES } from "../../types";
+import { TYPES } from "../../../../core/types";
 import { appConfig } from "../../../../infrastructure/config/AppConfig";
 import { Logger } from "../../../../utils/logger/Logger";
 

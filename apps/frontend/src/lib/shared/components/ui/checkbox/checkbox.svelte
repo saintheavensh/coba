@@ -1,7 +1,7 @@
 <script lang="ts">
     import { Checkbox as CheckboxPrimitive } from "bits-ui";
     import { Check } from "lucide-svelte";
-    import { cn } from "$lib/shared/core/utils";
+    import { cn } from "$lib/shared/lib/utils";
 
     // Cast to any to bypass "Property Indicator does not exist" type error
     // likely caused by version mismatch or bundling types issue.

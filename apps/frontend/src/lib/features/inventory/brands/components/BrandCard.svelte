@@ -8,7 +8,7 @@
         DropdownMenuTrigger,
     } from "$lib/shared/components/ui/dropdown-menu";
     import { MoreVertical, Edit2, Trash2 } from "lucide-svelte";
-    import { cn } from "$lib/shared/core/utils";
+    import { cn } from "$lib/shared/lib/utils";
     import type { BrandsController } from "../brands.controller.svelte";
 
     let { brand, controller }: { brand: any; controller: BrandsController } =

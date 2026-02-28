@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { AuthController } from "../controllers/AuthController";
 import { RoleController } from "../controllers/RoleController";
-import { authMiddleware } from "../../../../../middlewares/auth.middleware";
+import { authMiddleware } from "../../../../../shared/infrastructure/auth/presentation/middlewares/auth.middleware";
 
 const app = new Hono();
 const authController = new AuthController();
