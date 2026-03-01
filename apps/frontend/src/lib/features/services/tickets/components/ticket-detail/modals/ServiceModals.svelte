@@ -19,14 +19,33 @@
     } from "$lib/shared/components/ui/select";
     import { Textarea } from "$lib/shared/components/ui/textarea";
     import { Loader2, Play } from "lucide-svelte";
-    import ServiceCompletionWizard from "../../wizards/ServiceCompletionWizard.svelte";
-    import ServicePickupWizard from "../../wizards/ServicePickupWizard.svelte";
-    import ServiceNotePrint from "../../print/ServiceNotePrint.svelte";
     import CurrencyInput from "$lib/shared/components/custom/currency-input.svelte";
     import DateTimePicker from "$lib/shared/components/custom/date-time-picker.svelte";
     import type { TicketDetailController } from "../../../ticket-detail.controller.svelte";
 
     let { controller }: { controller: TicketDetailController } = $props();
+
+    let SvcCompletionWizard: any = $state();
+    let SvcPickupWizard: any = $state();
+    let SvcNotePrint: any = $state();
+
+    $effect(() => {
+        if (controller.showCompletionModal && !SvcCompletionWizard) {
+            import("../../wizards/ServiceCompletionWizard.svelte").then(
+                (m) => (SvcCompletionWizard = m.default),
+            );
+        }
+        if (controller.showPickupWizard && !SvcPickupWizard) {
+            import("../../wizards/ServicePickupWizard.svelte").then(
+                (m) => (SvcPickupWizard = m.default),
+            );
+        }
+        if (controller.showPrintPreview && !SvcNotePrint) {
+            import("../../print/ServiceNotePrint.svelte").then(
+                (m) => (SvcNotePrint = m.default),
+            );
+        }
+    });
 </script>
 
 <!-- Modals -->
@@ -90,23 +109,25 @@
 </Dialog>
 
 <!-- Completion Wizard -->
-<ServiceCompletionWizard
-    bind:open={controller.showCompletionModal}
-    serviceId={controller.serviceId}
-    serviceNo={controller.serviceOrder?.no || ""}
-    initialQC={null}
-    costEstimate={controller.completionInput.actualCost}
-    diagnosis={controller.serviceOrder?.diagnosis &&
-    typeof controller.serviceOrder.diagnosis === "string" &&
-    !controller.serviceOrder.diagnosis.startsWith("{")
-        ? controller.serviceOrder.diagnosis
-        : ""}
-    onComplete={() => {
-        controller.showCompletionModal = false;
-        controller.loadData();
-    }}
-    onClose={() => (controller.showCompletionModal = false)}
-/>
+{#if SvcCompletionWizard}
+    <SvcCompletionWizard
+        bind:open={controller.showCompletionModal}
+        serviceId={controller.serviceId}
+        serviceNo={controller.serviceOrder?.no || ""}
+        initialQC={null}
+        costEstimate={controller.completionInput.actualCost}
+        diagnosis={controller.serviceOrder?.diagnosis &&
+        typeof controller.serviceOrder.diagnosis === "string" &&
+        !controller.serviceOrder.diagnosis.startsWith("{")
+            ? controller.serviceOrder.diagnosis
+            : ""}
+        onComplete={() => {
+            controller.showCompletionModal = false;
+            controller.loadData();
+        }}
+        onClose={() => (controller.showCompletionModal = false)}
+    />
+{/if}
 
 <!-- Assign Technician Modal -->
 <Dialog
@@ -269,8 +290,8 @@
 </Dialog>
 
 <!-- Pickup Wizard -->
-{#if controller.serviceOrder}
-    <ServicePickupWizard
+{#if controller.serviceOrder && SvcPickupWizard}
+    <SvcPickupWizard
         bind:open={controller.showPickupWizard}
         serviceId={controller.serviceId}
         serviceNo={controller.serviceOrder?.no || ""}
@@ -288,8 +309,8 @@
 {/if}
 
 <!-- Print Preview -->
-{#if controller.serviceOrder}
-    <ServiceNotePrint
+{#if controller.serviceOrder && SvcNotePrint}
+    <SvcNotePrint
         bind:open={controller.showPrintPreview}
         serviceId={controller.serviceId}
         onClose={() => (controller.showPrintPreview = false)}

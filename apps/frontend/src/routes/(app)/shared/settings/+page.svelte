@@ -3,7 +3,7 @@
     import { goto } from "$app/navigation";
 
     onMount(() => {
-        goto("/settings/store");
+        goto("/shared/settings/store");
     });
 </script>
 

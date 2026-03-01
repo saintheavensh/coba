@@ -19,28 +19,29 @@
     } from "lucide-svelte";
     import { slide } from "svelte/transition";
 
-    export let checklist: {
-        hasOpeningBalance: boolean;
-        hasAssets: boolean;
-        hasTarget: boolean;
-        isRegisterOpen: boolean;
-    };
+    let {
+        checklist,
+    }: {
+        checklist: {
+            hasOpeningBalance: boolean;
+            hasAssets: boolean;
+            hasTarget: boolean;
+            isRegisterOpen: boolean;
+        };
+    } = $props();
 
-    let visible = true;
+    let visible = $state(true);
 
-    // Calculate progress
-    $: totalItems = 3; // Excluding Register for persistent setup
-    $: completedItems = [
-        checklist?.hasOpeningBalance,
-        checklist?.hasAssets,
-        checklist?.hasTarget,
-    ].filter(Boolean).length;
-    $: progress = (completedItems / totalItems) * 100;
-    $: isComplete = progress === 100;
-
-    // Hide automatically if complete, but user can dismiss too
-    // For now, let's keep it visible until dismissed if complete
-    // or always visible if incomplete
+    let totalItems = 3; // Excluding Register for persistent setup
+    let completedItems = $derived(
+        [
+            checklist?.hasOpeningBalance,
+            checklist?.hasAssets,
+            checklist?.hasTarget,
+        ].filter(Boolean).length,
+    );
+    let progress = $derived((completedItems / totalItems) * 100);
+    let isComplete = $derived(progress === 100);
 
     function dismiss() {
         visible = false;

@@ -36,7 +36,7 @@
     import { goto } from "$app/navigation";
     import { Separator } from "$lib/shared/components/ui/separator";
     import { page } from "$app/stores";
-    import { refreshServiceList } from "$lib/features/services/services/event-store";
+    import { refreshServiceList } from "$lib/features/services/services/event-store.svelte";
     import { cn } from "$lib/shared/lib/utils";
     import { authStore } from "$lib/shared/lib/auth-store.svelte";
 
@@ -88,7 +88,7 @@
     });
 
     $effect(() => {
-        const _ = $refreshServiceList;
+        const _ = refreshServiceList.value;
         controller.loadData();
     });
 

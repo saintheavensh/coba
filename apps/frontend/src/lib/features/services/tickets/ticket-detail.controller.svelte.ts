@@ -1,6 +1,6 @@
 import { goto } from "$app/navigation";
 import { ServiceService } from "$lib/features/services/services/service.service";
-import { refreshServiceList } from "$lib/features/services/services/event-store";
+import { refreshServiceList } from "$lib/features/services/services/event-store.svelte";
 import { SettingsService, type WhatsAppSettings } from "$lib/features/settings/settings.service";
 import { api } from "$lib/shared/lib/api-client";
 import { toast } from "svelte-sonner";

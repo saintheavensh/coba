@@ -3,7 +3,7 @@ import { ServiceService } from "$lib/features/services/services/service.service"
 import { SettingsService, type ServiceSettings } from "$lib/features/settings/settings.service";
 import { api } from "$lib/shared/lib/api-client";
 import { toast } from "svelte-sonner";
-import { refreshServiceList } from "$lib/features/services/services/event-store";
+import { refreshServiceList } from "$lib/features/services/services/event-store.svelte";
 import { authStore } from "$lib/shared/lib/auth-store.svelte";
 import {
     Play,

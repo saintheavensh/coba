@@ -4,7 +4,7 @@
 	import { QueryClient, QueryClientProvider } from "@tanstack/svelte-query";
 	import { browser } from "$app/environment";
 	import { page } from "$app/stores";
-	import { useWebSocket } from "$lib/shared/lib/websocket";
+	import { useWebSocket } from "$lib/shared/lib/websocket.svelte";
 	import { authStore } from "$lib/shared/lib/auth-store.svelte";
 
 	let { children } = $props();

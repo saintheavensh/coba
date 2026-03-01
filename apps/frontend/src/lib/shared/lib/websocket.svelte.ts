@@ -1,5 +1,4 @@
 import { browser } from "$app/environment";
-import { writable, type Writable } from "svelte/store";
 import { supabase } from "./supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -20,8 +19,8 @@ class WebSocketClient {
     private messageHandlers: Set<MessageHandler> = new Set();
     private userId: string | null = null;
 
-    state: Writable<WebSocketState> = writable("disconnected");
-    lastMessage: Writable<WebSocketMessage | null> = writable(null);
+    state = $state<WebSocketState>("disconnected");
+    lastMessage = $state<WebSocketMessage | null>(null);
 
     /**
      * Connect to Supabase Realtime
@@ -31,7 +30,7 @@ class WebSocketClient {
         if (this.channel) return;
 
         this.userId = userId || null;
-        this.state.set("connecting");
+        this.state = "connecting";
 
         console.log("🔌 Connecting to Supabase Realtime...");
 
@@ -55,14 +54,14 @@ class WebSocketClient {
             .subscribe((status) => {
                 if (status === "SUBSCRIBED") {
                     console.log("🔌 Supabase Realtime connected");
-                    this.state.set("connected");
+                    this.state = "connected";
                 } else if (status === "CLOSED") {
                     console.log("🔌 Supabase Realtime disconnected");
-                    this.state.set("disconnected");
+                    this.state = "disconnected";
                     this.channel = null;
                 } else if (status === "CHANNEL_ERROR") {
                     console.error("Supabase Realtime error");
-                    this.state.set("error");
+                    this.state = "error";
                 }
             });
     }
@@ -76,7 +75,7 @@ class WebSocketClient {
             timestamp: notification.created_at || new Date().toISOString(),
         };
 
-        this.lastMessage.set(message);
+        this.lastMessage = message;
 
         // Notify all handlers
         this.messageHandlers.forEach((handler) => {
@@ -96,7 +95,7 @@ class WebSocketClient {
             supabase.removeChannel(this.channel);
             this.channel = null;
         }
-        this.state.set("disconnected");
+        this.state = "disconnected";
     }
 
     /**
@@ -130,8 +129,8 @@ export function useWebSocket(userId?: string) {
     }
 
     return {
-        state: wsClient.state,
-        lastMessage: wsClient.lastMessage,
+        get state() { return wsClient.state; },
+        get lastMessage() { return wsClient.lastMessage; },
         connect: wsClient.connect.bind(wsClient),
         send: wsClient.send.bind(wsClient),
         onMessage: wsClient.onMessage.bind(wsClient),

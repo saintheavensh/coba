@@ -143,7 +143,6 @@ function createSettingsStore() {
 // Export singleton instance
 export const settingsStore = createSettingsStore();
 
-import { writable } from 'svelte/store';
 
 export type ActivityLog = {
     id: string;
@@ -158,13 +157,13 @@ export type ActivityLog = {
 };
 
 function createActivityLogsStore() {
-    const { subscribe, update, set } = writable<ActivityLog[]>([]);
+    let logs = $state<ActivityLog[]>([]);
 
     return {
-        subscribe,
-        add: (log: ActivityLog) => update(logs => [log, ...logs]),
-        markAllAsRead: () => update(logs => logs.map(l => ({ ...l, isRead: true }))),
-        clear: () => set([])
+        get value() { return logs; },
+        add: (log: ActivityLog) => { logs = [log, ...logs]; },
+        markAllAsRead: () => { logs = logs.map(l => ({ ...l, isRead: true })); },
+        clear: () => { logs = []; }
     };
 }
 

@@ -1,24 +1,24 @@
-
 import { ProductsService } from "$lib/features/inventory/products/products.service";
 import { CategoriesService } from "$lib/features/inventory/categories/categories.service";
 import { SalesService } from "$lib/features/sales/components/sales.service";
 import { CustomersService } from "$lib/features/sales/components/customers/customers.service";
 import { PaymentService, type PaymentMethod } from "$lib/features/finance/shared/payment.service";
-import { SettingsService, type TaxSettings } from "$lib/features/settings/settings.service";
+import { SettingsService } from "$lib/features/settings/settings.service";
 import { formatCurrency } from "$lib/shared/lib/utils";
 import { toast } from "svelte-sonner";
 import { authStore } from "$lib/shared/lib/auth-store.svelte";
-import { CashRegisterService } from "$lib/features/accounting/services/cash-register.service";
+import { CartManager } from "./cart.model.svelte";
+import { PaymentManager } from "./payment.model.svelte";
+import { ProductManager } from "./product.model.svelte";
 
-// Types
 export type CartItem = {
-    uniqueId: string; // productId + variant
+    uniqueId: string;
     productId: string;
     name: string;
     variant: string;
     price: number;
     qty: number;
-    maxQty: number; // Total available stock across batches
+    maxQty: number;
     code?: string;
 };
 
@@ -30,35 +30,64 @@ export type PaymentItem = {
 };
 
 export class SalesController {
-    // State
-    products = $state<any[]>([]);
+    // Sub-systems
+    private _cart = new CartManager();
+    private _payment = new PaymentManager(this._cart);
+    private _productM = new ProductManager();
+
+    // Map state to preserve exact UI binding compatibility
+    get cart() { return this._cart.items; }
+    set cart(v) { this._cart.items = v; }
+
+    get taxSettings() { return this._cart.taxSettings; }
+    set taxSettings(v) { this._cart.taxSettings = v; }
+
+    get discountAmount() { return this._cart.discountAmount; }
+    set discountAmount(v) { this._cart.discountAmount = v; }
+
+    get products() { return this._productM.products; }
+    set products(v) { this._productM.products = v; }
+
+    get searchTerm() { return this._productM.searchTerm; }
+    set searchTerm(v) { this._productM.searchTerm = v; }
+
+    get selectedCategory() { return this._productM.selectedCategory; }
+    set selectedCategory(v) { this._productM.selectedCategory = v; }
+
+    get selectedCustomerId() { return this._payment.selectedCustomerId; }
+    set selectedCustomerId(v) { this._payment.selectedCustomerId = v; }
+
+    get customerOpen() { return this._payment.customerOpen; }
+    set customerOpen(v) { this._payment.customerOpen = v; }
+
+    get customerNameManual() { return this._payment.customerNameManual; }
+    set customerNameManual(v) { this._payment.customerNameManual = v; }
+
+    get notes() { return this._payment.notes; }
+    set notes(v) { this._payment.notes = v; }
+
+    get availableMethods() { return this._payment.availableMethods; }
+    set availableMethods(v) { this._payment.availableMethods = v; }
+
+    get payments() { return this._payment.payments; }
+    set payments(v) { this._payment.payments = v; }
+
+    get paymentOpen() { return this._payment.paymentOpen; }
+    set paymentOpen(v) { this._payment.paymentOpen = v; }
+
+    get approvalId() { return this._payment.approvalId; }
+    set approvalId(v) { this._payment.approvalId = v; }
+
+    get showApprovalModal() { return this._payment.showApprovalModal; }
+    set showApprovalModal(v) { this._payment.showApprovalModal = v; }
+
+    get pendingApprovalData() { return this._payment.pendingApprovalData; }
+    set pendingApprovalData(v) { this._payment.pendingApprovalData = v; }
+
+    // Direct state
     categories = $state<any[]>([]);
     customers = $state<any[]>([]);
-    cart = $state<CartItem[]>([]);
-    taxSettings = $state<TaxSettings>({
-        enabled: false,
-        rate: 0,
-        label: "Tax",
-        inclusive: false
-    });
-    discountAmount = $state(0);
-    approvalId = $state("");
-    showApprovalModal = $state(false);
-    pendingApprovalData = $state<any>(null);
-
-    // UI State
-    searchTerm = $state("");
-    selectedCategory = $state("all");
-    paymentOpen = $state(false);
     loading = $state(false);
-
-    // Payment State
-    selectedCustomerId = $state("");
-    customerOpen = $state(false);
-    customerNameManual = $state("Walk-in Consumen");
-    notes = $state("");
-    availableMethods = $state<PaymentMethod[]>([]);
-    payments = $state<PaymentItem[]>([]);
 
     constructor() { }
 
@@ -114,54 +143,9 @@ export class SalesController {
         }
     }
 
-    // Derived Logic
-    get processedProducts() {
-        return this.products.map((p: any) => {
-            const variantMap = new Map();
-
-            // Sort batches by creation (FIFO) to determine Display Price
-            const sortedBatches = (p.batches || []).sort(
-                (a: any, b: any) =>
-                    new Date(a.createdAt).getTime() -
-                    new Date(b.createdAt).getTime(),
-            );
-
-            for (const b of sortedBatches) {
-                if (b.currentStock <= 0) continue;
-
-                const vName =
-                    b.variant && b.variant !== "Standard" ? b.variant : "";
-                if (!variantMap.has(vName)) {
-                    variantMap.set(vName, {
-                        name: vName,
-                        stock: 0,
-                        price: b.sellPrice, // FIFO Price (First available batch price)
-                    });
-                }
-                const v = variantMap.get(vName);
-                v.stock += b.currentStock;
-            }
-
-            return {
-                ...p,
-                variants: Array.from(variantMap.values()),
-            };
-        });
-    }
-
-    get filteredProducts() {
-        return this.processedProducts.filter((p: any) => {
-            const term = this.searchTerm.toLowerCase();
-            const matchesSearch =
-                p.name.toLowerCase().includes(term) ||
-                (p.code && p.code.toLowerCase().includes(term));
-
-            const matchesCategory =
-                this.selectedCategory === "all" || p.categoryId === this.selectedCategory;
-
-            return matchesSearch && matchesCategory;
-        });
-    }
+    // Derived Logic mappings
+    get processedProducts() { return this._productM.processedProducts; }
+    get filteredProducts() { return this._productM.filteredProducts; }
 
     get customerOptions() {
         return this.customers.map((c: any) => ({
@@ -170,224 +154,31 @@ export class SalesController {
         }));
     }
 
-    get subtotal() {
-        return this.cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-    }
+    get subtotal() { return this._cart.subtotal; }
+    get taxAmount() { return this._cart.taxAmount; }
+    get totalWithTax() { return this._cart.totalWithTax; }
+    get transactionFees() { return this._payment.transactionFees; }
+    get finalTotal() { return this._payment.finalTotal; }
+    get totalAmount() { return this._cart.totalWithTax; }
+    get totalPaid() { return this._payment.totalPaid; }
+    get change() { return this._payment.change; }
+    get remaining() { return this._payment.remaining; }
 
-    get taxAmount() {
-        if (!this.taxSettings.enabled) return 0;
-        const subtotalAfterDiscount = Math.max(0, this.subtotal - this.discountAmount);
-        const rate = this.taxSettings.rate / 100;
-        if (this.taxSettings.inclusive) {
-            return subtotalAfterDiscount - (subtotalAfterDiscount / (1 + rate));
-        } else {
-            return subtotalAfterDiscount * rate;
-        }
-    }
+    // Actions mappings
+    getSelectedMethod(methodId: string) { return this._payment.getSelectedMethod(methodId); }
+    addToCart(product: any, variant: any) { this._cart.addToCart(product, variant); }
+    removeFromCart(index: number) { this._cart.removeFromCart(index); }
+    updateQty(index: number, delta: number) { this._cart.updateQty(index, delta); }
 
-    get totalWithTax() {
-        const subtotalAfterDiscount = Math.max(0, this.subtotal - this.discountAmount);
-        if (this.taxSettings.inclusive) {
-            return subtotalAfterDiscount;
-        }
-        return subtotalAfterDiscount + this.taxAmount;
-    }
-
-    get transactionFees() {
-        return this.payments.reduce((sum, p) => {
-            const method = this.getSelectedMethod(p.methodId);
-            if (!method?.feeConfig?.enabled || !p.amount) return sum;
-
-            const { type, value } = method.feeConfig;
-            if (type === "percent") {
-                return sum + (p.amount * (value / 100)); // Fee based on payment amount
-            } else {
-                return sum + value; // Fixed fee
-            }
-        }, 0);
-    }
-
-    get finalTotal() {
-        return this.totalWithTax + this.transactionFees;
-    }
-
-    // Replaces totalAmount for display
-    get totalAmount() {
-        return this.totalWithTax; // For compatibility, but UI should prefer finalTotal for payment
-    }
-
-    get totalPaid() {
-        return this.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-    }
-
-    get change() {
-        // If paid more than final total (including fees)
-        return Math.max(0, this.totalPaid - this.finalTotal);
-    }
-
-    get remaining() {
-        // Remaining to be paid
-        return Math.max(0, this.finalTotal - this.totalPaid);
-    }
-
-    // Actions
-    getSelectedMethod(methodId: string) {
-        return this.availableMethods.find((m) => m.id === methodId);
-    }
-
-    addToCart(product: any, variant: any) {
-        if (variant.stock <= 0) {
-            toast.error("Stok habis!");
-            return;
-        }
-
-        const uniqueId = `${product.id}-${variant.name}`;
-        const existingIdx = this.cart.findIndex((c) => c.uniqueId === uniqueId);
-
-        if (existingIdx >= 0) {
-            if (this.cart[existingIdx].qty + 1 > variant.stock) {
-                toast.error("Stok tidak mencukupi");
-                return;
-            }
-            this.cart[existingIdx].qty += 1;
-        } else {
-            this.cart = [
-                ...this.cart,
-                {
-                    uniqueId,
-                    productId: product.id,
-                    name: product.name,
-                    variant: variant.name,
-                    price: variant.price,
-                    qty: 1,
-                    maxQty: variant.stock,
-                    code: product.code,
-                },
-            ];
-        }
-    }
-
-    removeFromCart(index: number) {
-        this.cart = this.cart.filter((_, i) => i !== index);
-    }
-
-    updateQty(index: number, delta: number) {
-        const item = this.cart[index];
-        const newQty = item.qty + delta;
-
-        if (newQty <= 0) {
-            this.removeFromCart(index);
-        } else if (newQty > item.maxQty) {
-            toast.error("Maksimal stok: " + item.maxQty);
-        } else {
-            this.cart[index].qty = newQty;
-        }
-    }
-
-    resetPaymentForm() {
-        this.selectedCustomerId = "";
-        this.customerNameManual = "Walk-in Consumen";
-        this.notes = "";
-        this.discountAmount = 0;
-        this.approvalId = "";
-        const defaultMethod =
-            this.availableMethods.find((m) => m.type === "cash") ||
-            this.availableMethods[0];
-
-        // Ensure we have at least one payment method if available
-        if (defaultMethod) {
-            this.payments = [{ methodId: defaultMethod.id, amount: 0 }];
-        } else if (this.availableMethods.length > 0) {
-            this.payments = [{ methodId: this.availableMethods[0].id, amount: 0 }];
-        }
-    }
-
-    async openCheckout() {
-        // Check Register Status first
-        try {
-            const status = await CashRegisterService.getStatus();
-            if (!status.isOpen) {
-                toast.error("Register Closed. Please open a session in Kasir Dashboard first.");
-                return;
-            }
-        } catch (e) {
-            console.error("Failed to check register status", e);
-            toast.error("System Offline: Cannot verify register status");
-            return;
-        }
-
-        const defaultMethod =
-            this.availableMethods.find((m) => m.type === "cash") ||
-            this.availableMethods[0];
-
-        // Initialize payment with TOTAL including Tax (fees are dynamic based on method, so we start with totalWithTax)
-        this.payments = [{ methodId: defaultMethod?.id || "", amount: this.totalWithTax }];
-        this.paymentOpen = true;
-    }
-
-    addPaymentRow() {
-        const defaultMethod =
-            this.availableMethods.find((m) => m.type === "cash") ||
-            this.availableMethods[0];
-        this.payments = [
-            ...this.payments,
-            { methodId: defaultMethod?.id || "", amount: 0 },
-        ];
-    }
-
-    removePaymentRow(index: number) {
-        if (this.payments.length > 1) {
-            this.payments = this.payments.filter((_, i) => i !== index);
-        }
-    }
-
-    handleMethodChange(index: number, newMethodId: string) {
-        const method = this.getSelectedMethod(newMethodId);
-
-        // Strict Rule: If 1st Payment is Cash -> It must be single payment.
-        if (index === 0 && method?.type === "cash") {
-            this.payments = [{ methodId: newMethodId, amount: this.payments[0].amount }];
-            return;
-        }
-
-        // Update method
-        this.payments[index].methodId = newMethodId;
-        this.payments[index].variantId = undefined; // Reset variant
-    }
-
-    handleVariantChange(index: number, newVariantId: string) {
-        this.payments[index].variantId = newVariantId;
-    }
+    resetPaymentForm() { this._payment.resetForm(); }
+    async openCheckout() { return this._payment.openCheckout(); }
+    addPaymentRow() { this._payment.addPaymentRow(); }
+    removePaymentRow(index: number) { this._payment.removePaymentRow(index); }
+    handleMethodChange(index: number, newMethodId: string) { this._payment.handleMethodChange(index, newMethodId); }
+    handleVariantChange(index: number, newVariantId: string) { this._payment.handleVariantChange(index, newVariantId); }
 
     async processCheckout() {
-        if (this.cart.length === 0) return;
-
-        // Validation
-        if (this.remaining > 0) {
-            // Check if any payment is tempo (Debt)
-            const hasTempo = this.payments.some((p) => {
-                const m = this.getSelectedMethod(p.methodId);
-                return (
-                    m?.type === "custom" &&
-                    (m.name.toLowerCase().includes("tempo") ||
-                        m.id === "PM-TEMPO")
-                );
-            });
-
-            if (!hasTempo) {
-                toast.error(`Pembayaran kurang ${formatCurrency(this.remaining)}`);
-                return;
-            }
-        }
-
-        // Validate Banks
-        for (const p of this.payments) {
-            const method = this.getSelectedMethod(p.methodId);
-            if (method?.type === "transfer" && !p.variantId) {
-                toast.error("Mohon pilih Bank untuk metode Transfer");
-                return;
-            }
-        }
+        if (!this._payment.validate()) return;
 
         const selectedCustomer = this.customers.find(
             (c: any) => c.id === this.selectedCustomerId,
@@ -426,10 +217,14 @@ export class SalesController {
             // New Fields for Tax & Fees
             subtotal: this.subtotal,
             tax: this.taxAmount,
-            taxRate: this.taxSettings.enabled ? this.taxSettings.rate : 0,
+            taxRate: 0,
             taxInclusive: this.taxSettings.inclusive,
             serviceFee: this.transactionFees,
         };
+
+        if (this.taxSettings.enabled) {
+            payload.taxRate = this.taxSettings.rate;
+        }
 
         try {
             this.loading = true;
@@ -445,7 +240,7 @@ export class SalesController {
                     duration: 10000,
                 });
             }
-            this.cart = [];
+            this._cart.clear();
             this.paymentOpen = false;
             this.resetPaymentForm();
         } catch (e: any) {

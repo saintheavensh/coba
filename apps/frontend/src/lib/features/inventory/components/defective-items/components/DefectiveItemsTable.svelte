@@ -19,15 +19,24 @@
         DialogFooter,
     } from "$lib/shared/components/ui/dialog";
 
-    export let items: any[];
-    export let selectedItems: string[];
-    export let onToggleSelect: (id: string) => void;
-    export let onSelectAllPending: () => void;
-    export let onProcessReturn: (ids: string[], notes?: string) => void;
-    export let type: "pending" | "processed" = "pending";
+    let {
+        items,
+        selectedItems,
+        onToggleSelect,
+        onSelectAllPending,
+        onProcessReturn,
+        type = "pending",
+    }: {
+        items: any[];
+        selectedItems: string[];
+        onToggleSelect: (id: string) => void;
+        onSelectAllPending: () => void;
+        onProcessReturn: (ids: string[], notes?: string) => void;
+        type?: "pending" | "processed";
+    } = $props();
 
-    let showReturnDialog = false;
-    let returnNotes = "";
+    let showReturnDialog = $state(false);
+    let returnNotes = $state("");
 
     function getStatusBadgeVariant(status: string) {
         const variants: Record<
@@ -47,8 +56,9 @@
         returnNotes = ""; // reset
     }
 
-    const allSelected =
-        items.length > 0 && selectedItems.length === items.length;
+    let allSelected = $derived(
+        items.length > 0 && selectedItems.length === items.length,
+    );
 </script>
 
 <div class="space-y-4">

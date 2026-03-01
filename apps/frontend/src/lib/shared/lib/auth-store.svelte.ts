@@ -12,12 +12,12 @@ export type User = {
 
 /** Display metadata for each role in the switcher UI */
 export const ROLE_CONFIG: Record<string, { label: string; icon: string; dashboard: string }> = {
-    super_admin: { label: "Super Admin", icon: "🛡️", dashboard: "/superadmin" },
-    owner: { label: "Owner", icon: "👑", dashboard: "/owner" },
-    manager: { label: "Manager", icon: "📊", dashboard: "/manager" },
-    teknisi: { label: "Teknisi", icon: "🔧", dashboard: "/technician" },
-    kasir: { label: "Kasir", icon: "💰", dashboard: "/kasir" },
-    warehouse: { label: "Warehouse", icon: "📦", dashboard: "/warehouse" },
+    super_admin: { label: "Super Admin", icon: "🛡️", dashboard: "/dashboard/superadmin" },
+    owner: { label: "Owner", icon: "👑", dashboard: "/dashboard/owner" },
+    manager: { label: "Manager", icon: "📊", dashboard: "/dashboard/manager" },
+    teknisi: { label: "Teknisi", icon: "🔧", dashboard: "/dashboard/teknisi" },
+    kasir: { label: "Kasir", icon: "💰", dashboard: "/sales/kasir/kasir" },
+    warehouse: { label: "Warehouse", icon: "📦", dashboard: "/dashboard/warehouse" },
 };
 
 class AuthStore {

@@ -4,5 +4,5 @@
 export { api, AppError } from "./api-client";
 export { supabase } from "./supabase";
 export { cn, formatCurrency, formatDate, generateBarcodeSvg, generateQrCodeSvg } from "./utils";
-export { wsClient, useWebSocket } from "./websocket";
+export { wsClient, useWebSocket } from "./websocket.svelte";
 

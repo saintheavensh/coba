@@ -57,7 +57,7 @@ export const productsContainerModule = new ContainerModule(({ bind }) => {
 import { Container } from "inversify";
 
 const getProductsFacade = (): ProductsFacade => {
-    const { container } = require("../../shared/core/container");
+    const { container } = require("../../../shared/core/container");
     return (container as Container).get<ProductsFacade>(TYPES.ProductsFacade);
 };
 

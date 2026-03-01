@@ -15,7 +15,7 @@
             const status = await CashRegisterService.getStatus();
             if (!status.isOpen) {
                 toast.error("Register is closed. Please open a session first.");
-                goto("/kasir");
+                goto("/sales/kasir/kasir");
             }
         } catch (e) {
             console.error("Failed to check register status", e);
