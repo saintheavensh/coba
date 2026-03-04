@@ -1,7 +1,5 @@
 import type { IUserRepository, UserWithRoles, IPasswordService, ITokenService } from "../../domain";
 
-const TOKEN_EXPIRY_DAYS = 7;
-
 export interface LoginInput {
     username: string;
     password: string;
@@ -14,8 +12,12 @@ export type LoginResult = {
     requiresRoleSelection: boolean;
     availableRoles?: string[];
     user?: Omit<UserWithRoles, "password" | "roles"> & { roles: string[] };
-    token?: string;
+    accessToken?: string;
+    refreshToken?: string;
 };
+
+import { appConfig } from "../../../config/AppConfig";
+import { parseDuration } from "../../../utils/time/duration";
 
 export class LoginUseCase {
     constructor(
@@ -41,7 +43,6 @@ export class LoginUseCase {
             userRoles = [user.role];
         }
 
-
         const isStrict = input.roleBehaviorMode === 'strict';
 
         if (isStrict) {
@@ -56,23 +57,31 @@ export class LoginUseCase {
             const selectedRole = input.roleId && userRoles.includes(input.roleId) ? input.roleId : userRoles[0];
             const sessionId = await this.userRepository.createSession(user.id, selectedRole, input.dbOrTx);
 
-            const payload = {
+            const accessToken = await this.tokenIssuer.signAccessToken({
                 id: user.id,
-                sid: sessionId,
+                sessionId: sessionId,
                 username: user.username,
                 name: user.name,
                 role: selectedRole,
-                roles: userRoles,
-                exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * TOKEN_EXPIRY_DAYS
-            };
+                roles: userRoles
+            });
 
-            const token = await this.tokenIssuer.sign(payload);
+            const refreshToken = await this.tokenIssuer.signRefreshToken({
+                sessionId: sessionId
+            });
+
+            const hashedRefreshToken = await this.passwordVerifier.hash(refreshToken);
+            const expiresAt = new Date(Date.now() + parseDuration(appConfig.jwtRefreshExpires).ms);
+
+            await this.userRepository.updateRefreshToken(sessionId, hashedRefreshToken, expiresAt, input.dbOrTx);
+
             const { password: _p, ...userWithoutPassword } = user;
 
             return {
                 requiresRoleSelection: false,
                 user: { ...userWithoutPassword, roles: userRoles },
-                token
+                accessToken,
+                refreshToken
             };
         } else {
             // Flexible Mode: Automatically accept and grant all roles, optionally setting primary
@@ -80,24 +89,31 @@ export class LoginUseCase {
                 (userRoles.includes("owner") ? "owner" : userRoles[0]);
             const sessionId = await this.userRepository.createSession(user.id, selectedRole, input.dbOrTx);
 
-
-            const payload = {
+            const accessToken = await this.tokenIssuer.signAccessToken({
                 id: user.id,
-                sid: sessionId,
+                sessionId: sessionId,
                 username: user.username,
                 name: user.name,
                 role: selectedRole,
-                roles: userRoles,
-                exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * TOKEN_EXPIRY_DAYS
-            };
+                roles: userRoles
+            });
 
-            const token = await this.tokenIssuer.sign(payload);
+            const refreshToken = await this.tokenIssuer.signRefreshToken({
+                sessionId: sessionId
+            });
+
+            const hashedRefreshToken = await this.passwordVerifier.hash(refreshToken);
+            const expiresAt = new Date(Date.now() + parseDuration(appConfig.jwtRefreshExpires).ms);
+
+            await this.userRepository.updateRefreshToken(sessionId, hashedRefreshToken, expiresAt, input.dbOrTx);
+
             const { password: _p, ...userWithoutPassword } = user;
 
             return {
                 requiresRoleSelection: false,
                 user: { ...userWithoutPassword, roles: userRoles },
-                token
+                accessToken,
+                refreshToken
             };
         }
     }

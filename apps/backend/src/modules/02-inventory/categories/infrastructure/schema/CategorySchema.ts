@@ -1,14 +1,15 @@
-import { pgTable, text, timestamp, foreignKey, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, foreignKey, unique, boolean, index } from "drizzle-orm/pg-core";
 import { randomUUID } from "crypto";
 import { suppliers } from "../../../../01-purchases/suppliers/infrastructure/schema/SupplierSchema";
 
 const uuid = () => text("id").primaryKey().$defaultFn(() => randomUUID());
 
 export const categories = pgTable("categories", {
-    id: text("id").primaryKey(), // UUID
+    id: text("id").primaryKey().$defaultFn(() => randomUUID()), // UUID PK
     name: text("name").notNull(),
     description: text("description"),
     parentId: text("parent_id"),
+    isActive: boolean("is_active").default(true),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").$onUpdate(() => new Date()),
     deletedAt: timestamp("deleted_at"),
@@ -17,7 +18,8 @@ export const categories = pgTable("categories", {
         columns: [table.parentId],
         foreignColumns: [table.id],
         name: "categories_parent_id_fkey"
-    })
+    }),
+    parentIdx: index("categories_parent_id_idx").on(table.parentId)
 }));
 
 export const categoryVariants = pgTable("category_variants", {

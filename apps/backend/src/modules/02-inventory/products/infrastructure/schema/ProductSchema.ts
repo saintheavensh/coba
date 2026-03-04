@@ -1,25 +1,29 @@
-import { pgTable, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, index, boolean, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { randomUUID } from "crypto";
 import { brands } from "../../../../05-shared/devices/infrastructure/schema/BrandSchema";
-
-
+import { categories } from "../../../../02-inventory/categories/infrastructure/schema/CategorySchema";
 
 export const products = pgTable("products", {
-    id: text("id").primaryKey(), // PRD-XXX
-    code: text("code").unique(),
+    id: text("id").primaryKey().$defaultFn(() => randomUUID()), // UUID PK
+    sku: text("sku").unique().notNull(),
     name: text("name").notNull(),
-    categoryId: text("category_id"),
+    categoryId: text("category_id").references(() => categories.id),
+    unit: text("unit").notNull().default("pcs"),
     image: text("image"),
     brandId: text("brand_id").references(() => brands.id),
     stock: integer("stock").notNull().default(0),
 
-    minStock: integer("min_stock").default(5),
+    minimumStock: integer("minimum_stock").default(0).notNull(),
+    isActive: boolean("is_active").default(true),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").$onUpdate(() => new Date()),
     deletedAt: timestamp("deleted_at"),
 }, (table) => ({
     categoryIdx: index("products_category_idx").on(table.categoryId),
     createdAtIdx: index("products_created_at_idx").on(table.createdAt),
-    codeIdx: index("products_code_idx").on(table.code),
+    skuIdx: index("products_sku_idx").on(table.sku),
+    minStockCheck: check("minimum_stock_check", sql`${table.minimumStock} >= 0`),
 }));
 
 

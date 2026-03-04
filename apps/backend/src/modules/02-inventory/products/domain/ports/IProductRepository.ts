@@ -11,7 +11,12 @@ export interface IProductRepository {
     /**
      * Finds a product by its unique identifier.
      */
-    findById(id: string): Promise<Result<Product>>;
+    findById(id: string, dbOrTx?: any): Promise<Result<Product>>;
+
+    /**
+     * Finds a product by its unique identifier and places a row-level lock.
+     */
+    findByIdForUpdate(id: string, dbOrTx?: any): Promise<Result<Product>>;
 
     /**
      * Finds a product by its SKU.

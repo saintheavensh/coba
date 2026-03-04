@@ -1,9 +1,9 @@
 import { PurchaseOrder } from "./entities/purchase.entity";
 
 export interface IPurchaseRepository {
-    findById(id: string): Promise<PurchaseOrder | null>;
+    findById(id: string, dbOrTx?: unknown): Promise<PurchaseOrder | null>;
     save(purchase: PurchaseOrder, dbOrTx?: unknown): Promise<void>;
-    findAll(filters?: any): Promise<PurchaseOrder[]>;
+    findAll(filters?: any, dbOrTx?: unknown): Promise<PurchaseOrder[]>;
     delete(id: string, dbOrTx?: unknown): Promise<void>;
 }
 

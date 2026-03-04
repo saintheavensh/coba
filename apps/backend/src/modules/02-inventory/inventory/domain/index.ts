@@ -34,3 +34,5 @@ export type {
     InsertSessionData,
     InsertItemData
 } from "./stock-opname-repository.port";
+export * from './product-ref.type';
+export * from './product-ref.type';

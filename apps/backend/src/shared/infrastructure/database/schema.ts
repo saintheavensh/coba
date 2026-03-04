@@ -7,6 +7,7 @@ export * from "../../../modules/02-inventory/products/infrastructure/schema/Prod
 export * from "../../../modules/02-inventory/inventory/infrastructure/schema/BatchSchema";
 export * from "../../../modules/02-inventory/inventory/infrastructure/schema/VariantSchema";
 export * from "../../../modules/02-inventory/inventory/infrastructure/schema/StockOpnameSchema";
+export * from "../../../modules/02-inventory/inventory/infrastructure/schema/StockMovementSchema";
 export * from "../../../modules/02-inventory/inventory/infrastructure/schema/DefectiveItemSchema";
 export * from "../../../modules/02-inventory/inventory/infrastructure/schema/GamblingSchema";
 export * from "../../../modules/03-sales/customers/infrastructure/schema/MemberSchema";

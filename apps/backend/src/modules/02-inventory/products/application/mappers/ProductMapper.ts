@@ -20,7 +20,10 @@ export class ProductMapper {
             name: product.name,
             price: product.price.amount,
             stock: product.stock,
+            minimumStock: product.minimumStock,
+            unit: product.unit,
             status: product.status.value,
+            isActive: product.isActive,
             categoryId: product.categoryId,
             createdAt: product.createdAt,
             updatedAt: product.updatedAt
@@ -46,7 +49,10 @@ export class ProductMapper {
                 name: raw.name,
                 price: priceResult.getValue(),
                 stock: raw.stock || 0,
+                minimumStock: raw.minimumStock || 0,
+                unit: raw.unit || 'pcs',
                 status: statusResult.getValue(),
+                isActive: raw.isActive ?? true,
                 categoryId: raw.categoryId,
                 createdAt: raw.createdAt,
                 updatedAt: raw.updatedAt
@@ -61,8 +67,11 @@ export class ProductMapper {
     public static toPersistence(product: Product): any {
         return {
             id: product.id,
-            code: product.sku.value, // Maps back to the DB `code` field
+            sku: product.sku.value,
             name: product.name,
+            minimumStock: product.minimumStock,
+            unit: product.unit,
+            isActive: product.isActive,
             categoryId: product.categoryId,
             createdAt: product.createdAt,
             updatedAt: product.updatedAt

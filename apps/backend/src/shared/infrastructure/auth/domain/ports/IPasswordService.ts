@@ -3,5 +3,6 @@
  */
 
 export interface IPasswordService {
+    hash(plainText: string): Promise<string>;
     verify(plainPassword: string, hashedPassword: string): Promise<boolean>;
 }

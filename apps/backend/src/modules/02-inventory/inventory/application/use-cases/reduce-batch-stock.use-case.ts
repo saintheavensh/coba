@@ -1,5 +1,6 @@
 import type { IStockMutationGateway } from "../../domain/stock-mutation-gateway.port";
 import type { IBatchRepository } from "../../domain/batch-repository.port";
+import type { TransactionContext } from "../../../../../shared/types/db-context";
 
 export class ReduceBatchStockUseCase {
     constructor(
@@ -7,21 +8,21 @@ export class ReduceBatchStockUseCase {
         private readonly batchRepository: IBatchRepository
     ) { }
 
-    async execute(batchId: string, qty: number, dbOrTx: unknown): Promise<void> {
-        const batch = await this.batchRepository.findById(batchId, dbOrTx);
-        if (!batch) throw new Error("Batch not found");
-
+    async execute(batchId: string, qty: number, tx: TransactionContext): Promise<void> {
+        const batch = await this.batchRepository.findById(batchId, tx);
+        if (!batch) {
+            throw new Error(`Batch ${batchId} not found.`);
+        }
         if (batch.currentStock < qty) {
-            throw new Error(`Insufficient stock in batch ${batchId}. Available: ${batch.currentStock}, Requested: ${qty}`);
+            throw new Error(`Batch ${batchId} has insufficient stock. Available: ${batch.currentStock}, Requested: ${qty}`);
         }
 
-        // 1. Reduce batch stock
-        await this.stockGateway.updateBatchStockDelta(batchId, -qty, dbOrTx);
+        await this.stockGateway.updateBatchStockDelta(batchId, -qty, tx);
 
-        // 2. Reduce product total stock
-        await this.stockGateway.updateProductStockDelta(batch.productId, -qty, dbOrTx);
+        // Adjust parent
+        await this.stockGateway.updateProductStockDelta(batch.productId, -qty, tx);
 
-        // 3. Consistency check
-        await this.stockGateway.assertStockConsistency([batch.productId], dbOrTx);
+        // Assert
+        await this.stockGateway.assertStockConsistency([batch.productId], tx);
     }
 }

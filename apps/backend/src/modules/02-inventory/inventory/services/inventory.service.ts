@@ -11,6 +11,8 @@ import type { RecordDeadPhonePurchaseUseCase } from "../application/use-cases/re
 import type { RecordTestLogUseCase } from "../application/use-cases/record-test-log.use-case";
 import type { HarvestPartUseCase } from "../application/use-cases/harvest-part.use-case";
 import type { ForfeitServiceDeviceUseCase } from "../application/use-cases/forfeit-service-device.use-case";
+import { db } from "../../../../shared/infrastructure/database/client";
+import type { TransactionContext } from "../../../../shared/types/db-context";
 
 export class InventoryService {
     constructor(
@@ -29,47 +31,62 @@ export class InventoryService {
         private readonly getProductsService: () => any
     ) { }
 
-    async deductStockFIFO(input: DeductStockFIFOInput, dbOrTx: unknown): Promise<DeductStockFIFOOutput> {
-        return this.deductStockFIFOUC.execute(input, dbOrTx);
+    async deductStockFIFO(input: DeductStockFIFOInput): Promise<DeductStockFIFOOutput> {
+        return db.transaction(async (tx) => {
+            return this.deductStockFIFOUC.execute(input, tx);
+        });
     }
 
     async addStockFromPurchaseVerification(
-        input: AddStockFromPurchaseVerificationInput,
-        dbOrTx: unknown
+        input: AddStockFromPurchaseVerificationInput
     ): Promise<AddStockFromPurchaseVerificationOutput> {
-        return this.addStockFromPurchaseUC.execute(input, dbOrTx);
+        return db.transaction(async (tx) => {
+            return this.addStockFromPurchaseUC.execute(input, tx);
+        });
     }
 
-    async reverseStockFromPurchaseDeletion(input: ReverseStockInput, dbOrTx: unknown): Promise<void> {
-        return this.reverseStockUC.execute(input, dbOrTx);
+    async reverseStockFromPurchaseDeletion(input: ReverseStockInput): Promise<void> {
+        return db.transaction(async (tx) => {
+            return this.reverseStockUC.execute(input, tx);
+        });
     }
 
-    async getLastBatchByProduct(productId: string, dbOrTx?: unknown): Promise<ProductBatchEntity | null> {
-        return this.getLastBatchUC.execute(productId, dbOrTx);
+    async getLastBatchByProduct(productId: string, tx?: TransactionContext): Promise<ProductBatchEntity | null> {
+        return this.getLastBatchUC.execute(productId, tx);
     }
 
-    async getBatchById(batchId: string, dbOrTx?: unknown): Promise<ProductBatchEntity | null> {
-        return this.batchRepository.findById(batchId, dbOrTx);
+    async getBatchById(batchId: string, tx?: TransactionContext): Promise<ProductBatchEntity | null> {
+        return this.batchRepository.findById(batchId, tx);
     }
 
-    async reduceStock(batchId: string, qty: number, dbOrTx: unknown): Promise<void> {
-        return this.reduceBatchStockUC.execute(batchId, qty, dbOrTx);
+    async reduceStock(batchId: string, qty: number): Promise<void> {
+        return db.transaction(async (tx) => {
+            return this.reduceBatchStockUC.execute(batchId, qty, tx);
+        });
     }
 
     async recordDeadPhonePurchase(input: any) {
-        return this.recordDeadPhoneUC.execute(input);
+        return db.transaction(async (tx) => {
+            return this.recordDeadPhoneUC.execute(input, tx);
+        });
     }
 
     async recordTestLog(input: any) {
-        return this.recordTestLogUC.execute(input);
+        return db.transaction(async (tx) => {
+            return this.recordTestLogUC.execute(input, tx);
+        });
     }
 
-    async harvestPart(input: any, dbOrTx?: any) {
-        return this.harvestPartUC.execute(input, dbOrTx);
+    async harvestPart(input: any) {
+        return db.transaction(async (tx) => {
+            return this.harvestPartUC.execute(input, tx);
+        });
     }
 
     async forfeitServiceDevice(input: any) {
-        return this.forfeitServiceDeviceUC.execute(input);
+        return db.transaction(async (tx) => {
+            return this.forfeitServiceDeviceUC.execute(input, tx);
+        });
     }
 
     async getDeadPhones(filters?: any) {

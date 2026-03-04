@@ -5,6 +5,7 @@ export interface Supplier {
     phone?: string | null;
     address?: string | null;
     image?: string | null;
+    isActive?: boolean | null;
     createdAt?: Date | null;
     updatedAt?: Date | null;
 }

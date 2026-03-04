@@ -8,6 +8,7 @@ export class SupplierRepositoryAdapter implements ISupplierRepository {
     async findAll(dbOrTx?: DBContext): Promise<Supplier[]> {
         const client = (dbOrTx as any) || db;
         const result = await client.query.suppliers.findMany({
+            where: eq(suppliers.isActive, true),
             orderBy: [desc(suppliers.createdAt)],
         });
         return result as Supplier[];

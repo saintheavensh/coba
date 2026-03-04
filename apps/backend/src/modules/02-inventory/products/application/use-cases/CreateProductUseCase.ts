@@ -16,11 +16,14 @@ import { ProductMapper } from "../mappers/ProductMapper";
  * CreateProductUseCase
  * Orchestrates the creation of a new product.
  */
+import type { ICategoryGateway } from "../../domain/ports/ICategoryGateway";
+
 @injectable()
 export class CreateProductUseCase implements UseCase<CreateProductDTO, Result<ProductDTO>> {
     private logger: Logger;
     constructor(
         @inject(TYPES.IProductRepository) private readonly productRepo: IProductRepository,
+        @inject(TYPES.ICategoryGateway) private readonly categoryGateway: ICategoryGateway,
         @inject(TYPES.LoggerFactory) private loggerFactory: LoggerFactory
     ) {
         this.logger = loggerFactory.createLogger('CreateProductUseCase');
@@ -34,6 +37,18 @@ export class CreateProductUseCase implements UseCase<CreateProductDTO, Result<Pr
         const result = Result.combine([skuResult, priceResult]);
         if (result.isFailure) {
             return Result.fail<ProductDTO>(result.errorValue());
+        }
+
+        // 1.5 Validate Category Exists
+        const categoryExists = await this.categoryGateway.categoryExists(request.categoryId);
+        if (!categoryExists) {
+            return Result.fail<ProductDTO>('Category not found');
+        }
+
+        // 1.6 Validate SKU Uniqueness
+        const skuExists = await this.productRepo.findBySku(skuResult.getValue());
+        if (skuExists.isSuccess) {
+            return Result.fail<ProductDTO>('Product with this SKU already exists');
         }
 
         // 2. Create Domain Entity

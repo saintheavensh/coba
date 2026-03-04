@@ -1,4 +1,5 @@
 import { IGamblingRepository, DeadPhonePurchase } from "../../domain/repositories/gambling-repository.port";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export interface RecordDeadPhonePurchaseInput {
     deviceName: string;
@@ -14,7 +15,7 @@ export interface RecordDeadPhonePurchaseInput {
 export class RecordDeadPhonePurchaseUseCase {
     constructor(private readonly repository: IGamblingRepository) { }
 
-    async execute(input: RecordDeadPhonePurchaseInput): Promise<DeadPhonePurchase> {
+    async execute(input: RecordDeadPhonePurchaseInput, tx?: TransactionContext): Promise<DeadPhonePurchase> {
         return await this.repository.savePurchase({
             ...input,
             purchaseDate: new Date(input.purchaseDate),

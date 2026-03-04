@@ -11,14 +11,14 @@ import type {
     AddStockFromPurchaseVerificationOutput,
     ReverseStockInput
 } from "../../domain/stock.types";
+import type { TransactionContext } from "../../../../../shared/types/db-context";
 import { productBatches, products, productVariants } from "../../../../../shared/infrastructure/database/schema";
 import { eq, and, gt, asc, inArray, sql, isNull } from "drizzle-orm";
 import type { BatchLike, InsertBatchData } from "../../domain/stock-mutation-gateway.port";
 
 export class StockMutationGatewayAdapter implements IStockMutationGateway {
 
-    async findBatchesForFIFO(productId: string, variantName: string | null, dbOrTx: unknown): Promise<BatchLike[]> {
-        const tx = dbOrTx as any;
+    async findBatchesForFIFO(productId: string, variantName: string | null, tx: TransactionContext): Promise<BatchLike[]> {
         let targetVariantId: string | null = null;
 
         if (variantName) {
@@ -49,8 +49,7 @@ export class StockMutationGatewayAdapter implements IStockMutationGateway {
             .for('update');
     }
 
-    async updateBatchStockDelta(batchId: string, delta: number, dbOrTx: unknown): Promise<void> {
-        const tx = dbOrTx as any;
+    async updateBatchStockDelta(batchId: string, delta: number, tx: TransactionContext): Promise<void> {
         await tx.update(productBatches)
             .set({
                 currentStock: sql`${productBatches.currentStock} + ${delta}`,
@@ -59,15 +58,13 @@ export class StockMutationGatewayAdapter implements IStockMutationGateway {
             .where(eq(productBatches.id, batchId));
     }
 
-    async updateProductStockDelta(productId: string, delta: number, dbOrTx: unknown): Promise<void> {
-        const tx = dbOrTx as any;
+    async updateProductStockDelta(productId: string, delta: number, tx: TransactionContext): Promise<void> {
         await tx.update(products)
             .set({ stock: sql`${products.stock} + ${delta}` })
             .where(eq(products.id, productId));
     }
 
-    async insertBatch(data: InsertBatchData, dbOrTx: unknown): Promise<void> {
-        const tx = dbOrTx as any;
+    async insertBatch(data: InsertBatchData, tx: TransactionContext): Promise<void> {
         await tx.insert(productBatches).values({
             id: data.id,
             productId: data.productId,
@@ -82,8 +79,7 @@ export class StockMutationGatewayAdapter implements IStockMutationGateway {
         });
     }
 
-    async assertStockConsistency(productIds: string[], dbOrTx: unknown): Promise<void> {
-        const tx = dbOrTx as any;
+    async assertStockConsistency(productIds: string[], tx: TransactionContext): Promise<void> {
         for (const productId of productIds) {
             const [row] = await tx
                 .select({ stock: products.stock })

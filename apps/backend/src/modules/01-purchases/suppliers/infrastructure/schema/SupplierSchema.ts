@@ -10,12 +10,13 @@ const timestamps = () => ({
 });
 
 export const suppliers = pgTable("suppliers", {
-    id: text("id").primaryKey(), // SUP-XXX
+    id: text("id").primaryKey().$defaultFn(() => randomUUID()), // UUID PK
     name: text("name").notNull(),
     contact: text("contact"),
     phone: text("phone"),
     address: text("address"),
     image: text("image"),
+    isActive: boolean("is_active").default(true),
     ...timestamps(),
 });
 

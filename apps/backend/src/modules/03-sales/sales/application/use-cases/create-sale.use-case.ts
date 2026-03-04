@@ -1,7 +1,6 @@
 import { DBContext } from "../../../../../shared/types/db-context";
 import {
     ISaleRepository,
-    IInventoryGateway,
     IAccountingGateway,
     IMemberGateway,
     ISettingsGateway,
@@ -11,17 +10,39 @@ import {
     PaymentStatus
 } from "../../domain";
 import { HTTPException } from "hono/http-exception";
-import { multiplyMoney, sumMoney, computeNetAmount } from "../../../../../shared/utils/money";
+import { multiplyMoney, computeNetAmount } from "../../../../../shared/utils/money";
+import { GetProductStockUseCase } from "../../../../02-inventory/inventory/application/use-cases/get-product-stock.use-case";
+import type { IProductRepository } from "../../../../02-inventory/products/domain/ports/IProductRepository";
+import type { IInventoryTransactionService } from "../../../../02-inventory/inventory/application/services/inventory-transaction.service";
+
+// Domain errors for stock validation
+export class ProductNotFoundError extends Error {
+    constructor(productId: string) { super(`Product with ID ${productId} not found`); this.name = "ProductNotFoundError"; }
+}
+export class ProductInactiveError extends Error {
+    constructor(productId: string) { super(`Product with ID ${productId} is inactive`); this.name = "ProductInactiveError"; }
+}
+export class InsufficientStockError extends Error {
+    constructor(productId: string, available: number, requested: number) {
+        super(`Insufficient stock for product ${productId}. Available: ${available}, Requested: ${requested}`);
+        this.name = "InsufficientStockError";
+    }
+}
+export class InvalidQuantityError extends Error {
+    constructor(productId: string) { super(`Quantity must be > 0 for product ${productId}`); this.name = "InvalidQuantityError"; }
+}
 
 export class CreateSaleUseCase {
     constructor(
         private readonly repository: ISaleRepository,
-        private readonly inventoryGateway: IInventoryGateway,
         private readonly accountingGateway: IAccountingGateway,
         private readonly memberGateway: IMemberGateway,
         private readonly settingsGateway: ISettingsGateway,
         private readonly approvalGateway: IApprovalGateway,
-        private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
+        private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> },
+        private readonly getProductStockUseCase: GetProductStockUseCase,
+        private readonly productRepo: IProductRepository,
+        private readonly inventoryTransactionService: IInventoryTransactionService
     ) { }
 
     async execute(data: CreateSaleInput): Promise<{ message: string; id: string; change: number }> {
@@ -50,7 +71,23 @@ export class CreateSaleUseCase {
             }
         }
 
-        // 1. Validate Payments
+        // 1. Validate Products & Pre-Check Stock (fast-fail guard, not final validation)
+        for (const item of data.items) {
+            if (item.qty <= 0) throw new InvalidQuantityError(item.productId);
+
+            const productResult = await this.productRepo.findById(item.productId);
+            if (productResult.isFailure) throw new ProductNotFoundError(item.productId);
+
+            const product = productResult.getValue();
+            if (!product.isActive) throw new ProductInactiveError(item.productId);
+
+            const stockResult = await this.getProductStockUseCase.execute(item.productId);
+            if (stockResult.isSuccess && stockResult.getValue() < item.qty) {
+                throw new InsufficientStockError(item.productId, stockResult.getValue(), item.qty);
+            }
+        }
+
+        // 2. Validate Payments
         const totalPaid = data.payments.reduce((sum, p) => sum + p.amount, 0);
         if (totalPaid < finalAmount) {
             throw new HTTPException(400, { message: `Insufficient payment. Total: ${finalAmount}, Paid: ${totalPaid}` });
@@ -86,7 +123,31 @@ export class CreateSaleUseCase {
                 throw new HTTPException(400, { message: "Cash Register is closed. Please open a session first." });
             }
 
-            // Handle Tempo (Debt)
+            // 1. Row-level locking + stock revalidation inside transaction
+            for (const item of data.items) {
+                const lockResult = await this.productRepo.findByIdForUpdate(item.productId, tx);
+                if (lockResult.isFailure) throw new ProductNotFoundError(item.productId);
+
+                const lockedProduct = lockResult.getValue();
+                if (!lockedProduct.isActive) throw new ProductInactiveError(item.productId);
+
+                const stockResult = await this.getProductStockUseCase.execute(item.productId, tx);
+                if (stockResult.isSuccess && stockResult.getValue() < item.qty) {
+                    throw new InsufficientStockError(item.productId, stockResult.getValue(), item.qty);
+                }
+            }
+
+            // 2. Deduct stock via InventoryTransactionService (FIFO + validation + ledger)
+            const { allocations, totalCOGS } = await this.inventoryTransactionService.deductForSale({
+                referenceId: saleId,
+                items: data.items.map(i => ({
+                    productId: i.productId,
+                    variant: i.variant || "",
+                    quantity: i.qty
+                }))
+            }, tx);
+
+            // 3. Handle Tempo (Debt)
             const tempoPayment = data.payments.find((p: any) => p.methodId === "PM-TEMPO" || p.method.toLowerCase().includes("tempo"));
             if (tempoPayment) {
                 if (!data.memberId) {
@@ -97,18 +158,16 @@ export class CreateSaleUseCase {
                     throw new HTTPException(404, { message: "Customer not found." });
                 }
 
-                // Credit Limit Check
                 const currentDebt = member.debt || 0;
                 const creditLimit = member.creditLimit || 0;
                 if (creditLimit > 0 && (currentDebt + tempoPayment.amount > creditLimit)) {
                     throw new HTTPException(400, { message: `Credit limit exceeded. Limit: ${creditLimit}, Current Debt: ${currentDebt}, New: ${tempoPayment.amount}` });
                 }
 
-                // Increase Debt
                 await this.memberGateway.updateDebt(data.memberId, tempoPayment.amount, tx);
             }
 
-            // 1. Create Sale Header
+            // 4. Create Sale Header
             await this.repository.create({
                 id: saleId,
                 memberId: data.memberId,
@@ -121,7 +180,7 @@ export class CreateSaleUseCase {
                 notes: data.notes
             }, tx);
 
-            // 2. Insert Payments
+            // 5. Insert Payments
             for (const p of data.payments) {
                 await this.repository.createPayment({
                     saleId: saleId,
@@ -134,18 +193,7 @@ export class CreateSaleUseCase {
                 }, tx);
             }
 
-            // 3. Deduct stock via Inventory
-            const { allocations, cogsAmount } = await this.inventoryGateway.deductStockFIFO({
-                saleId,
-                items: data.items.map((i) => ({
-                    productId: i.productId,
-                    variant: i.variant || "",
-                    quantity: i.qty,
-                    unitPrice: i.price
-                }))
-            }, tx);
-
-            // 4. Record Allocations as Sale Items
+            // 6. Record Allocations as Sale Items
             const priceByItem = new Map<string, number>();
             for (const i of data.items) {
                 priceByItem.set(`${i.productId}|${i.variant}`, i.price);
@@ -162,7 +210,7 @@ export class CreateSaleUseCase {
                 }, tx);
             }
 
-            // 5. Accounting logic
+            // 7. Accounting logic
             let debitAccountId = "1-1000";
             if (paymentStatus === "paid") {
                 const methodConfig = await this.settingsGateway.getPaymentMethods(tx);
@@ -198,17 +246,17 @@ export class CreateSaleUseCase {
                 description: `Pendapatan ${saleId}`
             });
 
-            if (cogsAmount > 0) {
+            if (totalCOGS > 0) {
                 journalLines.push({
                     accountId: "5-1001",
-                    debit: cogsAmount,
+                    debit: totalCOGS,
                     credit: 0,
                     description: `HPP ${saleId}`
                 });
                 journalLines.push({
                     accountId: "1-3000",
                     debit: 0,
-                    credit: cogsAmount,
+                    credit: totalCOGS,
                     description: `Pengurangan persediaan ${saleId}`
                 });
             }
@@ -220,7 +268,7 @@ export class CreateSaleUseCase {
                 lines: journalLines,
             }, data.userId, tx);
 
-            // 6. Record in Cash Register
+            // 8. Record in Cash Register
             for (const p of data.payments) {
                 const methodLower = p.method.toLowerCase();
                 if (methodLower.includes("cash") || methodLower.includes("tunai")) {

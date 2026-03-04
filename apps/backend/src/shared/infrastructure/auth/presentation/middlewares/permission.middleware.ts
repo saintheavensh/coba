@@ -1,33 +1,9 @@
 import { createMiddleware } from "hono/factory";
-import { db } from "../../../../infrastructure/database/client";
-import { roles } from "../../../../infrastructure/database/schema";
-import { eq } from "drizzle-orm";
-
-/**
- * In-memory cache of role -> permissions[] to avoid DB hits on every request.
- * Cache is populated on first use and refreshed every 5 minutes.
- */
-let permissionCache: Map<string, string[]> = new Map();
-let cacheTimestamp = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+import { authFacade } from "../../AuthContainer";
+import type { Permission } from "../../domain/constants/Permissions";
 
 async function getRolePermissions(roleId: string): Promise<string[]> {
-    // Check cache freshness
-    if (Date.now() - cacheTimestamp > CACHE_TTL) {
-        permissionCache.clear();
-        cacheTimestamp = Date.now();
-    }
-
-    // Return from cache if available
-    if (permissionCache.has(roleId)) {
-        return permissionCache.get(roleId)!;
-    }
-
-    // Query DB and cache the result
-    const role = await db.select({ permissions: roles.permissions }).from(roles).where(eq(roles.id, roleId)).limit(1);
-    const perms = (role[0]?.permissions as string[]) || [];
-    permissionCache.set(roleId, perms);
-    return perms;
+    return await authFacade.getRolePermissions(roleId);
 }
 
 /**
@@ -35,10 +11,9 @@ async function getRolePermissions(roleId: string): Promise<string[]> {
  * Checks if the authenticated user's role has ANY of the required permissions.
  * The "all" permission (super_admin/owner) bypasses all checks.
  *
- * Usage: requirePermission("sale.create", "sale.manage")
- * → User passes if their role has "sale.create" OR "sale.manage" OR "all"
+ * Usage: requirePermission(Permissions.SALE_CREATE, Permissions.SALE_MANAGE)
  */
-export function requirePermission(...requiredPermissions: string[]) {
+export function requirePermission(...requiredPermissions: Permission[]) {
     return createMiddleware(async (c, next) => {
         const user = c.get("user") as any;
         if (!user?.role) {
@@ -116,8 +91,7 @@ export function requireRole(...allowedRoles: string[]) {
 
 /** Utility to clear the permission cache (useful for tests or after role updates) */
 export function clearPermissionCache() {
-    permissionCache.clear();
-    cacheTimestamp = 0;
+    authFacade.clearPermissionCache();
 }
 
 /** @deprecated Use requirePermission() instead. Kept for backward compatibility. */

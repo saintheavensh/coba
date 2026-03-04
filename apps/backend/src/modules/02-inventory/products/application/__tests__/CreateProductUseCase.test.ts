@@ -7,6 +7,7 @@ describe("CreateProductUseCase", () => {
     let useCase: CreateProductUseCase;
     let mockRepo: IProductRepository;
 
+    let mockCategoryGateway: any;
     let mockLoggerFactory: any;
 
     beforeEach(() => {
@@ -26,7 +27,10 @@ describe("CreateProductUseCase", () => {
             delete: vi.fn(),
             findActive: vi.fn(),
         } as any;
-        useCase = new CreateProductUseCase(mockRepo, mockLoggerFactory);
+        mockCategoryGateway = {
+            categoryExists: vi.fn().mockResolvedValue(true)
+        };
+        useCase = new CreateProductUseCase(mockRepo, mockCategoryGateway, mockLoggerFactory);
     });
 
     it("should create a product successfully", async () => {
@@ -38,6 +42,7 @@ describe("CreateProductUseCase", () => {
         };
 
         (mockRepo.save as any).mockResolvedValue(Result.ok());
+        (mockRepo.findBySku as any).mockResolvedValue(Result.fail('Not found')); // simulate unique
 
         const result = await useCase.execute(input);
 
@@ -45,6 +50,7 @@ describe("CreateProductUseCase", () => {
         expect(result.getValue().name).toBe("Test Product");
         expect(result.getValue().sku).toBe("SKU-123");
         expect(mockRepo.save).toHaveBeenCalled();
+        expect(mockCategoryGateway.categoryExists).toHaveBeenCalledWith("CAT-1");
     });
 
     it("should fail if SKU format is invalid", async () => {

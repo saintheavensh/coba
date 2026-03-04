@@ -9,7 +9,10 @@ interface ProductProps {
     name: string;
     price: Price;
     stock: number;
+    minimumStock: number;
+    unit: string;
     status: ProductStatus;
+    isActive: boolean;
     categoryId: string;
     createdAt: Date;
     updatedAt: Date;
@@ -28,7 +31,10 @@ export class Product extends Entity<ProductProps> {
     get name(): string { return this.props.name; }
     get price(): Price { return this.props.price; }
     get stock(): number { return this.props.stock; }
+    get minimumStock(): number { return this.props.minimumStock; }
+    get unit(): string { return this.props.unit; }
     get status(): ProductStatus { return this.props.status; }
+    get isActive(): boolean { return this.props.isActive; }
     get categoryId(): string { return this.props.categoryId; }
     get createdAt(): Date { return this.props.createdAt; }
     get updatedAt(): Date { return this.props.updatedAt; }
@@ -39,7 +45,10 @@ export class Product extends Entity<ProductProps> {
             name: string;
             price: Price;
             stock?: number;
+            minimumStock?: number;
+            unit?: string;
             status?: ProductStatus;
+            isActive?: boolean;
             categoryId: string;
             createdAt?: Date;
             updatedAt?: Date;
@@ -57,6 +66,9 @@ export class Product extends Entity<ProductProps> {
                 {
                     ...props,
                     stock: props.stock ?? 0,
+                    minimumStock: props.minimumStock ?? 0,
+                    unit: props.unit ?? 'pcs',
+                    isActive: props.isActive ?? true,
                     status: defaultStatus,
                     createdAt: props.createdAt || new Date(),
                     updatedAt: props.updatedAt || new Date()

@@ -4,23 +4,24 @@
  */
 import type { IStockMutationGateway } from "../../domain/stock-mutation-gateway.port";
 import type { ReverseStockInput } from "../../domain/stock.types";
+import type { TransactionContext } from "../../../../../shared/types/db-context";
 
 export class ReverseStockUseCase {
     constructor(private readonly stockGateway: IStockMutationGateway) { }
 
-    async execute(input: ReverseStockInput, dbOrTx: unknown): Promise<void> {
+    async execute(input: ReverseStockInput, tx: TransactionContext): Promise<void> {
         const affectedProductIds = new Set<string>();
 
         for (const item of input.items) {
             affectedProductIds.add(item.productId);
 
             if (item.batchId) {
-                await this.stockGateway.updateBatchStockDelta(item.batchId, -item.qtyReceived, dbOrTx);
+                await this.stockGateway.updateBatchStockDelta(item.batchId, -item.qtyReceived, tx);
             }
 
-            await this.stockGateway.updateProductStockDelta(item.productId, -item.qtyReceived, dbOrTx);
+            await this.stockGateway.updateProductStockDelta(item.productId, -item.qtyReceived, tx);
         }
 
-        await this.stockGateway.assertStockConsistency([...affectedProductIds], dbOrTx);
+        await this.stockGateway.assertStockConsistency([...affectedProductIds], tx);
     }
 }

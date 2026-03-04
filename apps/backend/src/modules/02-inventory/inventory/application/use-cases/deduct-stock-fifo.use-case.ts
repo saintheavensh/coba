@@ -1,16 +1,17 @@
 import type { IStockMutationGateway } from "../../domain/stock-mutation-gateway.port";
 import type { DeductStockFIFOInput, DeductStockFIFOOutput } from "../../domain/stock.types";
 import { StockCalculator } from "../../domain/services/stock-calculator";
+import type { TransactionContext } from "../../../../../shared/types/db-context";
 
 export class DeductStockFIFOUseCase {
     constructor(private readonly stockGateway: IStockMutationGateway) { }
 
-    async execute(input: DeductStockFIFOInput, dbOrTx: unknown): Promise<DeductStockFIFOOutput> {
+    async execute(input: DeductStockFIFOInput, tx: TransactionContext): Promise<DeductStockFIFOOutput> {
         const allocations: DeductStockFIFOOutput["allocations"] = [];
         let totalCogs = 0;
 
         for (const item of input.items) {
-            const batches = await this.stockGateway.findBatchesForFIFO(item.productId, item.variant, dbOrTx);
+            const batches = await this.stockGateway.findBatchesForFIFO(item.productId, item.variant, tx);
 
             const totalAvailable = batches.reduce((sum, b) => sum + b.currentStock, 0);
             if (totalAvailable < item.quantity) {
@@ -23,7 +24,7 @@ export class DeductStockFIFOUseCase {
                 const batch = batches.find(b => b.id === allocation.batchId);
                 if (!batch) continue;
 
-                await this.stockGateway.updateBatchStockDelta(batch.id, -allocation.quantity, dbOrTx);
+                await this.stockGateway.updateBatchStockDelta(batch.id, -allocation.quantity, tx);
 
                 allocations.push({
                     productId: item.productId,
@@ -40,12 +41,12 @@ export class DeductStockFIFOUseCase {
             }
 
             // Deduct from product total
-            await this.stockGateway.updateProductStockDelta(item.productId, -item.quantity, dbOrTx);
+            await this.stockGateway.updateProductStockDelta(item.productId, -item.quantity, tx);
             totalCogs += result.totalCogs;
         }
 
         const productIds = [...new Set(input.items.map(i => i.productId))];
-        await this.stockGateway.assertStockConsistency(productIds, dbOrTx);
+        await this.stockGateway.assertStockConsistency(productIds, tx);
 
         return { allocations, cogsAmount: totalCogs };
     }

@@ -1,16 +1,14 @@
 /**
  * Domain entity for stock movement audit trail.
- * NOT persisted yet — designed for future accounting integration.
+ * Enforces an immutable ledger.
  */
-export type StockMovementType = "IN" | "OUT" | "ADJUSTMENT" | "REVERSAL";
-export type StockReferenceType = "PURCHASE" | "SALE" | "OPNAME" | "MANUAL";
+export type StockMovementType = "IN" | "OUT" | "ADJUSTMENT";
+export type StockReferenceType = "PURCHASE" | "SALE" | "MANUAL";
 
 export interface StockMovementEntity {
     id: string;
     productId: string;
-    variantId: string | null;
-    batchId: string | null;
-    movementType: StockMovementType;
+    type: StockMovementType;
     quantity: number;
     referenceType: StockReferenceType;
     referenceId: string;

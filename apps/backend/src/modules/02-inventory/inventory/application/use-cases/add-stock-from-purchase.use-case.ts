@@ -9,13 +9,14 @@ import type {
 } from "../../domain/stock.types";
 import { supplierBrands } from "../../../../../shared/infrastructure/database/schema";
 import { eq, and } from "drizzle-orm";
+import type { TransactionContext } from "../../../../../shared/types/db-context";
 
 export class AddStockFromPurchaseUseCase {
     constructor(private readonly stockGateway: IStockMutationGateway) { }
 
     async execute(
         input: AddStockFromPurchaseVerificationInput,
-        dbOrTx: unknown
+        tx: TransactionContext
     ): Promise<AddStockFromPurchaseVerificationOutput> {
         const allocations: AddStockFromPurchaseVerificationOutput["allocations"] = [];
 
@@ -26,7 +27,6 @@ export class AddStockFromPurchaseUseCase {
             }
 
             const batchId = `B-${Date.now().toString().slice(-6)}-${i}-${Math.floor(Math.random() * 1000)}`;
-            const tx = dbOrTx as any;
 
             let warrantyEndDate: Date | null = null;
             if (item.variantId) {
@@ -53,15 +53,15 @@ export class AddStockFromPurchaseUseCase {
                 initialStock: item.qtyReceived,
                 currentStock: item.qtyReceived,
                 warrantyEndDate
-            }, dbOrTx);
+            }, tx);
 
-            await this.stockGateway.updateProductStockDelta(item.productId, item.qtyReceived, dbOrTx);
+            await this.stockGateway.updateProductStockDelta(item.productId, item.qtyReceived, tx);
 
             allocations.push({ purchaseItemId: item.purchaseItemId, batchId });
         }
 
         const productIds = [...new Set(input.items.map(i => i.productId))];
-        await this.stockGateway.assertStockConsistency(productIds, dbOrTx);
+        await this.stockGateway.assertStockConsistency(productIds, tx);
 
         const totalQuantityApplied = input.items.reduce((sum, item) => sum + item.qtyReceived, 0);
 

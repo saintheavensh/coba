@@ -47,6 +47,29 @@ export class DrizzleAuthRepository implements IUserRepository {
         return session.id;
     }
 
+    async updateSessionRole(sessionId: string, newRole: string, dbOrTx: any = db): Promise<void> {
+        await dbOrTx.update(userSessions)
+            .set({ role: newRole })
+            .where(eq(userSessions.id, sessionId));
+    }
+
+    async updateRefreshToken(sessionId: string, refreshToken: string, expiresAt: Date, dbOrTx: any = db): Promise<void> {
+        await dbOrTx.update(userSessions)
+            .set({ refreshToken, refreshTokenExpiresAt: expiresAt })
+            .where(eq(userSessions.id, sessionId));
+    }
+
+    async validateSession(sessionId: string, dbOrTx: any = db): Promise<{ id: string, userId: string, role: string, isActive: boolean | null, refreshToken: string | null } | null> {
+        const session = await dbOrTx.query.userSessions.findFirst({
+            columns: { id: true, userId: true, role: true, isActive: true, refreshToken: true },
+            where: and(
+                eq(userSessions.id, sessionId),
+                eq(userSessions.isActive, true)
+            )
+        });
+        return session || null;
+    }
+
     async deactivateSession(sessionId: string, dbOrTx: any = db): Promise<void> {
         await dbOrTx.update(userSessions)
             .set({ isActive: false, logoutTime: new Date() })

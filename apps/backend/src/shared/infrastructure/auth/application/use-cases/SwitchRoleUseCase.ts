@@ -1,4 +1,4 @@
-import type { ITokenService } from "../../domain";
+import type { ITokenService, IUserRepository } from "../../domain";
 
 export interface SwitchRoleInput {
     userPayload: any; // The current decoded JWT payload
@@ -6,14 +6,15 @@ export interface SwitchRoleInput {
 }
 
 export interface SwitchRoleResult {
-    token: string;
+    accessToken: string;
     role: string;
 }
 
-const TOKEN_EXPIRY_DAYS = 7;
-
 export class SwitchRoleUseCase {
-    constructor(private readonly tokenIssuer: ITokenService) { }
+    constructor(
+        private readonly userRepository: IUserRepository,
+        private readonly tokenIssuer: ITokenService
+    ) { }
 
     async execute(input: SwitchRoleInput): Promise<SwitchRoleResult> {
         const { userPayload, targetRoleId } = input;
@@ -23,14 +24,18 @@ export class SwitchRoleUseCase {
             throw new Error("Invalid target role");
         }
 
-        const newPayload = {
-            ...userPayload,
+        // Fix: Force the DB session to also update so next /refresh uses this new active role
+        await this.userRepository.updateSessionRole(userPayload.sessionId, targetRoleId);
+
+        const accessToken = await this.tokenIssuer.signAccessToken({
+            id: userPayload.id,
+            sessionId: userPayload.sessionId,
+            username: userPayload.username,
+            name: userPayload.name,
             role: targetRoleId,
-            exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * TOKEN_EXPIRY_DAYS
-        };
+            roles: availableRoles
+        });
 
-        const token = await this.tokenIssuer.sign(newPayload);
-
-        return { token, role: targetRoleId };
+        return { accessToken, role: targetRoleId };
     }
 }

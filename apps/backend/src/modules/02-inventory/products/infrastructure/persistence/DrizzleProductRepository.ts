@@ -28,9 +28,12 @@ export class DrizzleProductRepository implements IProductRepository {
             const rows = await client
                 .select({
                     id: products.id,
-                    code: products.code,
+                    sku: products.sku,
                     name: products.name,
                     price: sql<number>`COALESCE(MAX(${productBatches.sellPrice}), 0)`.mapWith(Number),
+                    minimumStock: products.minimumStock,
+                    unit: products.unit,
+                    isActive: products.isActive,
                     categoryId: products.categoryId,
                     createdAt: products.createdAt,
                     updatedAt: products.updatedAt,
@@ -50,15 +53,18 @@ export class DrizzleProductRepository implements IProductRepository {
         }
     }
 
-    public async findBySku(sku: Sku, dbOrTx?: any): Promise<Result<Product>> {
+    public async findByIdForUpdate(id: string, dbOrTx?: any): Promise<Result<Product>> {
         const client = dbOrTx || this.drizzleClient.getClient();
         try {
             const rows = await client
                 .select({
                     id: products.id,
-                    code: products.code,
+                    sku: products.sku,
                     name: products.name,
                     price: sql<number>`COALESCE(MAX(${productBatches.sellPrice}), 0)`.mapWith(Number),
+                    minimumStock: products.minimumStock,
+                    unit: products.unit,
+                    isActive: products.isActive,
                     categoryId: products.categoryId,
                     createdAt: products.createdAt,
                     updatedAt: products.updatedAt,
@@ -66,7 +72,39 @@ export class DrizzleProductRepository implements IProductRepository {
                 })
                 .from(products)
                 .leftJoin(productBatches, eq(products.id, productBatches.productId))
-                .where(eq(products.code, sku.value))
+                .where(eq(products.id, id))
+                .groupBy(products.id)
+                .for('update');
+
+            if (rows.length === 0) {
+                return Result.fail(`Product with id ${id} not found`);
+            }
+            return ProductMapper.toDomain(rows[0]);
+        } catch (error: any) {
+            return Result.fail(`Database error: ${error.message}`);
+        }
+    }
+
+    public async findBySku(sku: Sku, dbOrTx?: any): Promise<Result<Product>> {
+        const client = dbOrTx || this.drizzleClient.getClient();
+        try {
+            const rows = await client
+                .select({
+                    id: products.id,
+                    sku: products.sku,
+                    name: products.name,
+                    price: sql<number>`COALESCE(MAX(${productBatches.sellPrice}), 0)`.mapWith(Number),
+                    minimumStock: products.minimumStock,
+                    unit: products.unit,
+                    isActive: products.isActive,
+                    categoryId: products.categoryId,
+                    createdAt: products.createdAt,
+                    updatedAt: products.updatedAt,
+                    stock: sql<number>`COALESCE(SUM(${productBatches.currentStock}), 0)`.mapWith(Number)
+                })
+                .from(products)
+                .leftJoin(productBatches, eq(products.id, productBatches.productId))
+                .where(eq(products.sku, sku.value))
                 .groupBy(products.id);
 
             if (rows.length === 0) {
@@ -87,8 +125,11 @@ export class DrizzleProductRepository implements IProductRepository {
                 .onConflictDoUpdate({
                     target: products.id,
                     set: {
-                        code: row.sku,
+                        sku: row.sku,
                         name: row.name,
+                        minimumStock: row.minimumStock,
+                        unit: row.unit,
+                        isActive: row.isActive,
                         categoryId: row.categoryId,
                         updatedAt: new Date()
                     }
@@ -118,9 +159,12 @@ export class DrizzleProductRepository implements IProductRepository {
             const rows = await client
                 .select({
                     id: products.id,
-                    code: products.code,
+                    sku: products.sku,
                     name: products.name,
                     price: sql<number>`COALESCE(MAX(${productBatches.sellPrice}), 0)`.mapWith(Number),
+                    minimumStock: products.minimumStock,
+                    unit: products.unit,
+                    isActive: products.isActive,
                     categoryId: products.categoryId,
                     createdAt: products.createdAt,
                     updatedAt: products.updatedAt,
@@ -157,9 +201,12 @@ export class DrizzleProductRepository implements IProductRepository {
             const rows = await client
                 .select({
                     id: products.id,
-                    code: products.code,
+                    sku: products.sku,
                     name: products.name,
                     price: sql<number>`COALESCE(MAX(${productBatches.sellPrice}), 0)`.mapWith(Number),
+                    minimumStock: products.minimumStock,
+                    unit: products.unit,
+                    isActive: products.isActive,
                     categoryId: products.categoryId,
                     createdAt: products.createdAt,
                     updatedAt: products.updatedAt,
@@ -205,9 +252,12 @@ export class DrizzleProductRepository implements IProductRepository {
             const rows = await client
                 .select({
                     id: products.id,
-                    code: products.code,
+                    sku: products.sku,
                     name: products.name,
                     price: sql<number>`COALESCE(MAX(${productBatches.sellPrice}), 0)`.mapWith(Number),
+                    minimumStock: products.minimumStock,
+                    unit: products.unit,
+                    isActive: products.isActive,
                     categoryId: products.categoryId,
                     createdAt: products.createdAt,
                     updatedAt: products.updatedAt,
@@ -248,7 +298,7 @@ export class DrizzleProductRepository implements IProductRepository {
         try {
             const searchCondition = or(
                 ilike(products.name, `%${query}%`),
-                ilike(products.code, `%${query}%`)
+                ilike(products.sku, `%${query}%`)
             );
 
             const countResult = await client.select({ count: sql<number>`count(*)` }).from(products).where(searchCondition!);
@@ -259,9 +309,12 @@ export class DrizzleProductRepository implements IProductRepository {
             const rows = await client
                 .select({
                     id: products.id,
-                    code: products.code,
+                    sku: products.sku,
                     name: products.name,
                     price: sql<number>`COALESCE(MAX(${productBatches.sellPrice}), 0)`.mapWith(Number),
+                    minimumStock: products.minimumStock,
+                    unit: products.unit,
+                    isActive: products.isActive,
                     categoryId: products.categoryId,
                     createdAt: products.createdAt,
                     updatedAt: products.updatedAt,

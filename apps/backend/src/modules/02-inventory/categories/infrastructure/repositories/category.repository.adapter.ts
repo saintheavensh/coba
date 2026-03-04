@@ -8,6 +8,7 @@ import { ICategoryRepository } from "../../domain";
 export class CategoryRepositoryAdapter implements ICategoryRepository {
     async findAll(dbOrTx: any = db): Promise<any[]> {
         return await dbOrTx.query.categories.findMany({
+            where: eq(categories.isActive, true),
             orderBy: [desc(categories.name)],
             with: {
                 variantTemplates: {

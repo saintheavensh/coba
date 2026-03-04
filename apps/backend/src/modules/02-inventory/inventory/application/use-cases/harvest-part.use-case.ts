@@ -1,7 +1,7 @@
 import { IGamblingRepository } from "../../domain/repositories/gambling-repository.port";
 import { IKanibalRepository } from "../../domain/repositories/kanibal-repository.port";
 import { IStockMutationGateway } from "../../domain/stock-mutation-gateway.port";
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export interface HarvestPartInput {
     sourceType: 'DEAD_PHONE' | 'FORFEITED_DEVICE';
@@ -23,7 +23,7 @@ export class HarvestPartUseCase {
         private readonly stockGateway: IStockMutationGateway
     ) { }
 
-    async execute(input: HarvestPartInput, dbOrTx?: DBContext) {
+    async execute(input: HarvestPartInput, tx: TransactionContext) {
         // 1. Validate Source
         if (input.sourceType === 'DEAD_PHONE') {
             const dp = await this.gamblingRepo.findById(input.sourceId);
@@ -45,9 +45,9 @@ export class HarvestPartUseCase {
             initialStock: input.quantity,
             currentStock: input.quantity,
             supplierName: `Harvest from ${input.sourceType}`
-        }, dbOrTx);
+        }, tx);
 
-        await this.stockGateway.updateProductStockDelta(input.productId, input.quantity, dbOrTx);
+        await this.stockGateway.updateProductStockDelta(input.productId, input.quantity, tx);
 
         // 3. Save Harvest Log
         await this.kanibalRepo.saveHarvestLog({

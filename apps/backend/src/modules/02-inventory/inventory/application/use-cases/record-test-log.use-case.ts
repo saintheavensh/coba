@@ -1,5 +1,5 @@
 import { IGamblingRepository, DeadPhoneStatus } from "../../domain/repositories/gambling-repository.port";
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export interface RecordTestLogInput {
     deadPhoneId: string;
@@ -12,7 +12,7 @@ export interface RecordTestLogInput {
 export class RecordTestLogUseCase {
     constructor(private readonly repository: IGamblingRepository) { }
 
-    async execute(input: RecordTestLogInput, dbOrTx?: DBContext) {
+    async execute(input: RecordTestLogInput, tx?: TransactionContext) {
         // 1. Save Test Log (Repository needs a saveTestLog method)
         // I will add this method to the repository adapter
 
