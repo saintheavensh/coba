@@ -10,6 +10,15 @@
         "allowImportingTsExtensions": true,
         "noEmit": true,
         "composite": true,
+        "strictNullChecks": true,
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "alwaysStrict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
         "strict": true,
         "downlevelIteration": true,
         "skipLibCheck": true,
@@ -23,6 +32,39 @@
         "paths": {
             "@repo/shared": [
                 "../../packages/shared/index.ts"
+            ],
+            "@shared/*": [
+                "src/shared/*"
+            ],
+            "@domain/*": [
+                "src/modules/02-inventory/inventory/domain/*"
+            ],
+            "@application/*": [
+                "src/modules/02-inventory/inventory/application/*"
+            ],
+            "@shared": [
+                "src/shared/index.ts",
+                "src/shared"
+            ],
+            "@shared/": [
+                "src/shared/index.ts",
+                "src/shared/"
+            ],
+            "@domain": [
+                "src/modules/02-inventory/inventory/domain/index.ts",
+                "src/modules/02-inventory/inventory/domain"
+            ],
+            "@domain/": [
+                "src/modules/02-inventory/inventory/domain/index.ts",
+                "src/modules/02-inventory/inventory/domain/"
+            ],
+            "@application": [
+                "src/modules/02-inventory/inventory/application/index.ts",
+                "src/modules/02-inventory/inventory/application"
+            ],
+            "@application/": [
+                "src/modules/02-inventory/inventory/application/index.ts",
+                "src/modules/02-inventory/inventory/application/"
             ]
         }
     },
