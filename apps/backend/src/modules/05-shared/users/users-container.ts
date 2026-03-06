@@ -1,4 +1,5 @@
 import { db } from "../../../shared/infrastructure/database/client";
+import { SharedTransactionAuthority } from "../application/services/shared-transaction-authority";
 import { UserRepositoryAdapter } from "./infrastructure";
 import {
     GetUsersUseCase,
@@ -9,40 +10,55 @@ import {
 } from "./application";
 import { User, CreateUserData, UpdateUserData } from "./domain";
 
+// Authority
+const authority = new SharedTransactionAuthority(db as any);
+
 // Infrastructure adapters
 const repository = new UserRepositoryAdapter();
 
 // Use cases
 const getUsersUC = new GetUsersUseCase(repository);
 const getUserByIdUC = new GetUserByIdUseCase(repository);
-const createUserUC = new CreateUserUseCase(repository, db as any);
-const updateUserUC = new UpdateUserUseCase(repository, db as any);
+const createUserUC = new CreateUserUseCase(repository);
+const updateUserUC = new UpdateUserUseCase(repository);
 const deleteUserUC = new DeleteUserUseCase(repository);
 
 /**
  * UsersService — facade for external and presentation layers.
  */
 export class UsersService {
-    async findAll(role?: string, dbOrTx?: any): Promise<User[]> {
-        return await getUsersUC.execute(role, dbOrTx);
+    constructor(private readonly authority: SharedTransactionAuthority) { }
+
+    async findAll(tenantId: string, role?: string): Promise<User[]> {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await getUsersUC.execute(tenantId, role, tx);
+        });
     }
 
-    async getById(id: string, dbOrTx?: any): Promise<User> {
-        return await getUserByIdUC.execute(id, dbOrTx);
+    async getById(tenantId: string, id: string): Promise<User> {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await getUserByIdUC.execute(tenantId, id, tx);
+        });
     }
 
-    async create(data: CreateUserData, dbOrTx?: any): Promise<User> {
-        return await createUserUC.execute(data, dbOrTx);
+    async create(tenantId: string, data: CreateUserData): Promise<User> {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await createUserUC.execute(tenantId, data, tx);
+        });
     }
 
-    async update(id: string, data: UpdateUserData, dbOrTx?: any): Promise<User> {
-        return await updateUserUC.execute(id, data, dbOrTx);
+    async update(tenantId: string, id: string, data: UpdateUserData): Promise<User> {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await updateUserUC.execute(tenantId, id, data, tx);
+        });
     }
 
-    async delete(id: string, dbOrTx?: any): Promise<void> {
-        return await deleteUserUC.execute(id, dbOrTx);
+    async delete(tenantId: string, id: string): Promise<void> {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await deleteUserUC.execute(tenantId, id, tx);
+        });
     }
 }
 
 /** Singleton service instance */
-export const usersService = new UsersService();
+export const usersService = new UsersService(authority);

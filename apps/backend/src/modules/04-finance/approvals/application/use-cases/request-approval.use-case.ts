@@ -1,6 +1,6 @@
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IApprovalRepository, ApprovalType } from "../../domain";
 import { ApprovalCheckService } from "../../domain/services/ApprovalCheckService";
-import { HTTPException } from "hono/http-exception";
 
 export interface RequestApprovalInput {
     type: ApprovalType;
@@ -18,14 +18,14 @@ export class RequestApprovalUseCase {
         private readonly checkService: ApprovalCheckService
     ) { }
 
-    async execute(input: RequestApprovalInput) {
-        const needsApproval = await this.checkService.needsApproval(input.type, input.amount, input.data);
+    async execute(tenantId: string, input: RequestApprovalInput, tx: TransactionContext) {
+        const needsApproval = await this.checkService.needsApproval(tenantId, input.type, input.amount, tx, input.data);
 
         if (!needsApproval) {
             return { needsApproval: false };
         }
 
-        const approval = await this.repository.save({
+        const approval = await this.repository.save(tenantId, {
             type: input.type,
             entityType: input.entityType,
             entityId: input.entityId,
@@ -33,7 +33,7 @@ export class RequestApprovalUseCase {
             status: 'PENDING',
             reason: input.reason,
             data: input.data
-        });
+        }, tx);
 
         return {
             needsApproval: true,

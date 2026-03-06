@@ -1,5 +1,5 @@
-import { db } from "../../../../shared/infrastructure/database/client";
 import { periodLocks, sales, purchases, services, operationalCosts } from "../../../../shared/infrastructure/database/schema";
+import { TransactionContext } from "../../../../shared/types/db-context";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { AuditService } from "./audit.service";
 
@@ -7,11 +7,11 @@ export class PeriodCloseService {
     /**
      * Check if a period is closed
      */
-    static async isPeriodClosed(period: string): Promise<boolean> {
-        const [lock] = await db
+    static async isPeriodClosed(tenantId: string, period: string, tx: TransactionContext): Promise<boolean> {
+        const [lock] = await tx
             .select()
             .from(periodLocks)
-            .where(eq(periodLocks.period, period));
+            .where(and(eq(periodLocks.tenantId, tenantId), eq(periodLocks.period, period)));
 
         return lock?.status === "closed";
     }
@@ -19,9 +19,9 @@ export class PeriodCloseService {
     /**
      * Validate that a date is not in a closed period
      */
-    static async validateNotClosed(date: Date): Promise<void> {
+    static async validateNotClosed(tenantId: string, date: Date, tx: TransactionContext): Promise<void> {
         const period = date.toISOString().slice(0, 7); // "2026-01"
-        const isClosed = await this.isPeriodClosed(period);
+        const isClosed = await this.isPeriodClosed(tenantId, period, tx);
 
         if (isClosed) {
             throw new Error(`Period ${period} is closed. Cannot modify transactions in a closed period.`);
@@ -31,24 +31,25 @@ export class PeriodCloseService {
     /**
      * Get all periods with their status
      */
-    static async getAllPeriods() {
-        return db
+    static async getAllPeriods(tenantId: string, tx: TransactionContext) {
+        return tx
             .select()
             .from(periodLocks)
+            .where(eq(periodLocks.tenantId, tenantId))
             .orderBy(periodLocks.period);
     }
 
     /**
      * Close a period
      */
-    static async closePeriod(period: string, userId: string): Promise<void> {
+    static async closePeriod(tenantId: string, period: string, userId: string, tx: TransactionContext): Promise<void> {
         // Check if already closed
-        const existing = await db
+        const existing = await tx
             .select()
             .from(periodLocks)
-            .where(eq(periodLocks.period, period));
+            .where(and(eq(periodLocks.tenantId, tenantId), eq(periodLocks.period, period)));
 
-        if (existing.length > 0 && existing[0].status === "closed") {
+        if (existing.length > 0 && existing[0]?.status === "closed") {
             throw new Error(`Period ${period} is already closed`);
         }
 
@@ -58,39 +59,43 @@ export class PeriodCloseService {
         endDate.setMonth(endDate.getMonth() + 1);
 
         // Sales total
-        const salesResult = await db
+        const salesResult = await tx
             .select({ total: sql<number>`COALESCE(SUM(${sales.totalAmount}), 0)` })
             .from(sales)
             .where(and(
+                eq(sales.tenantId, tenantId),
                 gte(sales.createdAt, startDate),
                 lte(sales.createdAt, endDate),
                 eq(sales.paymentStatus, "paid")
             ));
 
         // Purchases total
-        const purchasesResult = await db
+        const purchasesResult = await tx
             .select({ total: sql<number>`COALESCE(SUM(${purchases.totalAmount}), 0)` })
             .from(purchases)
             .where(and(
+                eq(purchases.tenantId, tenantId),
                 gte(purchases.date, startDate),
                 lte(purchases.date, endDate)
             ));
 
         // Services total
-        const servicesResult = await db
+        const servicesResult = await tx
             .select({ total: sql<number>`COALESCE(SUM(${services.actualCost}), 0)` })
             .from(services)
             .where(and(
+                eq(services.tenantId, tenantId),
                 gte(services.dateOut, startDate),
                 lte(services.dateOut, endDate),
                 eq(services.status, "diambil")
             ));
 
         // Expenses total
-        const expensesResult = await db
+        const expensesResult = await tx
             .select({ total: sql<number>`COALESCE(SUM(${operationalCosts.amount}), 0)` })
             .from(operationalCosts)
             .where(and(
+                eq(operationalCosts.tenantId, tenantId),
                 gte(operationalCosts.date, startDate),
                 lte(operationalCosts.date, endDate)
             ));
@@ -103,7 +108,7 @@ export class PeriodCloseService {
         };
 
         if (existing.length > 0) {
-            await db
+            await tx
                 .update(periodLocks)
                 .set({
                     status: "closed",
@@ -111,48 +116,49 @@ export class PeriodCloseService {
                     closedAt: new Date(),
                     ...totals,
                 })
-                .where(eq(periodLocks.period, period));
+                .where(and(eq(periodLocks.tenantId, tenantId), eq(periodLocks.period, period)));
         } else {
-            await db.insert(periodLocks).values({
+            await tx.insert(periodLocks).values({
                 period,
                 status: "closed",
                 closedBy: userId,
                 closedAt: new Date(),
+                tenantId,
                 ...totals,
             });
         }
 
-        await AuditService.log({
+        await AuditService.log(tenantId, {
             userId,
             action: "CLOSE",
             entityType: "period",
             entityId: period,
             tableName: "period_locks",
             newValues: { status: "closed", ...totals },
-        });
+        }, tx);
     }
 
     /**
      * Reopen a period (admin only)
      */
-    static async reopenPeriod(period: string, reason: string, userId: string): Promise<void> {
-        const [existing] = await db
+    static async reopenPeriod(tenantId: string, period: string, reason: string, userId: string, tx: TransactionContext): Promise<void> {
+        const [existing] = await tx
             .select()
             .from(periodLocks)
-            .where(eq(periodLocks.period, period));
+            .where(and(eq(periodLocks.tenantId, tenantId), eq(periodLocks.period, period)));
 
         if (!existing || existing.status !== "closed") {
             throw new Error(`Period ${period} is not closed`);
         }
 
-        await db
+        await tx
             .update(periodLocks)
             .set({
                 status: "open",
             })
-            .where(eq(periodLocks.period, period));
+            .where(and(eq(periodLocks.tenantId, tenantId), eq(periodLocks.period, period)));
 
-        await AuditService.log({
+        await AuditService.log(tenantId, {
             userId,
             action: "UPDATE",
             entityType: "period",
@@ -161,17 +167,17 @@ export class PeriodCloseService {
             oldValues: { status: "closed" },
             newValues: { status: "open" },
             reason,
-        });
+        }, tx);
     }
 
     /**
      * Get period summary
      */
-    static async getPeriodSummary(period: string) {
-        const [lock] = await db
+    static async getPeriodSummary(tenantId: string, period: string, tx: TransactionContext) {
+        const [lock] = await tx
             .select()
             .from(periodLocks)
-            .where(eq(periodLocks.period, period));
+            .where(and(eq(periodLocks.tenantId, tenantId), eq(periodLocks.period, period)));
 
         if (!lock) {
             return { period, status: "open", hasData: false };

@@ -1,13 +1,14 @@
-import { DBContext } from "../../../../../shared/types/db-context";
-import { IDefectiveItemRepository, IInventoryGateway, DefectiveItem } from "../../domain";
+import { IDefectiveItemRepository, IInventoryGateway } from "../../domain";
 import { v4 as uuidv4 } from "uuid";
 import { HTTPException } from "hono/http-exception";
+import { InventoryTransactionAuthority } from "../../../inventory/application/services/inventory-transaction-authority";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export class AddDefectiveItemUseCase {
     constructor(
         private readonly repository: IDefectiveItemRepository,
         private readonly inventoryGateway: IInventoryGateway,
-        private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
+        private readonly inventoryAuthority: InventoryTransactionAuthority
     ) { }
 
     async execute(data: {
@@ -17,8 +18,8 @@ export class AddDefectiveItemUseCase {
         reason: string;
         source: "manual" | "sales_return" | "service_return";
         sourceRefId?: string;
-    }): Promise<{ id: string }> {
-        return await this.db.transaction(async (tx) => {
+    }, tx: TransactionContext): Promise<{ id: string }> {
+        const runInternal = async () => {
             // 1. Validate Batch Stock via Inventory Gateway
             const batch = await this.inventoryGateway.getBatch(data.batchId, tx);
 
@@ -48,6 +49,8 @@ export class AddDefectiveItemUseCase {
             await this.inventoryGateway.reduceStock(data.batchId, data.qty, tx);
 
             return { id };
-        });
+        };
+
+        return await runInternal();
     }
 }

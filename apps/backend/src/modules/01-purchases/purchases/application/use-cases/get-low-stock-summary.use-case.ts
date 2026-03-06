@@ -1,7 +1,7 @@
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { products, suppliers, supplierCategories } from "../../../../../shared/infrastructure/database/schema";
 import { sql, eq } from "drizzle-orm";
-import { InventoryService } from "../../../../02-inventory/inventory/services/inventory.service";
+import { InventoryService } from "../../../../02-inventory/inventory/application/services/inventory.service";
 
 export interface LowStockSuggestionGroup {
     supplierId: string;
@@ -20,12 +20,10 @@ export interface LowStockSuggestionGroup {
 export class GetLowStockSummaryUseCase {
     constructor(private inventoryService: InventoryService) { }
 
-    async execute(dbOrTx?: any): Promise<LowStockSuggestionGroup[]> {
-        const effectiveDb = dbOrTx || db;
-
+    async execute(tenantId: string, tx: TransactionContext): Promise<LowStockSuggestionGroup[]> {
         // 1. Get Low Stock Products
-        const lowStockProducts = await effectiveDb.query.products.findMany({
-            where: sql`${products.stock} <= ${products.minStock}`,
+        const lowStockProducts = await tx.query.products.findMany({
+            where: sql`${products.stock} <= ${products.minimumStock}`,
             with: {
                 category: true
             }
@@ -40,10 +38,10 @@ export class GetLowStockSummaryUseCase {
             let supplierName = "Unknown Supplier";
 
             // Try to find last batch via inventory gate
-            const lastBatch = await this.inventoryService.getLastBatchByProduct(p.id, effectiveDb);
+            const lastBatch = await this.inventoryService.getLastBatchByProduct(p.id, tx);
 
             if (lastBatch && lastBatch.supplierId) {
-                const sup = await effectiveDb.query.suppliers.findFirst({
+                const sup = await tx.query.suppliers.findFirst({
                     where: eq(suppliers.id, lastBatch.supplierId),
                     columns: { name: true }
                 });
@@ -51,7 +49,7 @@ export class GetLowStockSummaryUseCase {
                 supplierName = sup?.name || "Unknown";
             } else if (p.categoryId) {
                 // Try to find via category-supplier link
-                const supCat = await effectiveDb.query.supplierCategories.findFirst({
+                const supCat = await tx.query.supplierCategories.findFirst({
                     where: eq(supplierCategories.categoryId, p.categoryId),
                     with: { supplier: true }
                 });
@@ -72,7 +70,7 @@ export class GetLowStockSummaryUseCase {
             const group = suggestionsMap.get(supplierId)!;
 
             // Suggest quantity: Max(10, MinStock * 2) - CurrentStock
-            const target = Math.max(10, (p.minStock || 5) * 2);
+            const target = Math.max(10, (p.minimumStock || 5) * 2);
             const qty = Math.max(1, target - (p.stock || 0));
 
             group.items.push({
@@ -80,7 +78,7 @@ export class GetLowStockSummaryUseCase {
                 productName: p.name,
                 variant: "Original",
                 currentStock: p.stock || 0,
-                minStock: p.minStock || 0,
+                minStock: p.minimumStock || 0,
                 suggestedQty: qty,
                 lastBuyPrice: lastBatch?.buyPrice || 0
             });

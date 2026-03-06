@@ -12,6 +12,8 @@ export class DevicesController {
             const body = await c.req.json();
             if (!body.url) return apiError(c, "URL is required", "Missing URL", 400);
 
+            const user = c.get("user");
+            const tenantId = user?.tenantId || "default";
             const data = await this.facade.scrape(body.url);
             return apiSuccess(c, data, "Device data scraped successfully");
         } catch (e: any) {
@@ -24,6 +26,8 @@ export class DevicesController {
             const body = await c.req.json();
             if (!body.url) return apiError(c, "URL is required", "Missing URL", 400);
 
+            const user = c.get("user");
+            const tenantId = user?.tenantId || "default";
             const links = await this.facade.getLinks(body.url);
             return apiSuccess(c, links, "List parsed successfully");
         } catch (e: any) {
@@ -36,7 +40,9 @@ export class DevicesController {
             const body = await c.req.json();
             if (!body.url) return apiError(c, "URL is required", "Missing URL", 400);
 
-            const data = await this.facade.importFromUrl(body.url);
+            const user = c.get("user");
+            const tenantId = user?.tenantId || "default";
+            const data = await this.facade.importFromUrl(tenantId, body.url);
             return apiSuccess(c, data, "Device imported successfully");
         } catch (e: any) {
             // Note: Maintaining original behavior of returning success: false with 200 status on import error if it was intended
@@ -50,7 +56,9 @@ export class DevicesController {
             const brand = c.req.query("brand");
             const limit = parseInt(c.req.query("limit") || "20");
             const offset = parseInt(c.req.query("offset") || "0");
-            const data = await this.facade.getAll({ search, limit, offset, brand });
+            const user = c.get("user");
+            const tenantId = user?.tenantId || "default";
+            const data = await this.facade.getAll(tenantId, { search, limit, offset, brand });
             return apiSuccess(c, data, "Devices retrieved");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve devices");
@@ -60,7 +68,9 @@ export class DevicesController {
     async getById(c: Context) {
         try {
             const id = c.req.param("id");
-            const data = await this.facade.getById(id);
+            const user = c.get("user");
+            const tenantId = user?.tenantId || "default";
+            const data = await this.facade.getById(tenantId, id);
             if (!data) return apiError(c, null, "Device not found", 404);
             return apiSuccess(c, data, "Device details");
         } catch (e: any) {
@@ -70,8 +80,10 @@ export class DevicesController {
 
     async create(c: Context) {
         try {
+            const user = c.get("user");
+            const tenantId = user?.tenantId || "default";
             const body = (c.req as any).valid("json");
-            const data = await this.facade.create(body);
+            const data = await this.facade.create(tenantId, body);
             return apiSuccess(c, data, "Device created", 201);
         } catch (e: any) {
             if (e.message && e.message.includes("Validation") || e.name === "ZodError") {
@@ -84,8 +96,10 @@ export class DevicesController {
     async update(c: Context) {
         try {
             const id = c.req.param("id");
+            const user = c.get("user");
+            const tenantId = user?.tenantId || "default";
             const body = (c.req as any).valid("json");
-            const data = await this.facade.update(id, body);
+            const data = await this.facade.update(tenantId, id, body);
             if (!data) return apiError(c, null, "Device not found", 404);
             return apiSuccess(c, data, "Device updated");
         } catch (e: any) {
@@ -102,7 +116,9 @@ export class DevicesController {
             if (!body.ids || !Array.isArray(body.ids)) {
                 return apiError(c, null, "IDs must be an array", 400);
             }
-            const data = await this.facade.bulkDelete(body.ids);
+            const user = c.get("user");
+            const tenantId = user?.tenantId || "default";
+            const data = await this.facade.bulkDelete(tenantId, body.ids);
             return apiSuccess(c, data, "Devices deleted");
         } catch (e: any) {
             return apiError(c, e, "Failed to delete devices");
@@ -112,7 +128,9 @@ export class DevicesController {
     async delete(c: Context) {
         try {
             const id = c.req.param("id");
-            const data = await this.facade.delete(id);
+            const user = c.get("user");
+            const tenantId = user?.tenantId || "default";
+            const data = await this.facade.delete(tenantId, id);
             if (!data) return apiError(c, null, "Device not found", 404);
             return apiSuccess(c, data, "Device deleted");
         } catch (e: any) {
@@ -124,7 +142,9 @@ export class DevicesController {
         try {
             const limit = parseInt(c.req.query("limit") || "50");
             const offset = parseInt(c.req.query("offset") || "0");
-            const data = await this.facade.getUnlinkedProducts(limit, offset);
+            const user = c.get("user");
+            const tenantId = user?.tenantId || "default";
+            const data = await this.facade.getUnlinkedProducts(tenantId, limit, offset);
             return apiSuccess(c, data, "Unlinked products retrieved");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve unlinked products");
@@ -134,7 +154,9 @@ export class DevicesController {
     async sync(c: Context) {
         try {
             const id = c.req.param("id");
-            const result = await this.facade.syncCompatibility(id);
+            const user = c.get("user");
+            const tenantId = user?.tenantId || "default";
+            const result = await this.facade.syncCompatibility(tenantId, id);
             return apiSuccess(c, result, "Device compatibility synced");
         } catch (e: any) {
             return apiError(c, e, "Failed to sync");

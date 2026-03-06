@@ -6,17 +6,18 @@ import { eq, and } from "drizzle-orm";
 import { inject, injectable } from "inversify";
 import { TYPES } from "../../types";
 
+import { TransactionContext } from "@shared/types/db-context";
+
 @injectable()
 export class GetProductVariantsUseCase {
     constructor(
         @inject(TYPES.DrizzleClient || Symbol.for("DrizzleClient")) private drizzleClient: DrizzleClient
     ) { }
 
-    async execute(productId: string, supplierId?: string): Promise<Result<any[]>> {
-        const client = this.drizzleClient.getClient();
+    async execute(productId: string, supplierId: string | undefined, tx: TransactionContext): Promise<Result<any[]>> {
         try {
             if (supplierId) {
-                const results = await client
+                const results = await tx
                     .select({
                         id: productVariants.id,
                         name: productVariants.name,
@@ -42,7 +43,7 @@ export class GetProductVariantsUseCase {
                     );
                 return Result.ok(results);
             } else {
-                const results = await client
+                const results = await tx
                     .select({
                         id: productVariants.id,
                         name: productVariants.name,

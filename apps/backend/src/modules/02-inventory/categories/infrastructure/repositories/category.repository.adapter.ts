@@ -1,14 +1,13 @@
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { categories, categoryVariants, products, productVariants } from "../../../../../shared/infrastructure/database/schema";
-import { eq, desc, asc, and, eq as eqFn } from "drizzle-orm";
+import { eq, desc, asc, and } from "drizzle-orm";
 import { generateId, ID_PREFIX } from "../../../../../shared/utils/validation/IdGenerator";
-import { DBContext } from "../../../../../shared/types/db-context";
 import { ICategoryRepository } from "../../domain";
 
 export class CategoryRepositoryAdapter implements ICategoryRepository {
-    async findAll(dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.query.categories.findMany({
-            where: eq(categories.isActive, true),
+    async findAll(tx: TransactionContext): Promise<any[]> {
+        return await tx.query.categories.findMany({
+            where: and(eq(categories.isActive, true), eq(categories.tenantId, tx.tenantId!)),
             orderBy: [desc(categories.name)],
             with: {
                 variantTemplates: {
@@ -20,9 +19,9 @@ export class CategoryRepositoryAdapter implements ICategoryRepository {
         });
     }
 
-    async findById(id: string, dbOrTx: any = db): Promise<any | null> {
-        return await dbOrTx.query.categories.findFirst({
-            where: eq(categories.id, id),
+    async findById(id: string, tx: TransactionContext): Promise<any | null> {
+        return await tx.query.categories.findFirst({
+            where: and(eq(categories.id, id), eq(categories.tenantId, tx.tenantId!)),
             with: {
                 variantTemplates: {
                     orderBy: [asc(categoryVariants.name)]
@@ -31,51 +30,57 @@ export class CategoryRepositoryAdapter implements ICategoryRepository {
         });
     }
 
-    async create(data: any, dbOrTx: any = db): Promise<any> {
-        return await dbOrTx.insert(categories).values(data).returning();
+    async create(data: any, tx: TransactionContext): Promise<any> {
+        return await tx.insert(categories).values({
+            ...data,
+            tenantId: tx.tenantId!
+        }).returning();
     }
 
-    async update(id: string, data: any, dbOrTx: any = db): Promise<any> {
-        return await dbOrTx.update(categories)
+    async update(id: string, data: any, tx: TransactionContext): Promise<any> {
+        return await tx.update(categories)
             .set(data)
-            .where(eq(categories.id, id))
+            .where(and(eq(categories.id, id), eq(categories.tenantId, tx.tenantId!)))
             .returning();
     }
 
-    async delete(id: string, dbOrTx: any = db): Promise<void> {
-        await dbOrTx.delete(categories).where(eq(categories.id, id));
+    async delete(id: string, tx: TransactionContext): Promise<void> {
+        await tx.delete(categories).where(and(eq(categories.id, id), eq(categories.tenantId, tx.tenantId!)));
     }
 
-    async addVariantTemplate(categoryId: string, name: string, supplierId?: string, dbOrTx: any = db): Promise<any> {
-        return await dbOrTx.insert(categoryVariants).values({
+    async addVariantTemplate(categoryId: string, name: string, tx: TransactionContext, supplierId?: string): Promise<any> {
+        return await tx.insert(categoryVariants).values({
             categoryId,
             name,
+            tenantId: tx.tenantId!,
             supplierId: supplierId || null
         }).returning();
     }
 
-    async removeVariantTemplate(id: string, dbOrTx: any = db): Promise<void> {
-        await dbOrTx.delete(categoryVariants).where(eq(categoryVariants.id, id));
+    async removeVariantTemplate(id: string, tx: TransactionContext): Promise<void> {
+        await tx.delete(categoryVariants).where(and(eq(categoryVariants.id, id), eq(categoryVariants.tenantId, tx.tenantId!)));
     }
 
-    async propagateVariantToProducts(categoryId: string, variantName: string, supplierId?: string, dbOrTx: any = db): Promise<void> {
-        const productsInCategory = await dbOrTx.query.products.findMany({
-            where: eq(products.categoryId, categoryId)
+    async propagateVariantToProducts(categoryId: string, variantName: string, tx: TransactionContext, supplierId?: string): Promise<void> {
+        const productsInCategory = await tx.query.products.findMany({
+            where: and(eq(products.categoryId, categoryId), eq(products.tenantId, tx.tenantId!))
         });
 
         for (const product of productsInCategory) {
-            const existingVariant = await dbOrTx.query.productVariants.findFirst({
+            const existingVariant = await tx.query.productVariants.findFirst({
                 where: and(
                     eq(productVariants.productId, product.id),
-                    eq(productVariants.name, variantName)
+                    eq(productVariants.name, variantName),
+                    eq(productVariants.tenantId, tx.tenantId!)
                 )
             });
 
             if (!existingVariant) {
-                await dbOrTx.insert(productVariants).values({
+                await tx.insert(productVariants).values({
                     id: generateId(ID_PREFIX.VARIANT),
                     productId: product.id,
-                    name: variantName
+                    name: variantName,
+                    tenantId: tx.tenantId!
                 });
             }
         }

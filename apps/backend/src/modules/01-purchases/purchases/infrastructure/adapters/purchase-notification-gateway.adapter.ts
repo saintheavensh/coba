@@ -1,15 +1,15 @@
-import { db } from "../../../../../shared/infrastructure/database/client";
 import { notifications } from "../../../../../shared/infrastructure/database/schema";
 import { INotificationGateway } from "../../domain/purchase-repository.port";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export class PurchaseNotificationGatewayAdapter implements INotificationGateway {
     async notifyPurchaseOrderCreated(
+        tenantId: string,
         payload: { purchaseId: string; userId: string; supplierId: string },
-        dbOrTx?: unknown
+        tx: TransactionContext
     ): Promise<void> {
-        const client: any = dbOrTx || db;
-
-        await client.insert(notifications).values({
+        await tx.insert(notifications).values({
+            tenantId,
             userId: "user-warehouse-001",
             type: "po_action_required",
             title: "New Purchase Order",
@@ -20,12 +20,12 @@ export class PurchaseNotificationGatewayAdapter implements INotificationGateway 
     }
 
     async notifyGoodsReceived(
+        tenantId: string,
         payload: { purchaseId: string; userId: string; hasDiscrepancy: boolean },
-        dbOrTx?: unknown
+        tx: TransactionContext
     ): Promise<void> {
-        const client: any = dbOrTx || db;
-
-        await client.insert(notifications).values({
+        await tx.insert(notifications).values({
+            tenantId,
             userId: payload.userId,
             type: payload.hasDiscrepancy ? "po_discrepancy" : "po_action_required",
             title: payload.hasDiscrepancy ? "PO Discrepancy Found" : "Goods Received",

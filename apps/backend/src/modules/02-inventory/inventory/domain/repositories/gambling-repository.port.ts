@@ -1,3 +1,5 @@
+import { TransactionContext } from "../../../../../shared/types/db-context";
+
 export type DeadPhoneStatus = 'STORED' | 'TESTED' | 'HARVESTED';
 
 export interface DeadPhonePurchase {
@@ -14,10 +16,24 @@ export interface DeadPhonePurchase {
     createdAt?: Date;
 }
 
+export interface TestLog {
+    id: string;
+    deadPhoneId: string;
+    testType: string;
+    result: string;
+    notes?: string;
+    testedAt?: Date;
+}
+
+export interface GamblingFilters {
+    status?: DeadPhoneStatus;
+    search?: string;
+}
+
 export interface IGamblingRepository {
-    savePurchase(purchase: Partial<DeadPhonePurchase>): Promise<DeadPhonePurchase>;
-    saveTestLog(log: any): Promise<any>;
-    findById(id: string): Promise<DeadPhonePurchase | null>;
-    findAll(filters?: any): Promise<DeadPhonePurchase[]>;
-    updateStatus(id: string, status: DeadPhoneStatus): Promise<void>;
+    savePurchase(purchase: Partial<DeadPhonePurchase>, tx: TransactionContext): Promise<DeadPhonePurchase>;
+    saveTestLog(log: Partial<TestLog>, tx: TransactionContext): Promise<TestLog>;
+    findById(id: string, tx: TransactionContext): Promise<DeadPhonePurchase | null>;
+    findAll(tx: TransactionContext, filters?: GamblingFilters): Promise<DeadPhonePurchase[]>;
+    updateStatus(id: string, status: DeadPhoneStatus, tx: TransactionContext): Promise<void>;
 }

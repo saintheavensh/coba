@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IReportRepository, ReportFilters, ActivityLogReport } from "../../domain";
 import { gte, lte, eq } from "drizzle-orm";
 import { activityLogs } from "../../../../../shared/infrastructure/database/schema";
@@ -6,7 +6,7 @@ import { activityLogs } from "../../../../../shared/infrastructure/database/sche
 export class GetActivityLogsUseCase {
     constructor(private readonly repository: IReportRepository) { }
 
-    async execute(filters: ReportFilters & { userId?: string; action?: string; entityType?: string; limit?: number } = {}, dbOrTx?: DBContext): Promise<ActivityLogReport[]> {
+    async execute(tenantId: string, tx: TransactionContext, filters: ReportFilters & { userId?: string; action?: string; entityType?: string; limit?: number } = {}): Promise<ActivityLogReport[]> {
         let conditions = [];
 
         if (filters.startDate) {
@@ -28,7 +28,7 @@ export class GetActivityLogsUseCase {
             conditions.push(eq(activityLogs.entityType, filters.entityType));
         }
 
-        const logs = await this.repository.getActivityLogs(conditions, filters.limit, dbOrTx);
+        const logs = await this.repository.getActivityLogs(tenantId, conditions, tx, filters.limit);
 
         return logs.map((log: any) => ({
             id: log.id,

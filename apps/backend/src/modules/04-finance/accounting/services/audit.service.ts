@@ -1,11 +1,11 @@
-import { db } from "../../../../shared/infrastructure/database/client";
 import { auditLogs } from "../../../../shared/infrastructure/database/schema";
 import { desc, eq, and } from "drizzle-orm";
+import { TransactionContext } from "../../../../shared/types/db-context";
 
 export type AuditAction = "CREATE" | "UPDATE" | "DELETE" | "VOID" | "POST" | "CLOSE" | "PAY";
 
 export interface AuditLogInput {
-    userId?: string;
+    userId?: string | null | undefined;
     action: AuditAction;
     entityType: string;
     entityId: string;
@@ -21,8 +21,9 @@ export class AuditService {
     /**
      * Create an audit log entry
      */
-    static async log(input: AuditLogInput): Promise<void> {
-        await db.insert(auditLogs).values({
+    static async log(tenantId: string, input: AuditLogInput, tx: TransactionContext): Promise<void> {
+        await tx.insert(auditLogs).values({
+            tenantId,
             userId: input.userId,
             action: input.action,
             entityType: input.entityType,
@@ -39,12 +40,13 @@ export class AuditService {
     /**
      * Get audit logs for a specific entity
      */
-    static async getByEntity(entityType: string, entityId: string) {
-        return db
+    static async getByEntity(tenantId: string, entityType: string, entityId: string, tx: TransactionContext) {
+        return tx
             .select()
             .from(auditLogs)
             .where(
                 and(
+                    eq(auditLogs.tenantId, tenantId),
                     eq(auditLogs.entityType, entityType),
                     eq(auditLogs.entityId, entityId)
                 )
@@ -55,15 +57,15 @@ export class AuditService {
     /**
      * Get audit logs with pagination and optional filtering
      */
-    static async getAll(filters: { limit?: number; offset?: number; entityType?: string; entityId?: string } = {}) {
+    static async getAll(tenantId: string, tx: TransactionContext, filters: { limit?: number; offset?: number; entityType?: string; entityId?: string } = {}) {
         const { limit = 100, offset = 0, entityType, entityId } = filters;
 
-        const conditions = [];
+        const conditions = [eq(auditLogs.tenantId, tenantId)];
         if (entityType) conditions.push(eq(auditLogs.entityType, entityType));
         if (entityId) conditions.push(eq(auditLogs.entityId, entityId));
 
-        const query = db.query.auditLogs.findMany({
-            where: conditions.length > 0 ? and(...conditions) : undefined,
+        const query = tx.query.auditLogs.findMany({
+            where: and(...conditions),
             limit,
             offset,
             orderBy: [desc(auditLogs.createdAt)],

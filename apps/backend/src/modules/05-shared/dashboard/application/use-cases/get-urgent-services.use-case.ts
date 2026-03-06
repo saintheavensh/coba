@@ -4,7 +4,7 @@ import { DBContext } from "../../../../../shared/types/db-context";
 export class GetUrgentServicesUseCase {
     constructor(private repository: IDashboardRepository) { }
 
-    async execute(limit: number = 5, dbOrTx?: DBContext) {
-        return await this.repository.getUrgentServices(limit, dbOrTx);
+    async execute(tenantId: string, limit: number, tx: DBContext) {
+        return await this.repository.getUrgentServices(tenantId, limit, tx);
     }
 }

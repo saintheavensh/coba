@@ -1,3 +1,5 @@
+import { TransactionContext } from "../../../shared/types/db-context";
+import { inventoryAuthority } from "../../02-inventory/inventory/inventory-container";
 import { SupplierRepositoryAdapter } from "./infrastructure";
 import {
     GetSuppliersUseCase,
@@ -31,44 +33,74 @@ const unmapProductVariantUC = new UnmapProductVariantUseCase(supplierRepository)
  * SuppliersService — Facade for external and presentation layers.
  */
 export class SuppliersFacade {
-    async getAll() {
-        return await getSuppliersUC.execute();
+    async getAll(tenantId: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getSuppliersUC.execute(tenantId, tx)
+        );
     }
 
-    async getLinkedCategories(supplierId: string) {
-        return await getSupplierCategoriesUC.execute(supplierId);
+    async getLinkedCategories(tenantId: string, supplierId: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getSupplierCategoriesUC.execute(tenantId, supplierId, tx)
+        );
     }
 
-    async create(data: any) {
-        return await createSupplierUC.execute(data);
+    async create(tenantId: string, data: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await createSupplierUC.execute(tenantId, data, tx)
+        );
     }
 
-    async update(id: string, data: any) {
-        return await updateSupplierUC.execute(id, data);
+    async update(tenantId: string, id: string, data: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await updateSupplierUC.execute(tenantId, id, data, tx)
+        );
     }
 
-    async delete(id: string) {
-        return await deleteSupplierUC.execute(id);
+    async delete(tenantId: string, id: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await deleteSupplierUC.execute(tenantId, id, tx)
+        );
     }
 
-    async linkCategory(supplierId: string, categoryId: string) {
-        return await linkCategoryUC.execute(supplierId, categoryId);
+    async linkCategory(tenantId: string, supplierId: string, categoryId: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await linkCategoryUC.execute(tenantId, supplierId, categoryId, tx)
+        );
     }
 
-    async unlinkCategory(supplierId: string, categoryId: string) {
-        return await unlinkCategoryUC.execute(supplierId, categoryId);
+    async unlinkCategory(tenantId: string, supplierId: string, categoryId: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await unlinkCategoryUC.execute(tenantId, supplierId, categoryId, tx)
+        );
     }
 
-    async getMappedProductVariants(supplierId: string) {
-        return await getMappedProductVariantsUC.execute(supplierId);
+    async getMappedProductVariants(tenantId: string, supplierId: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getMappedProductVariantsUC.execute(tenantId, supplierId, tx)
+        );
     }
 
-    async mapProductVariant(supplierId: string, productId: string, variantId?: string | null) {
-        return await mapProductVariantUC.execute(supplierId, productId, variantId);
+    async mapProductVariant(tenantId: string, supplierId: string, productId: string, variantId?: string | null) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await mapProductVariantUC.execute(tenantId, supplierId, productId, variantId, tx)
+        );
     }
 
-    async unmapProductVariant(supplierId: string, productId: string, variantId?: string | null) {
-        return await unmapProductVariantUC.execute(supplierId, productId, variantId);
+    async unmapProductVariant(tenantId: string, supplierId: string, productId: string, variantId?: string | null) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await unmapProductVariantUC.execute(tenantId, supplierId, productId, variantId, tx)
+        );
     }
 }
 

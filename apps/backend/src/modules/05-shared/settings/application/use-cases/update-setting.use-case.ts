@@ -4,7 +4,7 @@ import { ISettingsRepository } from "../../domain";
 export class UpdateSettingUseCase {
     constructor(private readonly repository: ISettingsRepository) { }
 
-    async execute<T>(key: string, value: T, dbOrTx?: DBContext): Promise<void> {
-        await this.repository.upsert(key, value, dbOrTx);
+    async execute<T>(tenantId: string, key: string, value: T, tx: DBContext): Promise<void> {
+        await this.repository.upsert(tenantId, key, value, tx);
     }
 }

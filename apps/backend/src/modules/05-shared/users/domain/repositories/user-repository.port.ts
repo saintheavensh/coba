@@ -2,12 +2,12 @@ import { DBContext } from "../../../../../shared/types/db-context";
 import { User, CreateUserData, UpdateUserData } from "../entities/user.entity";
 
 export interface IUserRepository {
-    findAll(role?: string, dbOrTx?: DBContext): Promise<User[]>;
-    findById(id: string, dbOrTx?: DBContext): Promise<User | null>;
-    create(data: Omit<CreateUserData, 'roles'>, dbOrTx?: DBContext): Promise<User>;
-    update(id: string, data: Omit<UpdateUserData, 'roles'>, dbOrTx?: DBContext): Promise<User>;
-    delete(id: string, dbOrTx?: DBContext): Promise<void>;
+    findAll(tenantId: string, tx: DBContext, role?: string): Promise<User[]>;
+    findById(tenantId: string, id: string, tx: DBContext): Promise<User | null>;
+    create(tenantId: string, data: Omit<CreateUserData, 'roles'>, tx: DBContext): Promise<User>;
+    update(tenantId: string, id: string, data: Omit<UpdateUserData, 'roles'>, tx: DBContext): Promise<User>;
+    delete(tenantId: string, id: string, tx: DBContext): Promise<void>;
 
     // Role synchronization
-    syncRoles(userId: string, roles: string[], dbOrTx?: DBContext): Promise<void>;
+    syncRoles(tenantId: string, userId: string, roles: string[], tx: DBContext): Promise<void>;
 }

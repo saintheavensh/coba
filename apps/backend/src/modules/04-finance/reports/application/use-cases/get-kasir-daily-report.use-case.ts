@@ -1,12 +1,12 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IReportRepository, ReportFilters } from "../../domain";
-import { gte, lte, and } from "drizzle-orm";
+import { gte, lte } from "drizzle-orm";
 import { sales } from "../../../../../shared/infrastructure/database/schema";
 
 export class GetKasirDailyReportUseCase {
     constructor(private readonly repository: IReportRepository) { }
 
-    async execute(filters: ReportFilters = {}, dbOrTx?: DBContext) {
+    async execute(tenantId: string, tx: TransactionContext, filters: ReportFilters = {}) {
         let conditions = [];
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -23,8 +23,8 @@ export class GetKasirDailyReportUseCase {
             conditions.push(lte(sales.createdAt, end));
         }
 
-        const salesData = await this.repository.getSalesData(conditions, dbOrTx);
-        const paymentsData = await this.repository.getSalesPayments(conditions, dbOrTx);
+        const salesData = await this.repository.getSalesData(tenantId, conditions, tx);
+        const paymentsData = await this.repository.getSalesPayments(tenantId, conditions, tx);
 
         const summary = {
             totalSales: 0,

@@ -1,43 +1,38 @@
-import { eq, desc } from "drizzle-orm";
-import { DBContext } from "../../../../../shared/types/db-context";
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { eq, desc, and } from "drizzle-orm";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { operationalCosts } from "../../../../../shared/infrastructure/database/schema";
 import { IOperationalCostRepository, OperationalCost } from "../../domain";
 
 export class OperationalCostRepositoryAdapter implements IOperationalCostRepository {
-    async findAll(limit: number = 100, dbOrTx?: DBContext): Promise<OperationalCost[]> {
-        const client = (dbOrTx as any) || db;
-        const results = await client.select()
+    async findAll(tenantId: string, tx: TransactionContext, limit: number = 100): Promise<OperationalCost[]> {
+        const results = await tx.select()
             .from(operationalCosts)
+            .where(eq(operationalCosts.tenantId, tenantId))
             .orderBy(desc(operationalCosts.date))
             .limit(limit);
         return results as OperationalCost[];
     }
 
-    async findById(id: string, dbOrTx?: DBContext): Promise<OperationalCost | null> {
-        const client = (dbOrTx as any) || db;
-        // Drizzle select().from().where() returns an array
-        const [result] = await client.select()
+    async findById(tenantId: string, id: string, tx: TransactionContext): Promise<OperationalCost | null> {
+        const [result] = await tx.select()
             .from(operationalCosts)
-            .where(eq(operationalCosts.id, id));
+            .where(and(eq(operationalCosts.tenantId, tenantId), eq(operationalCosts.id, id)));
         return (result as OperationalCost) || null;
     }
 
-    async create(data: any, dbOrTx?: DBContext): Promise<{ id: string }> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.insert(operationalCosts).values(data).returning({ id: operationalCosts.id });
+    async create(tenantId: string, data: any, tx: TransactionContext): Promise<{ id: string }> {
+        const [result] = await tx.insert(operationalCosts).values({ ...data, tenantId }).returning({ id: operationalCosts.id });
+        if (!result) throw new Error("Failed to create operational cost");
         return { id: result.id.toString() };
     }
 
-    async update(id: string, data: any, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.update(operationalCosts)
+    async update(tenantId: string, id: string, data: any, tx: TransactionContext): Promise<void> {
+        await tx.update(operationalCosts)
             .set(data)
-            .where(eq(operationalCosts.id, id));
+            .where(and(eq(operationalCosts.tenantId, tenantId), eq(operationalCosts.id, id)));
     }
 
-    async delete(id: string, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.delete(operationalCosts).where(eq(operationalCosts.id, id));
+    async delete(tenantId: string, id: string, tx: TransactionContext): Promise<void> {
+        await tx.delete(operationalCosts).where(and(eq(operationalCosts.tenantId, tenantId), eq(operationalCosts.id, id)));
     }
 }

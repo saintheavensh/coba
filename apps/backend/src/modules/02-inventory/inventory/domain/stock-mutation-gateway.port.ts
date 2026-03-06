@@ -1,5 +1,5 @@
 import type { BatchLike } from "./services/stock-calculator";
-import type { TransactionContext } from "../../../../shared/types/db-context";
+import type { TransactionContext } from "@shared/types/db-context";
 export type { BatchLike };
 
 export interface InsertBatchData {

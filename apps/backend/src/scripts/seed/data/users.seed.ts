@@ -10,9 +10,9 @@ export async function seedUsers() {
 
     // Roles
     await db.insert(roles).values([
-        { id: "admin", name: "Administrator", permissions: ["*"] },
-        { id: "teknisi", name: "Technician", permissions: ["service.view", "service.update", "service.create", "service.diagnose"] },
-        { id: "kasir", name: "Cashier", permissions: ["pos.sales", "service.create", "service.payment"] }
+        { id: "admin", name: "Administrator", tenantId: "system" },
+        { id: "teknisi", name: "Technician", tenantId: "system" },
+        { id: "kasir", name: "Cashier", tenantId: "system" }
     ]);
 
     // Hash password
@@ -20,10 +20,10 @@ export async function seedUsers() {
 
     // Users
     await db.insert(users).values([
-        { id: USER_IDS.admin, username: "admin", password: pw, name: "Super Admin", role: "admin", isActive: true },
-        { id: USER_IDS.teknisi1, username: "teknisi", password: pw, name: "Budi Teknisi", role: "teknisi", isActive: true },
-        { id: USER_IDS.teknisi2, username: "teknisi2", password: pw, name: "Andi Junior", role: "teknisi", isActive: true },
-        { id: USER_IDS.kasir, username: "kasir", password: pw, name: "Siti Kasir", role: "kasir", isActive: true },
+        { id: USER_IDS.admin, username: "admin", password: pw, name: "Super Admin", role: "admin", isActive: true, tenantId: "system", email: "admin@system.com" },
+        { id: USER_IDS.teknisi1, username: "teknisi", password: pw, name: "Budi Teknisi", role: "teknisi", isActive: true, tenantId: "system", email: "teknisi@system.com" },
+        { id: USER_IDS.teknisi2, username: "teknisi2", password: pw, name: "Andi Junior", role: "teknisi", isActive: true, tenantId: "system", email: "teknisi2@system.com" },
+        { id: USER_IDS.kasir, username: "kasir", password: pw, name: "Siti Kasir", role: "kasir", isActive: true, tenantId: "system", email: "kasir@system.com" },
     ]);
 
     console.log("✅ Created 3 roles and 4 users.");
@@ -35,6 +35,7 @@ export async function seedSettings() {
     await db.insert(settings).values([
         {
             key: "store",
+            tenantId: "system",
             value: {
                 name: "iFix Store & Service",
                 address: "Jl. Teknologi No. 88, Jakarta Digital Valley",
@@ -44,6 +45,7 @@ export async function seedSettings() {
         },
         {
             key: "service",
+            tenantId: "system",
             value: {
                 commissionModel: "completion",
                 enableVirtualArchive: true,

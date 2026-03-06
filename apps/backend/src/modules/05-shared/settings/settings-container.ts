@@ -1,10 +1,15 @@
 import { SettingsRepositoryAdapter } from "./infrastructure";
+import { db } from "../../../shared/infrastructure/database/client";
+import { SharedTransactionAuthority } from "../application/services/shared-transaction-authority";
 import {
     GetSettingUseCase,
     UpdateSettingUseCase,
     GetAllSettingsUseCase,
     FactoryResetUseCase
 } from "./application";
+
+// Authority
+const authority = new SharedTransactionAuthority(db as any);
 
 // Adapters
 const settingsRepository = new SettingsRepositoryAdapter();
@@ -20,26 +25,36 @@ const factoryResetUC = new FactoryResetUseCase(settingsRepository);
  * Provides a clean interface for managing application-wide configurations.
  */
 export class SettingsService {
-    async get<T>(key: string, defaultValue: T) {
-        return await getSettingUC.execute(key, defaultValue);
+    constructor(private readonly authority: SharedTransactionAuthority) { }
+
+    async get<T>(tenantId: string, key: string, defaultValue: T) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await getSettingUC.execute(tenantId, key, defaultValue, tx);
+        });
     }
 
-    async set<T>(key: string, value: T) {
-        await updateSettingUC.execute(key, value);
+    async set<T>(tenantId: string, key: string, value: T) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            await updateSettingUC.execute(tenantId, key, value, tx);
+        });
     }
 
-    async getAll() {
-        return await getAllSettingsUC.execute();
+    async getAll(tenantId: string) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await getAllSettingsUC.execute(tenantId, tx);
+        });
     }
 
-    async factoryReset(mode: "data" | "full") {
-        await factoryResetUC.execute(mode);
+    async factoryReset(tenantId: string, mode: "data" | "full") {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            await factoryResetUC.execute(tenantId, mode, tx);
+        });
     }
 
     // --- Legacy Helper Methods for Adapters ---
 
-    async getWhatsAppSettings() {
-        return await this.get("whatsapp", {
+    async getWhatsAppSettings(tenantId: string) {
+        return await this.get(tenantId, "whatsapp", {
             enabled: false,
             autoSendOnNewService: false,
             newServiceTemplate: "",
@@ -50,19 +65,19 @@ export class SettingsService {
         });
     }
 
-    async getServiceSettings(dbOrTx?: any) {
-        return await this.get<{ warrantyPresets: { label: string, days: number }[] }>("service", {
+    async getServiceSettings(tenantId: string) {
+        return await this.get<{ warrantyPresets: { label: string, days: number }[] }>(tenantId, "service", {
             warrantyPresets: []
         });
     }
 
-    async getPaymentMethods(dbOrTx?: any) {
-        return await this.get("payment_methods", []);
+    async getPaymentMethods(tenantId: string) {
+        return await this.get(tenantId, "payment_methods", []);
     }
 }
 
 /** Singleton instance */
-export const settingsService = new SettingsService();
+export const settingsService = new SettingsService(authority);
 
 export {
     getSettingUC,

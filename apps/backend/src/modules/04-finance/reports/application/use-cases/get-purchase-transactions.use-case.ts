@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IReportRepository, ReportFilters, PurchaseReport } from "../../domain";
 import { gte, lte } from "drizzle-orm";
 import { purchases } from "../../../../../shared/infrastructure/database/schema";
@@ -6,7 +6,7 @@ import { purchases } from "../../../../../shared/infrastructure/database/schema"
 export class GetPurchaseTransactionsUseCase {
     constructor(private readonly repository: IReportRepository) { }
 
-    async execute(filters: ReportFilters = {}, dbOrTx?: DBContext): Promise<PurchaseReport[]> {
+    async execute(tenantId: string, tx: TransactionContext, filters: ReportFilters = {}): Promise<PurchaseReport[]> {
         let conditions = [];
 
         if (filters.startDate) {
@@ -19,7 +19,7 @@ export class GetPurchaseTransactionsUseCase {
             conditions.push(lte(purchases.date, end));
         }
 
-        const purchasesData = await this.repository.getPurchases(conditions, dbOrTx);
+        const purchasesData = await this.repository.getPurchases(tenantId, conditions, tx);
 
         return purchasesData.map((purchase: any) => {
             let itemCount = 0;

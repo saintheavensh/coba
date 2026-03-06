@@ -1,5 +1,5 @@
-import { db } from "../../../../shared/infrastructure/database/client";
-import { revenueTargets, operationalCosts, sales, services } from "../../../../shared/infrastructure/database/schema";
+import { TransactionContext } from "../../../../shared/types/db-context";
+import { operationalCosts, sales, services } from "../../../../shared/infrastructure/database/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { AssetsService } from "./assets.service";
 import { accountingService } from "../accounting-container";
@@ -14,13 +14,13 @@ export class RevenueTargetService {
     /**
      * Get or create target for a month
      */
-    static async getOrCreate(month: string, userId?: string) {
-        let target = await accountingService.getRevenueTarget(month);
+    static async getOrCreate(tenantId: string, tx: TransactionContext, month: string, userId?: string) {
+        let target = await accountingService.getRevenueTarget(tenantId, month, tx);
 
         if (!target) {
             // Auto-create with default values
-            await this.calculateAndSet({ month, workingDays: 26 }, userId);
-            target = await accountingService.getRevenueTarget(month);
+            await this.calculateAndSet(tenantId, tx, { month, workingDays: 26 }, userId);
+            target = await accountingService.getRevenueTarget(tenantId, month, tx);
         }
 
         return target;
@@ -29,21 +29,21 @@ export class RevenueTargetService {
     /**
      * Get revenue target for a specific month (YYYY-MM)
      */
-    static async getByMonth(month: string) {
-        return await accountingService.getRevenueTarget(month);
+    static async getByMonth(tenantId: string, month: string, tx: TransactionContext) {
+        return await accountingService.getRevenueTarget(tenantId, month, tx);
     }
 
     /**
      * Create or update revenue target
      */
-    static async upsert(month: string, data: any, userId?: string) {
-        return await accountingService.upsertRevenueTarget(month, data);
+    static async upsert(tenantId: string, month: string, data: any, tx: TransactionContext, _userId?: string) {
+        return await accountingService.upsertRevenueTarget(tenantId, month, data, tx);
     }
 
     /**
      * Calculate monthly costs and set target
      */
-    static async calculateAndSet(input: SetTargetInput, userId?: string): Promise<void> {
+    static async calculateAndSet(tenantId: string, tx: TransactionContext, input: SetTargetInput, userId?: string): Promise<void> {
         const { month, workingDays, profitMarginPercent = 20 } = input;
 
         // Get operational costs for this month
@@ -51,10 +51,11 @@ export class RevenueTargetService {
         const endDate = new Date(startDate);
         endDate.setMonth(endDate.getMonth() + 1);
 
-        const opCosts = await db
+        const opCosts = await tx
             .select({ total: sql<number>`COALESCE(SUM(${operationalCosts.amount}), 0)` })
             .from(operationalCosts)
             .where(and(
+                eq(operationalCosts.tenantId, tenantId),
                 gte(operationalCosts.date, startDate),
                 lte(operationalCosts.date, endDate)
             ));
@@ -62,7 +63,7 @@ export class RevenueTargetService {
         const monthlyOperational = Number(opCosts[0]?.total) || 0;
 
         // Get total depreciation from active assets
-        const monthlyDepreciation = await AssetsService.getTotalMonthlyDepreciation();
+        const monthlyDepreciation = await AssetsService.getTotalMonthlyDepreciation(tenantId, tx);
 
         // Calculate totals
         const monthlyTotal = monthlyOperational + monthlyDepreciation;
@@ -70,7 +71,7 @@ export class RevenueTargetService {
         const dailyTarget = Math.ceil(dailyBreakeven * (1 + profitMarginPercent / 100));
 
         // Upsert target
-        await this.upsert(month, {
+        await this.upsert(tenantId, month, {
             workingDays,
             monthlyOperational,
             monthlyDepreciation,
@@ -79,17 +80,17 @@ export class RevenueTargetService {
             profitMarginPercent,
             dailyTarget,
             createdBy: userId,
-        }, userId);
+        }, tx, userId);
     }
 
     /**
      * Get today's progress vs target
      */
-    static async getTodayProgress() {
+    static async getTodayProgress(tenantId: string, tx: TransactionContext) {
         const today = new Date();
         const month = today.toISOString().slice(0, 7); // "2026-01"
 
-        const target = await this.getOrCreate(month);
+        const target = await this.getOrCreate(tenantId, tx, month);
         if (!target) {
             return { hasTarget: false };
         }
@@ -101,20 +102,22 @@ export class RevenueTargetService {
         todayEnd.setHours(23, 59, 59, 999);
 
         // Sales revenue
-        const salesResult = await db
+        const salesResult = await tx
             .select({ total: sql<number>`COALESCE(SUM(${sales.totalAmount}), 0)` })
             .from(sales)
             .where(and(
+                eq(sales.tenantId, tenantId),
                 gte(sales.createdAt, todayStart),
                 lte(sales.createdAt, todayEnd),
                 eq(sales.paymentStatus, "paid")
             ));
 
         // Service revenue (only "diambil" status)
-        const serviceResult = await db
+        const serviceResult = await tx
             .select({ total: sql<number>`COALESCE(SUM(${services.actualCost}), 0)` })
             .from(services)
             .where(and(
+                eq(services.tenantId, tenantId),
                 gte(services.dateOut, todayStart),
                 lte(services.dateOut, todayEnd),
                 eq(services.status, "diambil")
@@ -142,8 +145,8 @@ export class RevenueTargetService {
     /**
      * Get monthly progress
      */
-    static async getMonthProgress(month: string) {
-        const target = await this.getOrCreate(month);
+    static async getMonthProgress(tenantId: string, tx: TransactionContext, month: string) {
+        const target = await this.getOrCreate(tenantId, tx, month);
         if (!target) {
             return { hasTarget: false };
         }
@@ -153,20 +156,22 @@ export class RevenueTargetService {
         endDate.setMonth(endDate.getMonth() + 1);
 
         // Sales revenue for month
-        const salesResult = await db
+        const salesResult = await tx
             .select({ total: sql<number>`COALESCE(SUM(${sales.totalAmount}), 0)` })
             .from(sales)
             .where(and(
+                eq(sales.tenantId, tenantId),
                 gte(sales.createdAt, startDate),
                 lte(sales.createdAt, endDate),
                 eq(sales.paymentStatus, "paid")
             ));
 
         // Service revenue for month
-        const serviceResult = await db
+        const serviceResult = await tx
             .select({ total: sql<number>`COALESCE(SUM(${services.actualCost}), 0)` })
             .from(services)
             .where(and(
+                eq(services.tenantId, tenantId),
                 gte(services.dateOut, startDate),
                 lte(services.dateOut, endDate),
                 eq(services.status, "diambil")
@@ -200,10 +205,10 @@ export class RevenueTargetService {
     /**
      * Update target manually
      */
-    static async update(month: string, input: Partial<SetTargetInput>, userId?: string): Promise<void> {
-        const existing = await this.getOrCreate(month, userId);
+    static async update(tenantId: string, tx: TransactionContext, month: string, input: Partial<SetTargetInput>, userId?: string): Promise<void> {
+        const existing = await this.getOrCreate(tenantId, tx, month, userId);
 
-        await this.calculateAndSet({
+        await this.calculateAndSet(tenantId, tx, {
             month,
             workingDays: input.workingDays || existing.workingDays,
             profitMarginPercent: input.profitMarginPercent || existing.profitMarginPercent,

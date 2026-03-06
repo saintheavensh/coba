@@ -2,21 +2,22 @@
  * Use case: Add stock from a verified purchase.
  * Called by the purchases module during purchase verification.
  */
-import type { IStockMutationGateway } from "../../domain/stock-mutation-gateway.port";
+import type { IStockMutationGateway } from "@domain/stock-mutation-gateway.port";
 import type {
     AddStockFromPurchaseVerificationInput,
     AddStockFromPurchaseVerificationOutput
-} from "../../domain/stock.types";
-import { supplierBrands } from "../../../../../shared/infrastructure/database/schema";
+} from "@domain/stock.types";
+import { supplierBrands } from "@shared/infrastructure/database/schema";
 import { eq, and } from "drizzle-orm";
-import type { TransactionContext } from "../../../../../shared/types/db-context";
+import type { TransactionContext } from "@shared/types/db-context";
 
 export class AddStockFromPurchaseUseCase {
     constructor(private readonly stockGateway: IStockMutationGateway) { }
 
     async execute(
         input: AddStockFromPurchaseVerificationInput,
-        tx: TransactionContext
+        tx: TransactionContext,
+        tenantId?: string
     ): Promise<AddStockFromPurchaseVerificationOutput> {
         const allocations: AddStockFromPurchaseVerificationOutput["allocations"] = [];
 

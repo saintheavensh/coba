@@ -47,8 +47,7 @@ export const productsContainerModule = new ContainerModule(({ bind }) => {
     bind<GetProductsUseCase>(TYPES.GetProductsUseCase).to(GetProductsUseCase);
     bind<UpdateProductUseCase>(TYPES.UpdateProductUseCase).to(UpdateProductUseCase);
     bind<DeleteProductUseCase>(TYPES.DeleteProductUseCase).to(DeleteProductUseCase);
-    // Note: ActivateProductUseCase isn't in TYPES yet, let's add it if needed or bind to self
-    bind<ActivateProductUseCase>(ActivateProductUseCase).toSelf();
+    bind<ActivateProductUseCase>(TYPES.ActivateProductUseCase).to(ActivateProductUseCase);
 
     // Application / Facade
     bind<ProductsFacade>(TYPES.ProductsFacade).to(ProductsFacade).inSingletonScope();

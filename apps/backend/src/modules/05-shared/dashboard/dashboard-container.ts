@@ -1,6 +1,8 @@
 import { DashboardRepositoryAdapter } from "./infrastructure";
 import { reportsService } from "../../04-finance/reports/reports-container";
 import { settingsService } from "../settings/settings-container";
+import { db } from "../../../shared/infrastructure/database/client";
+import { SharedTransactionAuthority } from "../application/services/shared-transaction-authority";
 import {
     GetDashboardDataUseCase,
     GetRecentActivitiesUseCase,
@@ -11,6 +13,9 @@ import {
     GetWarehouseDashboardUseCase,
     GetProfitLossUseCase
 } from "./application";
+
+// Authority
+const authority = new SharedTransactionAuthority(db as any);
 
 // Adapters
 const dashboardRepository = new DashboardRepositoryAdapter();
@@ -30,38 +35,56 @@ const getProfitLossUseCase = new GetProfitLossUseCase(settingsService, reportsSe
  * Wires internal use cases and provides a clean interface for external layers.
  */
 export class DashboardFacade {
-    async getDashboardData() {
-        return await getDashboardDataUseCase.execute();
+    constructor(private readonly authority: SharedTransactionAuthority) { }
+
+    async getDashboardData(tenantId: string) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await getDashboardDataUseCase.execute(tenantId, tx);
+        });
     }
 
-    async getRecentActivities(limit: number) {
-        return await getRecentActivitiesUseCase.execute(limit);
+    async getRecentActivities(tenantId: string, limit: number) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await getRecentActivitiesUseCase.execute(tenantId, limit, tx);
+        });
     }
 
-    async getRecentServices(limit: number) {
-        return await getRecentServicesUseCase.execute(limit);
+    async getRecentServices(tenantId: string, limit: number) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await getRecentServicesUseCase.execute(tenantId, limit, tx);
+        });
     }
 
-    async getUrgentServices(limit: number) {
-        return await getUrgentServicesUseCase.execute(limit);
+    async getUrgentServices(tenantId: string, limit: number) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await getUrgentServicesUseCase.execute(tenantId, limit, tx);
+        });
     }
 
-    async getTechnicianDashboard(technicianId: string) {
-        return await getTechnicianDashboardUseCase.execute(technicianId);
+    async getTechnicianDashboard(tenantId: string, technicianId: string) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await getTechnicianDashboardUseCase.execute(tenantId, technicianId, tx);
+        });
     }
 
-    async getCashierDashboard() {
-        return await getCashierDashboardUseCase.execute();
+    async getCashierDashboard(tenantId: string) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await getCashierDashboardUseCase.execute(tenantId, tx);
+        });
     }
 
-    async getWarehouseDashboard() {
-        return await getWarehouseDashboardUseCase.execute();
+    async getWarehouseDashboard(tenantId: string) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await getWarehouseDashboardUseCase.execute(tenantId, tx);
+        });
     }
 
-    async getProfitLoss(startDate?: string, endDate?: string) {
-        return await getProfitLossUseCase.execute(startDate, endDate);
+    async getProfitLoss(tenantId: string, startDate?: string, endDate?: string) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await getProfitLossUseCase.execute(tenantId, startDate, endDate, tx);
+        });
     }
 }
 
 /** Singleton instance */
-export const dashboardFacade = new DashboardFacade();
+export const dashboardFacade = new DashboardFacade(authority);

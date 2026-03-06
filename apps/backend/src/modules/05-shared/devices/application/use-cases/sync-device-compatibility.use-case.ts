@@ -4,14 +4,14 @@ import { IDeviceRepository } from "../../domain";
 export class SyncDeviceCompatibilityUseCase {
     constructor(private repository: IDeviceRepository) { }
 
-    async execute(deviceId: string, dbOrTx?: DBContext) {
-        const device = await this.repository.findById(deviceId, dbOrTx);
+    async execute(tenantId: string, deviceId: string, tx: DBContext) {
+        const device = await this.repository.findById(tenantId, deviceId, tx);
         if (!device) return { count: 0, products: [] };
 
         const model = device.model.trim();
 
         // 1. Find candidate products where name contains the model
-        const candidates = await this.repository.findProductsByName(model, dbOrTx);
+        const candidates = await this.repository.findProductsByName(tenantId, model, tx);
 
         let linkCount = 0;
         const linksToInsert = candidates.map(product => ({
@@ -20,7 +20,7 @@ export class SyncDeviceCompatibilityUseCase {
         }));
 
         if (linksToInsert.length > 0) {
-            await this.repository.addCompatibilityLinks(linksToInsert, dbOrTx);
+            await this.repository.addCompatibilityLinks(tenantId, linksToInsert, tx);
             linkCount = linksToInsert.length;
         }
 

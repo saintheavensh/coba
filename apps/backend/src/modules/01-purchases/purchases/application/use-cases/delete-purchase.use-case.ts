@@ -1,6 +1,6 @@
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IPurchaseRepository } from "../../domain/purchase-repository.port";
-import { InventoryService } from "../../../../02-inventory/inventory/services/inventory.service";
+import { InventoryService } from "../../../../02-inventory/inventory/application/services/inventory.service";
 
 export class DeletePurchaseUseCase {
     constructor(
@@ -8,9 +8,9 @@ export class DeletePurchaseUseCase {
         private inventoryService: InventoryService
     ) { }
 
-    async execute(purchaseId: string): Promise<void> {
-        await db.transaction(async (tx) => {
-            const purchase = await this.purchaseRepo.findById(purchaseId);
+    async execute(tenantId: string, purchaseId: string, tx: TransactionContext): Promise<void> {
+        const runInternal = async () => {
+            const purchase = await this.purchaseRepo.findById(tenantId, purchaseId, tx);
             if (!purchase) return; // Idempotent delete
 
             // Reversal Trigger: Any item already received must be reversed in inventory
@@ -26,11 +26,13 @@ export class DeletePurchaseUseCase {
                 await this.inventoryService.reverseStockFromPurchaseDeletion({
                     purchaseId: purchase.id,
                     items: itemsToReverse
-                }, tx);
+                }, tx, tenantId);
             }
 
             // Persistence
-            await this.purchaseRepo.delete(purchaseId, tx);
-        });
+            await this.purchaseRepo.delete(tenantId, purchaseId, tx);
+        };
+
+        return await runInternal();
     }
 }

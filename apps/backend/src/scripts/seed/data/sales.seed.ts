@@ -15,25 +15,25 @@ export async function seedSales() {
     const pmQrisId = "PM-QRIS";
 
     await db.insert(paymentMethods).values([
-        { id: pmCashId, name: "Tunai", type: "cash", enabled: true },
-        { id: pmTransferId, name: "Transfer Bank", type: "transfer", enabled: true },
-        { id: pmEdcId, name: "EDC / Debit", type: "custom", enabled: true }, // 'edc' not in enum, use 'custom' or check schema
-        { id: pmQrisId, name: "QRIS", type: "qris", enabled: true },
+        { id: pmCashId, name: "Tunai", type: "cash", enabled: true, tenantId: "system" },
+        { id: pmTransferId, name: "Transfer Bank", type: "transfer", enabled: true, tenantId: "system" },
+        { id: pmEdcId, name: "EDC / Debit", type: "custom", enabled: true, tenantId: "system" },
+        { id: pmQrisId, name: "QRIS", type: "qris", enabled: true, tenantId: "system" },
     ]);
 
     // Variants (Banks)
     await db.insert(paymentVariants).values([
-        { id: "PV-BCA", methodId: pmTransferId, name: "BCA", enabled: true },
-        { id: "PV-MANDIRI", methodId: pmTransferId, name: "Mandiri", enabled: true },
-        { id: "PV-EDC-BCA", methodId: pmEdcId, name: "EDC BCA", enabled: true },
+        { id: "PV-BCA", methodId: pmTransferId, name: "BCA", enabled: true, tenantId: "system" },
+        { id: "PV-MANDIRI", methodId: pmTransferId, name: "Mandiri", enabled: true, tenantId: "system" },
+        { id: "PV-EDC-BCA", methodId: pmEdcId, name: "EDC BCA", enabled: true, tenantId: "system" },
     ]);
 
     console.log("Creating members...");
 
     const mem1Id = "MEM-001";
     await db.insert(members).values([
-        { id: mem1Id, name: "Pelanggan Setia", phone: randomPhone(), discountPercent: 5, createdAt: getPastDate(100) },
-        { id: "MEM-002", name: "Joko Santoso", phone: randomPhone(), createdAt: getPastDate(30) },
+        { id: mem1Id, name: "Pelanggan Setia", phone: randomPhone(), discountPercent: 5, createdAt: getPastDate(100), tenantId: "system" },
+        { id: "MEM-002", name: "Joko Santoso", phone: randomPhone(), createdAt: getPastDate(30), tenantId: "system" },
     ]);
 
     console.log("Creating sales transactions...");
@@ -49,11 +49,12 @@ export async function seedSales() {
         totalAmount: 60000,
         userId: USER_IDS.kasir,
         notes: "Walk-in customer",
+        tenantId: "system",
     });
 
     await db.insert(saleItems).values([
-        { saleId: sal1Id, productId: PRODUCT_IDS.caseClear, batchId: BATCH_IDS.caseA, qty: 1, price: 35000 },
-        { saleId: sal1Id, productId: PRODUCT_IDS.tempered, batchId: BATCH_IDS.tgA, qty: 1, price: 25000 },
+        { saleId: sal1Id, productId: PRODUCT_IDS.caseClear, batchId: BATCH_IDS.caseA, qty: 1, price: 35000, tenantId: "system" },
+        { saleId: sal1Id, productId: PRODUCT_IDS.tempered, batchId: BATCH_IDS.tgA, qty: 1, price: 25000, tenantId: "system" },
     ]);
 
     await db.insert(salePayments).values({
@@ -61,6 +62,7 @@ export async function seedSales() {
         methodId: pmCashId,
         method: "Tunai",
         amount: 60000,
+        tenantId: "system",
     });
 
     // Sale 2: Batere Replacement (Part Only) - Transfer
@@ -73,10 +75,11 @@ export async function seedSales() {
         discountAmount: 0,
         totalAmount: 200000,
         userId: USER_IDS.kasir,
+        tenantId: "system",
     });
 
     await db.insert(saleItems).values([
-        { saleId: sal2Id, productId: PRODUCT_IDS.batreIpX, batchId: BATCH_IDS.batreIpXA, qty: 1, price: 200000 },
+        { saleId: sal2Id, productId: PRODUCT_IDS.batreIpX, batchId: BATCH_IDS.batreIpXA, qty: 1, price: 200000, tenantId: "system" },
     ]);
 
     await db.insert(salePayments).values({
@@ -86,6 +89,7 @@ export async function seedSales() {
         variantId: "PV-BCA",
         amount: 200000,
         reference: "TRF-123456",
+        tenantId: "system",
     });
 
     // Add 8 more dummy sales to total 10
@@ -98,6 +102,7 @@ export async function seedSales() {
             paymentStatus: "paid",
             totalAmount: 50000,
             userId: USER_IDS.kasir,
+            tenantId: "system",
         });
 
         // Just sell TG
@@ -107,6 +112,7 @@ export async function seedSales() {
             batchId: BATCH_IDS.tgA,
             qty: 2,
             price: 25000,
+            tenantId: "system",
         });
 
         await db.insert(salePayments).values({
@@ -114,6 +120,7 @@ export async function seedSales() {
             methodId: pmCashId,
             method: "Tunai",
             amount: 50000,
+            tenantId: "system",
         });
     }
 

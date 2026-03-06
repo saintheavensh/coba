@@ -1,10 +1,7 @@
-/**
- * Use case: Finalize an opname session — apply stock adjustments to batches.
- * Contains complex batch adjustment logic (FIFO deduction for loss, first-batch addition for surplus).
- */
-import type { IStockOpnameRepository, OpnameItemEntity } from "../../domain/stock-opname-repository.port";
-import type { IActivityLogger } from "../../domain/activity-logger.port";
-import { StockCalculator } from "../../domain/services/stock-calculator";
+import type { IStockOpnameRepository, OpnameItemEntity } from "@domain/stock-opname-repository.port";
+import type { IActivityLogger } from "@domain/activity-logger.port";
+import { StockCalculator } from "@domain/services/stock-calculator";
+import { TransactionContext } from "@shared/types/db-context";
 
 export class FinalizeOpnameSessionUseCase {
     constructor(
@@ -12,28 +9,26 @@ export class FinalizeOpnameSessionUseCase {
         private readonly activityLogger: IActivityLogger
     ) { }
 
-    async execute(id: string, userId: string) {
+    async execute(id: string, userId: string, tx: TransactionContext) {
         const repo = this.stockOpnameRepository;
 
-        const session = await repo.findSessionById(id);
+        const session = await repo.findSessionById(id, tx);
         if (!session) throw new Error("Session not found");
         if (session.status !== "draft") throw new Error("Only draft sessions can be finalized");
 
-        const items = await repo.findItemsBySession(id);
+        const items = await repo.findItemsBySession(id, tx);
 
-        await repo.transaction(async (tx) => {
-            for (const item of items) {
-                if (item.physicalStock === null) continue;
+        for (const item of items) {
+            if (item.physicalStock === null) continue;
 
-                const difference = item.difference;
-                if (difference === 0) continue;
+            const difference = item.difference;
+            if (difference === 0) continue;
 
-                await this.adjustBatches(item, difference, userId, id, tx);
-                await repo.updateProductStockDelta(item.productId, difference, tx);
-            }
+            await this.adjustBatches(item, difference, userId, id, tx);
+            await repo.updateProductStockDelta(item.productId, difference, tx);
+        }
 
-            await repo.updateSessionStatus(id, "completed", new Date(), tx);
-        });
+        await repo.updateSessionStatus(id, "completed", new Date(), tx);
 
         await this.activityLogger.log({
             userId,
@@ -41,7 +36,7 @@ export class FinalizeOpnameSessionUseCase {
             entityType: "stock_opname",
             entityId: id,
             description: `Finalized stock opname session ${id}`
-        });
+        }, tx);
 
         return { success: true };
     }
@@ -56,7 +51,7 @@ export class FinalizeOpnameSessionUseCase {
         difference: number,
         userId: string,
         sessionId: string,
-        tx: unknown
+        tx: TransactionContext
     ) {
         const repo = this.stockOpnameRepository;
         const batches = await repo.findBatchesByProductAndVariant(

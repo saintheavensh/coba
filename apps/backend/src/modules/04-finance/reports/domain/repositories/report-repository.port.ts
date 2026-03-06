@@ -1,16 +1,16 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export interface IReportRepository {
-    getSalesData(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
-    getTransactions(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
-    getServices(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
-    getServiceTransactions(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
-    getPurchases(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
-    getTechnicians(dbOrTx?: DBContext): Promise<any[]>;
-    getServicesWithTechnicians(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
-    getActivityLogs(conditions: any[], limit?: number, dbOrTx?: DBContext): Promise<any[]>;
-    getOperationalCosts(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
-    getCategoriesWithStock(dbOrTx?: DBContext): Promise<any[]>;
-    getLowStockItems(threshold: number, dbOrTx?: DBContext): Promise<any[]>;
-    getSalesPayments(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
+    getSalesData(tenantId: string, conditions: any[], tx: TransactionContext): Promise<any[]>;
+    getTransactions(tenantId: string, conditions: any[], tx: TransactionContext): Promise<any[]>;
+    getServices(tenantId: string, conditions: any[], tx: TransactionContext): Promise<any[]>;
+    getServiceTransactions(tenantId: string, conditions: any[], tx: TransactionContext): Promise<any[]>;
+    getPurchases(tenantId: string, conditions: any[], tx: TransactionContext): Promise<any[]>;
+    getTechnicians(tenantId: string, tx: TransactionContext): Promise<any[]>;
+    getServicesWithTechnicians(tenantId: string, conditions: any[], tx: TransactionContext): Promise<any[]>;
+    getActivityLogs(tenantId: string, conditions: any[], tx: TransactionContext, limit?: number | undefined): Promise<any[]>;
+    getOperationalCosts(tenantId: string, conditions: any[], tx: TransactionContext): Promise<any[]>;
+    getCategoriesWithStock(tenantId: string, tx: TransactionContext): Promise<any[]>;
+    getLowStockItems(tenantId: string, threshold: number, tx: TransactionContext): Promise<any[]>;
+    getSalesPayments(tenantId: string, conditions: any[], tx: TransactionContext): Promise<any[]>;
 }

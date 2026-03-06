@@ -16,13 +16,13 @@ export class AuthController {
                 return apiError(c, "Username and password are required", "Validation Error", 400);
             }
 
-            const roleBehavior = await settingsService.get("role_behavior", DEFAULT_ROLE_BEHAVIOR);
+            const roleBehavior = await settingsService.get("system", "role_behavior", DEFAULT_ROLE_BEHAVIOR);
 
             const result = await loginUseCase.execute({
                 username,
                 password,
                 roleId,
-                roleBehaviorMode: roleBehavior.mode
+                roleBehaviorMode: (roleBehavior as any).mode
             });
 
             if (result.requiresRoleSelection) {

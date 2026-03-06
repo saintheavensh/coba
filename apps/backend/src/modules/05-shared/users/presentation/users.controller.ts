@@ -7,8 +7,9 @@ export class UsersController {
 
     async getAll(c: Context) {
         try {
+            const user = c.get("user");
             const role = c.req.query("role");
-            const users = await this.service.findAll(role);
+            const users = await this.service.findAll(user.tenantId, role);
             return apiSuccess(c, users, "Users retrieved successfully");
         } catch (e: any) {
             console.error("[UsersController] GetAll Error:", e);
@@ -18,9 +19,10 @@ export class UsersController {
 
     async getById(c: Context) {
         try {
+            const user = c.get("user");
             const id = c.req.param("id");
-            const user = await this.service.getById(id);
-            return apiSuccess(c, user);
+            const userRecord = await this.service.getById(user.tenantId, id);
+            return apiSuccess(c, userRecord);
         } catch (e: any) {
             const status = e.status || 500;
             return apiError(c, e, e.message || "Failed to retrieve user", status);
@@ -29,9 +31,10 @@ export class UsersController {
 
     async create(c: Context) {
         try {
+            const user = c.get("user");
             const data = await c.req.json();
-            const user = await this.service.create(data);
-            return apiSuccess(c, user, "User created successfully", 201);
+            const newUser = await this.service.create(user.tenantId, data);
+            return apiSuccess(c, newUser, "User created successfully", 201);
         } catch (e: any) {
             const status = e.status || 500;
             return apiError(c, e, e.message || "Failed to create user", status);
@@ -40,10 +43,11 @@ export class UsersController {
 
     async update(c: Context) {
         try {
+            const user = c.get("user");
             const id = c.req.param("id");
             const data = await c.req.json();
-            const user = await this.service.update(id, data);
-            return apiSuccess(c, user, "User updated successfully");
+            const updatedUser = await this.service.update(user.tenantId, id, data);
+            return apiSuccess(c, updatedUser, "User updated successfully");
         } catch (e: any) {
             const status = e.status || 500;
             return apiError(c, e, e.message || "Failed to update user", status);
@@ -52,8 +56,9 @@ export class UsersController {
 
     async delete(c: Context) {
         try {
+            const user = c.get("user");
             const id = c.req.param("id");
-            await this.service.delete(id);
+            await this.service.delete(user.tenantId, id);
             return apiSuccess(c, null, "User deleted successfully");
         } catch (e: any) {
             const status = e.status || 500;

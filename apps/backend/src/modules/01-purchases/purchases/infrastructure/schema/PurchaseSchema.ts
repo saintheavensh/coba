@@ -1,4 +1,4 @@
-import { text, integer, timestamp, pgTable } from "drizzle-orm/pg-core";
+import { text, integer, timestamp, pgTable, index } from "drizzle-orm/pg-core";
 import { randomUUID } from "crypto";
 import { users } from "../../../../05-shared/users/infrastructure/schema/UserSchema";
 import { suppliers } from "../../../suppliers/infrastructure/schema/SupplierSchema";
@@ -15,7 +15,7 @@ export const purchases = pgTable("purchases", {
     referenceNumber: text("reference_number"),
     notes: text("notes"),
     date: timestamp("date").defaultNow(),
-    status: text("status", { enum: ["DRAFT", "ORDERED", "RECEIVED", "VERIFIED", "CANCELLED"] }).default("ORDERED"),
+    status: text("status", { enum: ["DRAFT", "ORDERED", "RECEIVED", "VERIFIED", "COMPLETED", "CANCELLED"] }).default("ORDERED"),
     receivedBy: text("received_by").references(() => users.id),
     receivedAt: timestamp("received_at"),
     verifiedAt: timestamp("verified_at"),
@@ -26,7 +26,10 @@ export const purchases = pgTable("purchases", {
     discountAmount: integer("discount_amount").default(0),
     paymentDueDate: timestamp("payment_due_date"),
     shippingExpenseAccountId: text("shipping_expense_account_id"),
-});
+    tenantId: text("tenant_id").notNull(),
+}, (table) => ({
+    tenantIdx: index("purchases_tenant_idx").on(table.tenantId),
+}));
 
 export const purchaseItems = pgTable("purchase_items", {
     id: uuid(),
@@ -38,6 +41,7 @@ export const purchaseItems = pgTable("purchase_items", {
     buyPrice: integer("buy_price").notNull().default(0),
     sellPrice: integer("sell_price").notNull().default(0),
     batchId: text("batch_id").references(() => productBatches.id),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -51,6 +55,7 @@ export const purchasePayments = pgTable("purchase_payments", {
     proofImage: text("proof_image"),
     date: timestamp("date").notNull().defaultNow(),
     createdBy: text("created_by").references(() => users.id),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -60,6 +65,7 @@ export const purchaseReturns = pgTable("purchase_returns", {
     userId: text("user_id").notNull().references(() => users.id),
     date: timestamp("date").defaultNow(),
     notes: text("notes"),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -70,6 +76,7 @@ export const purchaseReturnItems = pgTable("purchase_return_items", {
     batchId: text("batch_id").notNull().references(() => productBatches.id),
     qty: integer("qty").notNull(),
     reason: text("reason"),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
 });
 

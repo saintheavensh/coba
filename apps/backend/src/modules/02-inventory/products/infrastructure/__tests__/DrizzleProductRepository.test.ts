@@ -10,7 +10,6 @@ import { Result } from "../../../../../shared/core/Result";
 describe("DrizzleProductRepository", () => {
     let repository: DrizzleProductRepository;
     let mockDrizzle: any;
-    let mockDrizzleClient: any;
 
     beforeEach(() => {
         mockDrizzle = {
@@ -27,10 +26,7 @@ describe("DrizzleProductRepository", () => {
             onConflictDoUpdate: vi.fn().mockReturnThis(),
             delete: vi.fn().mockReturnThis(),
         };
-        mockDrizzleClient = {
-            getClient: () => mockDrizzle,
-        };
-        repository = new DrizzleProductRepository(mockDrizzleClient);
+        repository = new DrizzleProductRepository();
     });
 
     it("should find product by id", async () => {
@@ -47,7 +43,7 @@ describe("DrizzleProductRepository", () => {
 
         mockDrizzle.groupBy.mockResolvedValue([rawRow]);
 
-        const result = await repository.findById("1");
+        const result = await repository.findById("1", mockDrizzle);
 
         expect(result.isSuccess).toBe(true);
         expect(result.getValue().id).toBe("1");
@@ -57,7 +53,7 @@ describe("DrizzleProductRepository", () => {
     it("should return fail if product not found", async () => {
         mockDrizzle.groupBy.mockResolvedValue([]);
 
-        const result = await repository.findById("999");
+        const result = await repository.findById("999", mockDrizzle);
 
         expect(result.isFailure).toBe(true);
         expect(result.errorValue()).toContain("not found");

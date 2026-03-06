@@ -18,7 +18,7 @@ describe("StockMutationGatewayAdapter.assertStockConsistency", () => {
                         .mockResolvedValueOnce([{ sum: 10 }])
                 })
             })
-        };
+        } as any;
         await expect(adapter.assertStockConsistency([productId], mockTx)).resolves.toBeUndefined();
     });
 
@@ -32,7 +32,7 @@ describe("StockMutationGatewayAdapter.assertStockConsistency", () => {
                         .mockResolvedValueOnce([{ sum: 8 }])
                 })
             })
-        };
+        } as any;
         await expect(adapter.assertStockConsistency([productId], mockTx))
             .rejects.toThrow(/Stock consistency failed for product P1: products\.stock=10 !== sum\(batches\.current_stock\)=8/);
     });
@@ -49,7 +49,7 @@ describe("StockMutationGatewayAdapter.assertStockConsistency", () => {
                     where: mockWhere
                 })
             })
-        };
+        } as any;
         await expect(adapter.assertStockConsistency(["P1", "P2"], mockTx)).resolves.toBeUndefined();
         expect(mockWhere).toHaveBeenCalledTimes(4);
     });

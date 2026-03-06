@@ -4,6 +4,7 @@ import { notifications } from "../../../shared/infrastructure/database/schema";
 type NotificationType = "low_stock" | "service_update" | "new_assignment" | "sale_complete" | "purchase_complete";
 
 interface NotificationPayload {
+    tenantId: string;
     userId: string;
     type: NotificationType;
     title: string;
@@ -26,6 +27,7 @@ export async function sendNotification(payload: NotificationPayload) {
         message: payload.message,
         entityType: payload.entityType,
         entityId: payload.entityId,
+        tenantId: payload.tenantId,
         isRead: false,
     }).returning();
 
@@ -36,7 +38,7 @@ export async function sendNotification(payload: NotificationPayload) {
  * Send notification to multiple users
  */
 export async function broadcastNotification(
-    payload: Omit<NotificationPayload, "userId">,
+    payload: Omit<NotificationPayload, "userId"> & { tenantId: string },
     userIds: string[]
 ) {
     const results = [];
@@ -54,8 +56,9 @@ export async function broadcastNotification(
  */
 export const NotificationService = {
     // Stock alerts
-    async lowStock(userId: string, productName: string, currentStock: number, productId: string) {
+    async lowStock(tenantId: string, userId: string, productName: string, currentStock: number, productId: string) {
         return sendNotification({
+            tenantId,
             userId,
             type: "low_stock",
             title: "Stok Rendah",
@@ -66,8 +69,9 @@ export const NotificationService = {
     },
 
     // Service updates
-    async serviceStatusChanged(userId: string, serviceNo: string, newStatus: string, serviceId: string) {
+    async serviceStatusChanged(tenantId: string, userId: string, serviceNo: string, newStatus: string, serviceId: string) {
         return sendNotification({
+            tenantId,
             userId,
             type: "service_update",
             title: "Status Servis Berubah",
@@ -78,8 +82,9 @@ export const NotificationService = {
     },
 
     // Technician assignment
-    async technicianAssigned(technicianId: string, serviceNo: string, serviceId: string) {
+    async technicianAssigned(tenantId: string, technicianId: string, serviceNo: string, serviceId: string) {
         return sendNotification({
+            tenantId,
             userId: technicianId,
             type: "new_assignment",
             title: "Tugas Baru",
@@ -90,8 +95,9 @@ export const NotificationService = {
     },
 
     // Sale complete
-    async saleCompleted(userId: string, saleId: string, amount: number) {
+    async saleCompleted(tenantId: string, userId: string, saleId: string, amount: number) {
         return sendNotification({
+            tenantId,
             userId,
             type: "sale_complete",
             title: "Penjualan Selesai",
@@ -102,8 +108,9 @@ export const NotificationService = {
     },
 
     // Purchase complete
-    async purchaseCompleted(userId: string, purchaseId: string, supplierName: string) {
+    async purchaseCompleted(tenantId: string, userId: string, purchaseId: string, supplierName: string) {
         return sendNotification({
+            tenantId,
             userId,
             type: "purchase_complete",
             title: "Pembelian Selesai",

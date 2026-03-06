@@ -8,18 +8,15 @@ dotenv.config();
 const INITIAL_ROLES = [
     {
         id: 'admin',
-        name: 'Administrator',
-        permissions: ['all']
+        name: 'Administrator'
     },
     {
         id: 'teknisi',
-        name: 'Teknisi',
-        permissions: ['service.view', 'service.update', 'inventory.view']
+        name: 'Teknisi'
     },
     {
         id: 'kasir',
-        name: 'Kasir',
-        permissions: ['sales.create', 'sales.view', 'inventory.view']
+        name: 'Kasir'
     }
 ];
 
@@ -42,7 +39,6 @@ async function seedRoles() {
                     target: roles.id,
                     set: {
                         name: role.name,
-                        permissions: role.permissions,
                         createdAt: new Date()
                     }
                 });

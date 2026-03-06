@@ -10,7 +10,8 @@ export class ReportsController {
     async getSummary(c: Context) {
         try {
             const { startDate, endDate } = c.req.query();
-            const summary = await this.service.getSalesSummary({ startDate, endDate });
+            const tenantId = c.get("user")?.tenantId || "default";
+            const summary = await this.service.getSalesSummary(tenantId, { startDate, endDate });
             return apiSuccess(c, summary, "Sales summary retrieved successfully");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve sales summary");
@@ -20,7 +21,8 @@ export class ReportsController {
     async getTransactions(c: Context) {
         try {
             const { startDate, endDate } = c.req.query();
-            const transactions = await this.service.getTransactions({ startDate, endDate });
+            const tenantId = c.get("user")?.tenantId || "default";
+            const transactions = await this.service.getTransactions(tenantId, { startDate, endDate });
             return apiSuccess(c, transactions, "Transactions retrieved successfully");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve transactions");
@@ -30,7 +32,8 @@ export class ReportsController {
     async getServiceStats(c: Context) {
         try {
             const { startDate, endDate } = c.req.query();
-            const stats = await this.service.getServiceStats({ startDate, endDate });
+            const tenantId = c.get("user")?.tenantId || "default";
+            const stats = await this.service.getServiceStats(tenantId, { startDate, endDate });
             return apiSuccess(c, stats, "Service stats retrieved successfully");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve service stats");
@@ -40,7 +43,8 @@ export class ReportsController {
     async getServiceTransactions(c: Context) {
         try {
             const { startDate, endDate } = c.req.query();
-            const transactions = await this.service.getServiceTransactions({ startDate, endDate });
+            const tenantId = c.get("user")?.tenantId || "default";
+            const transactions = await this.service.getServiceTransactions(tenantId, { startDate, endDate });
             return apiSuccess(c, transactions, "Service transactions retrieved successfully");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve service transactions");
@@ -50,7 +54,8 @@ export class ReportsController {
     async getPurchasesSummary(c: Context) {
         try {
             const { startDate, endDate } = c.req.query();
-            const summary = await this.service.getPurchasesSummary({ startDate, endDate });
+            const tenantId = c.get("user")?.tenantId || "default";
+            const summary = await this.service.getPurchasesSummary(tenantId, { startDate, endDate });
             return apiSuccess(c, summary, "Purchases summary retrieved successfully");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve purchases summary");
@@ -60,7 +65,8 @@ export class ReportsController {
     async getPurchaseTransactions(c: Context) {
         try {
             const { startDate, endDate } = c.req.query();
-            const transactions = await this.service.getPurchaseTransactions({ startDate, endDate });
+            const tenantId = c.get("user")?.tenantId || "default";
+            const transactions = await this.service.getPurchaseTransactions(tenantId, { startDate, endDate });
             return apiSuccess(c, transactions, "Purchase transactions retrieved successfully");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve purchase transactions");
@@ -70,7 +76,8 @@ export class ReportsController {
     async getTechnicianStats(c: Context) {
         try {
             const { startDate, endDate } = c.req.query();
-            const stats = await this.service.getTechnicianStats({ startDate, endDate });
+            const tenantId = c.get("user")?.tenantId || "default";
+            const stats = await this.service.getTechnicianStats(tenantId, { startDate, endDate });
             return apiSuccess(c, stats, "Technician stats retrieved successfully");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve technician stats");
@@ -80,7 +87,8 @@ export class ReportsController {
     async getPartsUsageReport(c: Context) {
         try {
             const { startDate, endDate } = c.req.query();
-            const report = await this.service.getPartsUsageReport({ startDate, endDate });
+            const tenantId = c.get("user")?.tenantId || "default";
+            const report = await this.service.getPartsUsageReport(tenantId, { startDate, endDate });
             return apiSuccess(c, report, "Parts usage report retrieved successfully");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve parts usage report");
@@ -90,7 +98,8 @@ export class ReportsController {
     async getActivityLogs(c: Context) {
         try {
             const { startDate, endDate, userId, action, entityType, limit } = c.req.query();
-            const logs = await this.service.getActivityLogs({
+            const tenantId = c.get("user")?.tenantId || "default";
+            const logs = await this.service.getActivityLogs(tenantId, {
                 startDate,
                 endDate,
                 userId,
@@ -107,7 +116,8 @@ export class ReportsController {
     async getProfitAndLoss(c: Context) {
         try {
             const { startDate, endDate, commissionModel } = c.req.query();
-            const data = await this.service.getProfitAndLoss({
+            const tenantId = c.get("user")?.tenantId || "default";
+            const data = await this.service.getProfitAndLoss(tenantId, {
                 startDate,
                 endDate,
                 commissionModel: commissionModel as any
@@ -120,7 +130,8 @@ export class ReportsController {
 
     async getStockValueReport(c: Context) {
         try {
-            const data = await this.service.getStockValueReport();
+            const tenantId = c.get("user")?.tenantId || "default";
+            const data = await this.service.getStockValueReport(tenantId);
             return apiSuccess(c, data, "Stock value report retrieved successfully");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve stock value report");
@@ -129,7 +140,8 @@ export class ReportsController {
 
     async getStockAdjustments(c: Context) {
         try {
-            const data = await this.service.getStockAdjustments();
+            const tenantId = c.get("user")?.tenantId || "default";
+            const data = await this.service.getStockAdjustments(tenantId);
             return apiSuccess(c, data, "Stock adjustments retrieved successfully");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve stock adjustments");
@@ -139,7 +151,8 @@ export class ReportsController {
     async getKasirDailyReport(c: Context) {
         try {
             const { startDate, endDate } = c.req.query();
-            const data = await this.service.getKasirDailyReport({ startDate, endDate });
+            const tenantId = c.get("user")?.tenantId || "default";
+            const data = await this.service.getKasirDailyReport(tenantId, { startDate, endDate });
             return apiSuccess(c, data, "Daily cashier report retrieved successfully");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve daily cashier report");
@@ -149,7 +162,8 @@ export class ReportsController {
     async getLowStockReport(c: Context) {
         try {
             const { threshold } = c.req.query();
-            const data = await this.service.getLowStockReport(threshold ? parseInt(threshold) : undefined);
+            const tenantId = c.get("user")?.tenantId || "default";
+            const data = await this.service.getLowStockReport(tenantId, threshold ? parseInt(threshold) : undefined);
             return apiSuccess(c, data, "Low stock report retrieved successfully");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve low stock report");

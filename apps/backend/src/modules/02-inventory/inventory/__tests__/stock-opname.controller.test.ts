@@ -44,7 +44,7 @@ describe("StockOpnameController", () => {
     });
 
     const mockAuth = (ctx: any) => {
-        vi.spyOn(ctx, "get").mockReturnValue(createMockUser({ id: "user-1" }));
+        vi.spyOn(ctx, "get").mockReturnValue(createMockUser({ id: "user-1", tenantId: "tenant-1" } as any));
     };
 
     describe("createSession", () => {
@@ -72,6 +72,7 @@ describe("StockOpnameController", () => {
     describe("getSessions", () => {
         it("should return 200 and list", async () => {
             const ctx = createMockContext();
+            mockAuth(ctx);
             const res = await controller.getSessions(ctx);
             expect(res.status).toBe(200);
         });
@@ -80,6 +81,7 @@ describe("StockOpnameController", () => {
     describe("getSessionDetails", () => {
         it("should return 200 and details if found", async () => {
             const ctx = createMockContext();
+            mockAuth(ctx);
             vi.spyOn(ctx.req, "param").mockReturnValue("SO-1");
             mockService.getSessionDetails.mockResolvedValue({ id: "SO-1", items: [] });
             const res = await controller.getSessionDetails(ctx);
@@ -88,6 +90,7 @@ describe("StockOpnameController", () => {
 
         it("should return 404 if not found", async () => {
             const ctx = createMockContext();
+            mockAuth(ctx);
             vi.spyOn(ctx.req, "param").mockReturnValue("SO-1");
             mockService.getSessionDetails.mockResolvedValue(null);
             const res = await controller.getSessionDetails(ctx);
@@ -98,6 +101,7 @@ describe("StockOpnameController", () => {
     describe("updateItem", () => {
         it("should return 200 and result", async () => {
             const ctx = createMockContext();
+            mockAuth(ctx);
             vi.spyOn(ctx.req, "param").mockReturnValue("123");
             vi.spyOn(ctx.req, "json").mockResolvedValue({ physicalStock: 10, reason: "Count" });
             const res = await controller.updateItem(ctx);
@@ -128,6 +132,7 @@ describe("StockOpnameController", () => {
     describe("getAdjustmentHistory", () => {
         it("should return 200 and history", async () => {
             const ctx = createMockContext();
+            mockAuth(ctx);
             const res = await controller.getAdjustmentHistory(ctx);
             expect(res.status).toBe(200);
         });

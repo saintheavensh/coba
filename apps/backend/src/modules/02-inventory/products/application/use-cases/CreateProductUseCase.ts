@@ -8,18 +8,13 @@ import { ProductDTO } from "../dtos/ProductDTO";
 import { Product } from "../../domain/entities/Product.entity";
 import { Price } from "../../domain/value-objects/Price.vo";
 import { Sku } from "../../domain/value-objects/Sku.vo";
-import { ProductStatus } from "../../domain/value-objects/ProductStatus.vo";
 import { Logger, LoggerFactory } from "../../../../../shared/utils/logger/Logger";
 import { ProductMapper } from "../mappers/ProductMapper";
-
-/**
- * CreateProductUseCase
- * Orchestrates the creation of a new product.
- */
+import { TransactionContext } from "@shared/types/db-context";
 import type { ICategoryGateway } from "../../domain/ports/ICategoryGateway";
 
 @injectable()
-export class CreateProductUseCase implements UseCase<CreateProductDTO, Result<ProductDTO>> {
+export class CreateProductUseCase {
     private logger: Logger;
     constructor(
         @inject(TYPES.IProductRepository) private readonly productRepo: IProductRepository,
@@ -29,7 +24,7 @@ export class CreateProductUseCase implements UseCase<CreateProductDTO, Result<Pr
         this.logger = loggerFactory.createLogger('CreateProductUseCase');
     }
 
-    public async execute(request: CreateProductDTO, context?: { requestId?: string; userId?: string }): Promise<Result<ProductDTO>> {
+    public async execute(request: CreateProductDTO, tx: TransactionContext): Promise<Result<ProductDTO>> {
         // 1. Create Value Objects
         const skuResult = Sku.create(request.sku);
         const priceResult = Price.create(request.price);
@@ -40,13 +35,13 @@ export class CreateProductUseCase implements UseCase<CreateProductDTO, Result<Pr
         }
 
         // 1.5 Validate Category Exists
-        const categoryExists = await this.categoryGateway.categoryExists(request.categoryId);
+        const categoryExists = await this.categoryGateway.categoryExists(request.categoryId, tx);
         if (!categoryExists) {
             return Result.fail<ProductDTO>('Category not found');
         }
 
         // 1.6 Validate SKU Uniqueness
-        const skuExists = await this.productRepo.findBySku(skuResult.getValue());
+        const skuExists = await this.productRepo.findBySku(skuResult.getValue(), tx);
         if (skuExists.isSuccess) {
             return Result.fail<ProductDTO>('Product with this SKU already exists');
         }
@@ -66,7 +61,7 @@ export class CreateProductUseCase implements UseCase<CreateProductDTO, Result<Pr
         const product = productResult.getValue();
 
         // 3. Save to Repository
-        const saveResult = await this.productRepo.save(product);
+        const saveResult = await this.productRepo.save(product, tx);
         if (saveResult.isFailure) {
             return Result.fail<ProductDTO>(saveResult.errorValue());
         }

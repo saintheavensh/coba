@@ -1,4 +1,6 @@
 import { DBContext } from "../../../shared/types/db-context";
+import { db } from "../../../shared/infrastructure/database/client";
+import { SharedTransactionAuthority } from "../application/services/shared-transaction-authority";
 import { DeviceRepositoryAdapter, DeviceScraperAdapter } from "./infrastructure";
 import {
     GetDevicesUseCase,
@@ -13,6 +15,9 @@ import {
     ImportDeviceFromUrlUseCase
 } from "./application";
 import { IDeviceFilters, CreateDeviceData, UpdateDeviceData } from "./domain";
+
+// Authority
+const authority = new SharedTransactionAuthority(db as any);
 
 // Adapters
 const deviceRepository = new DeviceRepositoryAdapter();
@@ -35,38 +40,57 @@ const importDeviceFromUrlUC = new ImportDeviceFromUrlUseCase(deviceScraper, crea
  * Provides a clean interface for presentation and external layers.
  */
 export class DevicesFacade {
-    async getAll(filters: IDeviceFilters, dbOrTx?: DBContext) {
-        return await getDevicesUC.execute(filters, dbOrTx);
+    constructor(private readonly authority: SharedTransactionAuthority) { }
+
+    async getAll(tenantId: string, filters: IDeviceFilters) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await getDevicesUC.execute(tenantId, filters, tx);
+        });
     }
 
-    async getById(id: string, dbOrTx?: DBContext) {
-        return await deviceRepository.findById(id, dbOrTx);
+    async getById(tenantId: string, id: string) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await deviceRepository.findById(tenantId, id, tx);
+        });
     }
 
-    async create(data: Omit<CreateDeviceData, 'id' | 'brand'> & { brand: string; id?: string }, dbOrTx?: DBContext) {
-        return await createDeviceUC.execute(data, dbOrTx);
+    async create(tenantId: string, data: Omit<CreateDeviceData, 'id' | 'brand'> & { brand: string; id?: string }) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await createDeviceUC.execute(tenantId, data, tx);
+        });
     }
 
-    async update(id: string, data: UpdateDeviceData, dbOrTx?: DBContext) {
-        return await updateDeviceUC.execute(id, data, dbOrTx);
+    async update(tenantId: string, id: string, data: UpdateDeviceData) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await updateDeviceUC.execute(tenantId, id, data, tx);
+        });
     }
 
-    async delete(id: string, dbOrTx?: DBContext) {
-        return await deleteDeviceUC.execute(id, dbOrTx);
+    async delete(tenantId: string, id: string) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await deleteDeviceUC.execute(tenantId, id, tx);
+        });
     }
 
-    async bulkDelete(ids: string[], dbOrTx?: DBContext) {
-        return await bulkDeleteDevicesUC.execute(ids, dbOrTx);
+    async bulkDelete(tenantId: string, ids: string[]) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await bulkDeleteDevicesUC.execute(tenantId, ids, tx);
+        });
     }
 
-    async syncCompatibility(deviceId: string, dbOrTx?: DBContext) {
-        return await syncDeviceCompatibilityUC.execute(deviceId, dbOrTx);
+    async syncCompatibility(tenantId: string, deviceId: string) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await syncDeviceCompatibilityUC.execute(tenantId, deviceId, tx);
+        });
     }
 
-    async getUnlinkedProducts(limit: number = 50, offset: number = 0, dbOrTx?: DBContext) {
-        return await getUnlinkedProductsUC.execute(limit, offset, dbOrTx);
+    async getUnlinkedProducts(tenantId: string, limit: number = 50, offset: number = 0) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await getUnlinkedProductsUC.execute(tenantId, limit, offset, tx);
+        });
     }
 
+    // Unsecured routes do not touch the DB normally
     async scrape(url: string) {
         return await scrapeDeviceUC.execute(url);
     }
@@ -75,13 +99,15 @@ export class DevicesFacade {
         return await getDeviceLinksUC.execute(url);
     }
 
-    async importFromUrl(url: string) {
-        return await importDeviceFromUrlUC.execute(url);
+    async importFromUrl(tenantId: string, url: string) {
+        return await this.authority.execute({ tenantId }, async (tx) => {
+            return await importDeviceFromUrlUC.execute(tenantId, url, tx);
+        });
     }
 }
 
 /** Singleton instance */
-export const devicesFacade = new DevicesFacade();
+export const devicesFacade = new DevicesFacade(authority);
 
 export {
     getDevicesUC,

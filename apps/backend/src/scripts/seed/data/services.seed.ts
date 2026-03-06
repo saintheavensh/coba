@@ -101,7 +101,8 @@ export async function seedServices() {
                 dateOut: dateOut,
                 warrantyExpiryDate: status === "diambil" ? new Date(date.getTime() + 86400000 * 30) : null, // 30 days warranty
                 createdBy: USER_IDS.kasir,
-                qc: qc
+                qc: qc,
+                tenantId: "system"
             });
         }
     }
@@ -137,7 +138,8 @@ export async function seedServices() {
         estimatedCompletionDate: getPastDate(1),
         dateOut: new Date(),
         createdBy: USER_IDS.kasir,
-        qc: { passed: true, notes: "Tested OK" }
+        qc: { passed: true, notes: "Tested OK" },
+        tenantId: "system"
     });
 
     // 2. Service Jasa Only
@@ -163,7 +165,8 @@ export async function seedServices() {
         estimatedCompletionDate: getPastDate(1),
         dateOut: new Date(),
         createdBy: USER_IDS.kasir,
-        qc: { passed: true, notes: "Unlocked" }
+        qc: { passed: true, notes: "Unlocked" },
+        tenantId: "system"
     });
 
     // Insert manually in chunks if needed, but array insert is fine for ~120 rows
@@ -199,7 +202,8 @@ export async function seedServices() {
             category: cost.category,
             amount: cost.amount,
             description: cost.desc,
-            userId: USER_IDS.admin
+            userId: USER_IDS.admin,
+            tenantId: "system"
         });
     }
 
@@ -212,7 +216,8 @@ export async function seedServices() {
             title: "Service Baru Masuk",
             message: "iPhone X LCD Pecah perlu diagnosa",
             type: "service_update",
-            isRead: false
+            isRead: false,
+            tenantId: "system"
         }
     ]);
 }

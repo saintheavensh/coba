@@ -1,6 +1,6 @@
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IPurchaseRepository } from "../../domain/purchase-repository.port";
-import { InventoryService } from "../../../../02-inventory/inventory/services/inventory.service";
+import { InventoryService } from "../../../../02-inventory/inventory/application/services/inventory.service";
 
 export class CancelPurchaseOrderUseCase {
     constructor(
@@ -8,9 +8,9 @@ export class CancelPurchaseOrderUseCase {
         private inventoryService: InventoryService
     ) { }
 
-    async execute(purchaseId: string, userId: string, reason?: string): Promise<void> {
-        await db.transaction(async (tx) => {
-            const purchase = await this.purchaseRepo.findById(purchaseId);
+    async execute(tenantId: string, purchaseId: string, userId: string, reason: string | undefined, tx: TransactionContext): Promise<void> {
+        const runInternal = async () => {
+            const purchase = await this.purchaseRepo.findById(tenantId, purchaseId, tx);
             if (!purchase) {
                 throw new Error(`Purchase order ${purchaseId} not found`);
             }
@@ -28,14 +28,16 @@ export class CancelPurchaseOrderUseCase {
                 await this.inventoryService.reverseStockFromPurchaseDeletion({
                     purchaseId: purchase.id,
                     items: itemsToReverse
-                }, tx);
+                }, tx, tenantId);
             }
 
             // Domain Logic
             purchase.cancel(userId, reason);
 
             // Persistence
-            await this.purchaseRepo.save(purchase, tx);
-        });
+            await this.purchaseRepo.save(tenantId, purchase, tx);
+        };
+
+        return await runInternal();
     }
 }

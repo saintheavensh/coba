@@ -1,15 +1,10 @@
-import { DBContext } from "../../../../../shared/types/db-context";
-import { IPurchaseReturnRepository, PurchaseReturn } from "../../domain";
-import { HTTPException } from "hono/http-exception";
+import { IPurchaseReturnRepository } from "../../domain";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export class GetPurchaseReturnByIdUseCase {
-    constructor(private readonly repository: IPurchaseReturnRepository) { }
+    constructor(private returnRepo: IPurchaseReturnRepository) { }
 
-    async execute(id: string, dbOrTx?: DBContext): Promise<PurchaseReturn> {
-        const item = await this.repository.findById(id, dbOrTx);
-        if (!item) {
-            throw new HTTPException(404, { message: "Return not found" });
-        }
-        return item;
+    async execute(tenantId: string, id: string, tx: TransactionContext) {
+        return await this.returnRepo.findById(tenantId, id, tx);
     }
 }

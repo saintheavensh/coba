@@ -1,16 +1,16 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export interface IAccountingGateway {
-    createJournal(params: {
+    createJournal(tenantId: string, params: {
         description: string;
         referenceType: string;
         referenceId: string;
-        date?: Date;
+        date?: Date | null | undefined;
         lines: Array<{
             accountId: string;
             debit: number;
             credit: number;
-            description: string;
+            description?: string | null | undefined;
         }>;
-    }, userId?: string, dbOrTx?: DBContext): Promise<void>;
+    }, userId: string, tx: TransactionContext): Promise<void>;
 }

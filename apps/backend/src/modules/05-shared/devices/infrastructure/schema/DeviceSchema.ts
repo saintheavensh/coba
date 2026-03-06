@@ -1,4 +1,4 @@
-import { text, timestamp, pgTable, json, primaryKey } from "drizzle-orm/pg-core";
+import { text, timestamp, pgTable, json, primaryKey, index } from "drizzle-orm/pg-core";
 import { randomUUID } from "crypto";
 import { brands } from "./BrandSchema";
 import { products } from "../../../../02-inventory/products/infrastructure/schema/ProductSchema";
@@ -20,16 +20,21 @@ export const devices = pgTable("devices", {
     specs: text("specs"),
     chipset: text("chipset"),
     specifications: json("specifications").$type<Record<string, any>>(),
+    tenantId: text("tenant_id").notNull(),
     ...timestamps(),
-});
+}, (table) => ({
+    tenantIdx: index("devices_tenant_idx").on(table.tenantId),
+}));
 
 
 
 export const productDeviceCompatibility = pgTable("product_device_compatibility", {
     productId: text("product_id").notNull().references(() => products.id, { onDelete: 'cascade' }),
     deviceId: text("device_id").notNull().references(() => devices.id, { onDelete: 'cascade' }),
+    tenantId: text("tenant_id").notNull(),
 }, (t) => ({
-    pk: primaryKey({ columns: [t.productId, t.deviceId] }),
+    pk: primaryKey({ columns: [t.productId, t.deviceId, t.tenantId] }),
+    tenantIdx: index("product_device_comp_tenant_idx").on(t.tenantId),
 }));
 
 

@@ -1,8 +1,9 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import type { TransactionContext } from "../../../../../shared/types/db-context";
+import type { ProductBatchEntity } from "../../../inventory/domain/batch-repository.port";
 
 export interface IInventoryGateway {
-    getBatch(batchId: string, dbOrTx?: DBContext): Promise<any>;
-    reduceStock(batchId: string, qty: number, dbOrTx?: DBContext): Promise<void>;
+    getBatch(batchId: string, tx: TransactionContext): Promise<ProductBatchEntity | null>;
+    reduceStock(batchId: string, qty: number, tx: TransactionContext): Promise<void>;
 }
 
 export interface IPurchaseReturnGateway {
@@ -16,5 +17,5 @@ export interface IPurchaseReturnGateway {
             reason: string;
         }>;
         notes?: string;
-    }, dbOrTx?: DBContext): Promise<{ returnId: string }>;
+    }, tx: TransactionContext): Promise<{ returnId: string }>;
 }

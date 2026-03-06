@@ -1,17 +1,17 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { Supplier, CreateSupplierData, UpdateSupplierData } from "../entities/supplier.entity";
 
 export interface ISupplierRepository {
-    findAll(dbOrTx?: DBContext): Promise<Supplier[]>;
-    findById(id: string, dbOrTx?: DBContext): Promise<Supplier | null>;
-    getLinkedCategories(supplierId: string, dbOrTx?: DBContext): Promise<any[]>;
-    create(data: CreateSupplierData, dbOrTx?: DBContext): Promise<Supplier[]>;
-    update(id: string, data: UpdateSupplierData, dbOrTx?: DBContext): Promise<Supplier[]>;
-    delete(id: string, dbOrTx?: DBContext): Promise<any>;
-    addCategoryLink(supplierId: string, categoryId: string, dbOrTx?: DBContext): Promise<void>;
-    removeCategoryLink(supplierId: string, categoryId: string, dbOrTx?: DBContext): Promise<void>;
+    findAll(tenantId: string, tx: TransactionContext): Promise<Supplier[]>;
+    findById(tenantId: string, id: string, tx: TransactionContext): Promise<Supplier | null>;
+    getLinkedCategories(tenantId: string, supplierId: string, tx: TransactionContext): Promise<any[]>;
+    create(tenantId: string, data: CreateSupplierData, tx: TransactionContext): Promise<Supplier[]>;
+    update(tenantId: string, id: string, data: UpdateSupplierData, tx: TransactionContext): Promise<Supplier[]>;
+    delete(tenantId: string, id: string, tx: TransactionContext): Promise<any>;
+    addCategoryLink(tenantId: string, supplierId: string, categoryId: string, tx: TransactionContext): Promise<void>;
+    removeCategoryLink(tenantId: string, supplierId: string, categoryId: string, tx: TransactionContext): Promise<void>;
 
-    getMappedProductVariants(supplierId: string, dbOrTx?: DBContext): Promise<any[]>;
-    mapProductVariant(supplierId: string, productId: string, variantId?: string | null, dbOrTx?: DBContext): Promise<void>;
-    unmapProductVariant(supplierId: string, productId: string, variantId?: string | null, dbOrTx?: DBContext): Promise<void>;
+    getMappedProductVariants(tenantId: string, supplierId: string, tx: TransactionContext): Promise<any[]>;
+    mapProductVariant(tenantId: string, supplierId: string, productId: string, variantId: string | null | undefined, tx: TransactionContext): Promise<void>;
+    unmapProductVariant(tenantId: string, supplierId: string, productId: string, variantId: string | null | undefined, tx: TransactionContext): Promise<void>;
 }

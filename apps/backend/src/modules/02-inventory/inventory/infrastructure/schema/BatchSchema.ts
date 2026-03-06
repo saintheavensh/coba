@@ -18,8 +18,10 @@ export const productBatches = pgTable("product_batches", {
     warrantyEndDate: timestamp("warranty_end_date"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").$onUpdate(() => new Date()),
+    tenantId: text("tenant_id").notNull(),
     deletedAt: timestamp("deleted_at"),
 }, (table) => ({
+    tenantIdx: index("product_batches_tenant_idx").on(table.tenantId),
     warrantyIdx: index("idx_batches_warranty").on(table.warrantyEndDate),
     productIdx: index("product_batches_product_idx").on(table.productId),
     variantIdx: index("product_batches_variant_idx").on(table.variantId),

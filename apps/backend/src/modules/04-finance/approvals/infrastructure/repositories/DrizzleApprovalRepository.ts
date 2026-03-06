@@ -1,12 +1,12 @@
-import { eq, and, ne, sql, count } from "drizzle-orm";
-import { db } from "../../../../../shared/infrastructure/database/client";
-import { approvals } from "../schema/ApprovalSchema";
+import { eq, and, ne, count } from "drizzle-orm";
+import { TransactionContext } from "../../../../../shared/types/db-context";
+import { approvals } from "../../infrastructure/schema/ApprovalSchema";
 import { Approval, IApprovalRepository } from "../../domain";
 
 export class DrizzleApprovalRepository implements IApprovalRepository {
-    async findById(id: string): Promise<Approval | null> {
-        const result = await db.query.approvals.findFirst({
-            where: eq(approvals.id, id),
+    async findById(tenantId: string, id: string, tx: TransactionContext): Promise<Approval | null> {
+        const result = await tx.query.approvals.findFirst({
+            where: and(eq(approvals.tenantId, tenantId), eq(approvals.id, id)),
             with: {
                 requestedBy: true,
                 approvedBy: true,
@@ -15,9 +15,10 @@ export class DrizzleApprovalRepository implements IApprovalRepository {
         return (result as any) || null;
     }
 
-    async findByEntity(entityType: string, entityId: string): Promise<Approval[]> {
-        const result = await db.query.approvals.findMany({
+    async findByEntity(tenantId: string, entityType: string, entityId: string, tx: TransactionContext): Promise<Approval[]> {
+        const result = await tx.query.approvals.findMany({
             where: and(
+                eq(approvals.tenantId, tenantId),
                 eq(approvals.entityType, entityType),
                 eq(approvals.entityId, entityId)
             ),
@@ -29,22 +30,24 @@ export class DrizzleApprovalRepository implements IApprovalRepository {
         return result as any[];
     }
 
-    async save(data: Partial<Approval>): Promise<Approval> {
-        const [result] = await db.insert(approvals).values(data as any).returning();
+    async save(tenantId: string, data: Partial<Approval>, tx: TransactionContext): Promise<Approval> {
+        const [result] = await tx.insert(approvals).values({ ...data, tenantId } as any).returning();
+        if (!result) throw new Error("Failed to create approval");
         return result as any;
     }
 
-    async update(id: string, data: Partial<Approval>): Promise<Approval> {
-        const [result] = await db.update(approvals)
+    async update(tenantId: string, id: string, data: Partial<Approval>, tx: TransactionContext): Promise<Approval> {
+        const [result] = await tx.update(approvals)
             .set(data as any)
-            .where(eq(approvals.id, id))
+            .where(and(eq(approvals.tenantId, tenantId), eq(approvals.id, id)))
             .returning();
+        if (!result) throw new Error("Failed to update approval");
         return result as any;
     }
 
-    async findPending(): Promise<Approval[]> {
-        const result = await db.query.approvals.findMany({
-            where: eq(approvals.status, 'PENDING'),
+    async findPending(tenantId: string, tx: TransactionContext): Promise<Approval[]> {
+        const result = await tx.query.approvals.findMany({
+            where: and(eq(approvals.tenantId, tenantId), eq(approvals.status, 'PENDING')),
             with: {
                 requestedBy: true,
             }
@@ -52,8 +55,8 @@ export class DrizzleApprovalRepository implements IApprovalRepository {
         return result as any[];
     }
 
-    async findHistory(filters?: { type?: string; status?: string }): Promise<Approval[]> {
-        const conditions: any[] = [ne(approvals.status, 'PENDING')];
+    async findHistory(tenantId: string, tx: TransactionContext, filters?: { type?: string | undefined; status?: string | undefined }): Promise<Approval[]> {
+        const conditions: any[] = [eq(approvals.tenantId, tenantId), ne(approvals.status, 'PENDING')];
         if (filters?.type) {
             conditions.push(eq(approvals.type, filters.type as any));
         }
@@ -61,7 +64,7 @@ export class DrizzleApprovalRepository implements IApprovalRepository {
             conditions.push(eq(approvals.status, filters.status as any));
         }
 
-        const result = await db.query.approvals.findMany({
+        const result = await tx.query.approvals.findMany({
             where: and(...conditions),
             with: {
                 requestedBy: true,
@@ -72,11 +75,11 @@ export class DrizzleApprovalRepository implements IApprovalRepository {
         return result as any[];
     }
 
-    async getStats(): Promise<{ pending: number; approved: number; rejected: number; totalAmount: number }> {
-        const rows = await db.select({
+    async getStats(tenantId: string, tx: TransactionContext): Promise<{ pending: number; approved: number; rejected: number; totalAmount: number }> {
+        const rows = await tx.select({
             status: approvals.status,
             count: count(),
-        }).from(approvals).groupBy(approvals.status);
+        }).from(approvals).where(eq(approvals.tenantId, tenantId)).groupBy(approvals.status);
 
         const stats = { pending: 0, approved: 0, rejected: 0, totalAmount: 0 };
         for (const row of rows) {

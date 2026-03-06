@@ -1,4 +1,4 @@
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { productBatches } from "../../../../../shared/infrastructure/database/schema";
 import { eq } from "drizzle-orm";
 
@@ -14,7 +14,7 @@ export class ReturnPurchaseUseCase {
     /**
      * Validates if a specific batch can be returned to the supplier based on stock and warranty period.
      */
-    async validateReturn(batchId: string, tx: any = db) {
+    async validateReturn(tenantId: string, batchId: string, tx: TransactionContext) {
         const [batch] = await tx
             .select()
             .from(productBatches)
@@ -37,10 +37,10 @@ export class ReturnPurchaseUseCase {
         return true;
     }
 
-    async execute(data: CreateReturnDTO) {
-        return await db.transaction(async (tx) => {
+    async execute(tenantId: string, data: CreateReturnDTO, tx: TransactionContext) {
+        const runInternal = async () => {
             // 1. Strict Validation Guard
-            await this.validateReturn(data.batchId, tx);
+            await this.validateReturn(tenantId, data.batchId, tx);
 
             // 2. Draft mapping for future return ledger insertion
             // const returnRecord = await tx.insert(purchaseReturns).values(...)
@@ -51,6 +51,8 @@ export class ReturnPurchaseUseCase {
                 success: true,
                 message: "Return validated against warranty successfully"
             };
-        });
+        };
+
+        return await runInternal();
     }
 }

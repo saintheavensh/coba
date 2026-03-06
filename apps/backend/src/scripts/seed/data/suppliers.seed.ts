@@ -14,12 +14,14 @@ export async function seedSuppliers() {
             name: "PT Global Sparepart",
             phone: "021-5551234",
             address: "Ruko Mangga Dua Blok C/12, Jakarta",
+            tenantId: "system",
         },
         {
             id: SUPPLIER_IDS.lokal,
             name: "UD Jaya Elektronik",
             phone: "0812-9998877",
             address: "Pasar Glodok Lt.2 No.45",
+            tenantId: "system",
         }
     ]);
 

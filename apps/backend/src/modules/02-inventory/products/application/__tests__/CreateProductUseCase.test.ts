@@ -9,6 +9,7 @@ describe("CreateProductUseCase", () => {
 
     let mockCategoryGateway: any;
     let mockLoggerFactory: any;
+    const mockTx = { tenantId: 'test-tenant' } as any;
 
     beforeEach(() => {
         mockLoggerFactory = {
@@ -44,13 +45,13 @@ describe("CreateProductUseCase", () => {
         (mockRepo.save as any).mockResolvedValue(Result.ok());
         (mockRepo.findBySku as any).mockResolvedValue(Result.fail('Not found')); // simulate unique
 
-        const result = await useCase.execute(input);
+        const result = await useCase.execute(input, mockTx);
 
         expect(result.isSuccess).toBe(true);
         expect(result.getValue().name).toBe("Test Product");
         expect(result.getValue().sku).toBe("SKU-123");
         expect(mockRepo.save).toHaveBeenCalled();
-        expect(mockCategoryGateway.categoryExists).toHaveBeenCalledWith("CAT-1");
+        expect(mockCategoryGateway.categoryExists).toHaveBeenCalledWith("CAT-1", mockTx);
     });
 
     it("should fail if SKU format is invalid", async () => {
@@ -61,7 +62,7 @@ describe("CreateProductUseCase", () => {
             categoryId: "1"
         };
 
-        const result = await useCase.execute(input);
+        const result = await useCase.execute(input, mockTx);
         expect(result.isFailure).toBe(true);
         expect(mockRepo.save).not.toHaveBeenCalled();
     });
@@ -74,7 +75,7 @@ describe("CreateProductUseCase", () => {
             categoryId: "1"
         };
 
-        const result = await useCase.execute(input);
+        const result = await useCase.execute(input, mockTx);
         expect(result.isFailure).toBe(true);
         expect(result.errorValue()).toContain("Price amount cannot be negative");
     });

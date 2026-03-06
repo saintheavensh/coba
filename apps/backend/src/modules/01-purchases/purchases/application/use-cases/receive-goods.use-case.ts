@@ -1,5 +1,5 @@
 import { IPurchaseRepository, INotificationGateway } from "../../domain/purchase-repository.port";
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export interface ReceiveGoodsDto {
     purchaseId: string;
@@ -17,11 +17,9 @@ export class ReceiveGoodsUseCase {
         private notificationGateway: INotificationGateway
     ) { }
 
-    async execute(dto: ReceiveGoodsDto, dbOrTx?: any): Promise<{ message: string; id: string; hasDiscrepancy: boolean }> {
-        const effectiveDb = dbOrTx || db;
-
-        return await effectiveDb.transaction(async (tx: any) => {
-            const purchase = await this.purchaseRepo.findById(dto.purchaseId);
+    async execute(tenantId: string, dto: ReceiveGoodsDto, tx: TransactionContext): Promise<{ message: string; id: string; hasDiscrepancy: boolean }> {
+        const runInternal = async () => {
+            const purchase = await this.purchaseRepo.findById(tenantId, dto.purchaseId, tx);
             if (!purchase) {
                 throw new Error(`Purchase order ${dto.purchaseId} not found`);
             }
@@ -42,12 +40,13 @@ export class ReceiveGoodsUseCase {
 
             purchase.receiveItems(dto.items, dto.receivedByUserId);
 
-            await this.purchaseRepo.save(purchase, tx);
+            await this.purchaseRepo.save(tenantId, purchase, tx);
 
             // Notifications
             const snapshot = purchase.toSnapshot();
             if (snapshot.userId) {
                 await this.notificationGateway.notifyGoodsReceived(
+                    tenantId,
                     {
                         purchaseId: dto.purchaseId,
                         userId: snapshot.userId,
@@ -58,6 +57,8 @@ export class ReceiveGoodsUseCase {
             }
 
             return { message: "Goods received logged", id: dto.purchaseId, hasDiscrepancy };
-        });
+        };
+
+        return await runInternal();
     }
 }

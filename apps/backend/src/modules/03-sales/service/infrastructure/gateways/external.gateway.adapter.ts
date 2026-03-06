@@ -1,33 +1,32 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { NotificationService } from "../../../../../shared/infrastructure/messaging/NotificationService";
-import { SettingsService } from "../../../../05-shared/settings/settings-container";
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { eq, and } from "drizzle-orm";
 import { users } from "../../../../../shared/infrastructure/database/schema";
-import { eq } from "drizzle-orm";
 import { Logger } from "../../../../../shared/utils/logger/Logger";
 import { INotificationGateway, ISettingsGateway, IUserGateway } from "../../domain";
 
+import { settingsService } from "../../../../05-shared/settings/settings-container";
+
 export class NotificationGatewayAdapter implements INotificationGateway {
-    async technicianAssigned(technicianId: string, serviceNo: string, serviceId: string): Promise<void> {
+    async technicianAssigned(tenantId: string, technicianId: string, serviceNo: string, serviceId: string): Promise<void> {
         try {
-            await NotificationService.technicianAssigned(technicianId, serviceNo, serviceId);
+            await NotificationService.technicianAssigned(tenantId, technicianId, serviceNo, serviceId);
         } catch (e) {
             new Logger("NotificationGateway").error("Failed to send technician assignment notification", e);
         }
     }
 
-    async serviceStatusChanged(userId: string, serviceNo: string, status: string, serviceId: string): Promise<void> {
+    async serviceStatusChanged(tenantId: string, userId: string, serviceNo: string, status: string, serviceId: string): Promise<void> {
         try {
-            await NotificationService.serviceStatusChanged(userId, serviceNo, status, serviceId);
+            await NotificationService.serviceStatusChanged(tenantId, userId, serviceNo, status, serviceId);
         } catch (e) {
             new Logger("NotificationGateway").error("Failed to send cashier status update notification", e);
         }
     }
 
-    async sendWhatsApp(type: "new" | "status" | "complete", serviceData: any, extra: any): Promise<void> {
+    async sendWhatsApp(tenantId: string, type: "new" | "status" | "complete", serviceData: any, extra: any): Promise<void> {
         try {
-            const settingsService = new SettingsService();
-            const settings = await settingsService.getWhatsAppSettings();
+            const settings = await settingsService.getWhatsAppSettings(tenantId);
             if (!settings.enabled) return;
 
             let shouldSend = false;
@@ -84,10 +83,10 @@ export class NotificationGatewayAdapter implements INotificationGateway {
 }
 
 export class SettingsGatewayAdapter implements ISettingsGateway {
-    async getWarrantyDays(label: string, dbOrTx?: DBContext): Promise<number> {
+    async getWarrantyDays(tenantId: string, label: string, tx: TransactionContext): Promise<number> {
         try {
-            const settingsService = new SettingsService();
-            const settings = await settingsService.getServiceSettings(dbOrTx as any);
+            // TODO: propagate tenantId when settingsService is tenant-hardened
+            const settings = await settingsService.getServiceSettings(tenantId);
             const preset = settings.warrantyPresets.find((p: any) => p.label === label);
             if (preset) return preset.days;
         } catch (e) {
@@ -96,17 +95,16 @@ export class SettingsGatewayAdapter implements ISettingsGateway {
         return 0;
     }
 
-    async getServiceSettings(dbOrTx?: DBContext): Promise<any> {
-        const settingsService = new SettingsService();
-        return await settingsService.getServiceSettings(dbOrTx as any);
+    async getServiceSettings(tenantId: string, tx: TransactionContext): Promise<any> {
+        // TODO: propagate tenantId when settingsService is tenant-hardened
+        return await settingsService.getServiceSettings(tenantId);
     }
 }
 
 export class UserGatewayAdapter implements IUserGateway {
-    async getTechnician(id: string, dbOrTx?: DBContext): Promise<any> {
-        const client = (dbOrTx as any) || db;
-        return await client.query.users.findFirst({
-            where: eq(users.id, id)
+    async getTechnician(tenantId: string, id: string, tx: TransactionContext): Promise<any> {
+        return await tx.query.users.findFirst({
+            where: and(eq(users.tenantId, tenantId), eq(users.id, id))
         });
     }
 }

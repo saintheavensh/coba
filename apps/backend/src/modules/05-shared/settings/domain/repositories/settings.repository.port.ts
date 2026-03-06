@@ -2,7 +2,7 @@ import { DBContext } from "../../../../../shared/types/db-context";
 import { Setting } from "../entities/settings.entity";
 
 export interface ISettingsRepository {
-    findByKey(key: string, dbOrTx?: DBContext): Promise<Setting | null>;
-    upsert(key: string, value: any, dbOrTx?: DBContext): Promise<void>;
-    factoryReset(mode: "data" | "full", dbOrTx?: DBContext): Promise<void>;
+    findByKey(tenantId: string, key: string, tx: DBContext): Promise<Setting | null>;
+    upsert(tenantId: string, key: string, value: any, tx: DBContext): Promise<void>;
+    factoryReset(tenantId: string, mode: "data" | "full", tx: DBContext): Promise<void>;
 }

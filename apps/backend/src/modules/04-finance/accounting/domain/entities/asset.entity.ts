@@ -21,7 +21,7 @@ export interface FixedAsset {
 }
 
 export interface DepreciationEntry {
-    id: number;
+    id: string;
     assetId: string;
     period: string; // YYYY-MM
     amount: number;

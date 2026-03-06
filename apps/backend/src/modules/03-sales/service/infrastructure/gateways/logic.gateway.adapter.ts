@@ -1,62 +1,61 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { accountingService } from "../../../../04-finance/accounting/accounting-container";
-import { db } from "../../../../../shared/infrastructure/database/client";
 import { productBatches } from "../../../../../shared/infrastructure/database/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { IAccountingGateway, IInventoryGateway } from "../../domain";
 
 export class AccountingGatewayAdapter implements IAccountingGateway {
-    async isRegisterOpen(dbOrTx?: DBContext): Promise<boolean> {
-        return await accountingService.isRegisterOpen(dbOrTx);
+    async isRegisterOpen(tenantId: string, tx: TransactionContext): Promise<boolean> {
+        return await accountingService.isRegisterOpen(tenantId, tx);
     }
 
-    async recordCashTransaction(params: {
+    async recordCashTransaction(tenantId: string, params: {
         transactionType: string;
         transactionId: string;
         amount: number;
-        description: string;
-    }, dbOrTx?: DBContext): Promise<void> {
-        await accountingService.recordCashTransaction({
+        description?: string | null | undefined;
+    }, tx: TransactionContext): Promise<void> {
+        await accountingService.recordCashTransaction(tenantId, {
             transactionType: params.transactionType as any,
             transactionId: params.transactionId,
             amount: params.amount,
             description: params.description
-        }, dbOrTx);
+        }, tx);
     }
 
-    async createJournal(params: {
+    async createJournal(tenantId: string, params: {
         description: string;
         referenceType: string;
         referenceId: string;
-        lines: Array<{ accountId: string; debit: number; credit: number; description: string }>;
-    }, userId: string, dbOrTx?: DBContext): Promise<void> {
-        await accountingService.createJournal({
+        date?: Date | null | undefined;
+        lines: Array<{ accountId: string; debit: number; credit: number; description?: string | null | undefined }>;
+    }, userId: string, tx: TransactionContext): Promise<void> {
+        await accountingService.createJournal(tenantId, {
             description: params.description,
             referenceType: params.referenceType,
             referenceId: params.referenceId,
+            date: params.date,
             lines: params.lines
-        }, userId, dbOrTx);
+        }, userId, tx);
     }
 }
 
 export class InventoryGatewayAdapter implements IInventoryGateway {
-    async getBatch(batchId: string, dbOrTx?: DBContext): Promise<any> {
-        const client = (dbOrTx as any) || db;
-        const rows = await client.select()
+    async getBatch(tenantId: string, batchId: string, tx: TransactionContext): Promise<any> {
+        const rows = await tx.select()
             .from(productBatches)
-            .where(eq(productBatches.id, batchId))
+            .where(and(eq(productBatches.tenantId, tenantId), eq(productBatches.id, batchId)))
             .for('update');
         return rows[0];
     }
 
-    async updateStock(batchId: string, delta: number, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        const batch = await this.getBatch(batchId, dbOrTx);
+    async updateStock(tenantId: string, batchId: string, delta: number, tx: TransactionContext): Promise<void> {
+        const batch = await this.getBatch(tenantId, batchId, tx);
         if (!batch) return;
 
-        await client.update(productBatches).set({
+        await tx.update(productBatches).set({
             currentStock: batch.currentStock + delta,
             updatedAt: new Date()
-        }).where(eq(productBatches.id, batchId));
+        }).where(and(eq(productBatches.tenantId, tenantId), eq(productBatches.id, batchId)));
     }
 }

@@ -4,7 +4,7 @@ import { IDeviceRepository } from "../../domain";
 export class DeleteDeviceUseCase {
     constructor(private repository: IDeviceRepository) { }
 
-    async execute(id: string, dbOrTx?: DBContext) {
-        return await this.repository.delete(id, dbOrTx);
+    async execute(tenantId: string, id: string, tx: DBContext) {
+        return await this.repository.delete(tenantId, id, tx);
     }
 }

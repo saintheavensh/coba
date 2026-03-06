@@ -1,10 +1,10 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { Sale } from "../entities/sale.entity";
 
 export interface ISaleRepository {
-    findAll(params: { startDate?: Date; endDate?: Date; search?: string; limit?: number }, dbOrTx?: DBContext): Promise<Sale[]>;
-    findById(id: string, dbOrTx?: DBContext): Promise<Sale | null>;
-    create(sale: any, dbOrTx?: DBContext): Promise<void>;
-    createItem(item: any, dbOrTx?: DBContext): Promise<void>;
-    createPayment(payment: any, dbOrTx?: DBContext): Promise<void>;
+    findAll(tenantId: string, params: { startDate?: Date | undefined; endDate?: Date | undefined; search?: string | undefined; limit?: number | undefined }, tx: TransactionContext): Promise<Sale[]>;
+    findById(tenantId: string, id: string, tx: TransactionContext): Promise<Sale | null>;
+    create(tenantId: string, sale: any, tx: TransactionContext): Promise<void>;
+    createItem(tenantId: string, item: any, tx: TransactionContext): Promise<void>;
+    createPayment(tenantId: string, payment: any, tx: TransactionContext): Promise<void>;
 }

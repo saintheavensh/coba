@@ -10,10 +10,10 @@ export async function seedProducts() {
     console.log("Creating categories...");
 
     await db.insert(categories).values([
-        { id: CATEGORY_IDS.hp, name: "Handphone", description: "Unit HP Second/Baru" },
-        { id: CATEGORY_IDS.sparepart, name: "Sparepart", description: "LCD, Batre, IC, dll" },
-        { id: CATEGORY_IDS.accessory, name: "Aksesoris", description: "Case, TG, Charger" },
-        { id: CATEGORY_IDS.service, name: "Jasa Service", description: "Jasa perbaikan" },
+        { id: CATEGORY_IDS.hp, name: "Handphone", description: "Unit HP Second/Baru", tenantId: "system" },
+        { id: CATEGORY_IDS.sparepart, name: "Sparepart", description: "LCD, Batre, IC, dll", tenantId: "system" },
+        { id: CATEGORY_IDS.accessory, name: "Aksesoris", description: "Case, TG, Charger", tenantId: "system" },
+        { id: CATEGORY_IDS.service, name: "Jasa Service", description: "Jasa perbaikan", tenantId: "system" },
     ]);
 
     console.log("Creating brands and devices...");
@@ -22,8 +22,8 @@ export async function seedProducts() {
     const brandSamsungId = "BRAND-SAMSUNG";
 
     await db.insert(brands).values([
-        { id: brandAppleId, name: "Apple", logo: "" },
-        { id: brandSamsungId, name: "Samsung", logo: "" },
+        { id: brandAppleId, name: "Apple", logo: "", tenantId: "system" },
+        { id: brandSamsungId, name: "Samsung", logo: "", tenantId: "system" },
     ]);
 
     // Devices
@@ -48,7 +48,7 @@ export async function seedProducts() {
 
     // Simple progress bar implementation
     for (let i = 0; i < totalDevices; i++) {
-        await db.insert(devices).values(devicesList[i]);
+        await db.insert(devices).values({ ...devicesList[i], tenantId: "system" });
 
         // Calculate progress
         const percent = Math.round(((i + 1) / totalDevices) * 100);
@@ -79,49 +79,55 @@ export async function seedProducts() {
             id: PRODUCT_IDS.iphone13,
             categoryId: CATEGORY_IDS.hp,
             stock: 1,
-            minStock: 1,
+            minimumStock: 1,
             name: "iPhone 13 128GB Midnight (Second)",
-            code: "HP-IP13-128-MID",
+            sku: "HP-IP13-128-MID",
+            tenantId: "system",
         },
         {
             id: PRODUCT_IDS.lcdIpX,
             categoryId: CATEGORY_IDS.sparepart,
             stock: 4,
-            minStock: 2,
+            minimumStock: 2,
             name: "LCD iPhone X OLED GX",
-            code: "SP-LCD-IPX-GX",
+            sku: "SP-LCD-IPX-GX",
+            tenantId: "system",
         },
         {
             id: PRODUCT_IDS.batreIpX,
             categoryId: CATEGORY_IDS.sparepart,
             stock: 4,
-            minStock: 2,
+            minimumStock: 2,
             name: "Baterai iPhone X Vizz",
-            code: "SP-BAT-IPX-VZ",
+            sku: "SP-BAT-IPX-VZ",
+            tenantId: "system",
         },
         {
             id: PRODUCT_IDS.lcd13Pro,
             categoryId: CATEGORY_IDS.sparepart,
             stock: 1,
-            minStock: 1,
+            minimumStock: 1,
             name: "LCD iPhone 13 Pro Original Copotan",
-            code: "SP-LCD-IP13PRO-ORI",
+            sku: "SP-LCD-IP13PRO-ORI",
+            tenantId: "system",
         },
         {
             id: PRODUCT_IDS.caseClear,
             categoryId: CATEGORY_IDS.accessory,
             stock: 11,
-            minStock: 5,
+            minimumStock: 5,
             name: "Case Clear iPhone X/XS",
-            code: "ACC-CASE-IPX-CLR",
+            sku: "ACC-CASE-IPX-CLR",
+            tenantId: "system",
         },
         {
             id: PRODUCT_IDS.tempered,
             categoryId: CATEGORY_IDS.accessory,
             stock: 17,
-            minStock: 10,
+            minimumStock: 10,
             name: "Tempered Glass iPhone X/11 Pro",
-            code: "ACC-TG-IPX",
+            sku: "ACC-TG-IPX",
+            tenantId: "system",
         }
     ]);
 
@@ -136,6 +142,7 @@ export async function seedProducts() {
             sellPrice: 10500000,
             initialStock: 1,
             currentStock: 1,
+            tenantId: "system",
         },
         {
             id: BATCH_IDS.lcdIpXA,
@@ -145,6 +152,7 @@ export async function seedProducts() {
             sellPrice: 450000,
             initialStock: 5,
             currentStock: 4, // 1 used/sold
+            tenantId: "system",
         },
         {
             id: BATCH_IDS.batreIpXA,
@@ -154,6 +162,7 @@ export async function seedProducts() {
             sellPrice: 200000,
             initialStock: 5,
             currentStock: 4, // 1 used/sold
+            tenantId: "system",
         },
         {
             id: BATCH_IDS.lcd13ProA,
@@ -163,6 +172,7 @@ export async function seedProducts() {
             sellPrice: 3500000,
             initialStock: 1,
             currentStock: 1,
+            tenantId: "system",
         },
         {
             id: BATCH_IDS.caseA,
@@ -172,6 +182,7 @@ export async function seedProducts() {
             sellPrice: 35000,
             initialStock: 20,
             currentStock: 11, // 9 sold (bulk)
+            tenantId: "system",
         },
         {
             id: BATCH_IDS.tgA,
@@ -181,6 +192,7 @@ export async function seedProducts() {
             sellPrice: 25000,
             initialStock: 40,
             currentStock: 17, // 23 sold
+            tenantId: "system",
         },
     ]);
 
@@ -202,6 +214,7 @@ export async function seedProducts() {
             await db.insert(productDeviceCompatibility).values({
                 productId: c.product,
                 deviceId: dId,
+                tenantId: "system",
             });
             compatCount++;
         }

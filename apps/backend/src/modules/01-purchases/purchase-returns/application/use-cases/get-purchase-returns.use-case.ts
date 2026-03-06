@@ -1,10 +1,10 @@
-import { DBContext } from "../../../../../shared/types/db-context";
-import { IPurchaseReturnRepository, PurchaseReturn } from "../../domain";
+import { IPurchaseReturnRepository } from "../../domain";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export class GetPurchaseReturnsUseCase {
-    constructor(private readonly repository: IPurchaseReturnRepository) { }
+    constructor(private returnRepo: IPurchaseReturnRepository) { }
 
-    async execute(dbOrTx?: DBContext): Promise<PurchaseReturn[]> {
-        return await this.repository.findAll(dbOrTx);
+    async execute(tenantId: string, tx: TransactionContext) {
+        return await this.returnRepo.findAll(tenantId, tx);
     }
 }

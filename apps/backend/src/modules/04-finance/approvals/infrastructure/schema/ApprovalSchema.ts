@@ -1,4 +1,4 @@
-import { text, integer, timestamp, pgTable, json } from "drizzle-orm/pg-core";
+import { text, integer, timestamp, pgTable, json, index } from "drizzle-orm/pg-core";
 import { users } from "../../../../05-shared/users/infrastructure/schema/UserSchema";
 import { randomUUID } from "crypto";
 
@@ -14,6 +14,9 @@ export const approvals = pgTable("approvals", {
     approvedAt: timestamp("approved_at"),
     reason: text("reason"),
     data: json("data").$type<any>(),
-});
+    tenantId: text("tenant_id").notNull(),
+}, (table) => ({
+    tenantIdx: index("approvals_tenant_idx").on(table.tenantId),
+}));
 
 

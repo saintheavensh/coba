@@ -5,13 +5,13 @@ export interface OperationalCost {
     category: string;
     amount: number;
     date: Date;
-    description?: string | null;
+    description?: string | null | undefined;
     status: OperationalCostStatus;
-    dueDate?: Date | null;
-    paidAt?: Date | null;
-    userId?: string | null;
-    createdAt: Date;
-    updatedAt: Date;
+    dueDate?: Date | null | undefined;
+    paidAt?: Date | null | undefined;
+    userId?: string | null | undefined;
+    createdAt?: Date | null | undefined;
+    updatedAt?: Date | null | undefined;
 }
 
 export interface CreateOperationalCostInput {

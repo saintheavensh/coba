@@ -1,8 +1,5 @@
-import { db } from "../../../../shared/infrastructure/database/client";
-import { cashRegisters, cashRegisterTransactions } from "../../../../shared/infrastructure/database/schema";
-import { eq, and, desc, sql, gte, lte } from "drizzle-orm";
-import { AuditService } from "./audit.service";
 import { accountingService } from "../accounting-container";
+import { TransactionContext } from "../../../../shared/types/db-context";
 
 export type TransactionType = "sale" | "service" | "expense" | "refund" | "adjustment";
 
@@ -18,67 +15,47 @@ export class CashRegisterService {
     /**
      * Check if register is open
      */
-    static async isRegisterOpen(dbOrTx?: any): Promise<boolean> {
-        return await accountingService.isRegisterOpen(dbOrTx);
+    static async isRegisterOpen(tx: TransactionContext, tenantId: string): Promise<boolean> {
+        return await accountingService.isRegisterOpen(tenantId, tx);
     }
 
-    /**
-     * Open a new cash register for the day
-     */
-    static async open(openingBalance: number, userId: string, dbOrTx?: any): Promise<string> {
-        return await accountingService.openRegister(openingBalance, userId, dbOrTx);
+    static async open(openingBalance: number, userId: string, tx: TransactionContext, tenantId: string): Promise<string> {
+        return await accountingService.openRegister(tenantId, openingBalance, userId, tx);
     }
 
-    /**
-     * Record a transaction in the current register
-     */
-    static async recordTransaction(input: RecordTransactionInput, dbOrTx?: any): Promise<void> {
-        await accountingService.recordCashTransaction(input, dbOrTx);
+    static async recordTransaction(input: RecordTransactionInput, tx: TransactionContext, tenantId: string): Promise<void> {
+        await accountingService.recordCashTransaction(tenantId, input, tx);
     }
 
-    /**
-     * Record an expense with threshold approval check
-     */
     static async recordExpense(
         amount: number,
         category: string,
         description: string,
         userId: string,
         userRoles: string[],
-        dbOrTx?: any
+        tx: TransactionContext,
+        tenantId: string
     ) {
-        await accountingService.recordCashExpense(amount, category, description, userId, userRoles, dbOrTx);
+        await accountingService.recordCashExpense(tenantId, amount, category, description, userId, userRoles, tx);
     }
 
-    static async getActiveSession(dbOrTx?: any) {
-        return await accountingService.getCurrentRegister(dbOrTx);
+    static async getActiveSession(tx: TransactionContext, tenantId: string) {
+        return await accountingService.getCurrentRegister(tenantId, tx);
     }
 
-    /**
-     * Close the current register
-     */
-    static async close(actualClosing: number, notes: string, userId: string, reservation?: { amount: number, targetAccountId: string, sourceAccountId?: string }, dbOrTx?: any): Promise<{ difference: number }> {
-        return await accountingService.closeRegister(actualClosing, notes, userId, reservation, dbOrTx);
+    static async close(actualClosing: number, notes: string, userId: string, reservation: { amount: number, targetAccountId: string, sourceAccountId?: string } | undefined, tx: TransactionContext, tenantId: string): Promise<{ difference: number }> {
+        return await accountingService.closeRegister(tenantId, actualClosing, notes, userId, tx, reservation);
     }
 
-    /**
-     * Get register history
-     */
-    static async getHistory(startDate?: string, endDate?: string, limit = 30, dbOrTx?: any) {
-        return await accountingService.getRegisterHistory({ startDate, endDate, limit }, dbOrTx);
+    static async getHistory(startDate: string | undefined, endDate: string | undefined, limit: number, tx: TransactionContext, tenantId: string) {
+        return await accountingService.getRegisterHistory(tenantId, { startDate, endDate, limit }, tx);
     }
 
-    /**
-     * Get summary for a register
-     */
-    static async getSummary(registerId: string, dbOrTx?: any) {
-        return await accountingService.getRegisterSummary(registerId, dbOrTx);
+    static async getSummary(registerId: string, tx: TransactionContext, tenantId: string) {
+        return await accountingService.getRegisterSummary(tenantId, registerId, tx);
     }
 
-    /**
-     * Get today's progress (for dashboard)
-     */
-    static async getTodayProgress(dbOrTx?: any) {
-        return await accountingService.getTodayRegisterProgress(dbOrTx);
+    static async getTodayProgress(tx: TransactionContext, tenantId: string) {
+        return await accountingService.getTodayRegisterProgress(tenantId, tx);
     }
 }

@@ -1,4 +1,4 @@
-import { db } from "../../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../../shared/types/db-context";
 import { accounts, journals, journalLines } from "../../../../shared/infrastructure/database/schema";
 import { eq, and, gte, lte, sql, sum } from "drizzle-orm";
 
@@ -7,12 +7,12 @@ export class AccountingReportService {
     // ==========================================
     // 1. GENERAL LEDGER (Buku Besar)
     // ==========================================
-    static async getGeneralLedger(accountId: string, startDate?: Date, endDate?: Date) {
+    static async getGeneralLedger(tenantId: string, tx: TransactionContext, accountId: string, startDate?: Date, endDate?: Date) {
         // 1. Calculate Opening Balance (Sum of all transactions BEFORE startDate)
         let openingBalance = 0;
 
         if (startDate) {
-            const openingQuery = await db
+            const openingQuery = await tx
                 .select({
                     debit: sum(journalLines.debit),
                     credit: sum(journalLines.credit)
@@ -20,6 +20,7 @@ export class AccountingReportService {
                 .from(journalLines)
                 .innerJoin(journals, eq(journals.id, journalLines.journalId))
                 .where(and(
+                    eq(journals.tenantId, tenantId),
                     eq(journalLines.accountId, accountId),
                     eq(journals.status, 'posted'),
                     sql`${journals.date} < ${startDate.toISOString()}`
@@ -35,6 +36,7 @@ export class AccountingReportService {
 
         // 2. Get Transactions in Period
         const whereClause = [
+            eq(journals.tenantId, tenantId),
             eq(journalLines.accountId, accountId),
             eq(journals.status, 'posted')
         ];
@@ -42,7 +44,7 @@ export class AccountingReportService {
         if (startDate) whereClause.push(gte(journals.date, startDate));
         if (endDate) whereClause.push(lte(journals.date, endDate));
 
-        const transactions = await db
+        const transactions = await tx
             .select({
                 id: journals.id,
                 date: journals.date,
@@ -81,12 +83,12 @@ export class AccountingReportService {
     // ==========================================
     // 2. INCOME STATEMENT (Laba Rugi)
     // ==========================================
-    static async getIncomeStatement(startDate: Date, endDate: Date) {
+    static async getIncomeStatement(tenantId: string, tx: TransactionContext, startDate: Date, endDate: Date) {
         // Fetch all REVENUE and EXPENSE accounts with their transaction sums in the period
         // We filter by account types or code prefixes.
         // Assuming Standard: 4=Revenue, 5=Expense.
 
-        const movements = await db
+        const movements = await tx
             .select({
                 accountId: accounts.id,
                 accountName: accounts.name,
@@ -99,6 +101,7 @@ export class AccountingReportService {
             .innerJoin(journals, eq(journals.id, journalLines.journalId))
             .innerJoin(accounts, eq(accounts.id, journalLines.accountId))
             .where(and(
+                eq(journals.tenantId, tenantId),
                 eq(journals.status, 'posted'),
                 gte(journals.date, startDate),
                 lte(journals.date, endDate)
@@ -154,12 +157,12 @@ export class AccountingReportService {
     // ==========================================
     // 3. BALANCE SHEET (Neraca)
     // ==========================================
-    static async getBalanceSheet(asOfDate: Date) {
+    static async getBalanceSheet(tenantId: string, tx: TransactionContext, asOfDate: Date) {
         // Balance Sheet includes all Asset (1), Liability (2), Equity (3)
         // AND current period earnings (which is Rev - Exp).
 
         // 1. Fetch Balances
-        const balances = await db
+        const balances = await tx
             .select({
                 accountId: accounts.id,
                 accountName: accounts.name,
@@ -172,6 +175,7 @@ export class AccountingReportService {
             .innerJoin(journals, eq(journals.id, journalLines.journalId))
             .innerJoin(accounts, eq(accounts.id, journalLines.accountId))
             .where(and(
+                eq(journals.tenantId, tenantId),
                 eq(journals.status, 'posted'),
                 lte(journals.date, asOfDate)
             ))

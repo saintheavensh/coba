@@ -1,4 +1,5 @@
 import { db } from "../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../shared/types/db-context";
 import { PaymentMethodRepositoryAdapter, AccountGatewayAdapter } from "./infrastructure";
 import {
     GetPaymentMethodsUseCase,
@@ -16,48 +17,77 @@ const accountGateway = new AccountGatewayAdapter();
 // Use cases
 const getPaymentMethodsUC = new GetPaymentMethodsUseCase(repository);
 const getPaymentMethodByIdUC = new GetPaymentMethodByIdUseCase(repository);
-const createPaymentMethodUC = new CreatePaymentMethodUseCase(repository, accountGateway, db as any);
+const createPaymentMethodUC = new CreatePaymentMethodUseCase(repository, accountGateway);
 const mutatePaymentMethodUC = new MutatePaymentMethodUseCase(repository);
-const variantManagementUC = new VariantManagementUseCase(repository, accountGateway, db as any);
+const variantManagementUC = new VariantManagementUseCase(repository, accountGateway);
+
+import { inventoryAuthority } from "../../02-inventory/inventory/inventory-container";
 
 /**
  * PaymentMethodsService — facade for external and presentation layers.
  */
 export class PaymentMethodsService {
-    async getAll(): Promise<PaymentMethod[]> {
-        return await getPaymentMethodsUC.execute(false);
+    async getAll(tenantId: string): Promise<PaymentMethod[]> {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getPaymentMethodsUC.execute(tenantId, tx, false)
+        );
     }
 
-    async getEnabled(): Promise<PaymentMethod[]> {
-        return await getPaymentMethodsUC.execute(true);
+    async getEnabled(tenantId: string): Promise<PaymentMethod[]> {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getPaymentMethodsUC.execute(tenantId, tx, true)
+        );
     }
 
-    async getById(id: string): Promise<PaymentMethod> {
-        return await getPaymentMethodByIdUC.execute(id);
+    async getById(tenantId: string, id: string): Promise<PaymentMethod> {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getPaymentMethodByIdUC.execute(tenantId, id, tx)
+        );
     }
 
-    async create(input: PaymentMethodInput): Promise<PaymentMethod> {
-        return await createPaymentMethodUC.execute(input);
+    async create(tenantId: string, input: PaymentMethodInput): Promise<PaymentMethod> {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await createPaymentMethodUC.execute(tenantId, input, tx)
+        );
     }
 
-    async update(id: string, data: any): Promise<PaymentMethod> {
-        return await mutatePaymentMethodUC.execute(id, data);
+    async update(tenantId: string, id: string, data: any): Promise<PaymentMethod> {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await mutatePaymentMethodUC.execute(tenantId, id, data, tx)
+        );
     }
 
-    async disable(id: string): Promise<void> {
-        return await mutatePaymentMethodUC.disable(id);
+    async disable(tenantId: string, id: string): Promise<void> {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await mutatePaymentMethodUC.disable(tenantId, id, tx)
+        );
     }
 
-    async addVariant(methodId: string, input: PaymentVariantInput): Promise<PaymentMethod> {
-        return await variantManagementUC.addVariant(methodId, input);
+    async addVariant(tenantId: string, methodId: string, input: PaymentVariantInput): Promise<PaymentMethod> {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await variantManagementUC.addVariant(tenantId, methodId, input, tx)
+        );
     }
 
-    async updateVariant(variantId: string, data: any): Promise<void> {
-        return await variantManagementUC.updateVariant(variantId, data);
+    async updateVariant(tenantId: string, variantId: string, data: any): Promise<void> {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await variantManagementUC.updateVariant(tenantId, variantId, data, tx)
+        );
     }
 
-    async disableVariant(variantId: string): Promise<void> {
-        return await variantManagementUC.disableVariant(variantId);
+    async disableVariant(tenantId: string, variantId: string): Promise<void> {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await variantManagementUC.disableVariant(tenantId, variantId, tx)
+        );
     }
 }
 

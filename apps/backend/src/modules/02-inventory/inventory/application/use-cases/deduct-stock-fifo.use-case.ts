@@ -1,12 +1,12 @@
-import type { IStockMutationGateway } from "../../domain/stock-mutation-gateway.port";
-import type { DeductStockFIFOInput, DeductStockFIFOOutput } from "../../domain/stock.types";
-import { StockCalculator } from "../../domain/services/stock-calculator";
-import type { TransactionContext } from "../../../../../shared/types/db-context";
+import type { IStockMutationGateway } from "@domain/stock-mutation-gateway.port";
+import type { DeductStockFIFOInput, DeductStockFIFOOutput } from "@domain/stock.types";
+import { StockCalculator } from "@domain/services/stock-calculator";
+import type { TransactionContext } from "@shared/types/db-context";
 
 export class DeductStockFIFOUseCase {
     constructor(private readonly stockGateway: IStockMutationGateway) { }
 
-    async execute(input: DeductStockFIFOInput, tx: TransactionContext): Promise<DeductStockFIFOOutput> {
+    async execute(input: DeductStockFIFOInput, tx: TransactionContext, tenantId?: string): Promise<DeductStockFIFOOutput> {
         const allocations: DeductStockFIFOOutput["allocations"] = [];
         let totalCogs = 0;
 

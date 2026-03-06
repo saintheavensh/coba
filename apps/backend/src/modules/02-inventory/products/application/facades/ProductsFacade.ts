@@ -12,6 +12,8 @@ import { GetBatchesUseCase } from "../use-cases/GetBatchesUseCase";
 import { UpdateProductUseCase } from "../use-cases/UpdateProductUseCase";
 import { ActivateProductUseCase } from "../use-cases/ActivateProductUseCase";
 import { DeleteProductUseCase } from "../use-cases/DeleteProductUseCase";
+import { InventoryTransactionAuthority } from "../../../inventory/application/services/inventory-transaction-authority";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 /**
  * ProductsFacade
@@ -21,6 +23,8 @@ import { DeleteProductUseCase } from "../use-cases/DeleteProductUseCase";
 @injectable()
 export class ProductsFacade {
     constructor(
+        @inject(TYPES.InventoryTransactionAuthority || Symbol.for("InventoryTransactionAuthority"))
+        private readonly inventoryAuthority: InventoryTransactionAuthority,
         @inject(TYPES.CreateProductUseCase)
         private readonly createProductUC: CreateProductUseCase,
         @inject(TYPES.GetProductsUseCase)
@@ -33,59 +37,101 @@ export class ProductsFacade {
         private readonly getBatchesUC: GetBatchesUseCase,
         @inject(TYPES.UpdateProductUseCase)
         private readonly updateProductUC: UpdateProductUseCase,
+        @inject(TYPES.ActivateProductUseCase)
+        private readonly activateProductUC: ActivateProductUseCase,
         @inject(TYPES.DeleteProductUseCase)
         private readonly deleteProductUC: DeleteProductUseCase,
-        // Note: If Activate doesn't have a specific TYPE yet, we add it to TYPES or use generic. 
-        // Let's assume we use it as needed.
     ) { }
 
-    public async createProduct(data: CreateProductDTO): Promise<Result<ProductDTO>> {
-        return this.createProductUC.execute(data);
+    public async createProduct(tenantId: string, data: CreateProductDTO): Promise<Result<ProductDTO>> {
+        return this.inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => this.createProductUC.execute(data, tx)
+        );
     }
 
-    public async getProduct(id: string): Promise<Result<ProductDTO>> {
-        return this.getProductUC.execute({ id });
+    public async activateProduct(tenantId: string, productId: string): Promise<Result<ProductDTO>> {
+        return this.inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => this.activateProductUC.execute(productId, tx)
+        );
     }
 
-    public async getAllProducts(deviceId?: string, search?: string, categoryId?: string, page?: number, limit?: number): Promise<any> {
-        const result = await this.getProductsUC.execute({ search, categoryId, page, limit });
-        if (result.isFailure) throw new Error(result.errorValue() as string);
-        return result.getValue();
+    public async getProduct(tenantId: string, id: string): Promise<Result<ProductDTO>> {
+        return this.inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => this.getProductUC.execute({ id }, tx)
+        );
     }
 
-    public async getProductBySku(sku: string): Promise<Result<ProductDTO>> {
-        return this.getProductUC.execute({ sku });
+    public async getAllProducts(tenantId: string, deviceId?: string, search?: string, categoryId?: string, page?: number, limit?: number): Promise<any> {
+        return this.inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => {
+                const result = await this.getProductsUC.execute({ search, categoryId, page, limit }, tx);
+                if (result.isFailure) throw new Error(result.errorValue() as string);
+                return result.getValue();
+            }
+        );
     }
 
-    public async searchProduct(query: string): Promise<any> {
-        const result = await this.getProductsUC.execute({ search: query });
-        if (result.isFailure) throw new Error(result.errorValue() as string);
-        return result.getValue().data;
+    public async getProductBySku(tenantId: string, sku: string): Promise<Result<ProductDTO>> {
+        return this.inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => this.getProductUC.execute({ sku }, tx)
+        );
     }
 
-    public async getProductVariants(productId: string, supplierId?: string): Promise<any> {
-        const result = await this.getProductVariantsUC.execute(productId, supplierId);
-        if (result.isFailure) throw new Error(result.errorValue() as string);
-        return result.getValue();
+    public async searchProduct(tenantId: string, query: string): Promise<any> {
+        return this.inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => {
+                const result = await this.getProductsUC.execute({ search: query }, tx);
+                if (result.isFailure) throw new Error(result.errorValue() as string);
+                return result.getValue().data;
+            }
+        );
     }
 
-    public async getBatches(supplierId?: string): Promise<any> {
-        const result = await this.getBatchesUC.execute(supplierId);
-        if (result.isFailure) throw new Error(result.errorValue() as string);
-        return result.getValue();
+    public async getProductVariants(tenantId: string, productId: string, supplierId?: string): Promise<any> {
+        return this.inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => {
+                const result = await this.getProductVariantsUC.execute(productId, supplierId, tx);
+                if (result.isFailure) throw new Error(result.errorValue() as string);
+                return result.getValue();
+            }
+        );
     }
 
-    public async getStats(): Promise<any> {
-        // Stub for dashboard or admin stats 
+    public async getBatches(tenantId: string, supplierId?: string): Promise<any> {
+        return this.inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => {
+                const result = await this.getBatchesUC.execute(supplierId, tx);
+                if (result.isFailure) throw new Error(result.errorValue() as string);
+                return result.getValue();
+            }
+        );
+    }
+
+    public async getStats(tenantId: string): Promise<any> {
+        // Stub for dashboard or admin stats
         // Real implementation would need a dedicated GetProductStatsUseCase
         return { totalProducts: 0, activeProducts: 0, lowStock: 0 };
     }
 
-    public async updateProduct(id: string, data: UpdateProductDTO): Promise<Result<ProductDTO>> {
-        return this.updateProductUC.execute({ id, data });
+    public async updateProduct(tenantId: string, id: string, data: UpdateProductDTO): Promise<Result<ProductDTO>> {
+        return this.inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => this.updateProductUC.execute({ id, data }, tx)
+        );
     }
 
-    public async deleteProduct(id: string): Promise<Result<void>> {
-        return this.deleteProductUC.execute(id);
+    public async deleteProduct(tenantId: string, id: string): Promise<Result<void>> {
+        return this.inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => this.deleteProductUC.execute(id, tx)
+        );
     }
 }

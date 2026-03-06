@@ -5,13 +5,13 @@ export interface CashRegister {
     openedAt: Date;
     openedBy: string;
     openingBalance: number;
-    closedAt?: Date;
-    closedBy?: string;
-    expectedClosing?: number;
-    actualClosing?: number;
-    difference?: number;
+    closedAt?: Date | null | undefined;
+    closedBy?: string | null | undefined;
+    expectedClosing?: number | null | undefined;
+    actualClosing?: number | null | undefined;
+    difference?: number | null | undefined;
     status: CashRegisterStatus;
-    notes?: string;
+    notes?: string | null | undefined;
 }
 
 export type TransactionType = "sale" | "expense" | "deposit" | "withdrawal" | "service" | "refund" | "adjustment";
@@ -22,7 +22,7 @@ export interface CashTransaction {
     type: TransactionType;
     amount: number;
     description: string;
-    referenceType?: string;
-    referenceId?: string;
+    referenceType?: string | null | undefined;
+    referenceId?: string | null | undefined;
     createdAt: Date;
 }

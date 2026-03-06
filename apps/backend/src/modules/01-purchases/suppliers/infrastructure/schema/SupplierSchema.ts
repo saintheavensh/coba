@@ -17,8 +17,11 @@ export const suppliers = pgTable("suppliers", {
     address: text("address"),
     image: text("image"),
     isActive: boolean("is_active").default(true),
+    tenantId: text("tenant_id").notNull(),
     ...timestamps(),
-});
+}, (table) => ({
+    tenantIdx: index("suppliers_tenant_idx").on(table.tenantId),
+}));
 
 export const supplierProductVariants = pgTable("supplier_product_variants", {
     id: text("id").primaryKey().$defaultFn(() => randomUUID()),
@@ -26,6 +29,7 @@ export const supplierProductVariants = pgTable("supplier_product_variants", {
     productId: text("product_id").notNull().references(() => products.id),
     variantId: text("variant_id").references(() => productVariants.id),
     isActive: boolean("is_active").default(true),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -35,11 +39,13 @@ export const supplierBrands = pgTable("supplier_brands", {
     brandId: text("brand_id").notNull().references(() => productVariants.id, { onDelete: 'cascade' }),
     warrantyPeriodDays: integer("warranty_period_days").notNull(),
     isActive: boolean("is_active").default(true),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").$onUpdate(() => new Date()),
 }, (table) => ({
     unq: unique("sup_brand_unique").on(table.supplierId, table.brandId),
+    tenantIdx: index("supplier_brands_tenant_idx").on(table.tenantId),
     supplierIdx: index("idx_supplier_brands_supplier").on(table.supplierId),
-    brandIdx: index("idx_supplier_brands_brand").on(table.brandId)
+    brandIdx: index("idx_supplier_brands_brand").on(table.brandId),
 }));
 

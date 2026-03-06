@@ -1,17 +1,19 @@
-import { db } from "../../../../../shared/infrastructure/database/client";
 import { products, categoryVariants } from "../../../../../shared/infrastructure/database/schema";
 import { eq, and } from "drizzle-orm";
 import { IPurchaseVariantPolicyGateway } from "../../domain/purchase-repository.port";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export class PurchaseVariantPolicyAdapter implements IPurchaseVariantPolicyGateway {
     async ensureVariantAllowedForSupplier(
+        tenantId: string,
         params: { productId: string; variantName: string; supplierId: string },
-        dbOrTx?: unknown
+        tx: TransactionContext
     ): Promise<void> {
-        const client: any = dbOrTx || db;
-
-        const product = await client.query.products.findFirst({
-            where: eq(products.id, params.productId),
+        const product = await tx.query.products.findFirst({
+            where: and(
+                eq(products.id, params.productId),
+                eq(products.tenantId, tenantId)
+            ),
             columns: { categoryId: true }
         });
 
@@ -19,8 +21,9 @@ export class PurchaseVariantPolicyAdapter implements IPurchaseVariantPolicyGatew
             return;
         }
 
-        const templates = await client.query.categoryVariants.findMany({
+        const templates = await tx.query.categoryVariants.findMany({
             where: and(
+                eq(categoryVariants.tenantId, tenantId),
                 eq(categoryVariants.categoryId, product.categoryId),
                 eq(categoryVariants.name, params.variantName)
             )

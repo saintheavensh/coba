@@ -1,5 +1,6 @@
 import { accountingService } from "../accounting-container";
 import { IJournalRepository } from "../domain";
+import { TransactionContext } from "../../../../shared/types/db-context";
 
 export type JournalReferenceType = "sale" | "purchase" | "expense" | "service" | "depreciation" | "commission" | "supplier_payment" | "adjustment" | "asset_purchase";
 
@@ -24,19 +25,19 @@ export interface CreateJournalInput {
 const journalRepo = (accountingService as any).journalRepository as IJournalRepository;
 
 export class JournalService {
-    static async create(input: CreateJournalInput, userId?: string, dbOrTx?: any): Promise<string> {
-        return await accountingService.createJournal(input, userId, dbOrTx);
+    static async create(input: CreateJournalInput, userId?: string, tx?: TransactionContext, tenantId?: string): Promise<string> {
+        return await accountingService.createJournal(tenantId || "default", input, userId, tx);
     }
 
-    static async getAll(filters: any = {}, dbOrTx?: any) {
-        return await accountingService.getAllJournals(filters, dbOrTx);
+    static async getAll(filters: any = {}, tx?: TransactionContext, tenantId?: string) {
+        return await accountingService.getAllJournals(tenantId || "default", filters, tx);
     }
 
-    static async getById(journalId: string, dbOrTx?: any) {
-        return await accountingService.getJournalById(journalId, dbOrTx);
+    static async getById(journalId: string, tx?: TransactionContext, tenantId?: string) {
+        return await accountingService.getJournalById(tenantId || "default", journalId, tx);
     }
 
-    static async deleteByReference(type: string, id: string, userId?: string, dbOrTx?: any): Promise<void> {
-        await journalRepo.deleteByReference(type, id, dbOrTx);
+    static async deleteByReference(type: string, id: string, tx?: TransactionContext, tenantId?: string): Promise<void> {
+        await journalRepo.deleteByReference(tenantId || "default", type, id, tx!);
     }
 }

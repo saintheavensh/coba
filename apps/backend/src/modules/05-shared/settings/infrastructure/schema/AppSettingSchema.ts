@@ -8,6 +8,7 @@ export const appSettings = pgTable("app_settings", {
     value: jsonb("value").notNull(),
     description: text("description"),
     updatedBy: text("updated_by").references(() => users.id),
+    tenantId: text("tenant_id").notNull(),
     updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -21,6 +22,7 @@ export const settings = pgTable("settings", {
     storeId: text("store_id"),
     description: text("description"),
     isEditable: boolean("is_editable").notNull().default(true),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
 });

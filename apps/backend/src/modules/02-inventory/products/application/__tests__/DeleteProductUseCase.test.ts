@@ -23,6 +23,7 @@ describe("DeleteProductUseCase", () => {
     };
 
     let mockLoggerFactory: any;
+    const mockTx = { tenantId: 'test-tenant' } as any;
 
     beforeEach(() => {
         mockLoggerFactory = {
@@ -50,17 +51,17 @@ describe("DeleteProductUseCase", () => {
         (mockInventoryGateway.hasActiveTransactions as any).mockResolvedValue(Result.ok(false));
         (mockRepo.delete as any).mockResolvedValue(Result.ok(true));
 
-        const result = await useCase.execute("prod-1");
+        const result = await useCase.execute("prod-1", mockTx);
 
         expect(result.isSuccess).toBe(true);
-        expect(mockRepo.delete).toHaveBeenCalledWith("prod-1");
+        expect(mockRepo.delete).toHaveBeenCalledWith("prod-1", mockTx);
     });
 
     it("should fail if product is ACTIVE", async () => {
         const product = createDummyProduct(Status.ACTIVE);
         (mockRepo.findById as any).mockResolvedValue(Result.ok(product));
 
-        const result = await useCase.execute("prod-1");
+        const result = await useCase.execute("prod-1", mockTx);
 
         expect(result.isFailure).toBe(true);
         expect(result.errorValue()).toContain("cannot be deleted");
@@ -72,7 +73,7 @@ describe("DeleteProductUseCase", () => {
         (mockRepo.findById as any).mockResolvedValue(Result.ok(product));
         (mockInventoryGateway.hasActiveTransactions as any).mockResolvedValue(Result.ok(true));
 
-        const result = await useCase.execute("prod-1");
+        const result = await useCase.execute("prod-1", mockTx);
 
         expect(result.isFailure).toBe(true);
         expect(result.errorValue()).toContain("Active inventory records");

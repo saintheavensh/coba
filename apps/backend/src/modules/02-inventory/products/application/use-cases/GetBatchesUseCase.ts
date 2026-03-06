@@ -8,16 +8,17 @@ import { eq, and, gt, desc } from "drizzle-orm";
 import { inject, injectable } from "inversify";
 import { TYPES } from "../../types";
 
+import { TransactionContext } from "@shared/types/db-context";
+
 @injectable()
 export class GetBatchesUseCase {
     constructor(
         @inject(TYPES.DrizzleClient || Symbol.for("DrizzleClient")) private drizzleClient: DrizzleClient
     ) { }
 
-    async execute(supplierId?: string): Promise<Result<any[]>> {
-        const client = this.drizzleClient.getClient();
+    async execute(supplierId: string | undefined, tx: TransactionContext): Promise<Result<any[]>> {
         try {
-            const query = client
+            const results = await tx
                 .select({
                     id: productBatches.id,
                     productId: productBatches.productId,
@@ -42,8 +43,6 @@ export class GetBatchesUseCase {
                     )
                 )
                 .orderBy(desc(productBatches.createdAt));
-
-            const results = await query;
 
             // Map the output explicitly for frontend consumption
             const batches = results.map(b => ({

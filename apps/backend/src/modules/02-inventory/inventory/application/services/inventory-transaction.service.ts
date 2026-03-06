@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { DBContext } from "@shared/types/db-context";
 
 /**
  * Allocation result for a single batch deduction.

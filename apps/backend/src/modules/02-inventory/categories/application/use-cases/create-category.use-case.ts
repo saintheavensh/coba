@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { ICategoryRepository } from "../../domain";
 import { generateId, ID_PREFIX } from "../../../../../shared/utils/validation/IdGenerator";
 
@@ -12,9 +12,9 @@ export interface CreateCategoryInput {
 export class CreateCategoryUseCase {
     constructor(private repository: ICategoryRepository) { }
 
-    async execute(data: CreateCategoryInput, dbOrTx?: DBContext) {
+    async execute(data: CreateCategoryInput, tx: TransactionContext) {
         if (data.parentId) {
-            const parent = await this.repository.findById(data.parentId, dbOrTx);
+            const parent = await this.repository.findById(data.parentId, tx);
             if (!parent) {
                 throw new Error("Parent category not found");
             }
@@ -25,11 +25,11 @@ export class CreateCategoryUseCase {
             name: data.name,
             description: data.description,
             parentId: data.parentId
-        }, dbOrTx);
+        }, tx);
 
         if (data.variants && data.variants.length > 0) {
             for (const vName of data.variants) {
-                await this.repository.addVariantTemplate(id, vName, undefined, dbOrTx);
+                await this.repository.addVariantTemplate(id, vName, tx);
             }
         }
 

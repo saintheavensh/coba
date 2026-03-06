@@ -1,16 +1,20 @@
+import { TransactionContext } from "../../../../shared/types/db-context";
+
 /**
  * Port for stock opname persistence. Keeps the stock opname use case independent of DB.
  */
 
 // --- Domain DTOs for Stock Opname ---
 
+export type OpnameStatus = "draft" | "completed" | "cancelled";
+
 export interface OpnameSessionEntity {
     id: string;
     userId: string;
-    notes?: string | null;
-    status: string;
-    createdAt?: Date;
-    completedAt?: Date | null;
+    notes: string | null;
+    status: OpnameStatus | null;
+    createdAt: Date | null;
+    completedAt: Date | null;
     user?: unknown;
 }
 
@@ -33,7 +37,7 @@ export interface OpnameBatchEntity {
     variant?: string | null;
     buyPrice: number;
     currentStock: number;
-    createdAt?: Date;
+    createdAt: Date | null;
 }
 
 export interface AdjustmentHistoryRow {
@@ -55,7 +59,7 @@ export interface InsertSessionData {
     id: string;
     userId: string;
     notes?: string;
-    status: string;
+    status: OpnameStatus;
 }
 
 export interface InsertItemData {
@@ -69,51 +73,49 @@ export interface InsertItemData {
 
 export interface IStockOpnameRepository {
     /** Insert a new opname session row. */
-    insertSession(data: InsertSessionData, dbOrTx?: unknown): Promise<void>;
+    insertSession(tenantId: string, data: InsertSessionData, tx: TransactionContext): Promise<void>;
 
     /** Update session status (and optionally completedAt). */
-    updateSessionStatus(id: string, status: string, completedAt?: Date, dbOrTx?: unknown): Promise<void>;
+    updateSessionStatus(tenantId: string, id: string, status: OpnameStatus, completedAt: Date | undefined, tx: TransactionContext): Promise<void>;
 
     /** Bulk-insert opname items for a session. */
-    insertItems(items: InsertItemData[], dbOrTx?: unknown): Promise<void>;
+    insertItems(tenantId: string, items: InsertItemData[], tx: TransactionContext): Promise<void>;
 
     /** Update an opname item's physical stock and reason. */
-    updateItem(itemId: number, physicalStock: number, reason?: string, dbOrTx?: unknown): Promise<OpnameItemEntity | null>;
+    updateItem(tenantId: string, itemId: number, physicalStock: number, reason: string | undefined, tx: TransactionContext): Promise<OpnameItemEntity | null>;
 
     /** Get all sessions ordered by creation desc. */
-    findSessions(dbOrTx?: unknown): Promise<OpnameSessionEntity[]>;
+    findSessions(tenantId: string, tx: TransactionContext): Promise<OpnameSessionEntity[]>;
 
     /** Get a session by ID (without items). */
-    findSessionById(id: string, dbOrTx?: unknown): Promise<OpnameSessionEntity | null>;
+    findSessionById(tenantId: string, id: string, tx: TransactionContext): Promise<OpnameSessionEntity | null>;
 
     /** Get all items for a session, with product details and computed difference. */
-    findItemsBySession(sessionId: string, dbOrTx?: unknown): Promise<OpnameItemEntity[]>;
+    findItemsBySession(tenantId: string, sessionId: string, tx: TransactionContext): Promise<OpnameItemEntity[]>;
 
     /** Get product IDs that belong to a category. */
-    findProductIdsByCategory(categoryId: string, dbOrTx?: unknown): Promise<string[]>;
+    findProductIdsByCategory(tenantId: string, categoryId: string, tx: TransactionContext): Promise<string[]>;
 
     /** Get batches, optionally filtered by product IDs. */
-    findAllBatches(productIds?: string[], dbOrTx?: unknown): Promise<OpnameBatchEntity[]>;
+    findAllBatches(tenantId: string, productIds: string[] | undefined, tx: TransactionContext): Promise<OpnameBatchEntity[]>;
 
     /** Find batches for a product, optionally filtered by variant name. */
     findBatchesByProductAndVariant(
+        tenantId: string,
         productId: string,
         variantName: string | null,
-        dbOrTx?: unknown
+        tx: TransactionContext
     ): Promise<OpnameBatchEntity[]>;
 
     /** Resolve a variant name to a variant ID for a given product. */
-    resolveVariantId(productId: string, variantName: string, dbOrTx?: unknown): Promise<string | null>;
+    resolveVariantId(tenantId: string, productId: string, variantName: string, tx: TransactionContext): Promise<string | null>;
 
     /** Update a single batch's stock. */
-    updateBatchStock(batchId: string, newStock: number, dbOrTx?: unknown): Promise<void>;
+    updateBatchStock(tenantId: string, batchId: string, newStock: number, tx: TransactionContext): Promise<void>;
 
     /** Adjust parent product stock by a delta. */
-    updateProductStockDelta(productId: string, delta: number, dbOrTx?: unknown): Promise<void>;
+    updateProductStockDelta(tenantId: string, productId: string, delta: number, tx: TransactionContext): Promise<void>;
 
     /** Get adjustment history rows for completed sessions with differences. */
-    getAdjustmentHistoryRows(dbOrTx?: unknown): Promise<AdjustmentHistoryRow[]>;
-
-    /** Run a callback inside a database transaction. */
-    transaction<T>(fn: (tx: unknown) => Promise<T>, dbOrTx?: unknown): Promise<T>;
+    getAdjustmentHistoryRows(tenantId: string, tx: TransactionContext): Promise<AdjustmentHistoryRow[]>;
 }

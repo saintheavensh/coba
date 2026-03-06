@@ -9,15 +9,15 @@ export interface IDeviceFilters {
 }
 
 export interface IDeviceRepository {
-    findAll(filters: IDeviceFilters, dbOrTx?: DBContext): Promise<Device[]>;
-    findById(id: string, dbOrTx?: DBContext): Promise<Device | null>;
-    create(data: CreateDeviceData, dbOrTx?: DBContext): Promise<Device>;
-    update(id: string, data: UpdateDeviceData, dbOrTx?: DBContext): Promise<Device>;
-    delete(id: string, dbOrTx?: DBContext): Promise<Device>;
-    bulkDelete(ids: string[], dbOrTx?: DBContext): Promise<Device[]>;
+    findAll(tenantId: string, filters: IDeviceFilters, tx: DBContext): Promise<Device[]>;
+    findById(tenantId: string, id: string, tx: DBContext): Promise<Device | null>;
+    create(tenantId: string, data: CreateDeviceData, tx: DBContext): Promise<Device>;
+    update(tenantId: string, id: string, data: UpdateDeviceData, tx: DBContext): Promise<Device>;
+    delete(tenantId: string, id: string, tx: DBContext): Promise<Device>;
+    bulkDelete(tenantId: string, ids: string[], tx: DBContext): Promise<Device[]>;
 
     // Compatibility / Unlinked
-    getUnlinkedProducts(limit?: number, offset?: number, dbOrTx?: DBContext): Promise<any[]>;
-    findProductsByName(name: string, dbOrTx?: DBContext): Promise<any[]>;
-    addCompatibilityLinks(links: { productId: string; deviceId: string }[], dbOrTx?: DBContext): Promise<void>;
+    getUnlinkedProducts(tenantId: string, limit: number, offset: number, tx: DBContext): Promise<any[]>;
+    findProductsByName(tenantId: string, name: string, tx: DBContext): Promise<any[]>;
+    addCompatibilityLinks(tenantId: string, links: { productId: string; deviceId: string }[], tx: DBContext): Promise<void>;
 }

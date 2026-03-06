@@ -1,5 +1,5 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import type { TransactionContext } from "../../../../../shared/types/db-context";
 
 export interface ICategoryGateway {
-    categoryExists(categoryId: string, dbOrTx?: DBContext): Promise<boolean>;
+    categoryExists(categoryId: string, tx: TransactionContext): Promise<boolean>;
 }

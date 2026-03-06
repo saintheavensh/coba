@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IReportRepository, ReportFilters, TransactionReport } from "../../domain";
 import { gte, lte } from "drizzle-orm";
 import { sales } from "../../../../../shared/infrastructure/database/schema";
@@ -6,7 +6,7 @@ import { sales } from "../../../../../shared/infrastructure/database/schema";
 export class GetTransactionsUseCase {
     constructor(private readonly repository: IReportRepository) { }
 
-    async execute(filters: ReportFilters = {}, dbOrTx?: DBContext): Promise<TransactionReport[]> {
+    async execute(tenantId: string, tx: TransactionContext, filters: ReportFilters = {}): Promise<TransactionReport[]> {
         let conditions = [];
 
         if (filters.startDate) {
@@ -19,7 +19,7 @@ export class GetTransactionsUseCase {
             conditions.push(lte(sales.createdAt, end));
         }
 
-        const salesData = await this.repository.getTransactions(conditions, dbOrTx);
+        const salesData = await this.repository.getTransactions(tenantId, conditions, tx);
 
         return salesData.map((sale: any) => {
             let hpp = 0;

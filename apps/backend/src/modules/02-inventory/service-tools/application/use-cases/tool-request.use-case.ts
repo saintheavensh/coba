@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import {
     IServiceToolRepository,
     INotificationGateway,
@@ -11,7 +11,7 @@ export class CreateToolRequestUseCase {
         private readonly notificationGateway: INotificationGateway
     ) { }
 
-    async execute(userId: string, userName: string, data: any): Promise<ServiceToolRequest> {
+    async execute(userId: string, userName: string, data: any, tx: TransactionContext): Promise<ServiceToolRequest> {
         const requestData = {
             userId,
             toolName: data.toolName,
@@ -19,7 +19,7 @@ export class CreateToolRequestUseCase {
             status: "pending"
         };
 
-        const request = await this.repository.createRequest(requestData);
+        const request = await this.repository.createRequest(requestData, tx);
 
         // Notify owners
         await this.notificationGateway.notifyOwnersNewToolRequest(userName, data.toolName);
@@ -31,7 +31,7 @@ export class CreateToolRequestUseCase {
 export class UpdateToolRequestStatusUseCase {
     constructor(private readonly repository: IServiceToolRepository) { }
 
-    async execute(id: string, status: "approved" | "rejected"): Promise<void> {
-        await this.repository.updateRequestStatus(id, status);
+    async execute(id: string, status: "approved" | "rejected", tx: TransactionContext): Promise<void> {
+        await this.repository.updateRequestStatus(id, status, tx);
     }
 }

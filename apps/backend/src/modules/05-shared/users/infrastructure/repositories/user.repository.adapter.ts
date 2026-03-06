@@ -1,31 +1,34 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { DBContext } from "../../../../../shared/types/db-context";
-import { db } from "../../../../../shared/infrastructure/database/client";
 import { users, userRoles } from "../../../../../shared/infrastructure/database/schema";
 import { IUserRepository, User } from "../../domain";
 
 export class UserRepositoryAdapter implements IUserRepository {
-    async findAll(role?: string, dbOrTx?: DBContext): Promise<User[]> {
-        const client = (dbOrTx as any) || db;
-
+    async findAll(tenantId: string, tx: DBContext, role?: string): Promise<User[]> {
         let rows;
         if (role) {
-            rows = await client.query.users.findMany({
-                where: sql`EXISTS (
-                    SELECT 1 FROM user_roles 
-                    WHERE user_roles.user_id = users.id 
-                    AND user_roles.role = ${role}
-                )`,
+            rows = await tx.query.users.findMany({
+                where: and(
+                    eq(users.tenantId, tenantId),
+                    sql`EXISTS (
+                        SELECT 1 FROM user_roles 
+                        WHERE user_roles.user_id = users.id 
+                        AND user_roles.tenant_id = ${tenantId}
+                        AND user_roles.role = ${role}
+                    )`
+                ),
                 with: { roles: { with: { roleDetail: true } } }
             });
         } else {
-            rows = await client.query.users.findMany({
+            rows = await tx.query.users.findMany({
+                where: eq(users.tenantId, tenantId),
                 with: { roles: { with: { roleDetail: true } } }
             });
         }
 
         return rows.map((row: any) => ({
             ...row,
+            email: row.email, // Explicit mapping
             roles: row.roles?.map((ur: any) => ({
                 ...ur,
                 role: ur.roleDetail // Map roleDetail to role for domain compatibility
@@ -33,10 +36,9 @@ export class UserRepositoryAdapter implements IUserRepository {
         })) as User[];
     }
 
-    async findById(id: string, dbOrTx?: DBContext): Promise<User | null> {
-        const client = (dbOrTx as any) || db;
-        const row = await client.query.users.findFirst({
-            where: eq(users.id, id),
+    async findById(tenantId: string, id: string, tx: DBContext): Promise<User | null> {
+        const row = await tx.query.users.findFirst({
+            where: and(eq(users.tenantId, tenantId), eq(users.id, id)),
             with: { roles: { with: { roleDetail: true } } }
         });
 
@@ -44,6 +46,7 @@ export class UserRepositoryAdapter implements IUserRepository {
 
         return {
             ...row,
+            email: row.email,
             roles: row.roles?.map((ur: any) => ({
                 ...ur,
                 role: ur.roleDetail
@@ -51,39 +54,46 @@ export class UserRepositoryAdapter implements IUserRepository {
         } as User;
     }
 
-    async create(data: any, dbOrTx?: DBContext): Promise<User> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.insert(users).values(data).returning();
-        return result as User;
+    async create(tenantId: string, data: any, tx: DBContext): Promise<User> {
+        const [result] = await tx.insert(users).values({ ...data, tenantId }).returning();
+        if (!result) throw new Error("UserRepositoryAdapter: Failed to create user");
+        return {
+            ...result,
+            email: result.email
+        } as User;
     }
 
-    async update(id: string, data: any, dbOrTx?: DBContext): Promise<User> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.update(users)
+    async update(tenantId: string, id: string, data: any, tx: DBContext): Promise<User> {
+        const [result] = await tx.update(users)
             .set(data)
-            .where(eq(users.id, id))
+            .where(and(eq(users.tenantId, tenantId), eq(users.id, id)))
             .returning();
-        return result as User;
+        if (!result) throw new Error("UserRepositoryAdapter: Failed to update user");
+        return {
+            ...result,
+            email: result.email
+        } as User;
     }
 
-    async delete(id: string, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.delete(users).where(eq(users.id, id));
+    async delete(tenantId: string, id: string, tx: DBContext): Promise<void> {
+        await tx.delete(users).where(and(eq(users.tenantId, tenantId), eq(users.id, id)));
     }
 
-    async syncRoles(userId: string, roles: string[], dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-
+    async syncRoles(tenantId: string, userId: string, roles: string[], tx: DBContext): Promise<void> {
         // Delete existing roles
-        await client.delete(userRoles).where(eq(userRoles.userId, userId));
+        await tx.delete(userRoles).where(and(
+            eq(userRoles.tenantId, tenantId),
+            eq(userRoles.userId, userId)
+        ));
 
         // Insert new roles
         if (roles.length > 0) {
             const roleValues = roles.map((roleId: string) => ({
+                tenantId: tenantId,
                 userId: userId,
                 role: roleId
             }));
-            await client.insert(userRoles).values(roleValues);
+            await tx.insert(userRoles).values(roleValues);
         }
     }
 }

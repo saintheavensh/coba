@@ -68,7 +68,6 @@ describe("CreateSaleUseCase", () => {
             mockMemberGateway,
             mockSettingsGateway,
             mockApprovalGateway,
-            mockDb,
             mockGetProductStockUseCase as any,
             mockProductRepo,
             mockInventoryTransactionService
@@ -78,16 +77,17 @@ describe("CreateSaleUseCase", () => {
     // ─── Success Case ───────────────────────────────────────────────────
 
     it("should successfully create a sale via InventoryTransactionService", async () => {
-        const result = await useCase.execute(validInput);
+        const mockTx = { tenantId: "test-tenant" } as any;
+        const result = await useCase.execute(validInput, mockTx);
 
         expect(result.message).toBe("Sale created");
         expect(result.id).toBeDefined();
 
         // Verify product validation
-        expect(mockProductRepo.findById).toHaveBeenCalledWith("PRD-001");
+        expect(mockProductRepo.findById).toHaveBeenCalledWith("PRD-001", mockTx);
 
         // Verify row-level lock in transaction
-        expect(mockProductRepo.findByIdForUpdate).toHaveBeenCalledWith("PRD-001", "mock-tx");
+        expect(mockProductRepo.findByIdForUpdate).toHaveBeenCalledWith("PRD-001", mockTx);
 
         // Verify InventoryTransactionService was called (NOT inventoryGateway directly)
         expect(mockInventoryTransactionService.deductForSale).toHaveBeenCalledWith(
@@ -95,7 +95,7 @@ describe("CreateSaleUseCase", () => {
                 referenceId: expect.any(String),
                 items: [{ productId: "PRD-001", variant: "default", quantity: 2 }],
             }),
-            "mock-tx"
+            mockTx
         );
 
         // Verify sale + payment + items persisted
@@ -110,9 +110,9 @@ describe("CreateSaleUseCase", () => {
     // ─── Insufficient Stock ─────────────────────────────────────────────
 
     it("should throw InsufficientStockError when pre-check stock is insufficient", async () => {
-        mockGetProductStockUseCase.execute.mockResolvedValueOnce(Result.ok(1));
-
-        await expect(useCase.execute(validInput)).rejects.toThrow(InsufficientStockError);
+        mockGetProductStockUseCase.execute.mockResolvedValueOnce(Result.ok(0));
+        const mockTx = { tenantId: "test-tenant" } as any;
+        await expect(useCase.execute(validInput, mockTx)).rejects.toThrow(InsufficientStockError);
         expect(mockSaleRepo.create).not.toHaveBeenCalled();
     });
 
@@ -121,7 +121,8 @@ describe("CreateSaleUseCase", () => {
             .mockResolvedValueOnce(Result.ok(100))   // pre-check passes
             .mockResolvedValueOnce(Result.ok(1));     // revalidation under lock fails
 
-        await expect(useCase.execute(validInput)).rejects.toThrow(InsufficientStockError);
+        const mockTx = { tenantId: "test-tenant" } as any;
+        await expect(useCase.execute(validInput, mockTx)).rejects.toThrow(InsufficientStockError);
     });
 
     // ─── Inactive Product ───────────────────────────────────────────────
@@ -129,7 +130,8 @@ describe("CreateSaleUseCase", () => {
     it("should throw ProductInactiveError for inactive product", async () => {
         mockProductRepo.findById.mockResolvedValueOnce(Result.ok({ isActive: false }));
 
-        await expect(useCase.execute(validInput)).rejects.toThrow(ProductInactiveError);
+        const mockTx = { tenantId: "test-tenant" } as any;
+        await expect(useCase.execute(validInput, mockTx)).rejects.toThrow(ProductInactiveError);
         expect(mockSaleRepo.create).not.toHaveBeenCalled();
     });
 
@@ -137,7 +139,8 @@ describe("CreateSaleUseCase", () => {
         mockProductRepo.findById.mockResolvedValueOnce(Result.ok({ isActive: true }));
         mockProductRepo.findByIdForUpdate.mockResolvedValueOnce(Result.ok({ isActive: false }));
 
-        await expect(useCase.execute(validInput)).rejects.toThrow(ProductInactiveError);
+        const mockTx = { tenantId: "test-tenant" } as any;
+        await expect(useCase.execute(validInput, mockTx)).rejects.toThrow(ProductInactiveError);
     });
 
     // ─── Product Not Found ──────────────────────────────────────────────
@@ -145,7 +148,8 @@ describe("CreateSaleUseCase", () => {
     it("should throw ProductNotFoundError when product does not exist", async () => {
         mockProductRepo.findById.mockResolvedValueOnce(Result.fail("Not found"));
 
-        await expect(useCase.execute(validInput)).rejects.toThrow(ProductNotFoundError);
+        const mockTx = { tenantId: "test-tenant" } as any;
+        await expect(useCase.execute(validInput, mockTx)).rejects.toThrow(ProductNotFoundError);
         expect(mockSaleRepo.create).not.toHaveBeenCalled();
     });
 
@@ -157,7 +161,8 @@ describe("CreateSaleUseCase", () => {
             items: [{ productId: "PRD-001", variant: "default", qty: 0, price: 50000 }],
         };
 
-        await expect(useCase.execute(input)).rejects.toThrow(InvalidQuantityError);
+        const mockTx = { tenantId: "test-tenant" } as any;
+        await expect(useCase.execute(input, mockTx)).rejects.toThrow(InvalidQuantityError);
         expect(mockSaleRepo.create).not.toHaveBeenCalled();
     });
 
@@ -170,8 +175,9 @@ describe("CreateSaleUseCase", () => {
             payments: [{ method: "cash", methodId: "PM-CASH", amount: 250000 }],
         };
 
+        const mockTx = { tenantId: "test-tenant" } as any;
         // First sale succeeds
-        const result1 = await useCase.execute(input5);
+        const result1 = await useCase.execute(input5, mockTx);
         expect(result1.message).toBe("Sale created");
 
         // Second sale: pre-check passes but lock revalidation fails
@@ -183,10 +189,10 @@ describe("CreateSaleUseCase", () => {
         const useCase2 = new CreateSaleUseCase(
             mockSaleRepo, mockAccountingGateway,
             mockMemberGateway, mockSettingsGateway, mockApprovalGateway,
-            mockDb, mockGetStock2 as any, mockProductRepo, mockInventoryTransactionService
+            mockGetStock2 as any, mockProductRepo, mockInventoryTransactionService
         );
 
-        await expect(useCase2.execute(input5)).rejects.toThrow(InsufficientStockError);
+        await expect(useCase2.execute(input5, mockTx)).rejects.toThrow(InsufficientStockError);
     });
 
     // ─── Rollback Test ──────────────────────────────────────────────────
@@ -204,7 +210,8 @@ describe("CreateSaleUseCase", () => {
             }
         });
 
-        await expect(useCase.execute(validInput)).rejects.toThrow("FIFO deduction failed");
+        const mockTx = { tenantId: "test-tenant" } as any;
+        await expect(useCase.execute(validInput, mockTx)).rejects.toThrow("FIFO deduction failed");
     });
 
     // ─── No Direct Gateway/UseCase Calls ────────────────────────────────

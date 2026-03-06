@@ -1,11 +1,11 @@
 import { inject, injectable } from "inversify";
-import { UseCase } from "../../../../../shared/core/UseCase";
 import { Result } from "../../../../../shared/core/Result";
 import { TYPES } from "../../types";
 import type { IProductRepository } from "../../domain/ports/IProductRepository";
 import { Logger, LoggerFactory } from "../../../../../shared/utils/logger/Logger";
 import { ProductDTO } from "../dtos/ProductDTO";
 import { ProductMapper } from "../mappers/ProductMapper";
+import { TransactionContext } from "@shared/types/db-context";
 
 interface GetProductsRequest {
     search?: string;
@@ -15,7 +15,7 @@ interface GetProductsRequest {
 }
 
 @injectable()
-export class GetProductsUseCase implements UseCase<GetProductsRequest, Result<any>> {
+export class GetProductsUseCase {
     private logger: Logger;
     constructor(
         @inject(TYPES.IProductRepository) private readonly productRepo: IProductRepository,
@@ -24,17 +24,17 @@ export class GetProductsUseCase implements UseCase<GetProductsRequest, Result<an
         this.logger = loggerFactory.createLogger('GetProductsUseCase');
     }
 
-    public async execute(request: GetProductsRequest): Promise<Result<any>> {
+    public async execute(request: GetProductsRequest, tx: TransactionContext): Promise<Result<any>> {
         const page = request.page || 1;
         const limit = request.limit || 50;
 
         let result;
         if (request.search) {
-            result = await this.productRepo.searchProducts(request.search, { page, limit });
+            result = await this.productRepo.searchProducts(request.search, { page, limit }, tx);
         } else if (request.categoryId) {
-            result = await this.productRepo.findByCategoryPaginated(request.categoryId, { page, limit });
+            result = await this.productRepo.findByCategoryPaginated(request.categoryId, { page, limit }, tx);
         } else {
-            result = await this.productRepo.findAllPaginated({ page, limit });
+            result = await this.productRepo.findAllPaginated({ page, limit }, tx);
         }
 
         if (result.isFailure) {

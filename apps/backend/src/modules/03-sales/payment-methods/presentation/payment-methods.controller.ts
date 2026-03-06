@@ -7,7 +7,8 @@ export class PaymentMethodsController {
 
     async getAll(c: Context) {
         try {
-            const data = await this.service.getAll();
+            const tenantId = c.get("user")?.tenantId || "default";
+            const data = await this.service.getAll(tenantId);
             return apiSuccess(c, data);
         } catch (e: any) {
             return apiError(c, e);
@@ -16,7 +17,8 @@ export class PaymentMethodsController {
 
     async getEnabled(c: Context) {
         try {
-            const data = await this.service.getEnabled();
+            const tenantId = c.get("user")?.tenantId || "default";
+            const data = await this.service.getEnabled(tenantId);
             return apiSuccess(c, data);
         } catch (e: any) {
             return apiError(c, e);
@@ -26,7 +28,8 @@ export class PaymentMethodsController {
     async getById(c: Context) {
         try {
             const id = c.req.param("id");
-            const data = await this.service.getById(id);
+            const tenantId = c.get("user")?.tenantId || "default";
+            const data = await this.service.getById(tenantId, id);
             return apiSuccess(c, data);
         } catch (e: any) {
             const status = e.status || 500;
@@ -37,7 +40,8 @@ export class PaymentMethodsController {
     async create(c: Context) {
         try {
             const body = await c.req.json();
-            const data = await this.service.create(body);
+            const tenantId = c.get("user")?.tenantId || "default";
+            const data = await this.service.create(tenantId, body);
             return apiSuccess(c, data, "Payment method created successfully", 201);
         } catch (e: any) {
             const status = e.status || 500;
@@ -49,7 +53,8 @@ export class PaymentMethodsController {
         try {
             const id = c.req.param("id");
             const body = await c.req.json();
-            const data = await this.service.update(id, body);
+            const tenantId = c.get("user")?.tenantId || "default";
+            const data = await this.service.update(tenantId, id, body);
             return apiSuccess(c, data, "Payment method updated successfully");
         } catch (e: any) {
             const status = e.status || 500;
@@ -60,7 +65,8 @@ export class PaymentMethodsController {
     async disable(c: Context) {
         try {
             const id = c.req.param("id");
-            await this.service.disable(id);
+            const tenantId = c.get("user")?.tenantId || "default";
+            await this.service.disable(tenantId, id);
             return apiSuccess(c, null, "Payment method disabled successfully");
         } catch (e: any) {
             const status = e.status || 500;
@@ -72,7 +78,8 @@ export class PaymentMethodsController {
         try {
             const id = c.req.param("id");
             const body = await c.req.json();
-            const data = await this.service.addVariant(id, body);
+            const tenantId = c.get("user")?.tenantId || "default";
+            const data = await this.service.addVariant(tenantId, id, body);
             return apiSuccess(c, data, "Variant added successfully", 201);
         } catch (e: any) {
             const status = e.status || 500;
@@ -84,7 +91,8 @@ export class PaymentMethodsController {
         try {
             const id = c.req.param("id"); // variant id
             const body = await c.req.json();
-            await this.service.updateVariant(id, body);
+            const tenantId = c.get("user")?.tenantId || "default";
+            await this.service.updateVariant(tenantId, id, body);
             return apiSuccess(c, null, "Variant updated successfully");
         } catch (e: any) {
             const status = e.status || 500;
@@ -95,7 +103,8 @@ export class PaymentMethodsController {
     async disableVariant(c: Context) {
         try {
             const id = c.req.param("id"); // variant id
-            await this.service.disableVariant(id);
+            const tenantId = c.get("user")?.tenantId || "default";
+            await this.service.disableVariant(tenantId, id);
             return apiSuccess(c, null, "Variant disabled successfully");
         } catch (e: any) {
             const status = e.status || 500;

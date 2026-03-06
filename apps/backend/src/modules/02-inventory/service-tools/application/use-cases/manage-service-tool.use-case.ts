@@ -1,12 +1,12 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IServiceToolRepository, ServiceTool, ToolCondition } from "../../domain";
 
 export class CreateServiceToolUseCase {
     constructor(private readonly repository: IServiceToolRepository) { }
 
-    async execute(data: any): Promise<ServiceTool> {
+    async execute(data: any, tx: TransactionContext): Promise<ServiceTool> {
         // Generate ID TOOL-XXX
-        const last = await this.repository.findLast();
+        const last = await this.repository.findLast(tx);
         let nextId = "TOOL-001";
 
         if (last) {
@@ -31,14 +31,14 @@ export class CreateServiceToolUseCase {
             userId: data.userId || null
         };
 
-        return await this.repository.create(toolData);
+        return await this.repository.create(toolData, tx);
     }
 }
 
 export class UpdateServiceToolUseCase {
     constructor(private readonly repository: IServiceToolRepository) { }
 
-    async execute(id: string, data: any): Promise<void> {
+    async execute(id: string, data: any, tx: TransactionContext): Promise<void> {
         const updateData: any = {};
         if (data.name) updateData.name = data.name;
         if (data.brand !== undefined) updateData.brand = data.brand;
@@ -49,22 +49,22 @@ export class UpdateServiceToolUseCase {
         if (data.notes !== undefined) updateData.notes = data.notes;
         if (data.userId !== undefined) updateData.userId = data.userId;
 
-        await this.repository.update(id, updateData);
+        await this.repository.update(id, updateData, tx);
     }
 }
 
 export class UpdateToolConditionUseCase {
     constructor(private readonly repository: IServiceToolRepository) { }
 
-    async execute(id: string, condition: ToolCondition): Promise<void> {
-        await this.repository.update(id, { condition });
+    async execute(id: string, condition: ToolCondition, tx: TransactionContext): Promise<void> {
+        await this.repository.update(id, { condition }, tx);
     }
 }
 
 export class DeleteServiceToolUseCase {
     constructor(private readonly repository: IServiceToolRepository) { }
 
-    async execute(id: string): Promise<void> {
-        await this.repository.delete(id);
+    async execute(id: string, tx: TransactionContext): Promise<void> {
+        await this.repository.delete(id, tx);
     }
 }

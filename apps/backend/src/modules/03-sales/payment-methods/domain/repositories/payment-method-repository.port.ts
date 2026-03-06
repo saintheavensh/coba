@@ -1,15 +1,15 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { PaymentMethod } from "../entities/payment-method.entity";
 
 export interface IPaymentMethodRepository {
-    findAll(dbOrTx?: DBContext): Promise<PaymentMethod[]>;
-    findEnabled(dbOrTx?: DBContext): Promise<PaymentMethod[]>;
-    findById(id: string, dbOrTx?: DBContext): Promise<PaymentMethod | null>;
-    create(data: any, dbOrTx?: DBContext): Promise<PaymentMethod>;
-    update(id: string, data: any, dbOrTx?: DBContext): Promise<PaymentMethod>;
+    findAll(tenantId: string, tx: TransactionContext): Promise<PaymentMethod[]>;
+    findEnabled(tenantId: string, tx: TransactionContext): Promise<PaymentMethod[]>;
+    findById(tenantId: string, id: string, tx: TransactionContext): Promise<PaymentMethod | null>;
+    create(tenantId: string, data: any, tx: TransactionContext): Promise<PaymentMethod>;
+    update(tenantId: string, id: string, data: any, tx: TransactionContext): Promise<PaymentMethod>;
 
     // Variants
-    createVariant(data: any, dbOrTx?: DBContext): Promise<void>;
-    updateVariant(id: string, data: any, dbOrTx?: DBContext): Promise<void>;
-    findVariantById(id: string, dbOrTx?: DBContext): Promise<any>;
+    createVariant(tenantId: string, data: any, tx: TransactionContext): Promise<void>;
+    updateVariant(tenantId: string, id: string, data: any, tx: TransactionContext): Promise<void>;
+    findVariantById(tenantId: string, id: string, tx: TransactionContext): Promise<any>;
 }

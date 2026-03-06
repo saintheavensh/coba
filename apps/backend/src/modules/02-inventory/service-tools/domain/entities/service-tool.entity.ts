@@ -11,8 +11,8 @@ export interface ServiceTool {
     price: number;
     notes?: string | null;
     userId?: string | null;
+    tenantId: string;
     createdAt: Date;
-    updatedAt: Date;
 }
 
 export interface ServiceToolRequest {
@@ -21,5 +21,6 @@ export interface ServiceToolRequest {
     toolName: string;
     justification?: string | null;
     status: RequestStatus;
+    tenantId: string;
     createdAt: Date;
 }

@@ -1,10 +1,10 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { OperationalCost } from "../entities/operational-cost.entity";
 
 export interface IOperationalCostRepository {
-    findAll(limit?: number, dbOrTx?: DBContext): Promise<OperationalCost[]>;
-    findById(id: string, dbOrTx?: DBContext): Promise<OperationalCost | null>;
-    create(data: any, dbOrTx?: DBContext): Promise<{ id: string }>;
-    update(id: string, data: any, dbOrTx?: DBContext): Promise<void>;
-    delete(id: string, dbOrTx?: DBContext): Promise<void>;
+    findAll(tenantId: string, tx: TransactionContext, limit?: number | undefined): Promise<OperationalCost[]>;
+    findById(tenantId: string, id: string, tx: TransactionContext): Promise<OperationalCost | null>;
+    create(tenantId: string, data: any, tx: TransactionContext): Promise<{ id: string }>;
+    update(tenantId: string, id: string, data: any, tx: TransactionContext): Promise<void>;
+    delete(tenantId: string, id: string, tx: TransactionContext): Promise<void>;
 }

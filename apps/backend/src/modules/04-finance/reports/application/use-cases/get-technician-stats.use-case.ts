@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IReportRepository, ReportFilters, TechnicianReport } from "../../domain";
 import { gte, lte } from "drizzle-orm";
 import { services } from "../../../../../shared/infrastructure/database/schema";
@@ -6,7 +6,7 @@ import { services } from "../../../../../shared/infrastructure/database/schema";
 export class GetTechnicianStatsUseCase {
     constructor(private readonly repository: IReportRepository) { }
 
-    async execute(filters: ReportFilters = {}, dbOrTx?: DBContext): Promise<TechnicianReport[]> {
+    async execute(tenantId: string, tx: TransactionContext, filters: ReportFilters = {}): Promise<TechnicianReport[]> {
         let conditions = [];
 
         if (filters.startDate) {
@@ -19,8 +19,8 @@ export class GetTechnicianStatsUseCase {
             conditions.push(lte(services.dateIn, end));
         }
 
-        const technicians = await this.repository.getTechnicians(dbOrTx);
-        const servicesData = await this.repository.getServicesWithTechnicians(conditions, dbOrTx);
+        const technicians = await this.repository.getTechnicians(tenantId, tx);
+        const servicesData = await this.repository.getServicesWithTechnicians(tenantId, conditions, tx);
 
         const technicianMap: Map<string, {
             id: string;

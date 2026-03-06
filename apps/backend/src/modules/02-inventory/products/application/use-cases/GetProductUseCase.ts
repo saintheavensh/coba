@@ -1,5 +1,4 @@
 import { inject, injectable } from "inversify";
-import { UseCase } from "../../../../../shared/core/UseCase";
 import { Result } from "../../../../../shared/core/Result";
 import { TYPES } from "../../types";
 import type { IProductRepository } from "../../domain/ports/IProductRepository";
@@ -7,6 +6,7 @@ import { Logger, LoggerFactory } from "../../../../../shared/utils/logger/Logger
 import { ProductDTO } from "../dtos/ProductDTO";
 import { ProductMapper } from "../mappers/ProductMapper";
 import { Sku } from "../../domain/value-objects/Sku.vo";
+import { TransactionContext } from "@shared/types/db-context";
 
 interface GetProductRequest {
     id?: string;
@@ -18,7 +18,7 @@ interface GetProductRequest {
  * Orchestrates product retrieval by ID or SKU.
  */
 @injectable()
-export class GetProductUseCase implements UseCase<GetProductRequest, Result<ProductDTO>> {
+export class GetProductUseCase {
     private logger: Logger;
     constructor(
         @inject(TYPES.IProductRepository) private readonly productRepo: IProductRepository,
@@ -27,15 +27,15 @@ export class GetProductUseCase implements UseCase<GetProductRequest, Result<Prod
         this.logger = loggerFactory.createLogger('GetProductUseCase');
     }
 
-    public async execute(request: GetProductRequest, context?: { requestId?: string; userId?: string }): Promise<Result<ProductDTO>> {
+    public async execute(request: GetProductRequest, tx: TransactionContext): Promise<Result<ProductDTO>> {
         let productResult: Result<any> = Result.fail("Product identifier missing");
 
         if (request.id) {
-            productResult = await this.productRepo.findById(request.id);
+            productResult = await this.productRepo.findById(request.id, tx);
         } else if (request.sku) {
             const skuRes = Sku.create(request.sku);
             if (skuRes.isFailure) return Result.fail(skuRes.errorValue());
-            productResult = await this.productRepo.findBySku(skuRes.getValue());
+            productResult = await this.productRepo.findBySku(skuRes.getValue(), tx);
         } else {
             return Result.fail("Either product ID or SKU must be provided");
         }

@@ -1,6 +1,6 @@
 import { IPurchaseRepository, IActivityLogger, INotificationGateway, IPurchaseVariantPolicyGateway } from "../../domain/purchase-repository.port";
 import { PurchaseOrder, PurchaseItem } from "../../domain/entities/purchase.entity";
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export interface CreatePurchaseOrderDto {
     supplierId: string;
@@ -25,10 +25,8 @@ export class CreatePurchaseOrderUseCase {
         private variantPolicyGateway: IPurchaseVariantPolicyGateway
     ) { }
 
-    async execute(dto: CreatePurchaseOrderDto, dbOrTx?: any): Promise<{ message: string; id: string }> {
-        const effectiveDb = dbOrTx || db;
-
-        return await effectiveDb.transaction(async (tx: any) => {
+    async execute(tenantId: string, dto: CreatePurchaseOrderDto, tx: TransactionContext): Promise<{ message: string; id: string }> {
+        const runInternal = async () => {
             const purchaseId = "PO-" + Date.now().toString();
             const totalAmount = dto.items.reduce((sum, item) => sum + ((item.estimatedBuyPrice || 0) * item.qtyOrdered), 0);
             const purchaseDate = dto.date ? new Date(dto.date) : new Date();
@@ -37,6 +35,7 @@ export class CreatePurchaseOrderUseCase {
             for (const item of dto.items) {
                 if (item.variant) {
                     await this.variantPolicyGateway.ensureVariantAllowedForSupplier(
+                        tenantId,
                         {
                             productId: item.productId,
                             variantName: item.variant,
@@ -70,10 +69,11 @@ export class CreatePurchaseOrderUseCase {
             });
 
             // 3. Save
-            await this.purchaseRepo.save(purchase, tx);
+            await this.purchaseRepo.save(tenantId, purchase, tx);
 
             // 4. Activity Log
             await this.activityLogger.log(
+                tenantId,
                 {
                     userId: dto.userId,
                     action: "CREATE",
@@ -86,6 +86,7 @@ export class CreatePurchaseOrderUseCase {
 
             // 5. Notification
             await this.notificationGateway.notifyPurchaseOrderCreated(
+                tenantId,
                 {
                     purchaseId,
                     userId: dto.userId,
@@ -95,6 +96,8 @@ export class CreatePurchaseOrderUseCase {
             );
 
             return { message: "Order created successfully", id: purchaseId };
-        });
+        };
+
+        return await runInternal();
     }
 }

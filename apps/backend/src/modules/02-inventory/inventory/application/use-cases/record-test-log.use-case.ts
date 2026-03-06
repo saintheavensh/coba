@@ -1,5 +1,5 @@
-import { IGamblingRepository, DeadPhoneStatus } from "../../domain/repositories/gambling-repository.port";
-import { TransactionContext } from "../../../../../shared/types/db-context";
+import { IGamblingRepository, DeadPhoneStatus } from "@domain/repositories/gambling-repository.port";
+import { TransactionContext } from "@shared/types/db-context";
 
 export interface RecordTestLogInput {
     deadPhoneId: string;
@@ -12,7 +12,7 @@ export interface RecordTestLogInput {
 export class RecordTestLogUseCase {
     constructor(private readonly repository: IGamblingRepository) { }
 
-    async execute(input: RecordTestLogInput, tx?: TransactionContext) {
+    async execute(input: RecordTestLogInput, tx: TransactionContext, tenantId?: string) {
         // 1. Save Test Log (Repository needs a saveTestLog method)
         // I will add this method to the repository adapter
 
@@ -22,7 +22,7 @@ export class RecordTestLogUseCase {
             // Might stay TESTED until actually harvested
         }
 
-        await this.repository.updateStatus(input.deadPhoneId, newStatus);
+        await this.repository.updateStatus(input.deadPhoneId, newStatus, tx);
 
         // Internal logic to save the log
         return await (this.repository as any).saveTestLog({
@@ -32,6 +32,6 @@ export class RecordTestLogUseCase {
             verdict: input.verdict,
             notes: input.notes,
             testDate: new Date()
-        });
+        }, tx);
     }
 }

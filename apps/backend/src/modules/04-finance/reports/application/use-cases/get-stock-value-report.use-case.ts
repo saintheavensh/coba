@@ -1,11 +1,11 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IReportRepository, StockValueReport } from "../../domain";
 
 export class GetStockValueReportUseCase {
     constructor(private readonly repository: IReportRepository) { }
 
-    async execute(dbOrTx?: DBContext): Promise<StockValueReport> {
-        const categoriesData = await this.repository.getCategoriesWithStock(dbOrTx);
+    async execute(tenantId: string, tx: TransactionContext): Promise<StockValueReport> {
+        const categoriesData = await this.repository.getCategoriesWithStock(tenantId, tx);
 
         let totalItems = 0;
         let totalStock = 0;

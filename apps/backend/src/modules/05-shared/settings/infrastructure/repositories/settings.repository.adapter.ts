@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { and, eq } from "drizzle-orm";
+import { DBContext } from "../../../../../shared/types/db-context";
 import {
     settings, salePayments, saleItems, sales,
     purchaseReturnItems, purchaseReturns, purchaseItems,
@@ -7,60 +7,63 @@ import {
     productBatches, productVariants, products,
     categories, suppliers, members
 } from "../../../../../shared/infrastructure/database/schema";
-import { DBContext } from "../../../../../shared/types/db-context";
 import { ISettingsRepository, Setting } from "../../domain";
 
 export class SettingsRepositoryAdapter implements ISettingsRepository {
-    async findByKey(key: string, dbOrTx?: DBContext): Promise<Setting | null> {
-        const client = (dbOrTx as any) || db;
-        const result = await client.query.settings.findFirst({
-            where: eq(settings.key, key)
+    async findByKey(tenantId: string, key: string, tx: DBContext): Promise<Setting | null> {
+        const result = await tx.query.settings.findFirst({
+            where: and(
+                eq(settings.tenantId, tenantId),
+                eq(settings.key, key)
+            )
         });
         return (result as Setting) || null;
     }
 
-    async upsert(key: string, value: any, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        const existing = await this.findByKey(key, client);
+    async upsert(tenantId: string, key: string, value: any, tx: DBContext): Promise<void> {
+        const existing = await this.findByKey(tenantId, key, tx);
 
         if (existing) {
-            await client.update(settings)
+            await tx.update(settings)
                 .set({ value: value as any })
-                .where(eq(settings.key, key));
+                .where(and(
+                    eq(settings.tenantId, tenantId),
+                    eq(settings.key, key)
+                ));
         } else {
-            await client.insert(settings).values({
+            await tx.insert(settings).values({
+                tenantId,
                 key,
                 value: value as any
             });
         }
     }
 
-    async factoryReset(mode: "data" | "full", dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
+    async factoryReset(tenantId: string, mode: "data" | "full", tx: DBContext): Promise<void> {
         if (mode === "data" || mode === "full") {
-            // Delete in reverse order of dependencies
-            await client.delete(salePayments);
-            await client.delete(saleItems);
-            await client.delete(sales);
+            // Delete in reverse order of dependencies safely BOUNDED TO TENANT
+            await tx.delete(salePayments).where(eq(salePayments.tenantId, tenantId));
+            await tx.delete(saleItems).where(eq(saleItems.tenantId, tenantId));
+            await tx.delete(sales).where(eq(sales.tenantId, tenantId));
 
-            await client.delete(purchaseReturnItems);
-            await client.delete(purchaseReturns);
+            await tx.delete(purchaseReturnItems).where(eq(purchaseReturnItems.tenantId, tenantId));
+            await tx.delete(purchaseReturns).where(eq(purchaseReturns.tenantId, tenantId));
 
-            await client.delete(purchaseItems);
-            await client.delete(purchases);
+            await tx.delete(purchaseItems).where(eq(purchaseItems.tenantId, tenantId));
+            await tx.delete(purchases).where(eq(purchases.tenantId, tenantId));
 
-            await client.delete(services);
+            await tx.delete(services).where(eq(services.tenantId, tenantId));
 
-            await client.delete(activityLogs);
-            await client.delete(notifications);
+            await tx.delete(activityLogs).where(eq(activityLogs.tenantId, tenantId));
+            await tx.delete(notifications).where(eq(notifications.tenantId, tenantId));
 
             if (mode === "full") {
-                await client.delete(productBatches);
-                await client.delete(productVariants);
-                await client.delete(products);
-                await client.delete(categories);
-                await client.delete(suppliers);
-                await client.delete(members);
+                await tx.delete(productBatches).where(eq(productBatches.tenantId, tenantId));
+                await tx.delete(productVariants).where(eq(productVariants.tenantId, tenantId));
+                await tx.delete(products).where(eq(products.tenantId, tenantId));
+                await tx.delete(categories).where(eq(categories.tenantId, tenantId));
+                await tx.delete(suppliers).where(eq(suppliers.tenantId, tenantId));
+                await tx.delete(members).where(eq(members.tenantId, tenantId));
             }
         }
     }

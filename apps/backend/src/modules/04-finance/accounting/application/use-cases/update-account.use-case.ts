@@ -1,18 +1,18 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IAccountRepository } from "../../domain";
 import { AuditService } from "../../services/audit.service";
 
 export interface UpdateAccountInput {
     name?: string;
-    description?: string;
+    description?: string | null;
     isActive?: boolean;
 }
 
 export class UpdateAccountUseCase {
     constructor(private readonly accountRepository: IAccountRepository) { }
 
-    async execute(id: string, input: UpdateAccountInput, userId?: string, dbOrTx?: DBContext): Promise<void> {
-        const oldAccount = await this.accountRepository.findById(id, dbOrTx);
+    async execute(tenantId: string, id: string, input: UpdateAccountInput, tx: TransactionContext, userId?: string): Promise<void> {
+        const oldAccount = await this.accountRepository.findById(tenantId, id, tx);
         if (!oldAccount) {
             throw new Error(`Account ${id} not found`);
         }
@@ -26,12 +26,12 @@ export class UpdateAccountUseCase {
             }
         }
 
-        await this.accountRepository.update(id, {
+        await this.accountRepository.update(tenantId, id, {
             ...input,
             updatedAt: new Date(),
-        }, dbOrTx);
+        }, tx);
 
-        await AuditService.log({
+        await AuditService.log(tenantId, {
             userId,
             action: "UPDATE",
             entityType: "account",
@@ -39,6 +39,6 @@ export class UpdateAccountUseCase {
             tableName: "accounts",
             oldValues: { name: oldAccount.name, description: oldAccount.description, isActive: oldAccount.isActive },
             newValues: input as Record<string, unknown>,
-        });
+        }, tx);
     }
 }

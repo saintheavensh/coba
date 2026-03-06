@@ -1,13 +1,11 @@
 import { eq, desc, like, count, and } from "drizzle-orm";
-import { DBContext } from "../../../../../shared/types/db-context";
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { services, activityLogs, users } from "../../../../../shared/infrastructure/database/schema";
 import { IServiceRepository, ServiceTicket } from "../../domain";
 
 export class ServiceRepositoryAdapter implements IServiceRepository {
-    async findAll(params: { status?: string; technicianId?: string } = {}, dbOrTx?: DBContext): Promise<ServiceTicket[]> {
-        const client = (dbOrTx as any) || db;
-        const conditions = [];
+    async findAll(tenantId: string, params: { status?: string | undefined; technicianId?: string | undefined }, tx: TransactionContext): Promise<ServiceTicket[]> {
+        const conditions: any[] = [eq(services.tenantId, tenantId)];
 
         if (params.status) {
             conditions.push(eq(services.status, params.status as any));
@@ -17,10 +15,8 @@ export class ServiceRepositoryAdapter implements IServiceRepository {
             conditions.push(eq(services.technicianId, params.technicianId));
         }
 
-        const results = await client.query.services.findMany({
-            where: conditions.length > 0 ? (
-                conditions.length === 1 ? conditions[0] : and(...conditions)
-            ) : undefined,
+        const results = await tx.query.services.findMany({
+            where: and(...conditions),
             orderBy: [desc(services.dateIn)],
             with: {
                 technician: true,
@@ -37,10 +33,9 @@ export class ServiceRepositoryAdapter implements IServiceRepository {
         return results as ServiceTicket[];
     }
 
-    async findById(id: string, dbOrTx?: DBContext): Promise<ServiceTicket | null> {
-        const client = (dbOrTx as any) || db;
-        const result = await client.query.services.findFirst({
-            where: eq(services.id, id),
+    async findById(tenantId: string, id: string, tx: TransactionContext): Promise<ServiceTicket | null> {
+        const result = await tx.query.services.findFirst({
+            where: and(eq(services.tenantId, tenantId), eq(services.id, id)),
             with: {
                 technician: true,
                 creator: true,
@@ -59,31 +54,30 @@ export class ServiceRepositoryAdapter implements IServiceRepository {
         return result ? (result as ServiceTicket) : null;
     }
 
-    async findLastServiceNo(prefix: string, dbOrTx?: DBContext): Promise<{ no: string } | null> {
-        const client = (dbOrTx as any) || db;
-        const result = await client.query.services.findFirst({
-            where: like(services.no, `${prefix}%`),
+    async findLastServiceNo(tenantId: string, prefix: string, tx: TransactionContext): Promise<{ no: string } | null> {
+        const result = await tx.query.services.findFirst({
+            where: and(eq(services.tenantId, tenantId), like(services.no, `${prefix}%`)),
             orderBy: [desc(services.id)]
         });
         return result ? { no: result.no } : null;
     }
 
-    async getCountsByStatus(dbOrTx?: DBContext): Promise<Array<{ status: string; count: number }>> {
-        const client = (dbOrTx as any) || db;
-        const results = await client.select({
+    async getCountsByStatus(tenantId: string, tx: TransactionContext): Promise<Array<{ status: string; count: number }>> {
+        const results = await tx.select({
             status: services.status,
             count: count()
         })
             .from(services)
+            .where(eq(services.tenantId, tenantId))
             .groupBy(services.status);
         return results;
     }
 
-    async getTechnicianStats(technicianId: string, start: Date, end: Date, dbOrTx?: DBContext): Promise<ServiceTicket[]> {
-        const client = (dbOrTx as any) || db;
-        const results = await client.query.services.findMany({
-            where: (services: any, { and, eq, gte, lte }: any) => and(
-                eq(services.technicianId, technicianId),
+    async getTechnicianStats(tenantId: string, technicianId: string, start: Date, end: Date, tx: TransactionContext): Promise<ServiceTicket[]> {
+        const results = await tx.query.services.findMany({
+            where: (services: any, { and: andOp, eq: eqOp, gte, lte }: any) => andOp(
+                eqOp(services.tenantId, tenantId),
+                eqOp(services.technicianId, technicianId),
                 gte(services.dateIn, start),
                 lte(services.dateIn, end)
             )
@@ -91,44 +85,40 @@ export class ServiceRepositoryAdapter implements IServiceRepository {
         return results as ServiceTicket[];
     }
 
-    async create(data: any, dbOrTx?: DBContext): Promise<{ id: string }> {
-        const client = (dbOrTx as any) || db;
-        const result = await client.insert(services).values(data).returning({ id: services.id });
+    async create(tenantId: string, data: any, tx: TransactionContext): Promise<{ id: string }> {
+        const result = await tx.insert(services).values({ ...data, tenantId }).returning({ id: services.id });
         return { id: result[0].id };
     }
 
-    async update(id: string, data: any, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.update(services).set(data).where(eq(services.id, id));
+    async update(tenantId: string, id: string, data: any, tx: TransactionContext): Promise<void> {
+        await tx.update(services).set(data).where(and(eq(services.tenantId, tenantId), eq(services.id, id)));
     }
 
-    async delete(id: string, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        const srv = await this.findById(id, dbOrTx);
+    async delete(tenantId: string, id: string, tx: TransactionContext): Promise<void> {
+        const srv = await this.findById(tenantId, id, tx);
         if (!srv) return;
 
-        await client.delete(activityLogs).where(eq(activityLogs.entityId, srv.no));
-        await client.delete(services).where(eq(services.id, id));
+        await tx.delete(activityLogs).where(eq(activityLogs.entityId, srv.no));
+        await tx.delete(services).where(and(eq(services.tenantId, tenantId), eq(services.id, id)));
     }
 
-    async logActivity(params: any, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.insert(activityLogs).values({
+    async logActivity(tenantId: string, params: any, tx: TransactionContext): Promise<void> {
+        await tx.insert(activityLogs).values({
             ...params,
+            tenantId,
             oldValue: params.oldValue ? JSON.stringify(params.oldValue) : null,
             newValue: params.newValue ? JSON.stringify(params.newValue) : null,
         });
     }
 
-    async getTimeline(entityId: string, dbOrTx?: DBContext): Promise<any[]> {
-        const client = (dbOrTx as any) || db;
-        const logs = await client.select({
+    async getTimeline(tenantId: string, entityId: string, tx: TransactionContext): Promise<any[]> {
+        const logs = await tx.select({
             log: activityLogs,
             userName: users.name
         })
             .from(activityLogs)
             .leftJoin(users, eq(activityLogs.userId, users.id))
-            .where(eq(activityLogs.entityId, entityId))
+            .where(and(eq(activityLogs.tenantId, tenantId), eq(activityLogs.entityId, entityId)))
             .orderBy(desc(activityLogs.createdAt));
 
         return logs.map(({ log, userName }: any) => {

@@ -1,5 +1,4 @@
 import { inject, injectable } from "inversify";
-import { UseCase } from "../../../../../shared/core/UseCase";
 import { Result } from "../../../../../shared/core/Result";
 import { TYPES } from "../../types";
 import type { IProductRepository } from "../../domain/ports/IProductRepository";
@@ -9,6 +8,7 @@ import { Price } from "../../domain/value-objects/Price.vo";
 import { ProductStatus, Status } from "../../domain/value-objects/ProductStatus.vo";
 import { ProductMapper } from "../mappers/ProductMapper";
 import { Logger, LoggerFactory } from "../../../../../shared/utils/logger/Logger";
+import { TransactionContext } from "@shared/types/db-context";
 
 interface UpdateProductRequest {
     id: string;
@@ -20,7 +20,7 @@ interface UpdateProductRequest {
  * Orchestrates the update of an existing product's details.
  */
 @injectable()
-export class UpdateProductUseCase implements UseCase<UpdateProductRequest, Result<ProductDTO>> {
+export class UpdateProductUseCase {
     private logger: Logger;
     constructor(
         @inject(TYPES.IProductRepository) private readonly productRepo: IProductRepository,
@@ -29,9 +29,9 @@ export class UpdateProductUseCase implements UseCase<UpdateProductRequest, Resul
         this.logger = loggerFactory.createLogger('UpdateProductUseCase');
     }
 
-    public async execute(request: UpdateProductRequest, context?: { requestId?: string; userId?: string }): Promise<Result<ProductDTO>> {
+    public async execute(request: UpdateProductRequest, tx: TransactionContext): Promise<Result<ProductDTO>> {
         // 1. Find product
-        const productResult = await this.productRepo.findById(request.id);
+        const productResult = await this.productRepo.findById(request.id, tx);
         if (productResult.isFailure) {
             return Result.fail<ProductDTO>(productResult.errorValue());
         }
@@ -71,7 +71,7 @@ export class UpdateProductUseCase implements UseCase<UpdateProductRequest, Resul
         }
 
         // 4. Save
-        const saveResult = await this.productRepo.save(product);
+        const saveResult = await this.productRepo.save(product, tx);
         if (saveResult.isFailure) {
             return Result.fail<ProductDTO>(saveResult.errorValue());
         }

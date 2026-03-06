@@ -3,7 +3,7 @@
  * Product controller tests moved to products module.
  */
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createMockContext } from "../../../../../test/factories";
+import { createMockContext, createMockUser } from "../../../../../test/factories";
 
 vi.mock("../inventory-container", () => {
     const mockService = {
@@ -44,23 +44,32 @@ describe("StockOpnameController", () => {
     afterEach(() => {
         vi.restoreAllMocks();
     });
+    const mockAuth = (ctx: any) => {
+        vi.spyOn(ctx, "get").mockReturnValue(createMockUser({ id: "user-1", tenantId: "tenant-1" } as any));
+    };
 
     it("getSessions should return 200", async () => {
-        expect((await controller.getSessions(createMockContext())).status).toBe(200);
+        const ctx = createMockContext();
+        mockAuth(ctx);
+        expect((await controller.getSessions(ctx)).status).toBe(200);
     });
 
     it("getAdjustmentHistory should return 200", async () => {
-        expect((await controller.getAdjustmentHistory(createMockContext())).status).toBe(200);
+        const ctx = createMockContext();
+        mockAuth(ctx);
+        expect((await controller.getAdjustmentHistory(ctx)).status).toBe(200);
     });
 
     it("getSessionDetails 404 if not found", async () => {
         const ctx = createMockContext();
+        mockAuth(ctx);
         vi.spyOn(ctx.req, "param").mockReturnValue("SO-001");
         expect((await controller.getSessionDetails(ctx)).status).toBe(404);
     });
 
     it("getSessionDetails 200 if found", async () => {
         const ctx = createMockContext();
+        mockAuth(ctx);
         vi.spyOn(ctx.req, "param").mockReturnValue("SO-001");
         mockService.getSessionDetails.mockResolvedValue({ id: "SO-001", items: [] });
         expect((await controller.getSessionDetails(ctx)).status).toBe(200);

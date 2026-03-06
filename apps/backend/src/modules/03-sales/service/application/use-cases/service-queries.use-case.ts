@@ -1,33 +1,33 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IServiceRepository, ServiceTicket } from "../../domain";
 import { HTTPException } from "hono/http-exception";
 
 export class GetServicesUseCase {
     constructor(private readonly repository: IServiceRepository) { }
 
-    async execute(params: { status?: string; technicianId?: string }, dbOrTx?: DBContext): Promise<ServiceTicket[]> {
-        return await this.repository.findAll(params, dbOrTx);
+    async execute(tenantId: string, params: { status?: string; technicianId?: string }, tx: TransactionContext): Promise<ServiceTicket[]> {
+        return await this.repository.findAll(tenantId, params, tx);
     }
 }
 
 export class GetServiceCountsUseCase {
     constructor(private readonly repository: IServiceRepository) { }
 
-    async execute(dbOrTx?: DBContext) {
-        return await this.repository.getCountsByStatus(dbOrTx);
+    async execute(tenantId: string, tx: TransactionContext) {
+        return await this.repository.getCountsByStatus(tenantId, tx);
     }
 }
 
 export class GetServiceByIdUseCase {
     constructor(private readonly repository: IServiceRepository) { }
 
-    async execute(id: string, dbOrTx?: DBContext): Promise<ServiceTicket> {
-        const srv = await this.repository.findById(id, dbOrTx);
+    async execute(tenantId: string, id: string, tx: TransactionContext): Promise<ServiceTicket> {
+        const srv = await this.repository.findById(tenantId, id, tx);
         if (!srv) {
             throw new HTTPException(404, { message: "Service not found" });
         }
 
-        const timeline = await this.repository.getTimeline(srv.no, dbOrTx);
+        const timeline = await this.repository.getTimeline(tenantId, srv.no, tx);
 
         return {
             ...srv,
@@ -41,12 +41,8 @@ export class GetServiceByIdUseCase {
 export class GetTechnicianDashboardStatsUseCase {
     constructor(private readonly repository: IServiceRepository) { }
 
-    async execute(userId: string, dbOrTx?: DBContext) {
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-        const servicesData = await this.repository.getTechnicianStats(userId, startOfMonth, endOfMonth, dbOrTx);
+    async execute(tenantId: string, userId: string, startDate: Date, endDate: Date, tx: TransactionContext) {
+        const servicesData = await this.repository.getTechnicianStats(tenantId, userId, startDate, endDate, tx);
 
         const total = servicesData.length;
         const success = servicesData.filter((s: any) => s.status === 'selesai' || s.status === 'diambil').length;

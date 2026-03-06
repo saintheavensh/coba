@@ -1,11 +1,11 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { Brand, CreateBrandData, UpdateBrandData } from "../entities/brand.entity";
 
 export interface IBrandRepository {
-    findAll(dbOrTx?: DBContext): Promise<Brand[]>;
-    findById(id: string, dbOrTx?: DBContext): Promise<Brand | null>;
-    findByName(name: string, dbOrTx?: DBContext): Promise<Brand | null>;
-    create(data: CreateBrandData, dbOrTx?: DBContext): Promise<Brand[]>;
-    update(id: string, data: UpdateBrandData, dbOrTx?: DBContext): Promise<Brand[]>;
-    delete(id: string, dbOrTx?: DBContext): Promise<Brand[]>;
+    findAll(tx: TransactionContext): Promise<Brand[]>;
+    findById(id: string, tx: TransactionContext): Promise<Brand | null>;
+    findByName(name: string, tx: TransactionContext): Promise<Brand | null>;
+    create(data: CreateBrandData, tx: TransactionContext): Promise<Brand[]>;
+    update(id: string, data: UpdateBrandData, tx: TransactionContext): Promise<Brand[]>;
+    delete(id: string, tx: TransactionContext): Promise<Brand[]>;
 }

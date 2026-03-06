@@ -1,67 +1,63 @@
 import { eq, or, like, desc, and } from "drizzle-orm";
-import { DBContext } from "../../../../../shared/types/db-context";
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { members, sales } from "../../../../../shared/infrastructure/database/schema";
 import { ICustomerRepository, Customer, CustomerSale } from "../../domain";
 
 export class CustomerRepositoryAdapter implements ICustomerRepository {
-    async findAll(query?: string, dbOrTx?: DBContext): Promise<Customer[]> {
-        const client = (dbOrTx as any) || db;
+    async findAll(tenantId: string, tx: TransactionContext, query?: string): Promise<Customer[]> {
         if (!query) {
-            return await client.query.members.findMany({
+            return await tx.query.members.findMany({
+                where: eq(members.tenantId, tenantId),
                 orderBy: [desc(members.createdAt)]
             }) as Customer[];
         }
 
-        return await client.query.members.findMany({
-            where: or(
-                like(members.name, `%${query}%`),
-                like(members.phone, `%${query}%`)
+        return await tx.query.members.findMany({
+            where: and(
+                eq(members.tenantId, tenantId),
+                or(
+                    like(members.name, `%${query}%`),
+                    like(members.phone, `%${query}%`)
+                )
             ),
             orderBy: [desc(members.createdAt)]
         }) as Customer[];
     }
 
-    async findById(id: string, dbOrTx?: DBContext): Promise<Customer | null> {
-        const client = (dbOrTx as any) || db;
-        const result = await client.query.members.findFirst({
-            where: eq(members.id, id)
+    async findById(tenantId: string, id: string, tx: TransactionContext): Promise<Customer | null> {
+        const result = await tx.query.members.findFirst({
+            where: and(eq(members.tenantId, tenantId), eq(members.id, id))
         });
         return (result as Customer) || null;
     }
 
-    async findByPhone(phone: string, dbOrTx?: DBContext): Promise<Customer | null> {
-        const client = (dbOrTx as any) || db;
-        const result = await client.query.members.findFirst({
-            where: eq(members.phone, phone)
+    async findByPhone(tenantId: string, phone: string, tx: TransactionContext): Promise<Customer | null> {
+        const result = await tx.query.members.findFirst({
+            where: and(eq(members.tenantId, tenantId), eq(members.phone, phone))
         });
         return (result as Customer) || null;
     }
 
-    async create(data: any, dbOrTx?: DBContext): Promise<Customer> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.insert(members).values(data).returning();
+    async create(tenantId: string, data: any, tx: TransactionContext): Promise<Customer> {
+        const [result] = await tx.insert(members).values({ ...data, tenantId }).returning();
         return result as Customer;
     }
 
-    async update(id: string, data: any, dbOrTx?: DBContext): Promise<Customer> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.update(members)
+    async update(tenantId: string, id: string, data: any, tx: TransactionContext): Promise<Customer> {
+        const [result] = await tx.update(members)
             .set(data)
-            .where(eq(members.id, id))
+            .where(and(eq(members.tenantId, tenantId), eq(members.id, id)))
             .returning();
         return result as Customer;
     }
 
-    async delete(id: string, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.delete(members).where(eq(members.id, id));
+    async delete(tenantId: string, id: string, tx: TransactionContext): Promise<void> {
+        await tx.delete(members).where(and(eq(members.tenantId, tenantId), eq(members.id, id)));
     }
 
-    async findSales(memberId: string, dbOrTx?: DBContext): Promise<CustomerSale[]> {
-        const client = (dbOrTx as any) || db;
-        return await client.query.sales.findMany({
-            where: eq(sales.memberId, memberId),
+    async findSales(tenantId: string, memberId: string, tx: TransactionContext): Promise<CustomerSale[]> {
+        return await tx.query.sales.findMany({
+            where: and(eq(sales.tenantId, tenantId), eq(sales.memberId, memberId)),
             orderBy: [desc(sales.createdAt)],
             with: {
                 payments: true
@@ -69,10 +65,10 @@ export class CustomerRepositoryAdapter implements ICustomerRepository {
         }) as CustomerSale[];
     }
 
-    async findUnpaidSales(memberId: string, dbOrTx?: DBContext): Promise<CustomerSale[]> {
-        const client = (dbOrTx as any) || db;
-        return await client.query.sales.findMany({
+    async findUnpaidSales(tenantId: string, memberId: string, tx: TransactionContext): Promise<CustomerSale[]> {
+        return await tx.query.sales.findMany({
             where: and(
+                eq(sales.tenantId, tenantId),
                 eq(sales.memberId, memberId),
                 or(eq(sales.paymentStatus, "unpaid"), eq(sales.paymentStatus, "partial"))
             ),

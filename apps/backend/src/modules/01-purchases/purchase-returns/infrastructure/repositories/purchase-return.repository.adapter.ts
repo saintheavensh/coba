@@ -1,13 +1,12 @@
-import { eq, desc } from "drizzle-orm";
-import { DBContext } from "../../../../../shared/types/db-context";
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { eq, desc, and } from "drizzle-orm";
 import { purchaseReturns, purchaseReturnItems } from "../../../../../shared/infrastructure/database/schema";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IPurchaseReturnRepository, PurchaseReturn, PurchaseReturnItem } from "../../domain";
 
 export class PurchaseReturnRepositoryAdapter implements IPurchaseReturnRepository {
-    async findAll(dbOrTx?: DBContext): Promise<PurchaseReturn[]> {
-        const client = (dbOrTx as any) || db;
-        return await client.query.purchaseReturns.findMany({
+    async findAll(tenantId: string, tx: TransactionContext): Promise<PurchaseReturn[]> {
+        return await tx.query.purchaseReturns.findMany({
+            where: eq(purchaseReturns.tenantId, tenantId),
             with: {
                 supplier: true,
                 user: true,
@@ -21,10 +20,12 @@ export class PurchaseReturnRepositoryAdapter implements IPurchaseReturnRepositor
         }) as PurchaseReturn[];
     }
 
-    async findById(id: string, dbOrTx?: DBContext): Promise<PurchaseReturn | null> {
-        const client = (dbOrTx as any) || db;
-        const result = await client.query.purchaseReturns.findFirst({
-            where: eq(purchaseReturns.id, id),
+    async findById(tenantId: string, id: string, tx: TransactionContext): Promise<PurchaseReturn | null> {
+        const result = await tx.query.purchaseReturns.findFirst({
+            where: and(
+                eq(purchaseReturns.id, id),
+                eq(purchaseReturns.tenantId, tenantId)
+            ),
             with: {
                 supplier: true,
                 user: true,
@@ -39,14 +40,13 @@ export class PurchaseReturnRepositoryAdapter implements IPurchaseReturnRepositor
         return (result as PurchaseReturn) || null;
     }
 
-    async create(data: Omit<PurchaseReturn, 'items' | 'createdAt'>, dbOrTx?: DBContext): Promise<PurchaseReturn> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.insert(purchaseReturns).values(data).returning();
+    async create(tenantId: string, data: Omit<PurchaseReturn, 'items' | 'createdAt'>, tx: TransactionContext): Promise<PurchaseReturn> {
+        const [result] = await tx.insert(purchaseReturns).values({ ...data, tenantId }).returning();
         return result as PurchaseReturn;
     }
 
-    async createItems(items: Omit<PurchaseReturnItem, 'id' | 'createdAt'>[], dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.insert(purchaseReturnItems).values(items);
+    async createItems(tenantId: string, items: Omit<PurchaseReturnItem, 'id' | 'createdAt'>[], tx: TransactionContext): Promise<void> {
+        const itemsWithTenant = items.map(item => ({ ...item, tenantId }));
+        await tx.insert(purchaseReturnItems).values(itemsWithTenant);
     }
 }

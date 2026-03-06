@@ -1,5 +1,5 @@
-import { db } from "../../../../infrastructure/database/client";
-import { rolePermissions } from "../../../../infrastructure/database/schema";
+import { db } from "@shared/infrastructure/database/client";
+import { rolePermissions } from "@shared/infrastructure/database/schema";
 import { eq } from "drizzle-orm";
 
 export interface GetRolePermissionsInput {

@@ -17,7 +17,7 @@ describe("InventoryGatewayAdapter", () => {
     it("should get stock level successfully", async () => {
         mockFacade.getStockForProduct.mockResolvedValue(Result.ok(50));
 
-        const result = await adapter.getStockLevel("prod-1");
+        const result = await adapter.getStockLevel("prod-1", undefined as any);
 
         expect(result.isSuccess).toBe(true);
         expect(result.getValue()).toBe(50);
@@ -27,7 +27,7 @@ describe("InventoryGatewayAdapter", () => {
     it("should handle facade failure in getStockLevel", async () => {
         mockFacade.getStockForProduct.mockResolvedValue(Result.fail("Inventory down"));
 
-        const result = await adapter.getStockLevel("prod-1");
+        const result = await adapter.getStockLevel("prod-1", undefined as any);
 
         expect(result.isFailure).toBe(true);
         expect(result.errorValue()).toContain("Inventory down");

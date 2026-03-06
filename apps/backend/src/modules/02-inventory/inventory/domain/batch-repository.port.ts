@@ -1,3 +1,5 @@
+import { TransactionContext } from "../../../../shared/types/db-context";
+
 /**
  * Port for batch lookup operations.
  * Split from IProductRepository since batch data belongs to the stock domain.
@@ -13,10 +15,10 @@ export interface ProductBatchEntity {
     initialStock: number;
     currentStock: number;
     supplier?: { id: string; name: string } | null;
-    createdAt?: Date;
+    createdAt?: Date | null;
 }
 
 export interface IBatchRepository {
-    getLastBatchByProduct(productId: string, dbOrTx?: any): Promise<ProductBatchEntity | null>;
-    findById(batchId: string, dbOrTx?: any): Promise<ProductBatchEntity | null>;
+    getLastBatchByProduct(productId: string, tx: TransactionContext): Promise<ProductBatchEntity | null>;
+    findById(batchId: string, tx: TransactionContext): Promise<ProductBatchEntity | null>;
 }

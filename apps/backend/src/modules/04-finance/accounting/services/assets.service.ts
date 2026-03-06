@@ -1,6 +1,6 @@
-import { db } from "../../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../../shared/types/db-context";
 import { assets, assetDepreciationLogs } from "../../../../shared/infrastructure/database/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { accountingService } from "../accounting-container";
 
 export interface CreateAssetInput {
@@ -43,15 +43,15 @@ export class AssetsService {
     /**
      * Create a new asset
      */
-    static async create(input: CreateAssetInput, userId?: string): Promise<string> {
-        return await accountingService.createAsset(input, userId || "");
+    static async create(tenantId: string, tx: TransactionContext, input: CreateAssetInput, userId?: string): Promise<string> {
+        return await accountingService.createAsset(tenantId, input, tx, userId || "");
     }
 
     /**
      * Get all assets
      */
-    static async getAll(filters: AssetFilters = {}) {
-        const assetsList = await accountingService.getAllAssets();
+    static async getAll(tenantId: string, tx: TransactionContext, filters: AssetFilters = {}) {
+        const assetsList = await accountingService.getAllAssets(tenantId, tx);
         // Simple filtering for legacy service
         return assetsList.filter(a => {
             if (filters.category && a.category !== filters.category) return false;
@@ -63,14 +63,17 @@ export class AssetsService {
     /**
      * Get asset by ID with depreciation history
      */
-    static async getById(id: string) {
-        const asset = await accountingService.getAssetById(id);
+    static async getById(tenantId: string, id: string, tx: TransactionContext) {
+        const asset = await accountingService.getAssetById(tenantId, id, tx);
         if (!asset) return null;
 
-        const depreciationHistory = await db
+        const depreciationHistory = await tx
             .select()
             .from(assetDepreciationLogs)
-            .where(eq(assetDepreciationLogs.assetId, id))
+            .where(and(
+                eq(assetDepreciationLogs.tenantId, tenantId),
+                eq(assetDepreciationLogs.assetId, id)
+            ))
             .orderBy(desc(assetDepreciationLogs.period));
 
         return {
@@ -83,35 +86,38 @@ export class AssetsService {
     /**
      * Get total monthly depreciation for all active assets
      */
-    static async getTotalMonthlyDepreciation(): Promise<number> {
-        const assetsList = await accountingService.getAllAssets();
+    static async getTotalMonthlyDepreciation(tenantId: string, tx: TransactionContext): Promise<number> {
+        const assetsList = await accountingService.getAllAssets(tenantId, tx);
         return assetsList
-            .filter(a => a.status === "active")
-            .reduce((sum, a) => sum + (a.monthlyDepreciation || 0), 0);
+            .filter((a: any) => a.status === "active")
+            .reduce((sum: number, a: any) => sum + (a.monthlyDepreciation || 0), 0);
     }
 
     /**
      * Dispose an asset
      */
-    static async dispose(id: string, reason: string, userId?: string): Promise<void> {
-        const asset = await this.getById(id);
+    static async dispose(tenantId: string, id: string, reason: string, tx: TransactionContext, _userId?: string): Promise<void> {
+        const asset = await this.getById(tenantId, id, tx);
         if (!asset) throw new Error(`Asset ${id} not found`);
 
-        await db
+        await tx
             .update(assets)
             .set({
                 status: "disposed",
                 updatedAt: new Date(),
                 notes: `${asset.notes || ""}\n[DISPOSED] ${reason}`,
             })
-            .where(eq(assets.id, id));
+            .where(and(
+                eq(assets.tenantId, tenantId),
+                eq(assets.id, id)
+            ));
     }
 
     /**
      * Delete an asset
      */
-    static async delete(id: string, userId?: string): Promise<void> {
-        await accountingService.deleteAccount(id, userId); // Assuming deletion is handled via facade or directly
+    static async delete(tenantId: string, id: string, tx: TransactionContext, userId?: string): Promise<void> {
+        await accountingService.deleteAccount(tenantId, id, tx, userId); // Assuming deletion is handled via facade or directly
         // Wait, facade.deleteAccount is for accounts.
         // Legacy AssetsService.delete was complex. For now, let's leave it as throw or minimal.
         throw new Error("Deletion not implemented in refactored service yet");

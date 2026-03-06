@@ -1,11 +1,11 @@
-import { DBContext } from "../../../../../shared/types/db-context";
-import { IAccountRepository, Account } from "../../domain";
+import { TransactionContext } from "../../../../../shared/types/db-context";
+import { IAccountRepository } from "../../domain";
 
 export class GetAccountTreeUseCase {
     constructor(private readonly accountRepository: IAccountRepository) { }
 
-    async execute(filters: { typeId?: string } = {}, dbOrTx?: DBContext): Promise<any[]> {
-        const allAccounts = await this.accountRepository.findAll(filters, dbOrTx);
+    async execute(tenantId: string, tx: TransactionContext, filters: { typeId?: string } = {}): Promise<any[]> {
+        const allAccounts = await this.accountRepository.findAll(tenantId, filters, tx);
 
         const accountMap = new Map<string, any>();
         const roots: any[] = [];

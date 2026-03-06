@@ -1,13 +1,13 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { Customer, CustomerSale } from "../entities/customer.entity";
 
 export interface ICustomerRepository {
-    findAll(query?: string, dbOrTx?: DBContext): Promise<Customer[]>;
-    findById(id: string, dbOrTx?: DBContext): Promise<Customer | null>;
-    findByPhone(phone: string, dbOrTx?: DBContext): Promise<Customer | null>;
-    create(data: any, dbOrTx?: DBContext): Promise<Customer>;
-    update(id: string, data: any, dbOrTx?: DBContext): Promise<Customer>;
-    delete(id: string, dbOrTx?: DBContext): Promise<void>;
-    findSales(memberId: string, dbOrTx?: DBContext): Promise<CustomerSale[]>;
-    findUnpaidSales(memberId: string, dbOrTx?: DBContext): Promise<CustomerSale[]>;
+    findAll(tenantId: string, tx: TransactionContext, query?: string): Promise<Customer[]>;
+    findById(tenantId: string, id: string, tx: TransactionContext): Promise<Customer | null>;
+    findByPhone(tenantId: string, phone: string, tx: TransactionContext): Promise<Customer | null>;
+    create(tenantId: string, data: any, tx: TransactionContext): Promise<Customer>;
+    update(tenantId: string, id: string, data: any, tx: TransactionContext): Promise<Customer>;
+    delete(tenantId: string, id: string, tx: TransactionContext): Promise<void>;
+    findSales(tenantId: string, memberId: string, tx: TransactionContext): Promise<CustomerSale[]>;
+    findUnpaidSales(tenantId: string, memberId: string, tx: TransactionContext): Promise<CustomerSale[]>;
 }

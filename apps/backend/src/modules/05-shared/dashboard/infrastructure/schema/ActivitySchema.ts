@@ -13,6 +13,7 @@ export const activityLogs = pgTable("activity_logs", {
     oldValue: json("old_value"),
     newValue: json("new_value"),
     description: text("description"),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -25,6 +26,7 @@ export const notifications = pgTable("notifications", {
     entityType: text("entity_type"),
     entityId: text("entity_id"),
     isRead: boolean("is_read").default(false),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
 });
 

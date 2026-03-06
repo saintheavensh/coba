@@ -1,4 +1,4 @@
-import { text, integer, timestamp, pgTable } from "drizzle-orm/pg-core";
+import { text, integer, timestamp, pgTable, index } from "drizzle-orm/pg-core";
 import { users } from "../../../../05-shared/users/infrastructure/schema/UserSchema";
 import { products } from "../../../products/infrastructure/schema/ProductSchema";
 import { productBatches } from "./BatchSchema";
@@ -11,9 +11,12 @@ export const stockOpnameSessions = pgTable("stock_opname_sessions", {
     status: text("status", { enum: ["draft", "completed", "cancelled"] }).default("draft"),
     userId: text("user_id").notNull().references(() => users.id),
     notes: text("notes"),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
     completedAt: timestamp("completed_at"),
-});
+}, (table) => ({
+    tenantIdx: index("stock_opname_sessions_tenant_idx").on(table.tenantId),
+}));
 
 export const stockOpnameItems = pgTable("stock_opname_items", {
     id: uuid(), // CHANGED: serial -> uuid
@@ -24,5 +27,8 @@ export const stockOpnameItems = pgTable("stock_opname_items", {
     systemStock: integer("system_stock").notNull(),
     physicalStock: integer("physical_stock"),
     adjustmentReason: text("adjustment_reason"),
-});
+    tenantId: text("tenant_id").notNull(),
+}, (table) => ({
+    tenantIdx: index("stock_opname_items_tenant_idx").on(table.tenantId),
+}));
 

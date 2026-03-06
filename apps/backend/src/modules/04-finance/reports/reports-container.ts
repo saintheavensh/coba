@@ -1,4 +1,5 @@
-import { db } from "../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../shared/types/db-context";
+import { inventoryAuthority } from "../../02-inventory/inventory/inventory-container";
 import { ReportRepositoryAdapter } from "./infrastructure";
 import {
     GetSalesSummaryUseCase,
@@ -40,60 +41,102 @@ const getKasirDailyReportUC = new GetKasirDailyReportUseCase(repository);
  * ReportsService — Facade for external and presentation layers.
  */
 export class ReportsService {
-    async getSalesSummary(filters: any) {
-        return await getSalesSummaryUC.execute(filters);
+    async getSalesSummary(tenantId: string, filters: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getSalesSummaryUC.execute(tenantId, tx, filters)
+        );
     }
 
-    async getTransactions(filters: any) {
-        return await getTransactionsUC.execute(filters);
+    async getTransactions(tenantId: string, filters: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getTransactionsUC.execute(tenantId, tx, filters)
+        );
     }
 
-    async getServiceStats(filters: any) {
-        return await getServiceStatsUC.execute(filters);
+    async getServiceStats(tenantId: string, filters: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getServiceStatsUC.execute(tenantId, tx, filters)
+        );
     }
 
-    async getServiceTransactions(filters: any) {
-        return await getServiceTransactionsUC.execute(filters);
+    async getServiceTransactions(tenantId: string, filters: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getServiceTransactionsUC.execute(tenantId, tx, filters)
+        );
     }
 
-    async getPurchasesSummary(filters: any) {
-        return await getPurchasesSummaryUC.execute(filters);
+    async getPurchasesSummary(tenantId: string, filters: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getPurchasesSummaryUC.execute(tenantId, tx, filters)
+        );
     }
 
-    async getPurchaseTransactions(filters: any) {
-        return await getPurchaseTransactionsUC.execute(filters);
+    async getPurchaseTransactions(tenantId: string, filters: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getPurchaseTransactionsUC.execute(tenantId, tx, filters)
+        );
     }
 
-    async getTechnicianStats(filters: any) {
-        return await getTechnicianStatsUC.execute(filters);
+    async getTechnicianStats(tenantId: string, filters: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getTechnicianStatsUC.execute(tenantId, tx, filters)
+        );
     }
 
-    async getPartsUsageReport(filters: any) {
-        return await getPartsUsageReportUC.execute(filters);
+    async getPartsUsageReport(tenantId: string, filters: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getPartsUsageReportUC.execute(tenantId, tx, filters)
+        );
     }
 
-    async getActivityLogs(filters: any) {
-        return await getActivityLogsUC.execute(filters);
+    async getActivityLogs(tenantId: string, filters: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getActivityLogsUC.execute(tenantId, tx, filters)
+        );
     }
 
-    async getProfitAndLoss(filters: any) {
-        return await getProfitAndLossUC.execute(filters);
+    async getProfitAndLoss(tenantId: string, filters: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getProfitAndLossUC.execute(tenantId, tx, filters)
+        );
     }
 
-    async getStockValueReport() {
-        return await getStockValueReportUC.execute();
+    async getStockValueReport(tenantId: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getStockValueReportUC.execute(tenantId, tx)
+        );
     }
 
-    async getStockAdjustments() {
-        return await getStockAdjustmentsUC.execute();
+    async getStockAdjustments(tenantId: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getStockAdjustmentsUC.execute(tenantId, tx)
+        );
     }
 
-    async getLowStockReport(threshold?: number) {
-        return await getLowStockReportUC.execute(threshold);
+    async getLowStockReport(tenantId: string, threshold?: number) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getLowStockReportUC.execute(tenantId, tx, threshold)
+        );
     }
 
-    async getKasirDailyReport(filters: any) {
-        return await getKasirDailyReportUC.execute(filters);
+    async getKasirDailyReport(tenantId: string, filters: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getKasirDailyReportUC.execute(tenantId, tx, filters)
+        );
     }
 }
 

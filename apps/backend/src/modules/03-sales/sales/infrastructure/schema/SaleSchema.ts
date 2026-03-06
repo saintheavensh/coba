@@ -1,4 +1,4 @@
-import { text, integer, timestamp, pgTable, boolean, json } from "drizzle-orm/pg-core";
+import { text, integer, timestamp, pgTable, boolean, json, index } from "drizzle-orm/pg-core";
 import { randomUUID } from "crypto";
 import { users } from "../../../../05-shared/users/infrastructure/schema/UserSchema";
 import { members } from "../../../customers/infrastructure/schema/MemberSchema";
@@ -17,8 +17,11 @@ export const sales = pgTable("sales", {
     paymentStatus: text("payment_status", { enum: ["paid", "partial", "unpaid"] }).notNull().default("paid"),
     userId: text("user_id").notNull().references(() => users.id),
     notes: text("notes"),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+    tenantIdx: index("sales_tenant_idx").on(table.tenantId),
+}));
 
 export const saleItems = pgTable("sale_items", {
     id: uuid(),
@@ -28,6 +31,7 @@ export const saleItems = pgTable("sale_items", {
     variant: text("variant"),
     qty: integer("qty").notNull(),
     price: integer("price").notNull(),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -43,6 +47,7 @@ export const paymentMethods = pgTable("payment_methods", {
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").$onUpdate(() => new Date()),
     deletedAt: timestamp("deleted_at"),
+    tenantId: text("tenant_id").notNull(),
 });
 
 export const paymentVariants = pgTable("payment_variants", {
@@ -54,6 +59,7 @@ export const paymentVariants = pgTable("payment_variants", {
     accountId: text("account_id"),
     enabled: boolean("enabled").default(true),
     created_at: timestamp("created_at").defaultNow(),
+    tenantId: text("tenant_id").notNull(),
 });
 
 export const salePayments = pgTable("sale_payments", {
@@ -66,6 +72,7 @@ export const salePayments = pgTable("sale_payments", {
     variantId: text("variant_id").references(() => paymentVariants.id),
     reference: text("reference"),
     proofImage: text("proof_image"),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
 });
 

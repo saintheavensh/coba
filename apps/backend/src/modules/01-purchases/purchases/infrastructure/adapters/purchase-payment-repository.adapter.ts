@@ -1,20 +1,23 @@
-import { db } from "../../../../../shared/infrastructure/database/client";
 import { purchasePayments } from "../../../../../shared/infrastructure/database/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { IPurchasePaymentRepository } from "../../domain/purchase-repository.port";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export class PurchasePaymentRepositoryAdapter implements IPurchasePaymentRepository {
-    async savePayment(payment: any, dbOrTx?: any): Promise<void> {
-        const client = dbOrTx || db;
-        await client.insert(purchasePayments).values({
+    async savePayment(tenantId: string, payment: any, tx: TransactionContext): Promise<void> {
+        await tx.insert(purchasePayments).values({
             ...payment,
+            tenantId,
             id: payment.id || crypto.randomUUID()
         });
     }
 
-    async findPaymentsByPurchaseId(purchaseId: string): Promise<any[]> {
-        return await db.query.purchasePayments.findMany({
-            where: eq(purchasePayments.purchaseId, purchaseId)
+    async findPaymentsByPurchaseId(tenantId: string, purchaseId: string, tx: TransactionContext): Promise<any[]> {
+        return await tx.query.purchasePayments.findMany({
+            where: and(
+                eq(purchasePayments.purchaseId, purchaseId),
+                eq(purchasePayments.tenantId, tenantId)
+            )
         });
     }
 }

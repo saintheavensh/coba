@@ -1,14 +1,14 @@
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { stockOpnameItems, stockOpnameSessions, products, users } from "../../../../../shared/infrastructure/database/schema";
-import { eq, and, desc, not, sql } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { IReportRepository } from "../../domain/repositories/report-repository.port";
 
 export class GetStockAdjustmentsUseCase {
-    constructor(private readonly repository: IReportRepository) { }
+    constructor(_repository: IReportRepository) { }
 
-    async execute() {
+    async execute(tenantId: string, tx: TransactionContext) {
         // We join opname items with sessions and products to get full info
-        const adjustments = await db
+        const adjustments = await tx
             .select({
                 id: stockOpnameItems.id,
                 completedAt: stockOpnameSessions.completedAt,
@@ -25,6 +25,7 @@ export class GetStockAdjustmentsUseCase {
             .innerJoin(products, eq(stockOpnameItems.productId, products.id))
             .innerJoin(users, eq(stockOpnameSessions.userId, users.id))
             .where(and(
+                eq(stockOpnameSessions.tenantId, tenantId),
                 eq(stockOpnameSessions.status, "completed"),
                 sql`${stockOpnameItems.physicalStock} != ${stockOpnameItems.systemStock}`
             ))

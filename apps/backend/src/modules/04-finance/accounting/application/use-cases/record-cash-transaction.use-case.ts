@@ -1,6 +1,5 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { ICashRegisterRepository } from "../../domain";
-import { AuditService } from "../../services/audit.service";
 
 export interface RecordCashTransactionInput {
     transactionType: "sale" | "service" | "refund" | "adjustment";
@@ -12,14 +11,14 @@ export interface RecordCashTransactionInput {
 export class RecordCashTransactionUseCase {
     constructor(private readonly registerRepository: ICashRegisterRepository) { }
 
-    async execute(input: RecordCashTransactionInput, dbOrTx?: DBContext): Promise<void> {
-        const current = await this.registerRepository.getCurrent(dbOrTx);
+    async execute(tenantId: string, input: RecordCashTransactionInput, tx: TransactionContext): Promise<void> {
+        const current = await this.registerRepository.getCurrent(tenantId, tx);
         if (!current) {
             throw new Error("No open cash register found. Please open one first.");
         }
 
         // Record in cash register transactions
-        await this.registerRepository.createTransaction({
+        await this.registerRepository.createTransaction(tenantId, {
             id: `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             registerId: current.id,
             type: input.transactionType,
@@ -28,7 +27,7 @@ export class RecordCashTransactionUseCase {
             amount: input.amount,
             description: input.description || "",
             createdAt: new Date(),
-        }, dbOrTx);
+        }, tx);
 
         // Update register expected closing is usually handled by the repository or a domain service
         // If the repository adapter doesn't do it, we should do it here. 

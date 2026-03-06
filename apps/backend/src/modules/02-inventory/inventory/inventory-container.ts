@@ -23,8 +23,8 @@ import { FinalizeOpnameSessionUseCase } from "./application/use-cases/finalize-o
 import { CancelOpnameSessionUseCase } from "./application/use-cases/cancel-opname-session.use-case";
 import { GetAdjustmentHistoryUseCase } from "./application/use-cases/get-adjustment-history.use-case";
 
-import { InventoryService } from "./services/inventory.service";
-import { StockOpnameService } from "./services/stock-opname.service";
+import { InventoryTransactionAuthority } from "./application/services/inventory-transaction-authority";
+import { db } from "@shared/infrastructure/database/client";
 
 // Adapters
 const stockGateway = new StockMutationGatewayAdapter();
@@ -33,6 +33,9 @@ const activityLogger = new ActivityLoggerAdapter();
 const batchRepository = new BatchRepositoryAdapter();
 const gamblingRepository = new GamblingRepositoryAdapter();
 const kanibalRepository = new KanibalRepositoryAdapter();
+// InventoryTransactionAuthority expects NodePgDatabase<typeof schema>.
+// The global db client satisfies this type at runtime.
+export const inventoryAuthority = new InventoryTransactionAuthority(db as ConstructorParameters<typeof InventoryTransactionAuthority>[0]);
 
 // Use Cases
 const deductStockFIFOUC = new DeductStockFIFOUseCase(stockGateway);
@@ -53,6 +56,9 @@ const finalizeOpnameSessionUC = new FinalizeOpnameSessionUseCase(stockOpnameRepo
 const cancelOpnameSessionUC = new CancelOpnameSessionUseCase(stockOpnameRepo, activityLogger);
 const getAdjustmentHistoryUC = new GetAdjustmentHistoryUseCase(stockOpnameRepo);
 
+import { InventoryService } from "./application/services/inventory.service";
+import { StockOpnameService } from "./application/services/stock-opname.service";
+
 // Service Facades
 export const inventoryService = new InventoryService(
     deductStockFIFOUC,
@@ -67,10 +73,12 @@ export const inventoryService = new InventoryService(
     forfeitServiceDeviceUC,
     gamblingRepository,
     kanibalRepository,
-    () => require("../products/products-container").productsService
+    () => require("../products/products-container").productsService,
+    inventoryAuthority
 );
 
 export const stockOpnameService = new StockOpnameService(
+    inventoryAuthority,
     createOpnameSessionUC,
     getOpnameSessionsUC,
     getOpnameSessionDetailsUC,

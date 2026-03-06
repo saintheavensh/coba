@@ -14,7 +14,7 @@ import {
 export class GetAllSettingsUseCase {
     constructor(private readonly getSettingUC: GetSettingUseCase) { }
 
-    async execute(dbOrTx?: DBContext): Promise<AllSettings> {
+    async execute(tenantId: string, tx: DBContext): Promise<AllSettings> {
         const [
             storeInfo,
             receiptSettings,
@@ -24,13 +24,13 @@ export class GetAllSettingsUseCase {
             accountMappings,
             generalSettings
         ] = await Promise.all([
-            this.getSettingUC.execute("store_info", DEFAULT_STORE_INFO, dbOrTx),
-            this.getSettingUC.execute("receipt_settings", DEFAULT_RECEIPT_SETTINGS, dbOrTx),
-            this.getSettingUC.execute("service_settings", DEFAULT_SERVICE_SETTINGS, dbOrTx),
-            this.getSettingUC.execute("whatsapp_settings", DEFAULT_WHATSAPP_SETTINGS, dbOrTx),
-            this.getSettingUC.execute("commission_settings", DEFAULT_COMMISSION_SETTINGS, dbOrTx),
-            this.getSettingUC.execute("account_mappings", DEFAULT_ACCOUNT_MAPPINGS, dbOrTx),
-            this.getSettingUC.execute("general_settings", DEFAULT_GENERAL_SETTINGS, dbOrTx),
+            this.getSettingUC.execute(tenantId, "store_info", DEFAULT_STORE_INFO, tx),
+            this.getSettingUC.execute(tenantId, "receipt_settings", DEFAULT_RECEIPT_SETTINGS, tx),
+            this.getSettingUC.execute(tenantId, "service_settings", DEFAULT_SERVICE_SETTINGS, tx),
+            this.getSettingUC.execute(tenantId, "whatsapp_settings", DEFAULT_WHATSAPP_SETTINGS, tx),
+            this.getSettingUC.execute(tenantId, "commission_settings", DEFAULT_COMMISSION_SETTINGS, tx),
+            this.getSettingUC.execute(tenantId, "account_mappings", DEFAULT_ACCOUNT_MAPPINGS, tx),
+            this.getSettingUC.execute(tenantId, "general_settings", DEFAULT_GENERAL_SETTINGS, tx),
         ]);
 
         return {

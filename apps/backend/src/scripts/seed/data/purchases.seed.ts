@@ -22,11 +22,12 @@ export async function seedPurchases() {
         totalAmount: (5 * 250000) + (5 * 100000), // 1.25m + 500k = 1.75m
         notes: "Restock sparepart iPhone X",
         userId: USER_IDS.admin,
+        tenantId: "system",
     });
 
     await db.insert(purchaseItems).values([
-        { purchaseId: po1Id, productId: PRODUCT_IDS.lcdIpX, qtyOrdered: 5, qtyReceived: 5, buyPrice: 250000, sellPrice: 450000 },
-        { purchaseId: po1Id, productId: PRODUCT_IDS.batreIpX, qtyOrdered: 5, qtyReceived: 5, buyPrice: 100000, sellPrice: 200000 },
+        { purchaseId: po1Id, productId: PRODUCT_IDS.lcdIpX, qtyOrdered: 5, qtyReceived: 5, buyPrice: 250000, sellPrice: 450000, tenantId: "system" },
+        { purchaseId: po1Id, productId: PRODUCT_IDS.batreIpX, qtyOrdered: 5, qtyReceived: 5, buyPrice: 100000, sellPrice: 200000, tenantId: "system" },
     ]);
 
     // PO 2: Accessories from Global (Unpaid / Debt)
@@ -38,11 +39,12 @@ export async function seedPurchases() {
         totalAmount: (20 * 10000) + (40 * 5000), // 200k + 200k = 400k
         notes: "Grosir aeseoris, tempo 30 hari",
         userId: USER_IDS.admin,
+        tenantId: "system",
     });
 
     await db.insert(purchaseItems).values([
-        { purchaseId: po2Id, productId: PRODUCT_IDS.caseClear, qtyOrdered: 20, qtyReceived: 20, buyPrice: 10000, sellPrice: 35000 },
-        { purchaseId: po2Id, productId: PRODUCT_IDS.tempered, qtyOrdered: 40, qtyReceived: 40, buyPrice: 5000, sellPrice: 25000 },
+        { purchaseId: po2Id, productId: PRODUCT_IDS.caseClear, qtyOrdered: 20, qtyReceived: 20, buyPrice: 10000, sellPrice: 35000, tenantId: "system" },
+        { purchaseId: po2Id, productId: PRODUCT_IDS.tempered, qtyOrdered: 40, qtyReceived: 40, buyPrice: 5000, sellPrice: 25000, tenantId: "system" },
     ]);
 
     // PO 3: Unit purchase (Partial)
@@ -54,10 +56,11 @@ export async function seedPurchases() {
         totalAmount: 9000000,
         notes: "DP 5jt sisa COD",
         userId: USER_IDS.admin,
+        tenantId: "system",
     });
 
     await db.insert(purchaseItems).values([
-        { purchaseId: po3Id, productId: PRODUCT_IDS.iphone13, qtyOrdered: 1, qtyReceived: 1, buyPrice: 9000000, sellPrice: 10500000 }
+        { purchaseId: po3Id, productId: PRODUCT_IDS.iphone13, qtyOrdered: 1, qtyReceived: 1, buyPrice: 9000000, sellPrice: 10500000, tenantId: "system" }
     ]);
 
     // Add 2 more for volume
@@ -69,6 +72,7 @@ export async function seedPurchases() {
             totalAmount: 1000000,
             notes: "Historical data",
             userId: USER_IDS.admin,
+            tenantId: "system",
         });
     }
 
@@ -84,6 +88,7 @@ export async function seedPurchases() {
         userId: USER_IDS.admin,
         date: new Date(),
         notes: "Datang pecah",
+        tenantId: "system",
     });
 
     await db.insert(purchaseReturnItems).values({
@@ -92,6 +97,7 @@ export async function seedPurchases() {
         batchId: BATCH_IDS.tgA, // Added missing required field
         qty: 5,
         reason: "Broken on arrival",
+        tenantId: "system",
     });
 
     // Also track in Defective Items
@@ -105,6 +111,7 @@ export async function seedPurchases() {
         sourceRefId: ret1Id,
         reason: "Pecah dari supplier",
         status: "pending",
+        tenantId: "system",
     });
 
     console.log("✅ Created 1 completed return (5 items) + 1 defect record.");

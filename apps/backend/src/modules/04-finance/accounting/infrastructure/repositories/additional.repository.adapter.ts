@@ -1,5 +1,4 @@
 import { eq, sql, desc, and } from "drizzle-orm";
-import { db } from "../../../../../shared/infrastructure/database/client";
 import {
     cashRegisters,
     cashRegisterTransactions,
@@ -9,9 +8,8 @@ import {
     purchasePayments,
     commissionPayments,
     purchases,
-    suppliers
 } from "../../../../../shared/infrastructure/database/schema";
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import {
     ICashRegisterRepository,
     IAssetRepository,
@@ -25,52 +23,46 @@ import {
 } from "../../domain";
 
 export class CashRegisterRepositoryAdapter implements ICashRegisterRepository {
-    async getCurrent(dbOrTx?: DBContext): Promise<CashRegister | null> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.select().from(cashRegisters).where(eq(cashRegisters.status, "open")).limit(1);
+    async getCurrent(tenantId: string, tx: TransactionContext): Promise<CashRegister | null> {
+        const [result] = await tx.select().from(cashRegisters).where(and(eq(cashRegisters.tenantId, tenantId), eq(cashRegisters.status, "open"))).limit(1);
         return (result as CashRegister) || null;
     }
 
-    async getById(id: string, dbOrTx?: DBContext): Promise<CashRegister | null> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.select().from(cashRegisters).where(eq(cashRegisters.id, id));
+    async getById(tenantId: string, id: string, tx: TransactionContext): Promise<CashRegister | null> {
+        const [result] = await tx.select().from(cashRegisters).where(and(eq(cashRegisters.tenantId, tenantId), eq(cashRegisters.id, id)));
         return (result as CashRegister) || null;
     }
 
-    async create(data: Partial<CashRegister>, dbOrTx?: DBContext): Promise<{ id: string }> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.insert(cashRegisters).values(data).returning({ id: cashRegisters.id });
+    async create(tenantId: string, data: Partial<CashRegister>, tx: TransactionContext): Promise<{ id: string }> {
+        const [result] = await tx.insert(cashRegisters).values({ ...data, tenantId } as any).returning({ id: cashRegisters.id });
+        if (!result) throw new Error("Failed to create cash register");
         return result;
     }
 
-    async update(id: string, data: Partial<CashRegister>, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.update(cashRegisters).set(data).where(eq(cashRegisters.id, id));
+    async update(tenantId: string, id: string, data: Partial<CashRegister>, tx: TransactionContext): Promise<void> {
+        await tx.update(cashRegisters).set(data as any).where(and(eq(cashRegisters.tenantId, tenantId), eq(cashRegisters.id, id)));
     }
 
-    async listHistory(limit: number, offset: number, dbOrTx?: DBContext): Promise<CashRegister[]> {
-        const client = (dbOrTx as any) || db;
-        return await client.select().from(cashRegisters).orderBy(desc(cashRegisters.openedAt)).limit(limit).offset(offset) as CashRegister[];
+    async listHistory(tenantId: string, limit: number, offset: number, tx: TransactionContext): Promise<CashRegister[]> {
+        return await tx.select().from(cashRegisters).where(eq(cashRegisters.tenantId, tenantId)).orderBy(desc(cashRegisters.openedAt)).limit(limit).offset(offset) as CashRegister[];
     }
 
-    async createTransaction(data: Partial<CashTransaction>, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        // Map domain type to schema transactionType
+    async createTransaction(tenantId: string, data: Partial<CashTransaction>, tx: TransactionContext): Promise<void> {
         const { type, ...rest } = data as any;
-        await client.insert(cashRegisterTransactions).values({
+        await tx.insert(cashRegisterTransactions).values({
             ...rest,
+            tenantId,
             transactionType: type,
         });
     }
 
-    async getTransactions(registerId: string, dbOrTx?: DBContext): Promise<CashTransaction[]> {
-        const client = (dbOrTx as any) || db;
-        const results = await client.select().from(cashRegisterTransactions).where(eq(cashRegisterTransactions.registerId, registerId));
+    async getTransactions(tenantId: string, registerId: string, tx: TransactionContext): Promise<CashTransaction[]> {
+        const results = await tx.select().from(cashRegisterTransactions).where(and(eq(cashRegisterTransactions.tenantId, tenantId), eq(cashRegisterTransactions.registerId, registerId)));
         return results.map((r: any) => ({ ...r, type: r.transactionType })) as CashTransaction[];
     }
 
-    async getSummary(registerId: string, dbOrTx?: DBContext): Promise<any> {
-        const transactions = await this.getTransactions(registerId, dbOrTx);
+    async getSummary(tenantId: string, registerId: string, tx: TransactionContext): Promise<any> {
+        const transactions = await this.getTransactions(tenantId, registerId, tx);
         const summary: any = {
             sale: { count: 0, total: 0 },
             service: { count: 0, total: 0 },
@@ -79,11 +71,11 @@ export class CashRegisterRepositoryAdapter implements ICashRegisterRepository {
             adjustment: { count: 0, total: 0 },
         };
 
-        for (const tx of transactions) {
-            const type = tx.type as any;
+        for (const txn of transactions) {
+            const type = txn.type as any;
             if (summary[type]) {
                 summary[type].count++;
-                summary[type].total += tx.amount;
+                summary[type].total += txn.amount;
             }
         }
 
@@ -95,18 +87,17 @@ export class CashRegisterRepositoryAdapter implements ICashRegisterRepository {
         };
     }
 
-    async getTodayProgress(dbOrTx?: DBContext): Promise<any> {
-        const register = await this.getCurrent(dbOrTx);
+    async getTodayProgress(tenantId: string, tx: TransactionContext): Promise<any> {
+        const register = await this.getCurrent(tenantId, tx);
         if (!register) {
             return { isOpen: false, progress: 0, totalSales: 0, totalServices: 0 };
         }
 
-        const summary = await this.getSummary(register.id, dbOrTx);
-        const client = (dbOrTx as any) || db;
-        const recentTransactions = await client
+        const summary = await this.getSummary(tenantId, register.id, tx);
+        const recentTransactions = await tx
             .select()
             .from(cashRegisterTransactions)
-            .where(eq(cashRegisterTransactions.registerId, register.id))
+            .where(and(eq(cashRegisterTransactions.tenantId, tenantId), eq(cashRegisterTransactions.registerId, register.id)))
             .orderBy(desc(cashRegisterTransactions.createdAt))
             .limit(10);
 
@@ -125,120 +116,102 @@ export class CashRegisterRepositoryAdapter implements ICashRegisterRepository {
 }
 
 export class AssetRepositoryAdapter implements IAssetRepository {
-    async findAll(dbOrTx?: DBContext): Promise<FixedAsset[]> {
-        const client = (dbOrTx as any) || db;
-        return await client.select().from(assets) as FixedAsset[];
+    async findAll(tenantId: string, tx: TransactionContext): Promise<FixedAsset[]> {
+        return await tx.select().from(assets).where(eq(assets.tenantId, tenantId)) as FixedAsset[];
     }
 
-    async findById(id: string, dbOrTx?: DBContext): Promise<FixedAsset | null> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.select().from(assets).where(eq(assets.id, id));
+    async findById(tenantId: string, id: string, tx: TransactionContext): Promise<FixedAsset | null> {
+        const [result] = await tx.select().from(assets).where(and(eq(assets.tenantId, tenantId), eq(assets.id, id)));
         return (result as FixedAsset) || null;
     }
 
-    async create(data: Partial<FixedAsset>, dbOrTx?: DBContext): Promise<{ id: string }> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.insert(assets).values(data).returning({ id: assets.id });
+    async create(tenantId: string, data: Partial<FixedAsset>, tx: TransactionContext): Promise<{ id: string }> {
+        const [result] = await tx.insert(assets).values({ ...data, tenantId } as any).returning({ id: assets.id });
+        if (!result) throw new Error("Failed to create asset");
         return result;
     }
 
-    async update(id: string, data: Partial<FixedAsset>, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.update(assets).set(data).where(eq(assets.id, id));
+    async update(tenantId: string, id: string, data: Partial<FixedAsset>, tx: TransactionContext): Promise<void> {
+        await tx.update(assets).set(data as any).where(and(eq(assets.tenantId, tenantId), eq(assets.id, id)));
     }
 
-    async delete(id: string, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.delete(assets).where(eq(assets.id, id));
+    async delete(tenantId: string, id: string, tx: TransactionContext): Promise<void> {
+        await tx.delete(assets).where(and(eq(assets.tenantId, tenantId), eq(assets.id, id)));
     }
 
-    async createDepreciation(data: Partial<DepreciationEntry>, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.insert(assetDepreciationLogs).values(data);
+    async createDepreciation(tenantId: string, data: Partial<DepreciationEntry>, tx: TransactionContext): Promise<void> {
+        await tx.insert(assetDepreciationLogs).values({ ...data, tenantId } as any);
     }
 
-    async getDepreciationHistory(assetId: string, dbOrTx?: DBContext): Promise<DepreciationEntry[]> {
-        const client = (dbOrTx as any) || db;
-        return await client.select().from(assetDepreciationLogs).where(eq(assetDepreciationLogs.assetId, assetId)) as DepreciationEntry[];
+    async getDepreciationHistory(tenantId: string, assetId: string, tx: TransactionContext): Promise<DepreciationEntry[]> {
+        return await tx.select().from(assetDepreciationLogs).where(and(eq(assetDepreciationLogs.tenantId, tenantId), eq(assetDepreciationLogs.assetId, assetId))) as DepreciationEntry[];
     }
 }
 
 export class RevenueTargetRepositoryAdapter implements IRevenueTargetRepository {
-    async findByMonth(month: string, dbOrTx?: DBContext): Promise<any | null> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.select().from(revenueTargets).where(eq(revenueTargets.month, month));
+    async findByMonth(tenantId: string, month: string, tx: TransactionContext): Promise<any | null> {
+        const [result] = await tx.select().from(revenueTargets).where(and(eq(revenueTargets.tenantId, tenantId), eq(revenueTargets.month, month)));
         return result || null;
     }
 
-    async upsert(month: string, data: any, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        const existing = await this.findByMonth(month, dbOrTx);
+    async upsert(tenantId: string, month: string, data: any, tx: TransactionContext): Promise<void> {
+        const existing = await this.findByMonth(tenantId, month, tx);
         if (existing) {
-            await client.update(revenueTargets).set(data).where(eq(revenueTargets.month, month));
+            await tx.update(revenueTargets).set(data).where(and(eq(revenueTargets.tenantId, tenantId), eq(revenueTargets.month, month)));
         } else {
-            await client.insert(revenueTargets).values({ ...data, month });
+            await tx.insert(revenueTargets).values({ ...data, month, tenantId });
         }
     }
 }
 
 export class PurchasePaymentRepositoryAdapter implements IPurchasePaymentRepository {
-    async findById(id: string, dbOrTx?: DBContext): Promise<any | null> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.select().from(purchasePayments).where(eq(purchasePayments.id, id));
+    async findById(tenantId: string, id: string, tx: TransactionContext): Promise<any | null> {
+        const [result] = await tx.select().from(purchasePayments).where(and(eq(purchasePayments.tenantId, tenantId), eq(purchasePayments.id, id)));
         return result || null;
     }
 
-    async create(data: any, dbOrTx?: DBContext): Promise<{ id: string }> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.insert(purchasePayments).values(data).returning({ id: purchasePayments.id });
+    async create(tenantId: string, data: any, tx: TransactionContext): Promise<{ id: string }> {
+        const [result] = await tx.insert(purchasePayments).values({ ...data, tenantId }).returning({ id: purchasePayments.id });
+        if (!result) throw new Error("Failed to create purchase payment");
         return result;
     }
 
-    async getTotalPaid(purchaseId: string, dbOrTx?: DBContext): Promise<number> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.select({
+    async getTotalPaid(tenantId: string, purchaseId: string, tx: TransactionContext): Promise<number> {
+        const [result] = await tx.select({
             total: sql<number>`sum(${purchasePayments.amount})`
-        }).from(purchasePayments).where(eq(purchasePayments.purchaseId, purchaseId));
+        }).from(purchasePayments).where(and(eq(purchasePayments.tenantId, tenantId), eq(purchasePayments.purchaseId, purchaseId)));
         return Number(result?.total) || 0;
     }
 
-    async findHistoryByPurchaseId(purchaseId: string, dbOrTx?: DBContext): Promise<any[]> {
-        const client = (dbOrTx as any) || db;
-        return await client.select().from(purchasePayments).where(eq(purchasePayments.purchaseId, purchaseId)).orderBy(desc(purchasePayments.createdAt));
+    async findHistoryByPurchaseId(tenantId: string, purchaseId: string, tx: TransactionContext): Promise<any[]> {
+        return await tx.select().from(purchasePayments).where(and(eq(purchasePayments.tenantId, tenantId), eq(purchasePayments.purchaseId, purchaseId))).orderBy(desc(purchasePayments.createdAt));
     }
 
-    async findPurchaseById(id: string, dbOrTx?: DBContext): Promise<any | null> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.select().from(purchases).where(eq(purchases.id, id));
+    async findPurchaseById(tenantId: string, id: string, tx: TransactionContext): Promise<any | null> {
+        const [result] = await tx.select().from(purchases).where(and(eq(purchases.tenantId, tenantId), eq(purchases.id, id)));
         return result || null;
     }
 }
 
 export class CommissionPaymentRepositoryAdapter implements ICommissionPaymentRepository {
-    async create(data: any, dbOrTx?: DBContext): Promise<{ id: string }> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.insert(commissionPayments).values(data).returning({ id: commissionPayments.id });
+    async create(tenantId: string, data: any, tx: TransactionContext): Promise<{ id: string }> {
+        const [result] = await tx.insert(commissionPayments).values({ ...data, tenantId }).returning({ id: commissionPayments.id });
+        if (!result) throw new Error("Failed to create commission payment");
         return result;
     }
 
-    async findHistory(technicianId?: string, period?: string, dbOrTx?: DBContext): Promise<any[]> {
-        const client = (dbOrTx as any) || db;
-        const conditions = [];
+    async findHistory(tenantId: string, tx: TransactionContext, technicianId?: string | undefined, period?: string | undefined): Promise<any[]> {
+        const conditions: any[] = [eq(commissionPayments.tenantId, tenantId)];
         if (technicianId) conditions.push(eq(commissionPayments.technicianId, technicianId));
         if (period) conditions.push(eq(commissionPayments.period, period));
 
-        const query = client.select().from(commissionPayments).orderBy(desc(commissionPayments.paidAt));
-        if (conditions.length > 0) {
-            return await query.where(and(...conditions));
-        }
-        return await query;
+        return await tx.select().from(commissionPayments).where(and(...conditions)).orderBy(desc(commissionPayments.paidAt));
     }
 
-    async getPaidServiceIds(period: string, dbOrTx?: DBContext): Promise<Set<string>> {
-        const client = (dbOrTx as any) || db;
-        const results = await client.select({ serviceIds: commissionPayments.serviceIds })
+    async getPaidServiceIds(tenantId: string, period: string, tx: TransactionContext): Promise<Set<string>> {
+        const results = await tx.select({ serviceIds: commissionPayments.serviceIds })
             .from(commissionPayments)
-            .where(eq(commissionPayments.period, period));
+            .where(and(eq(commissionPayments.tenantId, tenantId), eq(commissionPayments.period, period)));
 
         const paidServiceIds = new Set<string>();
         for (const row of results) {

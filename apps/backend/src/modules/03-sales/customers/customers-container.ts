@@ -22,42 +22,69 @@ const updateCustomerUC = new UpdateCustomerUseCase(repository);
 const deleteCustomerUC = new DeleteCustomerUseCase(repository);
 const getCustomerSalesUC = new GetCustomerSalesUseCase(repository);
 const getCustomerUnpaidSalesUC = new GetCustomerUnpaidSalesUseCase(repository);
-const processCustomerPaymentUC = new ProcessCustomerPaymentUseCase(repository, db as any);
+const processCustomerPaymentUC = new ProcessCustomerPaymentUseCase(repository);
+
+import { inventoryAuthority } from "../../02-inventory/inventory/inventory-container";
+import { TransactionContext } from "../../../shared/types/db-context";
 
 /**
  * CustomersService — facade for external and presentation layers.
  */
 export class CustomersService {
-    async getAll(query?: string, dbOrTx?: any) {
-        return await getCustomersUC.execute(query, dbOrTx);
+    async getAll(tenantId: string, query?: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getCustomersUC.execute(tenantId, tx, query)
+        );
     }
 
-    async getById(id: string, dbOrTx?: any) {
-        return await getCustomerByIdUC.execute(id, dbOrTx);
+    async getById(tenantId: string, id: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getCustomerByIdUC.execute(tenantId, id, tx)
+        );
     }
 
-    async create(data: any, dbOrTx?: any) {
-        return await createCustomerUC.execute(data, dbOrTx);
+    async create(tenantId: string, data: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await createCustomerUC.execute(tenantId, data, tx)
+        );
     }
 
-    async update(id: string, data: any, dbOrTx?: any) {
-        return await updateCustomerUC.execute(id, data, dbOrTx);
+    async update(tenantId: string, id: string, data: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await updateCustomerUC.execute(tenantId, id, data, tx)
+        );
     }
 
-    async delete(id: string, dbOrTx?: any) {
-        return await deleteCustomerUC.execute(id, dbOrTx);
+    async delete(tenantId: string, id: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await deleteCustomerUC.execute(tenantId, id, tx)
+        );
     }
 
-    async getSales(id: string, dbOrTx?: any) {
-        return await getCustomerSalesUC.execute(id, dbOrTx);
+    async getSales(tenantId: string, id: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getCustomerSalesUC.execute(tenantId, id, tx)
+        );
     }
 
-    async getUnpaidSales(id: string, dbOrTx?: any) {
-        return await getCustomerUnpaidSalesUC.execute(id, dbOrTx);
+    async getUnpaidSales(tenantId: string, id: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getCustomerUnpaidSalesUC.execute(tenantId, id, tx)
+        );
     }
 
-    async processPayment(dto: any) {
-        return await processCustomerPaymentUC.execute(dto);
+    async processPayment(tenantId: string, dto: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await processCustomerPaymentUC.execute(tenantId, dto, tx)
+        );
     }
 }
 

@@ -1,49 +1,52 @@
 import { ICommissionSettingsRepository, ICommissionRepository } from "../../domain/repositories/commission-repository.port";
 import { technicianCommissionSettings, technicianCommissions } from "../schema/ServiceSchema";
 import { eq, and, gte, lte } from "drizzle-orm";
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export class DrizzleCommissionSettingsRepository implements ICommissionSettingsRepository {
-    async findByTechnicianId(technicianId: string): Promise<any | null> {
-        const rows = await db.select()
+    async findByTechnicianId(tenantId: string, technicianId: string, tx: TransactionContext): Promise<any | null> {
+        const rows = await tx.select()
             .from(technicianCommissionSettings)
-            .where(eq(technicianCommissionSettings.technicianId, technicianId));
+            .where(and(eq(technicianCommissionSettings.tenantId, tenantId), eq(technicianCommissionSettings.technicianId, technicianId)));
         return rows[0] || null;
     }
 
-    async upsert(data: any): Promise<void> {
-        const existing = await this.findByTechnicianId(data.technicianId);
+    async upsert(tenantId: string, data: any, tx: TransactionContext): Promise<void> {
+        const existing = await this.findByTechnicianId(tenantId, data.technicianId, tx);
         if (existing) {
-            await db.update(technicianCommissionSettings)
+            await tx.update(technicianCommissionSettings)
                 .set({ ...data, updatedAt: new Date() })
-                .where(eq(technicianCommissionSettings.technicianId, data.technicianId));
+                .where(and(eq(technicianCommissionSettings.tenantId, tenantId), eq(technicianCommissionSettings.technicianId, data.technicianId)));
         } else {
-            await db.insert(technicianCommissionSettings).values(data);
+            await tx.insert(technicianCommissionSettings).values({ ...data, tenantId });
         }
     }
 }
 
 export class DrizzleCommissionRepository implements ICommissionRepository {
-    async create(data: any): Promise<{ id: string }> {
-        const rows = await db.insert(technicianCommissions).values(data).returning({ id: technicianCommissions.id });
+    async create(tenantId: string, data: any, tx: TransactionContext): Promise<{ id: string }> {
+        const rows = await tx.insert(technicianCommissions).values({ ...data, tenantId }).returning({ id: technicianCommissions.id });
         return { id: rows[0].id };
     }
 
-    async findByTechnicianId(technicianId: string, startDate?: Date, endDate?: Date): Promise<any[]> {
-        let conditions = [eq(technicianCommissions.technicianId, technicianId)];
+    async findByTechnicianId(tenantId: string, technicianId: string, tx: TransactionContext, startDate?: Date | undefined, endDate?: Date | undefined): Promise<any[]> {
+        const conditions: any[] = [
+            eq(technicianCommissions.tenantId, tenantId),
+            eq(technicianCommissions.technicianId, technicianId)
+        ];
 
         if (startDate) conditions.push(gte(technicianCommissions.createdAt, startDate));
         if (endDate) conditions.push(lte(technicianCommissions.createdAt, endDate));
 
-        const result = await db.select().from(technicianCommissions).where(and(...conditions));
+        const result = await tx.select().from(technicianCommissions).where(and(...conditions));
         return result;
     }
 
-    async markAsPaid(ids: string[]): Promise<void> {
+    async markAsPaid(tenantId: string, ids: string[], tx: TransactionContext): Promise<void> {
         for (const id of ids) {
-            await db.update(technicianCommissions)
+            await tx.update(technicianCommissions)
                 .set({ paid: true, paidAt: new Date() })
-                .where(eq(technicianCommissions.id, id));
+                .where(and(eq(technicianCommissions.tenantId, tenantId), eq(technicianCommissions.id, id)));
         }
     }
 }

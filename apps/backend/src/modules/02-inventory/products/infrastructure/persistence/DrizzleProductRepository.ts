@@ -1,6 +1,5 @@
-import { inject, injectable } from "inversify";
+import { injectable } from "inversify";
 import { eq, sql, ilike, or, and } from "drizzle-orm";
-import { TYPES } from "../../types";
 import type { IProductRepository } from "../../domain/ports/IProductRepository";
 import { Product } from "../../domain/entities/Product.entity";
 import { Sku } from "../../domain/value-objects/Sku.vo";
@@ -9,8 +8,8 @@ import { Result } from "../../../../../shared/core/Result";
 import { ProductMapper } from "../../application/mappers/ProductMapper";
 import { products } from "../schema/ProductSchema";
 import { productBatches } from "../../../inventory/infrastructure/schema/BatchSchema";
-import { DrizzleClient } from "../../../../../shared/infrastructure/database/DrizzleClient";
 import { Pagination, PaginationParams, PaginatedResult } from "../../../../../shared/application/pagination/Pagination";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 /**
  * DrizzleProductRepository
@@ -18,14 +17,11 @@ import { Pagination, PaginationParams, PaginatedResult } from "../../../../../sh
  */
 @injectable()
 export class DrizzleProductRepository implements IProductRepository {
-    constructor(
-        @inject(TYPES.DrizzleClient) private drizzleClient: DrizzleClient
-    ) { }
+    constructor() { }
 
-    public async findById(id: string, dbOrTx?: any): Promise<Result<Product>> {
-        const client = dbOrTx || this.drizzleClient.getClient();
+    public async findById(id: string, tx: TransactionContext): Promise<Result<Product>> {
         try {
-            const rows = await client
+            const rows = await tx
                 .select({
                     id: products.id,
                     sku: products.sku,
@@ -53,10 +49,9 @@ export class DrizzleProductRepository implements IProductRepository {
         }
     }
 
-    public async findByIdForUpdate(id: string, dbOrTx?: any): Promise<Result<Product>> {
-        const client = dbOrTx || this.drizzleClient.getClient();
+    public async findByIdForUpdate(id: string, tx: TransactionContext): Promise<Result<Product>> {
         try {
-            const rows = await client
+            const rows = await tx
                 .select({
                     id: products.id,
                     sku: products.sku,
@@ -85,10 +80,9 @@ export class DrizzleProductRepository implements IProductRepository {
         }
     }
 
-    public async findBySku(sku: Sku, dbOrTx?: any): Promise<Result<Product>> {
-        const client = dbOrTx || this.drizzleClient.getClient();
+    public async findBySku(sku: Sku, tx: TransactionContext): Promise<Result<Product>> {
         try {
-            const rows = await client
+            const rows = await tx
                 .select({
                     id: products.id,
                     sku: products.sku,
@@ -116,12 +110,11 @@ export class DrizzleProductRepository implements IProductRepository {
         }
     }
 
-    public async save(product: Product, dbOrTx?: any): Promise<Result<void>> {
-        const client = dbOrTx || this.drizzleClient.getClient();
+    public async save(product: Product, tx: TransactionContext): Promise<Result<void>> {
         const row = ProductMapper.toPersistence(product);
 
         try {
-            await client.insert(products).values(row)
+            await tx.insert(products).values(row)
                 .onConflictDoUpdate({
                     target: products.id,
                     set: {
@@ -141,22 +134,18 @@ export class DrizzleProductRepository implements IProductRepository {
         }
     }
 
-    public async delete(id: string, dbOrTx?: any): Promise<Result<boolean>> {
-        const client = dbOrTx || this.drizzleClient.getClient();
+    public async delete(id: string, tx: TransactionContext): Promise<Result<boolean>> {
         try {
-            const result = await client.delete(products).where(eq(products.id, id));
-            // result.rowCount might not be directly available depending on drizzle driver, 
-            // but for pg it usually is.
+            await tx.delete(products).where(eq(products.id, id));
             return Result.ok(true);
         } catch (error: any) {
             return Result.fail(`Database error: ${error.message}`);
         }
     }
 
-    public async findActive(dbOrTx?: any): Promise<Result<Product[]>> {
-        const client = dbOrTx || this.drizzleClient.getClient();
+    public async findActive(tx: TransactionContext): Promise<Result<Product[]>> {
         try {
-            const rows = await client
+            const rows = await tx
                 .select({
                     id: products.id,
                     sku: products.sku,
@@ -187,18 +176,17 @@ export class DrizzleProductRepository implements IProductRepository {
         }
     }
 
-    public async findAllPaginated(params: PaginationParams, dbOrTx?: any): Promise<Result<PaginatedResult<Product>>> {
-        const client = dbOrTx || this.drizzleClient.getClient();
+    public async findAllPaginated(params: PaginationParams, tx: TransactionContext): Promise<Result<PaginatedResult<Product>>> {
         const pagination = Pagination.fromQuery(params);
         const sqlParams = Pagination.toSql(pagination);
 
         try {
-            const countResult = await client.select({ count: sql<number>`count(*)` }).from(products);
+            const countResult = await tx.select({ count: sql<number>`count(*)` }).from(products);
             const total = Number(countResult[0].count);
 
             const sortCol = (products as any)[pagination.sortBy as string] || products.createdAt;
 
-            const rows = await client
+            const rows = await tx
                 .select({
                     id: products.id,
                     sku: products.sku,
@@ -238,18 +226,17 @@ export class DrizzleProductRepository implements IProductRepository {
         }
     }
 
-    public async findByCategoryPaginated(categoryId: string, params: PaginationParams, dbOrTx?: any): Promise<Result<PaginatedResult<Product>>> {
-        const client = dbOrTx || this.drizzleClient.getClient();
+    public async findByCategoryPaginated(categoryId: string, params: PaginationParams, tx: TransactionContext): Promise<Result<PaginatedResult<Product>>> {
         const pagination = Pagination.fromQuery(params);
         const sqlParams = Pagination.toSql(pagination);
 
         try {
-            const countResult = await client.select({ count: sql<number>`count(*)` }).from(products).where(eq(products.categoryId, categoryId));
+            const countResult = await tx.select({ count: sql<number>`count(*)` }).from(products).where(eq(products.categoryId, categoryId));
             const total = Number(countResult[0].count);
 
             const sortCol = (products as any)[pagination.sortBy as string] || products.createdAt;
 
-            const rows = await client
+            const rows = await tx
                 .select({
                     id: products.id,
                     sku: products.sku,
@@ -290,8 +277,7 @@ export class DrizzleProductRepository implements IProductRepository {
         }
     }
 
-    public async searchProducts(query: string, params: PaginationParams, dbOrTx?: any): Promise<Result<PaginatedResult<Product>>> {
-        const client = dbOrTx || this.drizzleClient.getClient();
+    public async searchProducts(query: string, params: PaginationParams, tx: TransactionContext): Promise<Result<PaginatedResult<Product>>> {
         const pagination = Pagination.fromQuery(params);
         const sqlParams = Pagination.toSql(pagination);
 
@@ -301,12 +287,12 @@ export class DrizzleProductRepository implements IProductRepository {
                 ilike(products.sku, `%${query}%`)
             );
 
-            const countResult = await client.select({ count: sql<number>`count(*)` }).from(products).where(searchCondition!);
+            const countResult = await tx.select({ count: sql<number>`count(*)` }).from(products).where(searchCondition!);
             const total = Number(countResult[0].count);
 
             const sortCol = (products as any)[pagination.sortBy as string] || products.createdAt;
 
-            const rows = await client
+            const rows = await tx
                 .select({
                     id: products.id,
                     sku: products.sku,

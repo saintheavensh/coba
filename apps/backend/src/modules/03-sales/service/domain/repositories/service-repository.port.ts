@@ -1,16 +1,16 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { ServiceTicket } from "../entities/service.entity";
 
 export interface IServiceRepository {
-    findAll(params: { status?: string; technicianId?: string }, dbOrTx?: DBContext): Promise<ServiceTicket[]>;
-    findById(id: string, dbOrTx?: DBContext): Promise<ServiceTicket | null>;
-    findLastServiceNo(prefix: string, dbOrTx?: DBContext): Promise<{ no: string } | null>;
-    getCountsByStatus(dbOrTx?: DBContext): Promise<Array<{ status: string; count: number }>>;
-    getTechnicianStats(technicianId: string, start: Date, end: Date, dbOrTx?: DBContext): Promise<ServiceTicket[]>;
-    create(data: any, dbOrTx?: DBContext): Promise<{ id: string }>;
-    update(id: string, data: any, dbOrTx?: DBContext): Promise<void>;
-    delete(id: string, dbOrTx?: DBContext): Promise<void>;
-    logActivity(params: {
+    findAll(tenantId: string, params: { status?: string | undefined; technicianId?: string | undefined }, tx: TransactionContext): Promise<ServiceTicket[]>;
+    findById(tenantId: string, id: string, tx: TransactionContext): Promise<ServiceTicket | null>;
+    findLastServiceNo(tenantId: string, prefix: string, tx: TransactionContext): Promise<{ no: string } | null>;
+    getCountsByStatus(tenantId: string, tx: TransactionContext): Promise<Array<{ status: string; count: number }>>;
+    getTechnicianStats(tenantId: string, technicianId: string, start: Date, end: Date, tx: TransactionContext): Promise<ServiceTicket[]>;
+    create(tenantId: string, data: any, tx: TransactionContext): Promise<{ id: string }>;
+    update(tenantId: string, id: string, data: any, tx: TransactionContext): Promise<void>;
+    delete(tenantId: string, id: string, tx: TransactionContext): Promise<void>;
+    logActivity(tenantId: string, params: {
         userId: string;
         action: string;
         entityType: string;
@@ -18,6 +18,6 @@ export interface IServiceRepository {
         description: string;
         oldValue?: any;
         newValue?: any;
-    }, dbOrTx?: DBContext): Promise<void>;
-    getTimeline(entityId: string, dbOrTx?: DBContext): Promise<any[]>;
+    }, tx: TransactionContext): Promise<void>;
+    getTimeline(tenantId: string, entityId: string, tx: TransactionContext): Promise<any[]>;
 }

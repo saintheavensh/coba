@@ -1,26 +1,28 @@
 import { Context, Next } from 'hono';
-import { Logger } from '../../utils/logger/Logger';
 import { randomUUID } from 'crypto';
 import fs from "fs";
-
-const logger = new Logger('HTTP');
+import { logger as appLogger } from '../../logging/AppLogger';
 
 export async function loggerMiddleware(c: Context, next: Next) {
     const requestId = randomUUID();
     const start = Date.now();
 
-    // Add requestId to context for child loggers
+    // Add requestId to context for child logic/handlers
     c.set('requestId', requestId);
-    c.set('logger', logger.child({ requestId }));
 
     const path = c.req.path;
     try {
         fs.appendFileSync("request_paths.log", `\n[${new Date().toISOString()}] ${c.req.method} ${path}`);
     } catch (e) { }
 
+    const logContext = {
+        service: "http" as const,
+        tenantId: "system", // HTTP requests don't have a tenantId yet at this stage
+        requestId
+    };
+
     // Log request
-    logger.info('Incoming request', {
-        requestId,
+    appLogger.info('Incoming request', logContext, {
         method: c.req.method,
         path: c.req.path,
         query: c.req.query(),
@@ -32,16 +34,15 @@ export async function loggerMiddleware(c: Context, next: Next) {
 
         // Log response
         const duration = Date.now() - start;
-        logger.info('Request completed', {
-            requestId,
+        appLogger.info('Request completed', logContext, {
             status: c.res.status,
-            duration
+            durationMs: duration
         });
     } catch (error) {
         const duration = Date.now() - start;
-        logger.error('Request failed', error, {
-            requestId,
-            duration
+        appLogger.error('Request failed', logContext, {
+            error,
+            durationMs: duration
         });
         throw error;
     }

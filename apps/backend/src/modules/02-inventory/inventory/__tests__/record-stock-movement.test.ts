@@ -6,6 +6,7 @@ describe("RecordStockMovementUseCase", () => {
     let useCase: RecordStockMovementUseCase;
     let mockStockRepo: any;
     let mockProductRepo: any;
+    const mockTx = { tenantId: 'test-tenant' } as any;
 
     beforeEach(() => {
         mockStockRepo = {
@@ -27,7 +28,7 @@ describe("RecordStockMovementUseCase", () => {
             quantity: 0
         };
 
-        const result = await useCase.execute(input);
+        const result = await useCase.execute(input, mockTx);
         expect(result.isFailure).toBe(true);
         expect(result.errorValue()).toContain("Quantity cannot be zero");
     });
@@ -41,7 +42,7 @@ describe("RecordStockMovementUseCase", () => {
             quantity: -5
         };
 
-        const result = await useCase.execute(input);
+        const result = await useCase.execute(input, mockTx);
         expect(result.isFailure).toBe(true);
         expect(result.errorValue()).toContain("IN movements must have a quantity > 0");
     });
@@ -57,7 +58,7 @@ describe("RecordStockMovementUseCase", () => {
 
         mockProductRepo.findByIdForUpdate.mockResolvedValue(Result.fail('Not found'));
 
-        const result = await useCase.execute(input);
+        const result = await useCase.execute(input, mockTx);
         expect(result.isFailure).toBe(true);
         expect(result.errorValue()).toContain("Product not found or unable to acquire lock");
     });
@@ -74,7 +75,7 @@ describe("RecordStockMovementUseCase", () => {
         mockProductRepo.findByIdForUpdate.mockResolvedValue(Result.ok());
         mockStockRepo.getAggregatedStock.mockResolvedValue(5); // Only 5 in stock
 
-        const result = await useCase.execute(input);
+        const result = await useCase.execute(input, mockTx);
         expect(result.isFailure).toBe(true);
         expect(result.errorValue()).toContain("Insufficient stock for OUT operation");
     });
@@ -91,7 +92,7 @@ describe("RecordStockMovementUseCase", () => {
         mockProductRepo.findByIdForUpdate.mockResolvedValue(Result.ok());
         mockStockRepo.insert.mockResolvedValue({ id: "MOV-1", ...input });
 
-        const result = await useCase.execute(input);
+        const result = await useCase.execute(input, mockTx);
         expect(result.isSuccess).toBe(true);
         expect(mockStockRepo.insert).toHaveBeenCalledWith({
             productId: "PROD-1",
@@ -99,6 +100,6 @@ describe("RecordStockMovementUseCase", () => {
             referenceType: "PURCHASE",
             referenceId: "PURCH-1",
             quantity: 50
-        }, undefined);
+        }, mockTx);
     });
 });

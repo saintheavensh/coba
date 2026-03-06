@@ -5,14 +5,19 @@ import * as schema from "../infrastructure/database/schema";
 
 /**
  * A strictly-typed Transaction Context for cross-module operations.
- * Wraps Drizzle's PgTransaction bound exactly to the application's schema.
- * Domain modules MUST use this instead of `unknown` or `any`.
+ * Wraps Drizzle's PgTransaction bound exactly to the application's schema,
+ * extended with mandatory tenant and request metadata for SaaS isolation.
  */
 export type TransactionContext = PgTransaction<
     NodePgQueryResultHKT,
     typeof schema,
     ExtractTablesWithRelations<typeof schema>
->;
+> & {
+    readonly tenantId: string;
+    readonly requestId: string;
+    readonly startedAt: number;
+    readonly userId?: string;
+};
 
 // Export DBContext temporarily to prevent immediate build breakages in non-inventory modules, 
 // but alias it to TransactionContext so it immediately gains type safety everywhere.

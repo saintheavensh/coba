@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IPurchaseRepository } from "../../domain/purchase-repository.port";
 import { ISupplierRepository } from "../../../suppliers/domain/repositories/supplier.repository";
 import { IProductRepository } from "../../../../02-inventory/products/domain/ports/IProductRepository";
@@ -29,9 +29,9 @@ export class CreatePurchaseUseCase {
         private recordStockMovementUseCase: RecordStockMovementUseCase
     ) { }
 
-    async execute(data: CreatePurchaseInput, dbOrTx?: DBContext): Promise<Result<PurchaseOrder>> {
+    async execute(tenantId: string, data: CreatePurchaseInput, tx: TransactionContext): Promise<Result<PurchaseOrder>> {
         // 1. Validate Supplier exists and is active
-        const supplierResult = await this.supplierRepo.findById(data.supplierId, dbOrTx);
+        const supplierResult = await this.supplierRepo.findById(tenantId, data.supplierId, tx);
         if (!supplierResult || supplierResult.isActive === false) {
             return Result.fail(`Supplier with ID ${data.supplierId} not found or inactive`);
         }
@@ -46,7 +46,7 @@ export class CreatePurchaseUseCase {
             }
 
             // Retrieve via Row-Level lock to avoid race conditions.
-            const productResult = await this.productRepo.findByIdForUpdate(itemInput.productId, dbOrTx);
+            const productResult = await this.productRepo.findByIdForUpdate(itemInput.productId, tx);
             if (productResult.isFailure) {
                 return Result.fail(`Product with ID ${itemInput.productId} not found`);
             }
@@ -82,7 +82,7 @@ export class CreatePurchaseUseCase {
         });
 
         // 4. Save via Repository
-        await this.purchaseRepo.save(purchase, dbOrTx);
+        await this.purchaseRepo.save(tenantId, purchase, tx);
 
         // 5. Update Stock via immutable ledger
         for (const item of processedItems) {
@@ -92,7 +92,7 @@ export class CreatePurchaseUseCase {
                 referenceType: "PURCHASE",
                 referenceId: purchase.id,
                 quantity: item.qtyOrdered
-            }, dbOrTx);
+            }, tx);
 
             if (movementResult.isFailure) {
                 return Result.fail(`Failed to assign stock ledger for product ${item.productId}: ${movementResult.error}`);

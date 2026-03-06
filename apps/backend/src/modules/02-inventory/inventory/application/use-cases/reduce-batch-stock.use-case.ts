@@ -1,6 +1,6 @@
-import type { IStockMutationGateway } from "../../domain/stock-mutation-gateway.port";
-import type { IBatchRepository } from "../../domain/batch-repository.port";
-import type { TransactionContext } from "../../../../../shared/types/db-context";
+import type { IStockMutationGateway } from "@domain/stock-mutation-gateway.port";
+import type { IBatchRepository } from "@domain/batch-repository.port";
+import type { TransactionContext } from "@shared/types/db-context";
 
 export class ReduceBatchStockUseCase {
     constructor(
@@ -8,7 +8,7 @@ export class ReduceBatchStockUseCase {
         private readonly batchRepository: IBatchRepository
     ) { }
 
-    async execute(batchId: string, qty: number, tx: TransactionContext): Promise<void> {
+    async execute(batchId: string, qty: number, tx: TransactionContext, tenantId?: string): Promise<void> {
         const batch = await this.batchRepository.findById(batchId, tx);
         if (!batch) {
             throw new Error(`Batch ${batchId} not found.`);

@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IReportRepository, ReportFilters } from "../../domain";
 import { gte, lte } from "drizzle-orm";
 import { services } from "../../../../../shared/infrastructure/database/schema";
@@ -6,7 +6,7 @@ import { services } from "../../../../../shared/infrastructure/database/schema";
 export class GetServiceStatsUseCase {
     constructor(private readonly repository: IReportRepository) { }
 
-    async execute(filters: ReportFilters = {}, dbOrTx?: DBContext) {
+    async execute(tenantId: string, tx: TransactionContext, filters: ReportFilters = {}) {
         let conditions = [];
 
         if (filters.startDate) {
@@ -19,7 +19,7 @@ export class GetServiceStatsUseCase {
             conditions.push(lte(services.dateIn, end));
         }
 
-        const servicesData = await this.repository.getServices(conditions, dbOrTx);
+        const servicesData = await this.repository.getServices(tenantId, conditions, tx);
 
         const statusCounts: Record<string, number> = {};
         let totalRevenue = 0;

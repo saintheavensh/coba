@@ -1,10 +1,11 @@
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { ISettingsRepository } from "../../../../05-shared/settings/domain";
 
 export class ApprovalCheckService {
     constructor(private readonly settingsRepo: ISettingsRepository) { }
 
-    async needsApproval(type: 'DISCOUNT' | 'REFUND' | 'PURCHASE' | 'VOID' | 'SERVICE_DISCOUNT', amount: number, data?: any): Promise<boolean> {
-        const settings = await this.settingsRepo.findByKey('approval_thresholds');
+    async needsApproval(tenantId: string, type: 'DISCOUNT' | 'REFUND' | 'PURCHASE' | 'VOID' | 'SERVICE_DISCOUNT', amount: number, tx: TransactionContext, data?: any): Promise<boolean> {
+        const settings = await this.settingsRepo.findByKey(tenantId, 'approval_thresholds', tx);
         const thresholds = settings?.value || {
             DISCOUNT_PERCENT: 10,
             REFUND_ALWAYS: true,

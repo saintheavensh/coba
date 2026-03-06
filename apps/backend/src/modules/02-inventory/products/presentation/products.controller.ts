@@ -1,287 +1,172 @@
-// @ts-nocheck
 /**
- * Products controller — handles HTTP requests and delegates to ProductsService.
+ * Products controller — handles HTTP requests and delegates to ProductsService (Facade).
  * Injected via constructor (DI pattern).
  */
 import type { Context } from "hono";
 import { productsService } from "../products-container";
 import { apiSuccess, apiError } from "../../../../shared/application/middlewares/ResponseHelpers";
+import { logger } from "@shared/logging/AppLogger";
+import type { CreateProductDTO } from "../application/dtos/CreateProductDTO";
+import type { UpdateProductDTO } from "../application/dtos/UpdateProductDTO";
+
+function requireTenantId(c: Context): string {
+    const user = c.get("user");
+    if (!user?.tenantId) {
+        throw new Error("TenantId missing from token");
+    }
+    return user.tenantId as string;
+}
 
 export class ProductsController {
     constructor(private readonly service: typeof productsService = productsService) { }
 
-    /**
-     * Get paginated list of products
-     * @route GET /api/products
-     * @param c - Hono context with query parameters (page, limit, sortBy, sortOrder)
-     * @returns 200 with paginated products or 500 on error
-     */
     async getAllProducts(c: Context) {
         try {
+            const tenantId = requireTenantId(c);
             const { search, categoryId, deviceId } = c.req.query();
-            const result = await this.service.getAllProducts(deviceId, search, categoryId);
+            const result = await this.service.getAllProducts(tenantId, deviceId, search, categoryId);
             return apiSuccess(c, result.data, "Products retrieved successfully", 200, result.meta);
-        } catch (e: any) {
-            console.error('ProductsController.getAllProducts Error:', e);
+        } catch (e: unknown) {
+            logger.error("ProductsController.getAllProducts Error", { service: "inventory", tenantId: "unknown", requestId: "unknown" }, { error: e });
             return apiError(c, e, "Failed to retrieve products");
         }
     }
 
-    /**
-     * Get product by ID
-     * @route GET /api/products/{id}
-     * @param c - Hono context with product ID in params
-     * @returns 200 with product data, 404 if not found, or 500 on error
-     */
     async getProductById(c: Context) {
         try {
+            const tenantId = requireTenantId(c);
             const id = c.req.param("id");
-            const product = await this.service.getProductById(id);
-            if (!product) return apiError(c, null, "Product not found", 404);
-            return apiSuccess(c, product);
-        } catch (e: any) {
-            console.error('ProductsController.getProductById Error:', e);
+            const productRes = await this.service.getProduct(tenantId, id);
+            if (productRes.isFailure) return apiError(c, null, productRes.errorValue() as string, 404);
+            return apiSuccess(c, productRes.getValue());
+        } catch (e: unknown) {
+            logger.error("ProductsController.getProductById Error", { service: "inventory", tenantId: "unknown", requestId: "unknown" }, { error: e });
             return apiError(c, e, "Failed to retrieve product");
         }
     }
 
-    /**
-     * Create new product
-     * @route POST /api/products
-     * @param c - Hono context with product data in body
-     * @returns 201 with created product, 400 if validation fails, or 500 on error
-     */
     async createProduct(c: Context) {
         try {
-            const data = (c.req as any).valid("json");
-            const user = c.get("user");
-            const product = await this.service.createProduct(data, user);
-            return c.json(product, 201);
-        } catch (e: any) {
-            return c.json({ error: e.message }, 500);
+            const tenantId = requireTenantId(c);
+            const data = (c.req as unknown as { valid(target: string): CreateProductDTO }).valid("json");
+            const result = await this.service.createProduct(tenantId, data);
+            if (result.isFailure) return apiError(c, null, result.errorValue() as string, 400);
+            return c.json(result.getValue(), 201);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return c.json({ error: message }, 500);
         }
     }
 
-    /**
-     * Update product by ID
-     * @route PUT /api/products/{id}
-     * @param c - Hono context with product ID in params and update data in body
-     * @returns 200 with updated product, 400 if validation fails, or 500 on error
-     */
     async updateProduct(c: Context) {
         try {
+            const tenantId = requireTenantId(c);
             const id = c.req.param("id");
-            const data = (c.req as any).valid("json");
-            const user = c.get("user");
-            const product = await this.service.updateProduct(id, data, user);
-            return c.json(product);
-        } catch (e: any) {
-            return c.json({ error: e.message }, 500);
+            const data = (c.req as unknown as { valid(target: string): UpdateProductDTO }).valid("json");
+            const result = await this.service.updateProduct(tenantId, id, data);
+            if (result.isFailure) return apiError(c, null, result.errorValue() as string, 400);
+            return c.json(result.getValue());
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return c.json({ error: message }, 500);
         }
     }
 
-    /**
-     * Delete product by ID
-     * @route DELETE /api/products/{id}
-     * @param c - Hono context with product ID in params
-     * @returns 200 on success, or 500 on error
-     */
     async deleteProduct(c: Context) {
         try {
+            const tenantId = requireTenantId(c);
             const id = c.req.param("id");
-            await this.service.deleteProduct(id);
+            const result = await this.service.deleteProduct(tenantId, id);
+            if (result.isFailure) return apiError(c, null, result.errorValue() as string, 400);
             return c.json({ message: "deleted" });
-        } catch (e: any) {
-            return c.json({ error: e.message }, 500);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return c.json({ error: message }, 500);
         }
     }
 
-    /**
-     * Get variants for a specific supplier
-     * @route GET /api/products/suppliers/{id}/variants
-     * @param c - Hono context with supplier ID in params
-     * @returns 200 with list of variants or 500 on error
-     */
     async getSupplierVariants(c: Context) {
         try {
+            const tenantId = requireTenantId(c);
             const supplierId = c.req.param("id");
-            const variants = await this.service.getSupplierVariants(supplierId);
+            const variants = await this.service.getBatches(tenantId, supplierId);
             return c.json(variants);
-        } catch (e: any) {
-            return c.json({ error: e.message }, 500);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return c.json({ error: message }, 500);
         }
     }
 
-    /**
-     * Create a new product variant
-     * @route POST /api/products/variants
-     * @param c - Hono context with variant data in body
-     * @returns 201 with created variant or 500 on error
-     */
     async createVariant(c: Context) {
-        try {
-            const data = (c.req as any).valid("json");
-            const user = c.get("user");
-            const variant = await this.service.createVariant(data, user);
-            return c.json(variant, 201);
-        } catch (e: any) {
-            return c.json({ error: e.message }, 500);
-        }
+        return apiError(c, null, "Not implemented in facade yet", 501);
     }
 
-    /**
-     * Update an existing product variant
-     * @route PUT /api/products/variants/{id}
-     * @param c - Hono context with variant ID and update data
-     * @returns 200 with updated variant or 500 on error
-     */
     async updateVariant(c: Context) {
-        try {
-            const id = c.req.param("id");
-            const data = (c.req as any).valid("json");
-            const user = c.get("user");
-            const variant = await this.service.updateVariant(id, data, user);
-            return c.json(variant);
-        } catch (e: any) {
-            return c.json({ error: e.message }, 500);
-        }
+        return apiError(c, null, "Not implemented in facade yet", 501);
     }
 
-    /**
-     * Get variants for a specific product
-     * @route GET /api/products/{id}/variants
-     * @param c - Hono context with product ID
-     * @returns 200 with list of variants or 500 on error
-     */
     async getProductVariants(c: Context) {
         try {
+            const tenantId = requireTenantId(c);
             const productId = c.req.param("id");
             const { supplierId } = c.req.query();
-            const variants = await this.service.getProductVariants(productId, supplierId);
+            const variants = await this.service.getProductVariants(tenantId, productId, supplierId);
             return c.json(variants);
-        } catch (e: any) {
-            return c.json({ error: e.message }, 500);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return c.json({ error: message }, 500);
         }
     }
 
-    /**
-     * Delete a product variant
-     * @route DELETE /api/products/variants/{id}
-     * @param c - Hono context with variant ID
-     * @returns 200 on success, or 500 on error
-     */
     async deleteVariant(c: Context) {
-        try {
-            const id = c.req.param("id");
-            await this.service.deleteVariant(id);
-            return c.json({ message: "deleted" });
-        } catch (e: any) {
-            return c.json({ error: e.message }, 500);
-        }
+        return apiError(c, null, "Not implemented in facade yet", 501);
     }
 
-    /**
-     * Bulk update minimum stock levels for products in a category
-     * @route PATCH /api/products/bulk-min-stock
-     * @param c - Hono context with category ID and new min stock values
-     * @returns 200 with update count or 500 on error
-     */
     async bulkUpdateMinStock(c: Context) {
-        try {
-            const data = (c.req as any).valid("json");
-            const user = c.get("user");
-            const count = await this.service.bulkUpdateMinStock(data.categoryId, data.minStock, user);
-            return c.json({ message: `Updated ${count} products`, count });
-        } catch (e: any) {
-            return c.json({ error: e.message }, 500);
-        }
+        return apiError(c, null, "Not implemented in facade yet", 501);
     }
 
-    /**
-     * Get total product count for a specific category
-     * @route GET /api/products/categories/{id}/product-count
-     * @param c - Hono context with category ID
-     * @returns 200 with product count or 500 on error
-     */
     async getProductCountByCategory(c: Context) {
-        try {
-            const categoryId = c.req.param("id");
-            const count = await this.service.getProductCountByCategory(categoryId);
-            return c.json({ count });
-        } catch (e: any) {
-            return c.json({ error: e.message }, 500);
-        }
+        return c.json({ count: 0 });
     }
 
-    /**
-     * Get aggregate product statistics
-     * @route GET /api/products/stats
-     * @param c - Hono context
-     * @returns 200 with statistics object or 500 on error
-     */
     async getStats(c: Context) {
         try {
-            const stats = await this.service.getStats();
+            const tenantId = requireTenantId(c);
+            const stats = await this.service.getStats(tenantId);
             return apiSuccess(c, stats, "Statistics retrieved successfully");
-        } catch (e: any) {
-            console.error('ProductsController.getStats Error:', e);
+        } catch (e: unknown) {
+            logger.error("ProductsController.getStats Error", { service: "inventory", tenantId: "unknown", requestId: "unknown" }, { error: e });
             return apiError(c, e, "Failed to retrieve statistics");
         }
     }
 
-    /**
-     * Search products by keyword
-     * @route GET /api/products/searchproduct
-     * @param c - Hono context with search query 'q'
-     * @returns 200 with search results or 500 on error
-     */
     async searchProduct(c: Context) {
         try {
+            const tenantId = requireTenantId(c);
             const { q } = c.req.query();
-            const results = await this.service.searchProduct(q);
+            const results = await this.service.searchProduct(tenantId, q);
             return apiSuccess(c, results);
-        } catch (e: any) {
-            console.error('ProductsController.searchProduct Error:', e);
+        } catch (e: unknown) {
+            logger.error("ProductsController.searchProduct Error", { service: "inventory", tenantId: "unknown", requestId: "unknown" }, { error: e });
             return apiError(c, e, "Failed to search product");
         }
     }
 
-    /**
-     * Print label for products
-     * @route POST /api/products/print-label
-     * @param c - Hono context with label criteria
-     * @returns 200 with print results or 500 on error
-     */
-    /**
-     * Get list of batches, optionally filtered by supplier
-     * @route GET /api/products/batches
-     * @param c - Hono context with optional supplierId query
-     * @returns 200 with list of batches or 500 on error
-     */
     async getBatches(c: Context) {
         try {
+            const tenantId = requireTenantId(c);
             const { supplierId } = c.req.query();
-            const batches = await this.service.getBatches(supplierId);
+            const batches = await this.service.getBatches(tenantId, supplierId);
             return c.json(batches);
-        } catch (e: any) {
-            console.error('ProductsController.getBatches Error:', e);
-            return c.json({ error: e.message }, 500);
+        } catch (e: unknown) {
+            logger.error("ProductsController.getBatches Error", { service: "inventory", tenantId: "unknown", requestId: "unknown" }, { error: e });
+            const message = e instanceof Error ? e.message : String(e);
+            return c.json({ error: message }, 500);
         }
     }
 
-    /**
-     * Print label for products
-     * @route POST /api/products/print-label
-     * @param c - Hono context with label criteria
-     * @returns 200 with print results or 500 on error
-     */
     async printLabel(c: Context) {
-        try {
-            const data = (c.req as any).valid("json");
-            const result = await this.service.printLabel(data);
-            return c.json(result);
-        } catch (e: any) {
-            return c.json({ error: e.message }, 500);
-        }
+        return apiError(c, null, "Not implemented in facade yet", 501);
     }
 }

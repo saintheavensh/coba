@@ -1,52 +1,48 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IPaymentMethodRepository, IAccountGateway, PaymentVariantInput, PaymentMethod } from "../../domain";
 import { HTTPException } from "hono/http-exception";
 
 export class VariantManagementUseCase {
     constructor(
         private readonly repository: IPaymentMethodRepository,
-        private readonly accountGateway: IAccountGateway,
-        private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
+        private readonly accountGateway: IAccountGateway
     ) { }
 
-    async addVariant(methodId: string, input: PaymentVariantInput): Promise<PaymentMethod> {
-        const pm = await this.repository.findById(methodId);
+    async addVariant(tenantId: string, methodId: string, input: PaymentVariantInput, tx: TransactionContext): Promise<PaymentMethod> {
+        const pm = await this.repository.findById(tenantId, methodId, tx);
         if (!pm) {
             throw new HTTPException(404, { message: "Payment method not found" });
         }
 
-        const runInTransaction = async (tx: DBContext) => {
-            const id = `PV-${Date.now()}`;
+        const id = `PV-${Date.now()}`;
 
-            // Auto-link or create account for variant (e.g. Bank BCA - Rekening Utama)
-            const accountId = await this.accountGateway.ensureAccount(
-                input.name,
-                "transfer",
-                input.accountId,
-                tx
-            );
+        // Auto-link or create account for variant (e.g. Bank BCA - Rekening Utama)
+        const accountId = await this.accountGateway.ensureAccount(
+            tenantId,
+            input.name,
+            "transfer",
+            tx,
+            input.accountId
+        );
 
-            await this.repository.createVariant({
-                id,
-                methodId,
-                name: input.name,
-                accountNumber: input.accountNumber,
-                accountHolder: input.accountHolder,
-                accountId,
-                enabled: true,
-            }, tx);
+        await this.repository.createVariant(tenantId, {
+            id,
+            methodId,
+            name: input.name,
+            accountNumber: input.accountNumber,
+            accountHolder: input.accountHolder,
+            accountId,
+            enabled: true,
+        }, tx);
 
-            return await this.repository.findById(methodId, tx) as PaymentMethod;
-        };
-
-        return await this.db.transaction(runInTransaction);
+        return await this.repository.findById(tenantId, methodId, tx) as PaymentMethod;
     }
 
-    async updateVariant(variantId: string, data: any, dbOrTx?: DBContext): Promise<void> {
-        await this.repository.updateVariant(variantId, data, dbOrTx);
+    async updateVariant(tenantId: string, variantId: string, data: any, tx: TransactionContext): Promise<void> {
+        await this.repository.updateVariant(tenantId, variantId, data, tx);
     }
 
-    async disableVariant(variantId: string, dbOrTx?: DBContext): Promise<void> {
-        await this.repository.updateVariant(variantId, { enabled: false }, dbOrTx);
+    async disableVariant(tenantId: string, variantId: string, tx: TransactionContext): Promise<void> {
+        await this.repository.updateVariant(tenantId, variantId, { enabled: false }, tx);
     }
 }

@@ -22,6 +22,7 @@ describe("UpdateProductUseCase", () => {
     };
 
     let mockLoggerFactory: any;
+    const mockTx = { tenantId: 'test-tenant' } as any;
 
     beforeEach(() => {
         mockLoggerFactory = {
@@ -48,7 +49,7 @@ describe("UpdateProductUseCase", () => {
         const result = await useCase.execute({
             id: "prod-1",
             data: { name: "Updated Name", price: 500 }
-        });
+        }, mockTx);
 
         expect(result.isSuccess).toBe(true);
         expect(result.getValue().name).toBe("Updated Name");
@@ -63,7 +64,7 @@ describe("UpdateProductUseCase", () => {
         const result = await useCase.execute({
             id: "prod-1",
             data: { name: "Try to update" }
-        });
+        }, mockTx);
 
         expect(result.isFailure).toBe(true);
         expect(result.errorValue()).toBe("Cannot update an archived product");

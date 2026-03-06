@@ -5,16 +5,16 @@ import { HTTPException } from "hono/http-exception";
 export class GetUsersUseCase {
     constructor(private readonly repository: IUserRepository) { }
 
-    async execute(role?: string, dbOrTx?: DBContext): Promise<User[]> {
-        return await this.repository.findAll(role, dbOrTx);
+    async execute(tenantId: string, role: string | undefined, tx: DBContext): Promise<User[]> {
+        return await this.repository.findAll(tenantId, tx, role);
     }
 }
 
 export class GetUserByIdUseCase {
     constructor(private readonly repository: IUserRepository) { }
 
-    async execute(id: string, dbOrTx?: DBContext): Promise<User> {
-        const user = await this.repository.findById(id, dbOrTx);
+    async execute(tenantId: string, id: string, tx: DBContext): Promise<User> {
+        const user = await this.repository.findById(tenantId, id, tx);
         if (!user) {
             throw new HTTPException(404, { message: "User not found" });
         }

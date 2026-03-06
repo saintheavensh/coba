@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IReportRepository, ReportFilters, PartsUsageReport } from "../../domain";
 import { gte, lte } from "drizzle-orm";
 import { services } from "../../../../../shared/infrastructure/database/schema";
@@ -6,7 +6,7 @@ import { services } from "../../../../../shared/infrastructure/database/schema";
 export class GetPartsUsageReportUseCase {
     constructor(private readonly repository: IReportRepository) { }
 
-    async execute(filters: ReportFilters = {}, dbOrTx?: DBContext): Promise<PartsUsageReport[]> {
+    async execute(tenantId: string, tx: TransactionContext, filters: ReportFilters = {}): Promise<PartsUsageReport[]> {
         let conditions = [];
 
         if (filters.startDate) {
@@ -19,7 +19,7 @@ export class GetPartsUsageReportUseCase {
             conditions.push(lte(services.dateIn, end));
         }
 
-        const servicesData = await this.repository.getServices(conditions, dbOrTx);
+        const servicesData = await this.repository.getServices(tenantId, conditions, tx);
 
         const report: PartsUsageReport[] = [];
 

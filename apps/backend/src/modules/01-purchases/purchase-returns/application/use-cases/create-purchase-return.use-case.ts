@@ -1,77 +1,39 @@
-import { v4 as uuidv4 } from "uuid";
-import { DBContext } from "../../../../../shared/types/db-context";
-import {
-    IPurchaseReturnRepository,
-    IStockMutationGateway,
-    CreatePurchaseReturnData,
-    PurchaseReturn
-} from "../../domain";
-import { HTTPException } from "hono/http-exception";
+import { IPurchaseReturnRepository } from "../../domain";
+import { TransactionContext } from "../../../../../shared/types/db-context";
+import { generateId, ID_PREFIX } from "../../../../../shared/utils/validation/IdGenerator";
+
+export interface CreatePurchaseReturnDto {
+    supplierId: string;
+    userId: string;
+    notes?: string | null;
+    items: {
+        productId: string;
+        batchId: string;
+        qty: number;
+        reason?: string | null;
+    }[];
+}
 
 export class CreatePurchaseReturnUseCase {
-    constructor(
-        private readonly repository: IPurchaseReturnRepository,
-        private readonly stockGateway: IStockMutationGateway,
-        private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
-    ) { }
+    constructor(private returnRepo: IPurchaseReturnRepository) { }
 
-    async execute(data: CreatePurchaseReturnData, dbOrTx?: DBContext): Promise<PurchaseReturn> {
-        if (!data.items || data.items.length === 0) {
-            throw new HTTPException(400, { message: "No items to return" });
-        }
+    async execute(tenantId: string, dto: CreatePurchaseReturnDto, tx: TransactionContext): Promise<void> {
+        const returnId = generateId(ID_PREFIX.PURCHASE);
 
-        const runInTransaction = async (tx: DBContext) => {
-            const returnId = `RET-${uuidv4().substring(0, 8).toUpperCase()}`;
-            const now = new Date();
+        const returnOrder = await this.returnRepo.create(tenantId, {
+            id: returnId,
+            supplierId: dto.supplierId,
+            userId: dto.userId,
+            date: new Date(),
+            notes: dto.notes ?? null
+        }, tx);
 
-            // 1. Create Return Header
-            const purchaseReturn = await this.repository.create({
-                id: returnId,
-                supplierId: data.supplierId,
-                userId: data.userId,
-                notes: data.notes || null,
-                date: now
-            }, tx);
-
-            const itemsToInsert = [];
-            for (const item of data.items) {
-                // Verify Batch Stock via Gateway
-                const batch = await this.stockGateway.getBatchStock(item.batchId, tx);
-                if (!batch) {
-                    throw new HTTPException(404, { message: `Batch ${item.batchId} not found` });
-                }
-
-                if (batch.currentStock < item.qty) {
-                    throw new HTTPException(400, {
-                        message: `Insufficient stock in batch ${item.batchId}. Available: ${batch.currentStock}, Requested: ${item.qty}`
-                    });
-                }
-
-                // Deduct Batch Stock via Gateway
-                await this.stockGateway.deductBatchStock(item.batchId, item.qty, tx);
-
-                // Update Product Global Stock via Gateway
-                await this.stockGateway.updateProductStock(batch.productId, -item.qty, tx);
-
-                itemsToInsert.push({
-                    returnId,
-                    productId: batch.productId,
-                    batchId: item.batchId,
-                    qty: item.qty,
-                    reason: item.reason || null
-                });
-            }
-
-            // 2. Insert Return Items
-            await this.repository.createItems(itemsToInsert, tx);
-
-            return { ...purchaseReturn, items: itemsToInsert as any };
-        };
-
-        if (dbOrTx) {
-            return await runInTransaction(dbOrTx);
-        } else {
-            return await this.db.transaction(runInTransaction);
-        }
+        await this.returnRepo.createItems(tenantId, dto.items.map(i => ({
+            returnId: returnOrder.id,
+            productId: i.productId,
+            batchId: i.batchId,
+            qty: i.qty,
+            reason: i.reason ?? null
+        })), tx);
     }
 }

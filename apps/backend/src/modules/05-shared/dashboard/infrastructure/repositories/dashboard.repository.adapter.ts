@@ -1,53 +1,65 @@
-import { db } from "../../../../../shared/infrastructure/database/client";
 import { activityLogs, saleItems, products, services, users, purchases } from "../../../../../shared/infrastructure/database/schema";
 import { desc, eq, sql, and, gte, inArray } from "drizzle-orm";
 import { DBContext } from "../../../../../shared/types/db-context";
 import { IDashboardRepository } from "../../domain/repositories/dashboard.repository.port";
 
 export class DashboardRepositoryAdapter implements IDashboardRepository {
-    async getActiveServicesCount(dbOrTx: any = db): Promise<number> {
-        const result = await dbOrTx.select({ count: sql<number>`count(*)` })
+    async getActiveServicesCount(tenantId: string, tx: DBContext): Promise<number> {
+        const result = await tx.select({ count: sql<number>`count(*)` })
             .from(services)
-            .where(sql`${services.status} NOT IN ('selesai', 'diambil', 'batal')`);
+            .where(and(
+                eq(services.tenantId, tenantId),
+                sql`${services.status} NOT IN ('selesai', 'diambil', 'batal')`
+            ));
         return Number(result[0].count);
     }
 
-    async getReadyPickupCount(dbOrTx: any = db): Promise<number> {
-        const result = await dbOrTx.select({ count: sql<number>`count(*)` })
+    async getReadyPickupCount(tenantId: string, tx: DBContext): Promise<number> {
+        const result = await tx.select({ count: sql<number>`count(*)` })
             .from(services)
-            .where(eq(services.status, 'selesai'));
+            .where(and(
+                eq(services.tenantId, tenantId),
+                eq(services.status, 'selesai')
+            ));
         return Number(result[0].count);
     }
 
-    async getLowStockCount(dbOrTx: any = db): Promise<number> {
-        const result = await dbOrTx.select({ count: sql<number>`count(*)` })
+    async getLowStockCount(tenantId: string, tx: DBContext): Promise<number> {
+        const result = await tx.select({ count: sql<number>`count(*)` })
             .from(products)
-            .where(sql`${products.stock} <= ${products.minStock}`);
+            .where(and(
+                eq(products.tenantId, tenantId),
+                sql`${products.stock} <= ${products.minimumStock}`
+            ));
         return Number(result[0].count);
     }
 
-    async getPendingVerificationsCount(dbOrTx: any = db): Promise<number> {
-        const result = await dbOrTx.select({ count: sql<number>`count(*)` })
+    async getPendingVerificationsCount(tenantId: string, tx: DBContext): Promise<number> {
+        const result = await tx.select({ count: sql<number>`count(*)` })
             .from(purchases)
-            .where(eq(purchases.status, "RECEIVED"));
+            .where(and(
+                eq(purchases.tenantId, tenantId),
+                eq(purchases.status, "RECEIVED")
+            ));
         return Number(result[0].count);
     }
 
-    async getTopProducts(limit = 10, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.select({
+    async getTopProducts(tenantId: string, limit = 10, tx: DBContext): Promise<any[]> {
+        return await tx.select({
             id: products.id,
             name: products.name,
             sold: sql<number>`sum(${saleItems.qty})`
         })
             .from(saleItems)
             .leftJoin(products, eq(saleItems.productId, products.id))
+            .where(eq(saleItems.tenantId, tenantId)) // Note: Both tables need tenantId, filtering saleItems is sufficient
             .groupBy(products.id)
             .orderBy(desc(sql`sum(${saleItems.qty})`))
             .limit(limit);
     }
 
-    async getRecentActivities(limit: number, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.select({
+    async getRecentActivities(tenantId: string, limit: number, tx: DBContext): Promise<any[]> {
+        return await tx.select({
             id: activityLogs.id,
             user: users.name,
             action: activityLogs.action,
@@ -57,20 +69,23 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
         })
             .from(activityLogs)
             .leftJoin(users, eq(activityLogs.userId, users.id))
+            .where(eq(activityLogs.tenantId, tenantId))
             .orderBy(desc(activityLogs.createdAt))
             .limit(limit);
     }
 
-    async getRecentServices(limit: number, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.query.services.findMany({
+    async getRecentServices(tenantId: string, limit: number, tx: DBContext): Promise<any[]> {
+        return await tx.query.services.findMany({
+            where: eq(services.tenantId, tenantId),
             orderBy: [desc(services.dateIn)],
             limit: limit
         });
     }
 
-    async getUrgentServices(limit: number, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.query.services.findMany({
+    async getUrgentServices(tenantId: string, limit: number, tx: DBContext): Promise<any[]> {
+        return await tx.query.services.findMany({
             where: and(
+                eq(services.tenantId, tenantId),
                 sql`${services.status} NOT IN ('selesai', 'diambil', 'batal')`,
                 sql`${services.estimatedCompletionDate} IS NOT NULL`
             ),
@@ -79,9 +94,10 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
         });
     }
 
-    async getTechnicianJobs(technicianId: string, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.query.services.findMany({
+    async getTechnicianJobs(tenantId: string, technicianId: string, tx: DBContext): Promise<any[]> {
+        return await tx.query.services.findMany({
             where: and(
+                eq(services.tenantId, tenantId),
                 eq(services.technicianId, technicianId),
                 sql`${services.status} NOT IN ('selesai', 'diambil', 'batal')`
             ),
@@ -89,9 +105,10 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
         });
     }
 
-    async getTechnicianQueue(limit: number = 10, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.query.services.findMany({
+    async getTechnicianQueue(tenantId: string, limit: number = 10, tx: DBContext): Promise<any[]> {
+        return await tx.query.services.findMany({
             where: and(
+                eq(services.tenantId, tenantId),
                 eq(services.status, 'antrian'),
                 sql`${services.technicianId} IS NULL`
             ),
@@ -100,18 +117,20 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
         });
     }
 
-    async getTechnicianStats(technicianId: string, startOfDay: Date, dbOrTx: any = db): Promise<{ completedToday: number; inProgress: number }> {
-        const completedToday = await dbOrTx.select({ count: sql<number>`count(*)` })
+    async getTechnicianStats(tenantId: string, technicianId: string, startOfDay: Date, tx: DBContext): Promise<{ completedToday: number; inProgress: number }> {
+        const completedToday = await tx.select({ count: sql<number>`count(*)` })
             .from(services)
             .where(and(
+                eq(services.tenantId, tenantId),
                 eq(services.technicianId, technicianId),
                 eq(services.status, 'selesai'),
                 gte(services.dateOut, startOfDay)
             ));
 
-        const inProgress = await dbOrTx.select({ count: sql<number>`count(*)` })
+        const inProgress = await tx.select({ count: sql<number>`count(*)` })
             .from(services)
             .where(and(
+                eq(services.tenantId, tenantId),
                 eq(services.technicianId, technicianId),
                 sql`${services.status} IN ('dicek', 'dikerjakan', 're-konfirmasi')`
             ));
@@ -122,32 +141,40 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
         };
     }
 
-    async getCashierStats(startOfDay: Date, dbOrTx: any = db): Promise<any> {
-        const readyPickup = await dbOrTx.query.services.findMany({
-            where: eq(services.status, 'selesai'),
+    async getCashierStats(tenantId: string, startOfDay: Date, tx: DBContext): Promise<any> {
+        const readyPickup = await tx.query.services.findMany({
+            where: and(
+                eq(services.tenantId, tenantId),
+                eq(services.status, 'selesai')
+            ),
             orderBy: [desc(services.dateIn)],
             limit: 20
         });
 
-        const pickedUpToday = await dbOrTx.select({ count: sql<number>`count(*)` })
+        const pickedUpToday = await tx.select({ count: sql<number>`count(*)` })
             .from(services)
             .where(and(
+                eq(services.tenantId, tenantId),
                 eq(services.status, 'diambil'),
                 gte(services.dateOut, startOfDay)
             ));
 
-        const revenueToday = await dbOrTx.select({
+        const revenueToday = await tx.select({
             total: sql<number>`COALESCE(SUM(${services.actualCost}), 0)`
         })
             .from(services)
             .where(and(
+                eq(services.tenantId, tenantId),
                 eq(services.status, 'diambil'),
                 gte(services.dateOut, startOfDay)
             ));
 
-        const pendingConfirm = await dbOrTx.select({ count: sql<number>`count(*)` })
+        const pendingConfirm = await tx.select({ count: sql<number>`count(*)` })
             .from(services)
-            .where(sql`${services.status} IN ('konfirmasi', 're-konfirmasi')`);
+            .where(and(
+                eq(services.tenantId, tenantId),
+                sql`${services.status} IN ('konfirmasi', 're-konfirmasi')`
+            ));
 
         return {
             readyPickup,
@@ -157,13 +184,17 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
         };
     }
 
-    async getWarehouseStats(dbOrTx: any = db): Promise<any> {
-        const totalProducts = await dbOrTx.select({ count: sql<number>`count(*)` }).from(products);
-        const lowStock = await this.getLowStockCount(dbOrTx);
+    async getWarehouseStats(tenantId: string, tx: DBContext): Promise<any> {
+        const totalProducts = await tx.select({ count: sql<number>`count(*)` }).from(products)
+            .where(eq(products.tenantId, tenantId));
+        const lowStock = await this.getLowStockCount(tenantId, tx);
 
-        const pendingPurchases = await dbOrTx.select({ count: sql<number>`count(*)` })
+        const pendingPurchases = await tx.select({ count: sql<number>`count(*)` })
             .from(purchases)
-            .where(eq(purchases.status, "ORDERED"));
+            .where(and(
+                eq(purchases.tenantId, tenantId),
+                eq(purchases.status, "ORDERED")
+            ));
 
         return {
             totalProducts: Number(totalProducts[0]?.count || 0),
@@ -172,9 +203,12 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
         };
     }
 
-    async getIncomingOrders(limit = 5, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.query.purchases.findMany({
-            where: eq(purchases.status, "ORDERED"),
+    async getIncomingOrders(tenantId: string, limit = 5, tx: DBContext): Promise<any[]> {
+        return await tx.query.purchases.findMany({
+            where: and(
+                eq(purchases.tenantId, tenantId),
+                eq(purchases.status, "ORDERED")
+            ),
             with: {
                 supplier: true,
                 user: true
@@ -184,17 +218,23 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
         });
     }
 
-    async getLowStockProducts(limit = 10, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.select()
+    async getLowStockProducts(tenantId: string, limit = 10, tx: DBContext): Promise<any[]> {
+        return await tx.select()
             .from(products)
-            .where(sql`${products.stock} <= ${products.minStock}`)
+            .where(and(
+                eq(products.tenantId, tenantId),
+                sql`${products.stock} <= ${products.minimumStock}`
+            ))
             .orderBy(products.stock)
             .limit(limit);
     }
 
-    async getProcurementTasks(limit = 5, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.query.purchases.findMany({
-            where: inArray(purchases.status, ["ORDERED", "RECEIVED"]),
+    async getProcurementTasks(tenantId: string, limit = 5, tx: DBContext): Promise<any[]> {
+        return await tx.query.purchases.findMany({
+            where: and(
+                eq(purchases.tenantId, tenantId),
+                inArray(purchases.status, ["ORDERED", "RECEIVED"])
+            ),
             with: {
                 supplier: true,
                 user: true

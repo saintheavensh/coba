@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IReportRepository, ReportFilters, ProfitAndLoss } from "../../domain";
 import { gte, lte, sql, and } from "drizzle-orm";
 import { sales, operationalCosts, services } from "../../../../../shared/infrastructure/database/schema";
@@ -6,7 +6,7 @@ import { sales, operationalCosts, services } from "../../../../../shared/infrast
 export class GetProfitAndLossUseCase {
     constructor(private readonly repository: IReportRepository) { }
 
-    async execute(filters: ReportFilters = {}, dbOrTx?: DBContext): Promise<ProfitAndLoss> {
+    async execute(tenantId: string, tx: TransactionContext, filters: ReportFilters = {}): Promise<ProfitAndLoss> {
         let salesConditions = [];
         let expenseConditions = [];
         let serviceDateCondition = undefined;
@@ -29,7 +29,7 @@ export class GetProfitAndLossUseCase {
         }
 
         // 1. Sales Data
-        const salesData = await this.repository.getSalesData(salesConditions, dbOrTx);
+        const salesData = await this.repository.getSalesData(tenantId, salesConditions, tx);
         let salesRevenue = 0;
         let salesCOGS = 0;
         for (const s of salesData) {
@@ -41,10 +41,10 @@ export class GetProfitAndLossUseCase {
         }
 
         // 2. Service Data
-        const servicesData = await this.repository.getServicesWithTechnicians([
+        const servicesData = await this.repository.getServicesWithTechnicians(tenantId, [
             sql`${services.status} IN ('diambil', 'selesai')`,
             serviceDateCondition
-        ], dbOrTx);
+        ].filter(Boolean) as any[], tx);
 
         let serviceRevenueRealized = 0;
         let serviceRevenuePending = 0;
@@ -106,7 +106,7 @@ export class GetProfitAndLossUseCase {
         }
 
         // 3. Operational Expenses
-        const expensesData = await this.repository.getOperationalCosts(expenseConditions, dbOrTx);
+        const expensesData = await this.repository.getOperationalCosts(tenantId, expenseConditions, tx);
         const operationalExpense = expensesData.reduce((sum: number, e: any) => sum + e.amount, 0);
 
         const totalRevenue = salesRevenue + serviceRevenueRealized;

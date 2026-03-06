@@ -4,7 +4,7 @@ import { ISettingsRepository } from "../../domain";
 export class FactoryResetUseCase {
     constructor(private readonly repository: ISettingsRepository) { }
 
-    async execute(mode: "data" | "full", dbOrTx?: DBContext): Promise<void> {
-        await this.repository.factoryReset(mode, dbOrTx);
+    async execute(tenantId: string, mode: "data" | "full", tx: DBContext): Promise<void> {
+        await this.repository.factoryReset(tenantId, mode, tx);
     }
 }

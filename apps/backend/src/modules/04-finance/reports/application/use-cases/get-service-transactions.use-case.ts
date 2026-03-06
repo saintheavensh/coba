@@ -1,12 +1,12 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IReportRepository, ReportFilters, ServiceReport } from "../../domain";
-import { gte, lte, and, desc } from "drizzle-orm";
+import { gte, lte } from "drizzle-orm";
 import { services } from "../../../../../shared/infrastructure/database/schema";
 
 export class GetServiceTransactionsUseCase {
     constructor(private readonly repository: IReportRepository) { }
 
-    async execute(filters: ReportFilters = {}, dbOrTx?: DBContext): Promise<ServiceReport[]> {
+    async execute(tenantId: string, tx: TransactionContext, filters: ReportFilters = {}): Promise<ServiceReport[]> {
         let conditions = [];
 
         if (filters.startDate) {
@@ -19,7 +19,7 @@ export class GetServiceTransactionsUseCase {
             conditions.push(lte(services.dateIn, end));
         }
 
-        const servicesData = await this.repository.getServiceTransactions(conditions, dbOrTx);
+        const servicesData = await this.repository.getServiceTransactions(tenantId, conditions, tx);
 
         return servicesData.map((svc: any) => {
             const customer = svc.customer as { name?: string } | null;

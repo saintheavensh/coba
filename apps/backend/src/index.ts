@@ -8,7 +8,9 @@ import { db } from "./shared/infrastructure/database/client";
 import { users, members, sales, purchases, productBatches, productVariants, accounts, assets } from "./shared/infrastructure/database/schema";
 import { sql } from "drizzle-orm";
 import { appConfig } from "./shared/infrastructure/config/AppConfig";
+import { logger as appLogger, type LogContext } from "./shared/logging/AppLogger";
 import { Logger } from "./shared/utils/logger/Logger";
+const globalLogger = new Logger('App');
 import { rateLimiterMiddleware } from "./shared/presentation/middlewares/rate-limiter.middleware";
 import { secureHeadersMiddleware } from "./shared/presentation/middlewares/secure-headers.middleware";
 import { swaggerApp, openApiConfig } from "./shared/presentation/docs/swagger";
@@ -45,12 +47,35 @@ import accountingController from "./modules/04-finance/accounting/presentation/a
 import { dashboardRoutes } from "./shared/presentation/dashboard/routes/dashboard.routes";
 // import whatsappController removed
 
+
+
 export const app = new OpenAPIHono();
+
+
+
+// Process-level crash logging
+process.on("unhandledRejection", (reason) => {
+    appLogger.error("Unhandled Promise Rejection",
+        { service: "api-global", tenantId: "system", requestId: "process" },
+        { error: reason }
+    );
+});
+
+process.on("uncaughtException", (error) => {
+    appLogger.error("Uncaught Exception",
+        { service: "api-global", tenantId: "system", requestId: "process" },
+        { error: error }
+    );
+    // Note: In production, you might want to exit the process here
+    // process.exit(1);
+});
+
+import { loggerMiddleware } from "./shared/application/middlewares/LoggerMiddleware";
+app.use("*", loggerMiddleware);
 
 // Configure OpenAPI Spec
 app.doc('/api-docs/spec', openApiConfig as any);
-
-// Register Security Scheme globally
+// ... existing Swagger setup ...
 app.openAPIRegistry.registerComponent('securitySchemes', 'bearerAuth', {
     type: 'http',
     scheme: 'bearer',
@@ -75,9 +100,6 @@ app.use("*", cors({
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
 }));
-import { loggerMiddleware } from "./shared/application/middlewares/LoggerMiddleware";
-const globalLogger = new Logger('App');
-app.use("*", loggerMiddleware);
 app.use("*", rateLimiterMiddleware);
 // Secure headers
 app.use("*", secureHeadersMiddleware);
@@ -150,12 +172,22 @@ app.get("/health", async (c) => {
     }
 });
 
+
+
 // Error handler
 app.onError((err, c) => {
-    const requestId = (c.get as any)('requestId');
-    globalLogger.child({ requestId }).error('Unhandled error', err);
+    // Attempt to extract context if available (middleware might have set it)
+    const requestId = (c.get as any)('requestId') || 'unknown';
+    const tenantId = (c.get as any)('tenantId') || 'unknown';
+    const logContext: LogContext = { service: 'api-global', tenantId, requestId };
 
-    // Log to file for agent diagnosis
+    appLogger.error('Unhandled application error', logContext, {
+        error: err,
+        path: c.req.path,
+        method: c.req.method
+    });
+
+    // Log to file for agent diagnosis (legacy/redundant but kept as requested)
     try {
         const logMsg = `\n[${new Date().toISOString()}] APP_ON_ERROR: ${err.message}\n${err.stack}\n`;
         fs.appendFileSync("C:/Users/Good/Documents/web/coba/apps/backend/debug.log", logMsg);
@@ -165,7 +197,8 @@ app.onError((err, c) => {
         error: {
             code: 'INTERNAL_SERVER_ERROR',
             message: 'An unexpected error occurred',
-            details: process.env.NODE_ENV === 'development' ? err.message : undefined
+            // DO NOT expose details/stack to client in production
+            details: appConfig.isDevelopment ? err.message : undefined
         }
     }, 500);
 });

@@ -12,6 +12,7 @@ describe("ActivateProductUseCase", () => {
     let mockRepo: IProductRepository;
 
     let mockLoggerFactory: any;
+    const mockTx = { tenantId: 'test-tenant' } as any;
 
     beforeEach(() => {
         mockLoggerFactory = {
@@ -42,7 +43,7 @@ describe("ActivateProductUseCase", () => {
         (mockRepo.findById as any).mockResolvedValue(Result.ok(product));
         (mockRepo.save as any).mockResolvedValue(Result.ok());
 
-        const result = await useCase.execute("prod-1");
+        const result = await useCase.execute("prod-1", mockTx);
 
         expect(result.isSuccess).toBe(true);
         expect(result.getValue().status).toBe(Status.ACTIVE);

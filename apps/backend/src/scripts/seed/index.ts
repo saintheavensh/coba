@@ -11,42 +11,18 @@ async function seed() {
         // 1. Create Roles
         console.log("Creating roles...");
         const rolesToSeed = [
-            {
-                id: "super_admin",
-                name: "Super Admin",
-                permissions: ["all"],
-            },
-            {
-                id: "owner",
-                name: "Owner",
-                permissions: ["analytics.view", "report.read", "all"], // Strategic oversight
-            },
-            {
-                id: "manager",
-                name: "Manager",
-                permissions: ["service.read", "service.update", "report.read", "employee.manage", "sale.confirm"],
-            },
-            {
-                id: "teknisi",
-                name: "Teknisi",
-                permissions: ["service.read", "service.update"],
-            },
-            {
-                id: "kasir",
-                name: "Kasir",
-                permissions: ["sale.create", "sale.read"],
-            },
-            {
-                id: "warehouse",
-                name: "Warehouse",
-                permissions: ["inventory.manage", "purchase.create"],
-            }
+            { id: "super_admin", name: "Super Admin" },
+            { id: "owner", name: "Owner" },
+            { id: "manager", name: "Manager" },
+            { id: "teknisi", name: "Teknisi" },
+            { id: "kasir", name: "Kasir" },
+            { id: "warehouse", name: "Warehouse" }
         ];
 
         for (const role of rolesToSeed) {
             await db.insert(roles).values(role).onConflictDoUpdate({
                 target: roles.id,
-                set: { name: role.name, permissions: role.permissions }
+                set: { name: role.name }
             });
         }
 

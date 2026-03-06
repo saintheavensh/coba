@@ -5,7 +5,7 @@ import { IBrandRepository, UpdateBrandData } from "../../domain";
 export class UpdateBrandUseCase {
     constructor(private repository: IBrandRepository) { }
 
-    async execute(id: string, data: UpdateBrandData, dbOrTx?: DBContext) {
+    async execute(id: string, data: UpdateBrandData, dbOrTx: DBContext) {
         const updateData: UpdateBrandData = { ...data };
         if (data.name) {
             updateData.name = normalizeName(data.name);

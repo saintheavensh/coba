@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { DBContext } from "@shared/types/db-context";
 import { IInventoryGateway } from "../../../../03-sales/sales/domain/gateways";
 import { RecordStockMovementUseCase } from "../use-cases/record-stock-movement.use-case";
 import {

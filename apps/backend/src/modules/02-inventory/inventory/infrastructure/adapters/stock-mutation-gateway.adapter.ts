@@ -3,18 +3,18 @@
  * Implements IStockMutationGateway from the domain layer.
  * Absorbs the stock consistency assertion (previously in helpers/).
  */
-import type { IStockMutationGateway } from "../../domain/stock-mutation-gateway.port";
+import type { IStockMutationGateway } from "@domain/stock-mutation-gateway.port";
 import type {
     DeductStockFIFOInput,
     DeductStockFIFOOutput,
     AddStockFromPurchaseVerificationInput,
     AddStockFromPurchaseVerificationOutput,
     ReverseStockInput
-} from "../../domain/stock.types";
-import type { TransactionContext } from "../../../../../shared/types/db-context";
-import { productBatches, products, productVariants } from "../../../../../shared/infrastructure/database/schema";
+} from "@domain/stock.types";
+import type { TransactionContext } from "@shared/types/db-context";
+import { productBatches, products, productVariants } from "@shared/infrastructure/database/schema";
 import { eq, and, gt, asc, inArray, sql, isNull } from "drizzle-orm";
-import type { BatchLike, InsertBatchData } from "../../domain/stock-mutation-gateway.port";
+import type { BatchLike, InsertBatchData } from "@domain/stock-mutation-gateway.port";
 
 export class StockMutationGatewayAdapter implements IStockMutationGateway {
 
@@ -26,7 +26,8 @@ export class StockMutationGatewayAdapter implements IStockMutationGateway {
                 .from(productVariants)
                 .where(and(
                     eq(productVariants.productId, productId),
-                    eq(productVariants.name, variantName)
+                    eq(productVariants.name, variantName),
+                    eq(productVariants.tenantId, tx.tenantId!)
                 ));
             if (vQuery.length > 0) targetVariantId = vQuery[0].id;
         }
@@ -40,6 +41,7 @@ export class StockMutationGatewayAdapter implements IStockMutationGateway {
             .from(productBatches)
             .where(and(
                 eq(productBatches.productId, productId),
+                eq(productBatches.tenantId, tx.tenantId!),
                 targetVariantId
                     ? eq(productBatches.variantId, targetVariantId)
                     : isNull(productBatches.variantId),
@@ -55,7 +57,7 @@ export class StockMutationGatewayAdapter implements IStockMutationGateway {
                 currentStock: sql`${productBatches.currentStock} + ${delta}`,
                 updatedAt: new Date()
             })
-            .where(eq(productBatches.id, batchId));
+            .where(and(eq(productBatches.id, batchId), eq(productBatches.tenantId, tx.tenantId!)));
     }
 
     async updateProductStockDelta(productId: string, delta: number, tx: TransactionContext): Promise<void> {
@@ -75,6 +77,7 @@ export class StockMutationGatewayAdapter implements IStockMutationGateway {
             sellPrice: data.sellPrice,
             initialStock: data.initialStock,
             currentStock: data.currentStock,
+            tenantId: tx.tenantId!,
             warrantyEndDate: data.warrantyEndDate
         });
     }
@@ -84,13 +87,13 @@ export class StockMutationGatewayAdapter implements IStockMutationGateway {
             const [row] = await tx
                 .select({ stock: products.stock })
                 .from(products)
-                .where(eq(products.id, productId));
+                .where(and(eq(products.id, productId), eq(products.tenantId, tx.tenantId!)));
             const productStock = row?.stock ?? 0;
 
             const [sumRow] = await tx
                 .select({ sum: sql<number>`coalesce(sum(${productBatches.currentStock}), 0)` })
                 .from(productBatches)
-                .where(eq(productBatches.productId, productId));
+                .where(and(eq(productBatches.productId, productId), eq(productBatches.tenantId, tx.tenantId!)));
             const batchSum = Number(sumRow?.sum ?? 0);
 
             if (productStock !== batchSum) {

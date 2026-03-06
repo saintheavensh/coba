@@ -14,14 +14,14 @@ export interface IPurchaseEvent {
 }
 
 export interface PurchaseItemProps {
-    id?: string;
+    id?: string | undefined;
     productId: string;
-    variantId?: string;
+    variantId?: string | undefined;
     qtyOrdered: number;
     qtyReceived: number;
     buyPrice: number;
     sellPrice: number;
-    batchId?: string;
+    batchId?: string | undefined;
 }
 
 export class PurchaseItem {
@@ -41,6 +41,7 @@ export class PurchaseItem {
         }
     }
 
+    get id() { return this.props.id; }
     get productId() { return this.props.productId; }
     get variantId() { return this.props.variantId; }
     get qtyOrdered() { return this.props.qtyOrdered; }
@@ -76,23 +77,23 @@ export class PurchaseItem {
 export interface PurchaseOrderProps {
     id: string;
     supplierId: string;
-    userId?: string;
+    userId?: string | undefined;
     totalAmount: number;
     status: PurchaseStatus;
     items: PurchaseItem[];
-    date?: Date;
-    referenceNumber?: string;
-    notes?: string;
-    receivedAt?: Date;
-    receivedBy?: string;
-    verifiedAt?: Date;
-    verifiedBy?: string;
-    cancelledAt?: Date;
-    cancelledBy?: string;
-    shippingFee?: number;
-    discountAmount?: number;
-    shippingExpenseAccountId?: string;
-    paymentDueDate?: Date;
+    date?: Date | undefined;
+    referenceNumber?: string | undefined;
+    notes?: string | undefined;
+    receivedAt?: Date | undefined;
+    receivedBy?: string | undefined;
+    verifiedAt?: Date | undefined;
+    verifiedBy?: string | undefined;
+    cancelledAt?: Date | undefined;
+    cancelledBy?: string | undefined;
+    shippingFee?: number | undefined;
+    discountAmount?: number | undefined;
+    shippingExpenseAccountId?: string | undefined;
+    paymentDueDate?: Date | undefined;
 }
 
 export class PurchaseOrder {
@@ -110,6 +111,11 @@ export class PurchaseOrder {
     get totalAmount() { return this.props.totalAmount; }
     get userId() { return this.props.userId; }
     get referenceNumber() { return this.props.referenceNumber; }
+    get notes() { return this.props.notes; }
+    get shippingFee() { return this.props.shippingFee; }
+    get discountAmount() { return this.props.discountAmount; }
+    get paymentDueDate() { return this.props.paymentDueDate; }
+    get shippingExpenseAccountId() { return this.props.shippingExpenseAccountId; }
 
     receiveItems(receivedItems: { productId: string, variantId?: string, qty: number }[], receivedBy: string) {
         if (this.props.status !== "ORDERED" && this.props.status !== "DRAFT") {
@@ -131,8 +137,8 @@ export class PurchaseOrder {
 
     verify(
         verifiedBy: string,
-        itemPricing: { productId: string, variantId?: string, buyPrice: number, sellPrice: number }[],
-        options: { shippingFee?: number, discountAmount?: number, shippingExpenseAccountId?: string, referenceNumber?: string, paymentDueDate?: Date }
+        itemPricing: { productId: string, variantId?: string | undefined, buyPrice: number, sellPrice: number }[],
+        options: { shippingFee?: number | undefined, discountAmount?: number | undefined, shippingExpenseAccountId?: string | undefined, referenceNumber?: string | undefined, paymentDueDate?: Date | undefined }
     ) {
         if (this.props.status !== "RECEIVED") {
             throw new DomainError("Must be in RECEIVED status to verify");

@@ -1,18 +1,19 @@
-import { DBContext } from "../../../../../shared/types/db-context";
 import { IDefectiveItemRepository, IPurchaseReturnGateway } from "../../domain";
 import { HTTPException } from "hono/http-exception";
+import { InventoryTransactionAuthority } from "../../../inventory/application/services/inventory-transaction-authority";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 
 export class ProcessReturnUseCase {
     constructor(
         private readonly repository: IDefectiveItemRepository,
         private readonly purchaseReturnGateway: IPurchaseReturnGateway,
-        private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
+        private readonly inventoryAuthority: InventoryTransactionAuthority
     ) { }
 
-    async execute(userId: string, itemIds: string[]): Promise<{ returnId: string }> {
+    async execute(userId: string, itemIds: string[], tx: TransactionContext): Promise<{ returnId: string }> {
         if (itemIds.length === 0) throw new HTTPException(400, { message: "No items selected" });
 
-        return await this.db.transaction(async (tx) => {
+        const runInternal = async () => {
             // 1. Load Items
             const items = await this.repository.findByIds(itemIds, tx);
 
@@ -41,7 +42,7 @@ export class ProcessReturnUseCase {
                     productId: i.productId,
                     batchId: i.batchId,
                     qty: i.qty,
-                    reason: i.reason
+                    reason: i.reason ?? ""
                 })),
                 notes: "Auto-generated from Defective Items"
             }, tx);
@@ -50,6 +51,8 @@ export class ProcessReturnUseCase {
             await this.repository.updateStatus(itemIds, "processed", tx);
 
             return { returnId };
-        });
+        };
+
+        return await runInternal();
     }
 }

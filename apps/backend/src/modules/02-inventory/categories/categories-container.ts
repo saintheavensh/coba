@@ -19,37 +19,61 @@ const deleteCategoryUseCase = new DeleteCategoryUseCase(categoryRepository);
 const addVariantTemplateUseCase = new AddVariantTemplateUseCase(categoryRepository);
 const removeVariantTemplateUseCase = new RemoveVariantTemplateUseCase(categoryRepository);
 
+import { inventoryAuthority } from "../inventory/inventory-container";
+import { TransactionContext } from "../../../shared/types/db-context";
+
 /**
  * CategoriesFacade — Single entry point for the Categories module.
  * Wires internal use cases and provides a clean interface for external layers.
  */
 export class CategoriesFacade {
-    async getAll() {
-        return await getCategoriesUseCase.execute();
+    async getAll(tenantId: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => getCategoriesUseCase.execute(tx)
+        );
     }
 
-    async create(data: any) {
-        return await createCategoryUseCase.execute(data);
+    async create(tenantId: string, data: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => createCategoryUseCase.execute(data, tx)
+        );
     }
 
-    async update(id: string, data: any) {
-        return await updateCategoryUseCase.execute(id, data);
+    async update(tenantId: string, id: string, data: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => updateCategoryUseCase.execute(id, data, tx)
+        );
     }
 
-    async delete(id: string) {
-        return await deleteCategoryUseCase.execute(id);
+    async delete(tenantId: string, id: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => deleteCategoryUseCase.execute(id, tx)
+        );
     }
 
-    async addVariantTemplate(categoryId: string, name: string, supplierId?: string) {
-        return await addVariantTemplateUseCase.execute(categoryId, name, supplierId);
+    async addVariantTemplate(tenantId: string, categoryId: string, name: string, supplierId?: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => addVariantTemplateUseCase.execute(categoryId, name, supplierId, tx)
+        );
     }
 
-    async removeVariantTemplate(id: string) {
-        return await removeVariantTemplateUseCase.execute(id);
+    async removeVariantTemplate(tenantId: string, id: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => removeVariantTemplateUseCase.execute(id, tx)
+        );
     }
 
-    async findById(id: string) {
-        return await categoryRepository.findById(id);
+    async findById(tenantId: string, id: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => categoryRepository.findById(id, tx)
+        );
     }
 }
 

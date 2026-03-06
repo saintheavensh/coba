@@ -1,6 +1,6 @@
-import { TransactionContext } from "../../../../../shared/types/db-context";
-import { IStockOpnameRepository } from "../../domain/stock-opname-repository.port";
-import { Result } from "../../../../../shared/core/Result";
+import { TransactionContext } from "@shared/types/db-context";
+import { IStockOpnameRepository } from "@domain/stock-opname-repository.port";
+import { Result } from "@shared/core/Result";
 import { RecordStockMovementUseCase } from "./record-stock-movement.use-case";
 import { GetProductStockUseCase } from "./get-product-stock.use-case";
 

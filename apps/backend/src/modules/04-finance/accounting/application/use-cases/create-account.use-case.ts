@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IAccountRepository, AccountType } from "../../domain";
 import { AuditService } from "../../services/audit.service";
 
@@ -6,16 +6,16 @@ export interface CreateAccountInput {
     code: string;
     name: string;
     typeId: AccountType;
-    parentId?: string;
-    description?: string;
-    isSystem?: boolean;
+    parentId?: string | null | undefined;
+    description?: string | null | undefined;
+    isSystem?: boolean | undefined;
 }
 
 export class CreateAccountUseCase {
     constructor(private readonly accountRepository: IAccountRepository) { }
 
-    async execute(input: CreateAccountInput, userId?: string, dbOrTx?: DBContext): Promise<string> {
-        const type = await this.accountRepository.findTypeById(input.typeId, dbOrTx);
+    async execute(tenantId: string, input: CreateAccountInput, tx: TransactionContext, userId?: string): Promise<string> {
+        const type = await this.accountRepository.findTypeById(tenantId, input.typeId, tx);
         if (!type) {
             throw new Error(`Account type ${input.typeId} not found`);
         }
@@ -23,7 +23,7 @@ export class CreateAccountUseCase {
         const typePrefix = this.getTypePrefix(input.typeId);
         const id = `${typePrefix}-${input.code}`;
 
-        await this.accountRepository.create({
+        await this.accountRepository.create(tenantId, {
             id,
             code: input.code,
             name: input.name,
@@ -32,16 +32,16 @@ export class CreateAccountUseCase {
             description: input.description,
             isSystem: input.isSystem || false,
             balance: 0,
-        }, dbOrTx);
+        }, tx);
 
-        await AuditService.log({
+        await AuditService.log(tenantId, {
             userId,
             action: "CREATE",
             entityType: "account",
             entityId: id,
             tableName: "accounts",
             newValues: { code: input.code, name: input.name, typeId: input.typeId },
-        });
+        }, tx);
 
         return id;
     }

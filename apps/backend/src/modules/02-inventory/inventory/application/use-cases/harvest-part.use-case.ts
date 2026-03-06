@@ -1,7 +1,7 @@
-import { IGamblingRepository } from "../../domain/repositories/gambling-repository.port";
-import { IKanibalRepository } from "../../domain/repositories/kanibal-repository.port";
-import { IStockMutationGateway } from "../../domain/stock-mutation-gateway.port";
-import { TransactionContext } from "../../../../../shared/types/db-context";
+import { IGamblingRepository } from "@domain/repositories/gambling-repository.port";
+import { IKanibalRepository } from "@domain/repositories/kanibal-repository.port";
+import { IStockMutationGateway } from "@domain/stock-mutation-gateway.port";
+import { TransactionContext } from "@shared/types/db-context";
 
 export interface HarvestPartInput {
     sourceType: 'DEAD_PHONE' | 'FORFEITED_DEVICE';
@@ -23,13 +23,13 @@ export class HarvestPartUseCase {
         private readonly stockGateway: IStockMutationGateway
     ) { }
 
-    async execute(input: HarvestPartInput, tx: TransactionContext) {
+    async execute(input: HarvestPartInput, tx: TransactionContext, tenantId?: string) {
         // 1. Validate Source
         if (input.sourceType === 'DEAD_PHONE') {
-            const dp = await this.gamblingRepo.findById(input.sourceId);
+            const dp = await this.gamblingRepo.findById(input.sourceId, tx);
             if (!dp) throw new Error("Dead phone not found");
         } else {
-            const fd = await this.kanibalRepo.findForfeitedDeviceById(input.sourceId);
+            const fd = await this.kanibalRepo.findForfeitedDeviceById(input.sourceId, tx);
             if (!fd) throw new Error("Forfeited device not found");
         }
 
@@ -58,13 +58,13 @@ export class HarvestPartUseCase {
             harvestDate: new Date(),
             newBatchId: batchId,
             notes: input.notes
-        });
+        }, tx);
 
         // 4. Update Source Status (Optional logic: if dead phone is fully consumed)
         if (input.sourceType === 'DEAD_PHONE') {
-            await this.gamblingRepo.updateStatus(input.sourceId, 'HARVESTED');
+            await this.gamblingRepo.updateStatus(input.sourceId, 'HARVESTED', tx);
         } else {
-            await this.kanibalRepo.updateForfeitedStatus(input.sourceId, 'HARVESTED');
+            await this.kanibalRepo.updateForfeitedStatus(input.sourceId, 'HARVESTED', tx);
         }
 
         return { batchId, success: true };

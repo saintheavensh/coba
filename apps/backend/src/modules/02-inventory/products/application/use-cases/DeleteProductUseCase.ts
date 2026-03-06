@@ -1,5 +1,4 @@
 import { inject, injectable } from "inversify";
-import { UseCase } from "../../../../../shared/core/UseCase";
 import { Result } from "../../../../../shared/core/Result";
 import { TYPES } from "../../types";
 import type { IProductRepository } from "../../domain/ports/IProductRepository";
@@ -7,13 +6,14 @@ import type { IInventoryGateway } from "../../domain/ports/IInventoryGateway";
 import { Status } from "../../domain/value-objects/ProductStatus.vo";
 import { Logger, LoggerFactory } from "../../../../../shared/utils/logger/Logger";
 import { ProductValidationService } from "../../domain/services/ProductValidationService";
+import { TransactionContext } from "@shared/types/db-context";
 
 /**
  * DeleteProductUseCase
  * Orchestrates the deletion of a product, ensuring business rules are met.
  */
 @injectable()
-export class DeleteProductUseCase implements UseCase<string, Result<void>> {
+export class DeleteProductUseCase {
     private logger: Logger;
     constructor(
         @inject(TYPES.IProductRepository) private readonly productRepo: IProductRepository,
@@ -23,9 +23,9 @@ export class DeleteProductUseCase implements UseCase<string, Result<void>> {
         this.logger = loggerFactory.createLogger('DeleteProductUseCase');
     }
 
-    public async execute(productId: string, context?: { requestId?: string; userId?: string }): Promise<Result<void>> {
+    public async execute(productId: string, tx: TransactionContext): Promise<Result<void>> {
         // 1. Find product
-        const productResult = await this.productRepo.findById(productId);
+        const productResult = await this.productRepo.findById(productId, tx);
         if (productResult.isFailure) {
             return Result.fail(productResult.errorValue());
         }
@@ -50,7 +50,7 @@ export class DeleteProductUseCase implements UseCase<string, Result<void>> {
         }
 
         // 4. Delete
-        const deleteResult = await this.productRepo.delete(productId);
+        const deleteResult = await this.productRepo.delete(productId, tx);
         if (deleteResult.isFailure) {
             return Result.fail(deleteResult.errorValue());
         }

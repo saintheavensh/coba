@@ -2,8 +2,8 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { StockOpnameController } from "./stock-opname.controller";
 import gamblingController from "./gambling.controller";
 import kanibalController from "./kanibal.controller";
-import { authMiddleware } from "../../../../shared/infrastructure/auth/presentation/middlewares/auth.middleware";
-import { requirePermission, requireRole } from "../../../../shared/infrastructure/auth/presentation/middlewares/permission.middleware";
+import { authMiddleware } from "@shared/infrastructure/auth/presentation/middlewares/auth.middleware";
+import { requirePermission, requireRole } from "@shared/infrastructure/auth/presentation/middlewares/permission.middleware";
 
 const app = new OpenAPIHono();
 const stockOpnameController = new StockOpnameController();

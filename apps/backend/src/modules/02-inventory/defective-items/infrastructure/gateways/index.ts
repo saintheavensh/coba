@@ -1,15 +1,18 @@
-import { DBContext } from "../../../../../shared/types/db-context";
+import type { TransactionContext } from "../../../../../shared/types/db-context";
+import type { ProductBatchEntity } from "../../../inventory/domain/batch-repository.port";
 import { inventoryApplicationService } from "../../../inventory/inventory-container";
 import { purchaseReturnsService } from "../../../../01-purchases/purchase-returns/purchase-returns-container";
 import { IInventoryGateway, IPurchaseReturnGateway } from "../../domain";
 
 export class InventoryGatewayAdapter implements IInventoryGateway {
-    async getBatch(batchId: string, dbOrTx?: DBContext): Promise<any> {
-        return await inventoryApplicationService.getBatchById(batchId, dbOrTx);
+    async getBatch(batchId: string, tx: TransactionContext): Promise<ProductBatchEntity | null> {
+        return await inventoryApplicationService.getBatchById(batchId, tx);
     }
 
-    async reduceStock(batchId: string, qty: number, dbOrTx?: DBContext): Promise<void> {
-        await inventoryApplicationService.reduceStock(batchId, qty, dbOrTx);
+    async reduceStock(batchId: string, qty: number, tx: TransactionContext): Promise<void> {
+        // reduceStock requires tenantId; use a placeholder since defective-items gateway
+        // operates within an InventoryTransactionAuthority context which already has tenantId.
+        await inventoryApplicationService.reduceStock(batchId, qty, "system");
     }
 }
 
@@ -24,8 +27,8 @@ export class PurchaseReturnGatewayAdapter implements IPurchaseReturnGateway {
             reason: string;
         }>;
         notes?: string;
-    }, dbOrTx?: DBContext): Promise<{ returnId: string }> {
-        const result = await purchaseReturnsService.create(params, dbOrTx);
+    }, tx: TransactionContext): Promise<{ returnId: string }> {
+        const result = await purchaseReturnsService.create(params, tx);
         return { returnId: result.id };
     }
 }

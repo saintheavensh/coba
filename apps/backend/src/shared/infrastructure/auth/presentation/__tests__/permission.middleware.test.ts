@@ -2,7 +2,7 @@ import { vi, describe, it, expect, beforeEach } from "vitest";
 import { createMockContext } from "../../../../../../test/factories";
 
 // Mock the DB module before importing the middleware
-vi.mock("../../../database/client", () => ({
+vi.mock("@shared/infrastructure/database/client", () => ({
     db: {
         select: vi.fn().mockReturnValue({
             from: vi.fn().mockReturnValue({
@@ -14,8 +14,9 @@ vi.mock("../../../database/client", () => ({
     }
 }));
 
-vi.mock("../../../database/schema", () => ({
-    roles: { permissions: "permissions", id: "id" }
+vi.mock("@shared/infrastructure/database/schema", () => ({
+    roles: { permissions: "permissions", id: "id" },
+    rolePermissions: { roleId: "roleId", permissionId: "permissionId" }
 }));
 
 vi.mock("drizzle-orm", () => ({
@@ -24,20 +25,29 @@ vi.mock("drizzle-orm", () => ({
     sql: vi.fn()
 }));
 
+vi.mock("../../../config/AppConfig", () => ({
+    appConfig: {
+        jwtSecret: "test-secret-12345678",
+        databaseUrl: "postgres://localhost:5432/test"
+    },
+    AppConfigService: class { }
+}));
+
 import { requirePermission, requireRole, clearPermissionCache } from "../middlewares/permission.middleware";
-import { db } from "../../../database/client";
+import { db } from "@shared/infrastructure/database/client";
 
 // Helper: set up mock DB to return specific permissions for a role
+// GetRolePermissionsUseCase does: db.select({permissionId}).from(rolePermissions).where(...)
+// where() returns an array of { permissionId: string }
 function mockRolePermissions(permissions: string[]) {
-    const limitMock = vi.fn().mockResolvedValue([{ permissions }]);
-    const whereMock = vi.fn().mockReturnValue({ limit: limitMock });
+    const rows = permissions.map(p => ({ permissionId: p }));
+    const whereMock = vi.fn().mockResolvedValue(rows);
     const fromMock = vi.fn().mockReturnValue({ where: whereMock });
     (db.select as any).mockReturnValue({ from: fromMock });
 }
 
 function mockRoleNotFound() {
-    const limitMock = vi.fn().mockResolvedValue([]);
-    const whereMock = vi.fn().mockReturnValue({ limit: limitMock });
+    const whereMock = vi.fn().mockResolvedValue([]);
     const fromMock = vi.fn().mockReturnValue({ where: whereMock });
     (db.select as any).mockReturnValue({ from: fromMock });
 }
@@ -66,7 +76,7 @@ describe("requirePermission middleware", () => {
         const c = createMockContext();
         c.set("user", { id: "u1", role: "super_admin" });
 
-        const middleware = requirePermission("some.random.permission");
+        const middleware = requirePermission("some.random.permission" as any);
         const next = vi.fn();
 
         await middleware(c, next);
@@ -125,7 +135,7 @@ describe("requirePermission middleware", () => {
         const c = createMockContext();
         c.set("user", { id: "u1", role: { id: "warehouse", name: "Warehouse" } });
 
-        const middleware = requirePermission("inventory.manage");
+        const middleware = requirePermission("inventory.manage" as any);
         const next = vi.fn();
 
         await middleware(c, next);

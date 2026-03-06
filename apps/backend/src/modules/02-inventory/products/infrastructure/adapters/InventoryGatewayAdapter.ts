@@ -2,6 +2,7 @@ import { inject, injectable } from "inversify";
 import { TYPES } from "../../types";
 import { IInventoryGateway } from "../../domain/ports/IInventoryGateway";
 import { Result } from "../../../../../shared/core/Result";
+import type { TransactionContext } from "../../../../../shared/types/db-context";
 
 /**
  * InventoryGatewayAdapter
@@ -11,42 +12,45 @@ import { Result } from "../../../../../shared/core/Result";
 @injectable()
 export class InventoryGatewayAdapter implements IInventoryGateway {
     constructor(
-        @inject(TYPES.InventoryFacade) private inventoryFacade: any
+        @inject(TYPES.InventoryFacade) private inventoryFacade: {
+            getStockForProduct(productId: string, tx: TransactionContext): Promise<Result<number>>;
+            hasActiveTransactions(productId: string, tx: TransactionContext): Promise<Result<boolean>>;
+        }
     ) { }
 
     /**
      * Retrieves the current stock level for a product from the Inventory module.
      */
-    public async getStockLevel(productId: string, dbOrTx?: any): Promise<Result<number>> {
+    public async getStockLevel(productId: string, tx: TransactionContext): Promise<Result<number>> {
         try {
-            // Note: The signature of the Inventory module's facade might change
-            // as it gets refactored to Clean Architecture.
-            const stockResult = await this.inventoryFacade.getStockForProduct(productId, dbOrTx);
+            const stockResult = await this.inventoryFacade.getStockForProduct(productId, tx);
 
             if (stockResult.isFailure) {
                 return Result.fail(`Failed to get stock: ${stockResult.errorValue()}`);
             }
 
             return Result.ok(stockResult.getValue());
-        } catch (error: any) {
-            return Result.fail(`Inventory gateway error: ${error.message}`);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            return Result.fail(`Inventory gateway error: ${message}`);
         }
     }
 
     /**
      * Checks if a product has active inventory transactions.
      */
-    public async hasActiveTransactions(productId: string, dbOrTx?: any): Promise<Result<boolean>> {
+    public async hasActiveTransactions(productId: string, tx: TransactionContext): Promise<Result<boolean>> {
         try {
-            const result = await this.inventoryFacade.hasActiveTransactions(productId, dbOrTx);
+            const result = await this.inventoryFacade.hasActiveTransactions(productId, tx);
 
             if (result.isFailure) {
                 return Result.fail(`Failed to check transactions: ${result.errorValue()}`);
             }
 
             return Result.ok(result.getValue());
-        } catch (error: any) {
-            return Result.fail(`Inventory gateway error: ${error.message}`);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            return Result.fail(`Inventory gateway error: ${message}`);
         }
     }
 }

@@ -1,17 +1,15 @@
-import { eq, desc, asc } from "drizzle-orm";
-import { DBContext } from "../../../../../shared/types/db-context";
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { eq, desc, and } from "drizzle-orm";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { sales, saleItems, salePayments } from "../../../../../shared/infrastructure/database/schema";
 import { ISaleRepository, Sale } from "../../domain";
 
 export class SaleRepositoryAdapter implements ISaleRepository {
-    async findAll(params: { startDate?: Date; endDate?: Date; search?: string; limit?: number }, dbOrTx?: DBContext): Promise<Sale[]> {
-        const client = (dbOrTx as any) || db;
+    async findAll(tenantId: string, params: { startDate?: Date | undefined; endDate?: Date | undefined; search?: string | undefined; limit?: number | undefined }, tx: TransactionContext): Promise<Sale[]> {
         const { startDate, endDate, search, limit = 50 } = params;
 
-        const results = await client.query.sales.findMany({
-            where: (sales: any, { and, gte, lte, or, like }: any) => {
-                const conditions = [];
+        const results = await tx.query.sales.findMany({
+            where: (sales: any, { and: andOp, gte, lte, or, like, eq: eqOp }: any) => {
+                const conditions = [eqOp(sales.tenantId, tenantId)];
                 if (startDate) conditions.push(gte(sales.createdAt, startDate));
                 if (endDate) conditions.push(lte(sales.createdAt, endDate));
                 if (search) {
@@ -20,7 +18,7 @@ export class SaleRepositoryAdapter implements ISaleRepository {
                         like(sales.customerName, `%${search}%`)
                     ));
                 }
-                return and(...conditions);
+                return andOp(...conditions);
             },
             orderBy: [desc(sales.createdAt)],
             with: {
@@ -45,10 +43,9 @@ export class SaleRepositoryAdapter implements ISaleRepository {
         })) as Sale[];
     }
 
-    async findById(id: string, dbOrTx?: DBContext): Promise<Sale | null> {
-        const client = (dbOrTx as any) || db;
-        const sale = await client.query.sales.findFirst({
-            where: eq(sales.id, id),
+    async findById(tenantId: string, id: string, tx: TransactionContext): Promise<Sale | null> {
+        const sale = await tx.query.sales.findFirst({
+            where: and(eq(sales.tenantId, tenantId), eq(sales.id, id)),
             with: {
                 user: true,
                 member: true,
@@ -74,18 +71,15 @@ export class SaleRepositoryAdapter implements ISaleRepository {
         } as Sale;
     }
 
-    async create(sale: any, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.insert(sales).values(sale);
+    async create(tenantId: string, sale: any, tx: TransactionContext): Promise<void> {
+        await tx.insert(sales).values({ ...sale, tenantId });
     }
 
-    async createItem(item: any, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.insert(saleItems).values(item);
+    async createItem(tenantId: string, item: any, tx: TransactionContext): Promise<void> {
+        await tx.insert(saleItems).values({ ...item, tenantId });
     }
 
-    async createPayment(payment: any, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.insert(salePayments).values(payment);
+    async createPayment(tenantId: string, payment: any, tx: TransactionContext): Promise<void> {
+        await tx.insert(salePayments).values({ ...payment, tenantId });
     }
 }

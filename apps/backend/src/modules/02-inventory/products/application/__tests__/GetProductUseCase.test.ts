@@ -11,6 +11,7 @@ describe("GetProductUseCase", () => {
     let mockRepo: any;
 
     let mockLoggerFactory: any;
+    const mockTx = { tenantId: 'test-tenant' } as any;
 
     beforeEach(() => {
         mockLoggerFactory = {
@@ -41,17 +42,17 @@ describe("GetProductUseCase", () => {
 
         mockRepo.findById.mockResolvedValue(Result.ok(product));
 
-        const result = await useCase.execute({ id: "1" });
+        const result = await useCase.execute({ id: "1" }, mockTx);
 
         expect(result.isSuccess).toBe(true);
         expect(result.getValue().id).toBe("1");
-        expect(mockRepo.findById).toHaveBeenCalledWith("1");
+        expect(mockRepo.findById).toHaveBeenCalledWith("1", mockTx);
     });
 
     it("should return fail when product does not exist", async () => {
         mockRepo.findById.mockResolvedValue(Result.fail("Not found"));
 
-        const result = await useCase.execute({ id: "999" });
+        const result = await useCase.execute({ id: "999" }, mockTx);
 
         expect(result.isFailure).toBe(true);
         expect(result.errorValue()).toContain("Not found");

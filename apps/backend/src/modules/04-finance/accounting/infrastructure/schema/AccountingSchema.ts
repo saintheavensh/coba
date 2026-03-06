@@ -1,4 +1,4 @@
-import { text, integer, boolean, timestamp, pgTable, json, foreignKey } from "drizzle-orm/pg-core";
+import { text, integer, boolean, timestamp, pgTable, json, foreignKey, index } from "drizzle-orm/pg-core";
 import { randomUUID } from "crypto";
 import { users } from "../../../../05-shared/users/infrastructure/schema/UserSchema";
 
@@ -13,8 +13,11 @@ export const accountTypes = pgTable("account_types", {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
     normalBalance: text("normal_balance", { enum: ["debit", "credit"] }).notNull(),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+    tenantIdx: index("account_types_tenant_idx").on(table.tenantId),
+}));
 
 export const accounts = pgTable("accounts", {
     id: text("id").primaryKey(),
@@ -26,8 +29,10 @@ export const accounts = pgTable("accounts", {
     isActive: boolean("is_active").default(true),
     isSystem: boolean("is_system").default(false),
     balance: integer("balance").notNull().default(0),
+    tenantId: text("tenant_id").notNull(),
     ...timestamps(),
 }, (table) => ({
+    tenantIdx: index("accounts_tenant_idx").on(table.tenantId),
     parentReference: foreignKey({
         columns: [table.parentId],
         foreignColumns: [table.id],
@@ -51,8 +56,11 @@ export const journals = pgTable("journals", {
     voidedBy: text("voided_by").references(() => users.id),
     voidedAt: timestamp("voided_at"),
     voidReason: text("void_reason"),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+    tenantIdx: index("journals_tenant_idx").on(table.tenantId),
+}));
 
 export const journalLines = pgTable("journal_lines", {
     id: uuid(),
@@ -61,8 +69,11 @@ export const journalLines = pgTable("journal_lines", {
     debit: integer("debit").notNull().default(0),
     credit: integer("credit").notNull().default(0),
     description: text("description"),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+    tenantIdx: index("journal_lines_tenant_idx").on(table.tenantId),
+}));
 
 export const assets = pgTable("assets", {
     id: text("id").primaryKey(),
@@ -81,8 +92,11 @@ export const assets = pgTable("assets", {
     depreciationAccountId: text("depreciation_account_id").references(() => accounts.id),
     notes: text("notes"),
     createdBy: text("created_by").references(() => users.id),
+    tenantId: text("tenant_id").notNull(),
     ...timestamps(),
-});
+}, (table) => ({
+    tenantIdx: index("assets_tenant_idx").on(table.tenantId),
+}));
 
 export const assetDepreciationLogs = pgTable("asset_depreciation_logs", {
     id: uuid(),
@@ -91,8 +105,11 @@ export const assetDepreciationLogs = pgTable("asset_depreciation_logs", {
     amount: integer("amount").notNull(),
     valueAfter: integer("value_after").notNull(),
     journalId: text("journal_id").references(() => journals.id),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+    tenantIdx: index("asset_depreciation_logs_tenant_idx").on(table.tenantId),
+}));
 
 export const cashRegisters = pgTable("cash_registers", {
     id: text("id").primaryKey(),
@@ -107,7 +124,10 @@ export const cashRegisters = pgTable("cash_registers", {
     notes: text("notes"),
     openedAt: timestamp("opened_at").defaultNow(),
     closedAt: timestamp("closed_at"),
-});
+    tenantId: text("tenant_id").notNull(),
+}, (table) => ({
+    tenantIdx: index("cash_registers_tenant_idx").on(table.tenantId),
+}));
 
 export const cashRegisterTransactions = pgTable("cash_register_transactions", {
     id: uuid(),
@@ -117,8 +137,11 @@ export const cashRegisterTransactions = pgTable("cash_register_transactions", {
     paymentMethod: text("payment_method").notNull(),
     amount: integer("amount").notNull(),
     description: text("description"),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+    tenantIdx: index("cash_register_transactions_tenant_idx").on(table.tenantId),
+}));
 
 export const revenueTargets = pgTable("revenue_targets", {
     id: uuid(),
@@ -131,9 +154,12 @@ export const revenueTargets = pgTable("revenue_targets", {
     profitMarginPercent: integer("profit_margin_percent").notNull().default(20),
     dailyTarget: integer("daily_target").notNull().default(0),
     createdBy: text("created_by").references(() => users.id),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at"),
-});
+}, (table) => ({
+    tenantIdx: index("revenue_targets_tenant_idx").on(table.tenantId),
+}));
 
 export const operationalCosts = pgTable("operational_costs", {
     id: uuid(),
@@ -145,8 +171,11 @@ export const operationalCosts = pgTable("operational_costs", {
     dueDate: timestamp("due_date"),
     paidAt: timestamp("paid_at"),
     userId: text("user_id").references(() => users.id),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+    tenantIdx: index("operational_costs_tenant_idx").on(table.tenantId),
+}));
 
 export const periodLocks = pgTable("period_locks", {
     id: uuid(),
@@ -158,8 +187,11 @@ export const periodLocks = pgTable("period_locks", {
     purchasesTotal: integer("purchases_total").default(0),
     expensesTotal: integer("expenses_total").default(0),
     servicesTotal: integer("services_total").default(0),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+    tenantIdx: index("period_locks_tenant_idx").on(table.tenantId),
+}));
 
 export const commissionPayments = pgTable("commission_payments", {
     id: uuid(),
@@ -172,8 +204,11 @@ export const commissionPayments = pgTable("commission_payments", {
     paidAt: timestamp("paid_at"),
     journalId: text("journal_id").references(() => journals.id),
     accountId: text("account_id").references(() => accounts.id),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+    tenantIdx: index("commission_payments_tenant_idx").on(table.tenantId),
+}));
 
 export const auditLogs = pgTable("audit_logs", {
     id: uuid(),
@@ -187,8 +222,11 @@ export const auditLogs = pgTable("audit_logs", {
     reason: text("reason"),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+    tenantIdx: index("audit_logs_tenant_idx").on(table.tenantId),
+}));
 
 
 

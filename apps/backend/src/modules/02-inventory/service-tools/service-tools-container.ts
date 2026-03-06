@@ -13,6 +13,8 @@ import {
     GetToolRequestsUseCase,
     UpdateToolRequestStatusUseCase
 } from "./application";
+import { inventoryAuthority } from "../inventory/inventory-container";
+import { TransactionContext } from "../../../shared/types/db-context";
 
 // Adapters
 const repository = new ServiceToolRepositoryAdapter();
@@ -34,49 +36,82 @@ const updateToolRequestStatusUC = new UpdateToolRequestStatusUseCase(repository)
  * ServiceToolsApplicationService — Facade for external and presentation layers.
  */
 export class ServiceToolsApplicationService {
-    async getAll() {
-        return await getServiceToolsUC.execute();
+    async getAll(tenantId: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getServiceToolsUC.execute(tx)
+        );
     }
 
-    async getByUserId(userId: string) {
-        return await getServiceToolsUC.execute({ userId });
+    async getByUserId(tenantId: string, userId: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getServiceToolsUC.execute(tx, { userId })
+        );
     }
 
-    async getById(id: string) {
-        return await getServiceToolByIdUC.execute(id);
+    async getById(tenantId: string, id: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getServiceToolByIdUC.execute(id, tx)
+        );
     }
 
-    async create(data: any) {
-        return await createServiceToolUC.execute(data);
+    async create(tenantId: string, data: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await createServiceToolUC.execute(data, tx)
+        );
     }
 
-    async update(id: string, data: any) {
-        return await updateServiceToolUC.execute(id, data);
+    async update(tenantId: string, id: string, data: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await updateServiceToolUC.execute(id, data, tx)
+        );
     }
 
-    async updateCondition(id: string, condition: any) {
-        return await updateToolConditionUC.execute(id, condition);
+    async updateCondition(tenantId: string, id: string, condition: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await updateToolConditionUC.execute(id, condition, tx)
+        );
     }
 
-    async delete(id: string) {
-        return await deleteServiceToolUC.execute(id);
+    async delete(tenantId: string, id: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await deleteServiceToolUC.execute(id, tx)
+        );
     }
 
     // Requests
-    async createRequest(userId: string, userName: string, data: any) {
-        return await createToolRequestUC.execute(userId, userName, data);
+    async createRequest(tenantId: string, userId: string, userName: string, data: any) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await createToolRequestUC.execute(userId, userName, data, tx)
+        );
     }
 
-    async getMyRequests(userId: string) {
-        return await getToolRequestsUC.execute({ userId });
+    async getMyRequests(tenantId: string, userId: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getToolRequestsUC.execute(tx, { userId })
+        );
     }
 
-    async getAllRequests() {
-        return await getToolRequestsUC.execute();
+    async getAllRequests(tenantId: string) {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await getToolRequestsUC.execute(tx)
+        );
     }
 
-    async updateRequestStatus(id: string, status: "approved" | "rejected") {
-        return await updateToolRequestStatusUC.execute(id, status);
+    async updateRequestStatus(tenantId: string, id: string, status: "approved" | "rejected") {
+        return await inventoryAuthority.execute(
+            { tenantId },
+            async (tx: TransactionContext) => await updateToolRequestStatusUC.execute(id, status, tx)
+        );
     }
 }
 

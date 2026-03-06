@@ -1,13 +1,14 @@
 import { eq, and, sql, desc, gte, lte } from "drizzle-orm";
-import { db } from "../../../../../shared/infrastructure/database/client";
 import { accounts, journals, journalLines, accountTypes } from "../../../../../shared/infrastructure/database/schema";
-import { DBContext } from "../../../../../shared/types/db-context";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IAccountRepository, IJournalRepository, Account, JournalEntry, JournalLine } from "../../domain";
 
 export class AccountRepositoryAdapter implements IAccountRepository {
-    async findAll(filters: { typeId?: string }, dbOrTx?: DBContext): Promise<Account[]> {
-        const client = (dbOrTx as any) || db;
-        const results = await client
+    async findAll(tenantId: string, filters: { typeId?: string | undefined }, tx: TransactionContext): Promise<Account[]> {
+        const conditions: any[] = [eq(accounts.tenantId, tenantId)];
+        if (filters.typeId) conditions.push(eq(accounts.typeId, filters.typeId));
+
+        const results = await tx
             .select({
                 id: accounts.id,
                 code: accounts.code,
@@ -22,61 +23,63 @@ export class AccountRepositoryAdapter implements IAccountRepository {
                 updatedAt: accounts.updatedAt,
             })
             .from(accounts)
-            .where(filters.typeId ? eq(accounts.typeId, filters.typeId) : undefined)
+            .where(and(...conditions))
             .orderBy(accounts.code);
 
         return results as Account[];
     }
 
-    async findById(id: string, dbOrTx?: DBContext): Promise<Account | null> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.select().from(accounts).where(eq(accounts.id, id));
+    async findById(tenantId: string, id: string, tx: TransactionContext): Promise<Account | null> {
+        const [result] = await tx.select().from(accounts).where(and(eq(accounts.tenantId, tenantId), eq(accounts.id, id)));
         return (result as Account) || null;
     }
 
-    async findByCode(code: string, dbOrTx?: DBContext): Promise<Account | null> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.select().from(accounts).where(eq(accounts.code, code));
+    async findByCode(tenantId: string, code: string, tx: TransactionContext): Promise<Account | null> {
+        const [result] = await tx.select().from(accounts).where(and(eq(accounts.tenantId, tenantId), eq(accounts.code, code)));
         return (result as Account) || null;
     }
 
-    async findTypes(dbOrTx?: DBContext): Promise<any[]> {
-        const client = (dbOrTx as any) || db;
-        return await client.select().from(accountTypes).orderBy(accountTypes.id);
+    async findTypes(tenantId: string, tx: TransactionContext): Promise<any[]> {
+        return await tx.select().from(accountTypes).where(eq(accountTypes.tenantId, tenantId)).orderBy(accountTypes.id);
     }
 
-    async findTypeById(id: string, dbOrTx?: DBContext): Promise<any | null> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.select().from(accountTypes).where(eq(accountTypes.id, id));
+    async findTypeById(tenantId: string, id: string, tx: TransactionContext): Promise<any | null> {
+        const [result] = await tx.select().from(accountTypes).where(and(eq(accountTypes.tenantId, tenantId), eq(accountTypes.id, id)));
         return result || null;
     }
 
-    async create(data: Partial<Account>, dbOrTx?: DBContext): Promise<{ id: string }> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.insert(accounts).values(data).returning({ id: accounts.id });
+    async create(tenantId: string, data: Partial<Account>, tx: TransactionContext): Promise<{ id: string }> {
+        const [result] = await tx.insert(accounts).values({ ...data, tenantId } as any).returning({ id: accounts.id });
+        if (!result) throw new Error("Failed to create account");
         return result;
     }
 
-    async update(id: string, data: Partial<Account>, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.update(accounts).set(data).where(eq(accounts.id, id));
+    async update(tenantId: string, id: string, data: Partial<Account>, tx: TransactionContext): Promise<void> {
+        await tx.update(accounts).set(data as any).where(and(eq(accounts.tenantId, tenantId), eq(accounts.id, id)));
     }
 
-    async delete(id: string, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.delete(accounts).where(eq(accounts.id, id));
+    async incrementBalance(tenantId: string, id: string, amount: number, tx: TransactionContext): Promise<void> {
+        await tx.update(accounts)
+            .set({
+                balance: sql`${accounts.balance} + ${amount}`,
+                updatedAt: new Date()
+            })
+            .where(and(eq(accounts.tenantId, tenantId), eq(accounts.id, id)));
+    }
+
+    async delete(tenantId: string, id: string, tx: TransactionContext): Promise<void> {
+        await tx.delete(accounts).where(and(eq(accounts.tenantId, tenantId), eq(accounts.id, id)));
     }
 }
 
 export class JournalRepositoryAdapter implements IJournalRepository {
-    async findAll(filters: any, dbOrTx?: DBContext): Promise<JournalEntry[]> {
-        const client = (dbOrTx as any) || db;
-        let where = and();
+    async findAll(tenantId: string, filters: any, tx: TransactionContext): Promise<JournalEntry[]> {
+        let where = and(eq(journals.tenantId, tenantId));
         if (filters.startDate) where = and(where, gte(journals.date, new Date(filters.startDate)));
         if (filters.endDate) where = and(where, lte(journals.date, new Date(filters.endDate)));
         if (filters.status) where = and(where, eq(journals.status, filters.status));
 
-        const results = await client
+        const results = await tx
             .select()
             .from(journals)
             .where(where)
@@ -87,14 +90,14 @@ export class JournalRepositoryAdapter implements IJournalRepository {
         return results as JournalEntry[];
     }
 
-    async findById(id: string, dbOrTx?: DBContext): Promise<JournalEntry | null> {
-        const client = (dbOrTx as any) || db;
-        const [journal] = await client.select().from(journals).where(eq(journals.id, id));
+    async findById(tenantId: string, id: string, tx: TransactionContext): Promise<JournalEntry | null> {
+        const [journal] = await tx.select().from(journals).where(and(eq(journals.tenantId, tenantId), eq(journals.id, id)));
         if (!journal) return null;
 
-        const lines = await client
+        const lines = await tx
             .select({
                 id: journalLines.id,
+                journalId: journalLines.journalId,
                 accountId: journalLines.accountId,
                 debit: journalLines.debit,
                 credit: journalLines.credit,
@@ -106,37 +109,31 @@ export class JournalRepositoryAdapter implements IJournalRepository {
         return { ...journal, lines } as JournalEntry;
     }
 
-    async countToday(prefix: string, dbOrTx?: DBContext): Promise<number> {
-        const client = (dbOrTx as any) || db;
-        const result = await client
+    async countToday(tenantId: string, prefix: string, tx: TransactionContext): Promise<number> {
+        const result = await tx
             .select({ count: sql<number>`count(*)` })
             .from(journals)
-            .where(sql`${journals.id} LIKE ${prefix + '%'}`);
+            .where(and(eq(journals.tenantId, tenantId), sql`${journals.id} LIKE ${prefix + '%'}`));
         return Number(result[0]?.count || 0);
     }
 
-    async create(data: Partial<JournalEntry>, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.insert(journals).values(data);
+    async create(tenantId: string, data: Partial<JournalEntry>, tx: TransactionContext): Promise<void> {
+        await tx.insert(journals).values({ ...data, tenantId } as any);
     }
 
-    async createLine(data: Partial<JournalLine>, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.insert(journalLines).values(data);
+    async createLine(tenantId: string, data: Partial<JournalLine>, tx: TransactionContext): Promise<void> {
+        await tx.insert(journalLines).values({ ...data, tenantId } as any);
     }
 
-    async update(id: string, data: Partial<JournalEntry>, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.update(journals).set(data).where(eq(journals.id, id));
+    async update(tenantId: string, id: string, data: Partial<JournalEntry>, tx: TransactionContext): Promise<void> {
+        await tx.update(journals).set(data as any).where(and(eq(journals.tenantId, tenantId), eq(journals.id, id)));
     }
 
-    async delete(id: string, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.delete(journals).where(eq(journals.id, id));
+    async delete(tenantId: string, id: string, tx: TransactionContext): Promise<void> {
+        await tx.delete(journals).where(and(eq(journals.tenantId, tenantId), eq(journals.id, id)));
     }
 
-    async deleteByReference(type: string, id: string, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.delete(journals).where(and(eq(journals.referenceType, type as any), eq(journals.referenceId, id)));
+    async deleteByReference(tenantId: string, type: string, id: string, tx: TransactionContext): Promise<void> {
+        await tx.delete(journals).where(and(eq(journals.tenantId, tenantId), eq(journals.referenceType, type as any), eq(journals.referenceId, id)));
     }
 }

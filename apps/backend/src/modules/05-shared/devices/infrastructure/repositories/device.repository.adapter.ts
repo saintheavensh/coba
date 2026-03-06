@@ -1,17 +1,14 @@
-import { db } from "../../../../../shared/infrastructure/database/client";
 import { devices, products, productDeviceCompatibility } from "../../../../../shared/infrastructure/database/schema";
 import { eq, or, and, sql, inArray, ilike, desc, isNull } from "drizzle-orm";
 import { DBContext } from "../../../../../shared/types/db-context";
 import { IDeviceRepository, IDeviceFilters, Device, CreateDeviceData, UpdateDeviceData } from "../../domain";
 
 export class DeviceRepositoryAdapter implements IDeviceRepository {
-    async findAll(filters: IDeviceFilters, dbOrTx?: DBContext): Promise<Device[]> {
-        const client = (dbOrTx as any) || db;
+    async findAll(tenantId: string, filters: IDeviceFilters, tx: DBContext): Promise<Device[]> {
         const { search, limit = 50, offset = 0, brand } = filters;
 
-        let query = client.select().from(devices);
-
-        const conditions = [];
+        // Base query with tenant filter
+        const conditions = [eq(devices.tenantId, tenantId)];
         const term = search?.trim();
 
         if (term) {
@@ -29,91 +26,111 @@ export class DeviceRepositoryAdapter implements IDeviceRepository {
             conditions.push(ilike(devices.brand, brand.trim()));
         }
 
-        if (conditions.length > 0) {
-            query = query.where(and(...conditions));
-        }
-
         const combinedName = sql`${devices.brand} || ' ' || ${devices.model}`;
 
+        let results;
+        const baseWhere = and(...conditions);
+        if (!baseWhere) throw new Error("Tenant invariant violation: No conditions provided for device query.");
+
         if (term) {
-            query = query.orderBy(
-                sql`CASE 
-                    WHEN ${devices.model} ILIKE ${term} THEN 1
-                    WHEN ${combinedName} ILIKE ${term + "%"} THEN 2
-                    WHEN ${devices.model} ILIKE ${term + "%"} THEN 3
-                    WHEN ${combinedName} ILIKE ${"%" + term + "%"} THEN 4
-                    WHEN ${devices.code} ILIKE ${"%" + term + "%"} THEN 5
-                    ELSE 6
-                END`,
-                desc(devices.createdAt)
-            );
+            results = await tx.select().from(devices)
+                .where(baseWhere)
+                .orderBy(
+                    sql`CASE 
+                        WHEN ${devices.model} ILIKE ${term} THEN 1
+                        WHEN ${combinedName} ILIKE ${term + "%"} THEN 2
+                        WHEN ${devices.model} ILIKE ${term + "%"} THEN 3
+                        WHEN ${combinedName} ILIKE ${"%" + term + "%"} THEN 4
+                        WHEN ${devices.code} ILIKE ${"%" + term + "%"} THEN 5
+                        ELSE 6
+                    END`,
+                    desc(devices.createdAt)
+                )
+                .limit(limit)
+                .offset(offset);
         } else {
-            query = query.orderBy(desc(devices.createdAt));
+            results = await tx.select().from(devices)
+                .where(baseWhere)
+                .orderBy(desc(devices.createdAt))
+                .limit(limit)
+                .offset(offset);
         }
 
-        return await query.limit(limit).offset(offset) as Device[];
+        return results as Device[];
     }
 
-    async findById(id: string, dbOrTx?: DBContext): Promise<Device | null> {
-        const client = (dbOrTx as any) || db;
-        const result = await client.select().from(devices).where(eq(devices.id, id));
+    async findById(tenantId: string, id: string, tx: DBContext): Promise<Device | null> {
+        const result = await tx.select()
+            .from(devices)
+            .where(and(eq(devices.tenantId, tenantId), eq(devices.id, id)));
         return (result[0] as Device) || null;
     }
 
-    async create(data: CreateDeviceData, dbOrTx?: DBContext): Promise<Device> {
-        const client = (dbOrTx as any) || db;
-        const result = await client.insert(devices).values(data).returning();
-        return result[0] as Device;
-    }
-
-    async update(id: string, data: UpdateDeviceData, dbOrTx?: DBContext): Promise<Device> {
-        const client = (dbOrTx as any) || db;
-        const result = await client
-            .update(devices)
-            .set({ ...data, updatedAt: new Date() })
-            .where(eq(devices.id, id))
+    async create(tenantId: string, data: CreateDeviceData, tx: DBContext): Promise<Device> {
+        const result = await tx.insert(devices)
+            .values({ ...data, tenantId })
             .returning();
         return result[0] as Device;
     }
 
-    async delete(id: string, dbOrTx?: DBContext): Promise<Device> {
-        const client = (dbOrTx as any) || db;
-        const result = await client.delete(devices).where(eq(devices.id, id)).returning();
+    async update(tenantId: string, id: string, data: UpdateDeviceData, tx: DBContext): Promise<Device> {
+        const result = await tx
+            .update(devices)
+            .set({ ...data, updatedAt: new Date() })
+            .where(and(eq(devices.tenantId, tenantId), eq(devices.id, id)))
+            .returning();
         return result[0] as Device;
     }
 
-    async bulkDelete(ids: string[], dbOrTx?: DBContext): Promise<Device[]> {
-        const client = (dbOrTx as any) || db;
-        return await client.delete(devices).where(inArray(devices.id, ids)).returning() as Device[];
+    async delete(tenantId: string, id: string, tx: DBContext): Promise<Device> {
+        const result = await tx.delete(devices)
+            .where(and(eq(devices.tenantId, tenantId), eq(devices.id, id)))
+            .returning();
+        return result[0] as Device;
     }
 
-    async getUnlinkedProducts(limit: number = 50, offset: number = 0, dbOrTx?: DBContext): Promise<any[]> {
-        const client = (dbOrTx as any) || db;
-        return await client.select({
+    async bulkDelete(tenantId: string, ids: string[], tx: DBContext): Promise<Device[]> {
+        return await tx.delete(devices)
+            .where(and(eq(devices.tenantId, tenantId), inArray(devices.id, ids)))
+            .returning() as Device[];
+    }
+
+    async getUnlinkedProducts(tenantId: string, limit: number = 50, offset: number = 0, tx: DBContext): Promise<any[]> {
+        return await tx.select({
             id: products.id,
             name: products.name,
-            code: products.code,
+            sku: products.sku,
             stock: products.stock,
             image: products.image
         })
             .from(products)
             .leftJoin(productDeviceCompatibility, eq(products.id, productDeviceCompatibility.productId))
-            .where(isNull(productDeviceCompatibility.productId))
+            .where(and(
+                eq(products.tenantId, tenantId),
+                isNull(productDeviceCompatibility.productId)
+            ))
             .limit(limit)
             .offset(offset);
     }
 
-    async findProductsByName(name: string, dbOrTx?: DBContext): Promise<any[]> {
-        const client = (dbOrTx as any) || db;
-        return await client.select().from(products)
-            .where(ilike(products.name, `%${name}%`));
+    async findProductsByName(tenantId: string, name: string, tx: DBContext): Promise<any[]> {
+        return await tx.select().from(products)
+            .where(and(
+                eq(products.tenantId, tenantId),
+                ilike(products.name, `%${name}%`)
+            ));
     }
 
-    async addCompatibilityLinks(links: { productId: string; deviceId: string }[], dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
+    async addCompatibilityLinks(tenantId: string, links: { productId: string; deviceId: string }[], tx: DBContext): Promise<void> {
         if (links.length === 0) return;
-        await client.insert(productDeviceCompatibility)
-            .values(links)
+
+        const valuesToInsert = links.map(link => ({
+            ...link,
+            tenantId
+        }));
+
+        await tx.insert(productDeviceCompatibility)
+            .values(valuesToInsert)
             .onConflictDoNothing();
     }
 }

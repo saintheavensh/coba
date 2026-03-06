@@ -22,7 +22,8 @@ export class SettingsController {
 
     async getAll(c: Context) {
         try {
-            const all = await this.service.getAll();
+            const user = c.get("user");
+            const all = await this.service.getAll(user.tenantId);
             return apiSuccess(c, all);
         } catch (e: any) {
             return apiError(c, e, "Failed to fetch settings");
@@ -31,7 +32,8 @@ export class SettingsController {
 
     async getPaymentMethods(c: Context) {
         try {
-            const config = await this.service.get("payment_methods", DEFAULT_PAYMENT_METHODS);
+            const user = c.get("user");
+            const config = await this.service.get(user.tenantId, "payment_methods", DEFAULT_PAYMENT_METHODS);
             return apiSuccess(c, config);
         } catch (e: any) {
             return apiError(c, e, "Failed to fetch payment methods");
@@ -40,8 +42,9 @@ export class SettingsController {
 
     async setPaymentMethods(c: Context) {
         try {
+            const user = c.get("user");
             const body = await c.req.json<PaymentMethodConfig>();
-            await this.service.set("payment_methods", body);
+            await this.service.set(user.tenantId, "payment_methods", body);
             return apiSuccess(c, null, "Payment methods updated");
         } catch (e: any) {
             return apiError(c, e, "Failed to update payment methods");
@@ -50,7 +53,8 @@ export class SettingsController {
 
     async getStoreInfo(c: Context) {
         try {
-            const info = await this.service.get("store_info", DEFAULT_STORE_INFO);
+            const user = c.get("user");
+            const info = await this.service.get(user.tenantId, "store_info", DEFAULT_STORE_INFO);
             return apiSuccess(c, info);
         } catch (e: any) {
             return apiError(c, e, "Failed to fetch store info");
@@ -59,8 +63,9 @@ export class SettingsController {
 
     async setStoreInfo(c: Context) {
         try {
+            const user = c.get("user");
             const body = await c.req.json<StoreInfo>();
-            await this.service.set("store_info", body);
+            await this.service.set(user.tenantId, "store_info", body);
             return apiSuccess(c, null, "Store info updated");
         } catch (e: any) {
             return apiError(c, e, "Failed to update store info");
@@ -69,7 +74,8 @@ export class SettingsController {
 
     async getReceiptSettings(c: Context) {
         try {
-            const settings = await this.service.get("receipt_settings", DEFAULT_RECEIPT_SETTINGS);
+            const user = c.get("user");
+            const settings = await this.service.get(user.tenantId, "receipt_settings", DEFAULT_RECEIPT_SETTINGS);
             return apiSuccess(c, settings);
         } catch (e: any) {
             return apiError(c, e, "Failed to fetch receipt settings");
@@ -78,8 +84,9 @@ export class SettingsController {
 
     async setReceiptSettings(c: Context) {
         try {
+            const user = c.get("user");
             const body = await c.req.json<ReceiptSettings>();
-            await this.service.set("receipt_settings", body);
+            await this.service.set(user.tenantId, "receipt_settings", body);
             return apiSuccess(c, null, "Receipt settings updated");
         } catch (e: any) {
             return apiError(c, e, "Failed to update receipt settings");
@@ -88,7 +95,8 @@ export class SettingsController {
 
     async getServiceSettings(c: Context) {
         try {
-            const settings = await this.service.get("service_settings", DEFAULT_SERVICE_SETTINGS);
+            const user = c.get("user");
+            const settings = await this.service.get(user.tenantId, "service_settings", DEFAULT_SERVICE_SETTINGS);
             return apiSuccess(c, settings);
         } catch (e: any) {
             return apiError(c, e, "Failed to fetch service settings");
@@ -97,8 +105,9 @@ export class SettingsController {
 
     async setServiceSettings(c: Context) {
         try {
+            const user = c.get("user");
             const body = await c.req.json<ServiceSettings>();
-            await this.service.set("service_settings", body);
+            await this.service.set(user.tenantId, "service_settings", body);
             return apiSuccess(c, null, "Service settings updated");
         } catch (e: any) {
             return apiError(c, e, "Failed to update service settings");
@@ -107,7 +116,8 @@ export class SettingsController {
 
     async getWhatsAppSettings(c: Context) {
         try {
-            const settings = await this.service.get("whatsapp_settings", DEFAULT_WHATSAPP_SETTINGS);
+            const user = c.get("user");
+            const settings = await this.service.get(user.tenantId, "whatsapp_settings", DEFAULT_WHATSAPP_SETTINGS);
             return apiSuccess(c, settings);
         } catch (e: any) {
             return apiError(c, e, "Failed to fetch WhatsApp settings");
@@ -116,8 +126,9 @@ export class SettingsController {
 
     async setWhatsAppSettings(c: Context) {
         try {
+            const user = c.get("user");
             const body = await c.req.json<WhatsAppSettings>();
-            await this.service.set("whatsapp_settings", body);
+            await this.service.set(user.tenantId, "whatsapp_settings", body);
             return apiSuccess(c, null, "WhatsApp settings updated");
         } catch (e: any) {
             return apiError(c, e, "Failed to update WhatsApp settings");
@@ -126,7 +137,8 @@ export class SettingsController {
 
     async getCommissionSettings(c: Context) {
         try {
-            const settings = await this.service.get("commission_settings", DEFAULT_COMMISSION_SETTINGS);
+            const user = c.get("user");
+            const settings = await this.service.get(user.tenantId, "commission_settings", DEFAULT_COMMISSION_SETTINGS);
             return apiSuccess(c, settings);
         } catch (e: any) {
             return apiError(c, e, "Failed to fetch commission settings");
@@ -135,8 +147,9 @@ export class SettingsController {
 
     async setCommissionSettings(c: Context) {
         try {
+            const user = c.get("user");
             const body = await c.req.json<CommissionSettings>();
-            await this.service.set("commission_settings", body);
+            await this.service.set(user.tenantId, "commission_settings", body);
             return apiSuccess(c, null, "Commission settings updated");
         } catch (e: any) {
             return apiError(c, e, "Failed to update commission settings");
@@ -145,7 +158,8 @@ export class SettingsController {
 
     async getAccountMappings(c: Context) {
         try {
-            const mappings = await this.service.get("account_mappings", DEFAULT_ACCOUNT_MAPPINGS);
+            const user = c.get("user");
+            const mappings = await this.service.get(user.tenantId, "account_mappings", DEFAULT_ACCOUNT_MAPPINGS);
             return apiSuccess(c, mappings);
         } catch (e: any) {
             return apiError(c, e, "Failed to fetch account mappings");
@@ -154,8 +168,9 @@ export class SettingsController {
 
     async setAccountMappings(c: Context) {
         try {
+            const user = c.get("user");
             const body = await c.req.json<AccountMappingSettings>();
-            await this.service.set("account_mappings", body);
+            await this.service.set(user.tenantId, "account_mappings", body);
             return apiSuccess(c, null, "Account mappings updated");
         } catch (e: any) {
             return apiError(c, e, "Failed to update account mappings");
@@ -164,7 +179,8 @@ export class SettingsController {
 
     async getGeneralSettings(c: Context) {
         try {
-            const settings = await this.service.get("general_settings", DEFAULT_GENERAL_SETTINGS);
+            const user = c.get("user");
+            const settings = await this.service.get(user.tenantId, "general_settings", DEFAULT_GENERAL_SETTINGS);
             return apiSuccess(c, settings);
         } catch (e: any) {
             return apiError(c, e, "Failed to fetch general settings");
@@ -173,8 +189,9 @@ export class SettingsController {
 
     async setGeneralSettings(c: Context) {
         try {
+            const user = c.get("user");
             const body = await c.req.json<GeneralSettings>();
-            await this.service.set("general_settings", body);
+            await this.service.set(user.tenantId, "general_settings", body);
             return apiSuccess(c, null, "General settings updated");
         } catch (e: any) {
             return apiError(c, e, "Failed to update general settings");
@@ -183,7 +200,8 @@ export class SettingsController {
 
     async getTaxSettings(c: Context) {
         try {
-            const settings = await this.service.get("tax_settings", DEFAULT_TAX_SETTINGS);
+            const user = c.get("user");
+            const settings = await this.service.get(user.tenantId, "tax_settings", DEFAULT_TAX_SETTINGS);
             return apiSuccess(c, settings);
         } catch (e: any) {
             return apiError(c, e, "Failed to fetch tax settings");
@@ -192,8 +210,9 @@ export class SettingsController {
 
     async setTaxSettings(c: Context) {
         try {
+            const user = c.get("user");
             const body = await c.req.json<TaxSettings>();
-            await this.service.set("tax_settings", body);
+            await this.service.set(user.tenantId, "tax_settings", body);
             return apiSuccess(c, null, "Tax settings updated");
         } catch (e: any) {
             return apiError(c, e, "Failed to update tax settings");
@@ -202,7 +221,8 @@ export class SettingsController {
 
     async getSystemSettings(c: Context) {
         try {
-            const settings = await this.service.get("system_settings", DEFAULT_SYSTEM_SETTINGS);
+            const user = c.get("user");
+            const settings = await this.service.get(user.tenantId, "system_settings", DEFAULT_SYSTEM_SETTINGS);
             return apiSuccess(c, settings);
         } catch (e: any) {
             return apiError(c, e, "Failed to fetch system settings");
@@ -211,8 +231,9 @@ export class SettingsController {
 
     async setSystemSettings(c: Context) {
         try {
+            const user = c.get("user");
             const body = await c.req.json<SystemSettings>();
-            await this.service.set("system_settings", body);
+            await this.service.set(user.tenantId, "system_settings", body);
             return apiSuccess(c, null, "System settings updated");
         } catch (e: any) {
             return apiError(c, e, "Failed to update system settings");
@@ -221,10 +242,11 @@ export class SettingsController {
 
     async factoryReset(c: Context) {
         try {
+            const user = c.get("user");
             const body = await c.req.json<{ mode: "data" | "full" }>();
             if (!body.mode) return c.json({ success: false, message: "Mode is required ('data' | 'full')" }, 400);
 
-            await this.service.factoryReset(body.mode);
+            await this.service.factoryReset(user.tenantId, body.mode);
             return apiSuccess(c, null, "Factory reset completed successfully");
         } catch (e: any) {
             return apiError(c, e, "Factory reset failed");
@@ -233,7 +255,8 @@ export class SettingsController {
 
     async getRoleBehavior(c: Context) {
         try {
-            const settings = await this.service.get("role_behavior", DEFAULT_ROLE_BEHAVIOR);
+            const user = c.get("user");
+            const settings = await this.service.get(user.tenantId, "role_behavior", DEFAULT_ROLE_BEHAVIOR);
             return apiSuccess(c, settings);
         } catch (e: any) {
             return apiError(c, e, "Failed to fetch role behavior settings");
@@ -242,8 +265,9 @@ export class SettingsController {
 
     async setRoleBehavior(c: Context) {
         try {
+            const user = c.get("user");
             const body = await c.req.json<RoleBehavior>();
-            await this.service.set("role_behavior", body);
+            await this.service.set(user.tenantId, "role_behavior", body);
             return apiSuccess(c, null, "Role behavior settings updated");
         } catch (e: any) {
             return apiError(c, e, "Failed to update role behavior settings");
@@ -252,8 +276,9 @@ export class SettingsController {
 
     async getByKey(c: Context) {
         try {
+            const user = c.get("user");
             const key = c.req.param("key");
-            const value = await this.service.get(key, null);
+            const value = await this.service.get(user.tenantId, key, null);
             return apiSuccess(c, value);
         } catch (e: any) {
             return apiError(c, e, "Failed to fetch setting");
@@ -262,9 +287,10 @@ export class SettingsController {
 
     async setByKey(c: Context) {
         try {
+            const user = c.get("user");
             const key = c.req.param("key");
             const body = await c.req.json();
-            await this.service.set(key, body.value);
+            await this.service.set(user.tenantId, key, body.value);
             return apiSuccess(c, null, "Setting updated");
         } catch (e: any) {
             return apiError(c, e, "Failed to update setting");

@@ -4,24 +4,15 @@ import { DBContext } from "../../../../../shared/types/db-context";
 export class GetWarehouseDashboardUseCase {
     constructor(private repository: IDashboardRepository) { }
 
-    async execute(dbOrTx?: DBContext) {
-        const stats = await this.repository.getWarehouseStats(dbOrTx);
-        const lowStockProducts = await this.repository.getLowStockProducts(10, dbOrTx);
-        const incomingOrders = await this.repository.getIncomingOrders(5, dbOrTx);
+    async execute(tenantId: string, tx: DBContext) {
+        const stats = await this.repository.getWarehouseStats(tenantId, tx);
+        const incomingOrders = await this.repository.getIncomingOrders(tenantId, 5, tx);
+        const lowStock = await this.repository.getLowStockProducts(tenantId, 10, tx);
 
         return {
-            stats: {
-                totalProducts: stats.totalProducts,
-                lowStockCount: stats.lowStock,
-                pendingPurchasesCount: stats.pendingPurchases
-            },
-            lowStockProducts: (lowStockProducts || []).map((p: any) => ({
-                id: p.id,
-                name: p.name,
-                stock: p.stock,
-                minStock: p.minStock
-            })),
-            incomingOrders: incomingOrders || []
+            stats,
+            incomingOrders,
+            lowStock
         };
     }
 }

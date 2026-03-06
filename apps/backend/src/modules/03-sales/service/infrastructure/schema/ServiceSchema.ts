@@ -1,4 +1,4 @@
-import { text, integer, numeric, timestamp, pgTable, boolean, json } from "drizzle-orm/pg-core";
+import { text, integer, numeric, timestamp, pgTable, boolean, json, index } from "drizzle-orm/pg-core";
 import { randomUUID } from "crypto";
 import { users } from "../../../../05-shared/users/infrastructure/schema/UserSchema";
 import { productBatches } from "../../../../02-inventory/inventory/infrastructure/schema/BatchSchema";
@@ -41,6 +41,7 @@ export const services = pgTable("services", {
     warrantyExpiryDate: timestamp("warranty_expiry_date"),
     priority: text("priority", { enum: ["standard", "wait"] }).default("standard"),
     isDirectComplete: boolean("is_direct_complete").default(false),
+    tenantId: text("tenant_id").notNull(),
 
     ...timestamps(),
 });
@@ -50,7 +51,8 @@ export const serviceCategories = pgTable("service_categories", {
     name: text("name").notNull(),
     minWeight: integer("min_weight"),
     maxWeight: integer("max_weight"),
-    description: text("description")
+    description: text("description"),
+    tenantId: text("tenant_id").notNull(),
 });
 
 export const serviceTypes = pgTable("service_types", {
@@ -62,6 +64,7 @@ export const serviceTypes = pgTable("service_types", {
     commissionPercent: numeric("commission_percent", { precision: 5, scale: 2 }),
     warrantyDays: integer("warranty_days").default(30),
     isActive: boolean("is_active").default(true),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow()
 });
 
@@ -74,6 +77,7 @@ export const serviceItems = pgTable("service_items", {
     estimatedCost: integer("estimated_cost"),
     actualCost: integer("actual_cost"),
     status: text("status", { enum: ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"] }).default("PENDING"),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
     completedAt: timestamp("completed_at")
 });
@@ -86,6 +90,7 @@ export const serviceParts = pgTable("service_parts", {
     purchasePrice: integer("purchase_price"),
     sellingPrice: integer("selling_price").notNull(),
     notes: text("notes"),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow()
 });
 
@@ -97,6 +102,7 @@ export const technicianCommissionSettings = pgTable("technician_commission_setti
     baseSalary: integer("base_salary"),
     valuePerPoint: integer("value_per_point"),
     isActive: boolean("is_active").default(true),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow()
 });
@@ -110,6 +116,7 @@ export const technicianCommissions = pgTable("technician_commissions", {
     commissionAmount: integer("commission_amount"),
     paid: boolean("paid").default(false),
     paidAt: timestamp("paid_at"),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow()
 });
 
@@ -125,8 +132,11 @@ export const serviceTools = pgTable("service_tools", {
     price: integer("price"),
     notes: text("notes"),
     userId: text("user_id").references(() => users.id),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+    tenantIdx: index("service_tools_tenant_idx").on(table.tenantId),
+}));
 
 export const serviceToolRequests = pgTable("service_tool_requests", {
     id: uuid(),
@@ -134,7 +144,10 @@ export const serviceToolRequests = pgTable("service_tool_requests", {
     toolName: text("tool_name").notNull(),
     justification: text("justification").notNull(),
     status: text("status", { enum: ["pending", "approved", "rejected"] }).default("pending"),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+    tenantIdx: index("service_tool_requests_tenant_idx").on(table.tenantId),
+}));
 
 

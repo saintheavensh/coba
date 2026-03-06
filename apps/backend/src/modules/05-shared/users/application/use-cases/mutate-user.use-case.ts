@@ -3,72 +3,50 @@ import { IUserRepository, User, CreateUserData, UpdateUserData } from "../../dom
 import { HTTPException } from "hono/http-exception";
 
 export class CreateUserUseCase {
-    constructor(
-        private readonly repository: IUserRepository,
-        private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
-    ) { }
+    constructor(private readonly repository: IUserRepository) { }
 
-    async execute(data: CreateUserData, dbOrTx?: DBContext): Promise<User> {
+    async execute(tenantId: string, data: CreateUserData, tx: DBContext): Promise<User> {
         const { roles, ...userData } = data;
 
-        const runInTransaction = async (tx: DBContext) => {
-            const user = await this.repository.create(userData, tx);
+        const user = await this.repository.create(tenantId, userData, tx);
 
-            if (roles && roles.length > 0) {
-                await this.repository.syncRoles(user.id, roles, tx);
-            }
-
-            return await this.repository.findById(user.id, tx) as User;
-        };
-
-        if (dbOrTx) {
-            return await runInTransaction(dbOrTx);
-        } else {
-            return await this.db.transaction(runInTransaction);
+        if (roles && roles.length > 0) {
+            await this.repository.syncRoles(tenantId, user.id, roles, tx);
         }
+
+        return await this.repository.findById(tenantId, user.id, tx) as User;
     }
 }
 
 export class UpdateUserUseCase {
-    constructor(
-        private readonly repository: IUserRepository,
-        private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
-    ) { }
+    constructor(private readonly repository: IUserRepository) { }
 
-    async execute(id: string, data: UpdateUserData, dbOrTx?: DBContext): Promise<User> {
+    async execute(tenantId: string, id: string, data: UpdateUserData, tx: DBContext): Promise<User> {
         const { roles, ...userData } = data;
 
-        const runInTransaction = async (tx: DBContext) => {
-            const existing = await this.repository.findById(id, tx);
-            if (!existing) {
-                throw new HTTPException(404, { message: "User not found" });
-            }
-
-            await this.repository.update(id, userData, tx);
-
-            if (roles !== undefined) {
-                await this.repository.syncRoles(id, roles, tx);
-            }
-
-            return await this.repository.findById(id, tx) as User;
-        };
-
-        if (dbOrTx) {
-            return await runInTransaction(dbOrTx);
-        } else {
-            return await this.db.transaction(runInTransaction);
+        const existing = await this.repository.findById(tenantId, id, tx);
+        if (!existing) {
+            throw new HTTPException(404, { message: "User not found" });
         }
+
+        await this.repository.update(tenantId, id, userData, tx);
+
+        if (roles !== undefined) {
+            await this.repository.syncRoles(tenantId, id, roles, tx);
+        }
+
+        return await this.repository.findById(tenantId, id, tx) as User;
     }
 }
 
 export class DeleteUserUseCase {
     constructor(private readonly repository: IUserRepository) { }
 
-    async execute(id: string, dbOrTx?: DBContext): Promise<void> {
-        const existing = await this.repository.findById(id, dbOrTx);
+    async execute(tenantId: string, id: string, tx: DBContext): Promise<void> {
+        const existing = await this.repository.findById(tenantId, id, tx);
         if (!existing) {
             throw new HTTPException(404, { message: "User not found" });
         }
-        await this.repository.delete(id, dbOrTx);
+        await this.repository.delete(tenantId, id, tx);
     }
 }

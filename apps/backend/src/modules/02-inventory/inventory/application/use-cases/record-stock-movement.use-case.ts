@@ -1,9 +1,9 @@
-import { TransactionContext } from "../../../../../shared/types/db-context";
-import { IStockMovementRepository } from "../../domain/stock-movement.repository";
-import { StockMovementEntity, StockMovementType, StockReferenceType } from "../../domain/stock-movement.entity";
-import { generateId, ID_PREFIX } from "../../../../../shared/utils/validation/IdGenerator";
+import { TransactionContext } from "@shared/types/db-context";
+import { IStockMovementRepository } from "@domain/stock-movement.repository";
+import { StockMovementEntity, StockMovementType, StockReferenceType } from "@domain/stock-movement.entity";
+import { generateId, ID_PREFIX } from "@shared/utils/validation/IdGenerator";
 import type { IProductRepository } from "../../../products/domain/ports/IProductRepository";
-import { Result } from "../../../../../shared/core/Result";
+import { Result } from "@shared/core/Result";
 
 export interface RecordStockMovementInput {
     productId: string;
@@ -19,7 +19,7 @@ export class RecordStockMovementUseCase {
         private productRepo: IProductRepository
     ) { }
 
-    async execute(data: RecordStockMovementInput, tx?: TransactionContext): Promise<Result<StockMovementEntity>> {
+    async execute(data: RecordStockMovementInput, tx: TransactionContext, tenantId?: string): Promise<Result<StockMovementEntity>> {
         if (!data.productId) return Result.fail("Product ID is required");
 
         // Quantity validation

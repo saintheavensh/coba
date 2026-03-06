@@ -19,10 +19,12 @@ export const products = pgTable("products", {
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").$onUpdate(() => new Date()),
     deletedAt: timestamp("deleted_at"),
+    tenantId: text("tenant_id").notNull(),
 }, (table) => ({
     categoryIdx: index("products_category_idx").on(table.categoryId),
     createdAtIdx: index("products_created_at_idx").on(table.createdAt),
     skuIdx: index("products_sku_idx").on(table.sku),
+    tenantIdx: index("products_tenant_idx").on(table.tenantId),
     minStockCheck: check("minimum_stock_check", sql`${table.minimumStock} >= 0`),
 }));
 

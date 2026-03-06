@@ -1,5 +1,6 @@
 export interface Brand {
     id: string;
+    tenantId: string;
     name: string;
     logo?: string | null;
     createdAt?: Date | null;

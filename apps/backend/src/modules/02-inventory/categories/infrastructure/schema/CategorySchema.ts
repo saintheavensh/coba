@@ -12,8 +12,10 @@ export const categories = pgTable("categories", {
     isActive: boolean("is_active").default(true),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").$onUpdate(() => new Date()),
+    tenantId: text("tenant_id").notNull(),
     deletedAt: timestamp("deleted_at"),
 }, (table) => ({
+    tenantIdx: index("categories_tenant_idx").on(table.tenantId),
     parentReference: foreignKey({
         columns: [table.parentId],
         foreignColumns: [table.id],
@@ -27,6 +29,7 @@ export const categoryVariants = pgTable("category_variants", {
     categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: 'cascade' }),
     name: text("name").notNull(),
     supplierId: text("supplier_id").references(() => suppliers.id, { onDelete: 'cascade' }),
+    tenantId: text("tenant_id").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -34,7 +37,9 @@ export const supplierCategories = pgTable("supplier_categories", {
     id: uuid(),
     supplierId: text("supplier_id").notNull().references(() => suppliers.id, { onDelete: 'cascade' }),
     categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: 'cascade' }),
+    tenantId: text("tenant_id").notNull(),
 }, (t) => ({
+    tenantIdx: index("supplier_categories_tenant_idx").on(t.tenantId),
     unq: unique("sup_cat_unique").on(t.supplierId, t.categoryId),
 }));
 

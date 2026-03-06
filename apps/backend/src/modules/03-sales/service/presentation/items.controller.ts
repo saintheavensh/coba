@@ -3,6 +3,8 @@ import { AddServiceItemUseCase } from "../application/use-cases/add-service-item
 import { AddServicePartUseCase } from "../application/use-cases/add-service-part.use-case";
 import { CompleteServiceItemUseCase } from "../application/use-cases/complete-service-item.use-case";
 import { apiSuccess, apiError } from "../../../../shared/application/middlewares/ResponseHelpers";
+import { inventoryAuthority } from "../../../02-inventory/inventory/inventory-container";
+import { TransactionContext } from "../../../../shared/types/db-context";
 
 export class ServiceItemController {
     constructor(
@@ -13,8 +15,11 @@ export class ServiceItemController {
 
     async addItem(c: Context) {
         try {
+            const tenantId = c.get("tenantId");
             const body = await c.req.json();
-            const result = await this.addItemUseCase.execute(body);
+            const result = await inventoryAuthority.execute(tenantId, async (tx: TransactionContext) => {
+                return await this.addItemUseCase.execute(tenantId, body, tx);
+            });
             return apiSuccess(c, result, "Service item added", 201);
         } catch (e: any) {
             return apiError(c, e, "Failed to add service item");
@@ -23,9 +28,12 @@ export class ServiceItemController {
 
     async addPart(c: Context) {
         try {
+            const tenantId = c.get("tenantId");
             const id = c.req.param("id");
             const body = await c.req.json();
-            const result = await this.addPartUseCase.execute({ ...body, serviceItemId: id });
+            const result = await inventoryAuthority.execute(tenantId, async (tx: TransactionContext) => {
+                return await this.addPartUseCase.execute(tenantId, { ...body, serviceItemId: id }, tx);
+            });
             return apiSuccess(c, result, "Service part added", 201);
         } catch (e: any) {
             return apiError(c, e, "Failed to add service part");
@@ -34,8 +42,11 @@ export class ServiceItemController {
 
     async completeItem(c: Context) {
         try {
+            const tenantId = c.get("tenantId");
             const id = c.req.param("id");
-            const result = await this.completeItemUseCase.execute(id);
+            const result = await inventoryAuthority.execute(tenantId, async (tx: TransactionContext) => {
+                return await this.completeItemUseCase.execute(tenantId, id, tx);
+            });
             return apiSuccess(c, result, "Service item completed");
         } catch (e: any) {
             const status = (e as any).status || 400;

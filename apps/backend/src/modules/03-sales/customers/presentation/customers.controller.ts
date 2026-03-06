@@ -8,7 +8,8 @@ export class CustomersController {
     async getAll(c: Context) {
         try {
             const query = c.req.query("q");
-            const customers = await this.service.getAll(query);
+            const tenantId = c.get("user")?.tenantId || "default";
+            const customers = await this.service.getAll(tenantId, query);
             return apiSuccess(c, customers);
         } catch (e: any) {
             return apiError(c, e);
@@ -18,7 +19,8 @@ export class CustomersController {
     async getById(c: Context) {
         try {
             const id = c.req.param("id");
-            const customer = await this.service.getById(id);
+            const tenantId = c.get("user")?.tenantId || "default";
+            const customer = await this.service.getById(tenantId, id);
             return apiSuccess(c, customer);
         } catch (e: any) {
             const status = e.status || 500;
@@ -29,7 +31,8 @@ export class CustomersController {
     async create(c: Context) {
         try {
             const data = (c.req as any).valid("json");
-            const customer = await this.service.create(data);
+            const tenantId = c.get("user")?.tenantId || "default";
+            const customer = await this.service.create(tenantId, data);
             return apiSuccess(c, customer, "Customer created successfully", 201);
         } catch (e: any) {
             const status = e.status || 500;
@@ -41,7 +44,8 @@ export class CustomersController {
         try {
             const id = c.req.param("id");
             const data = (c.req as any).valid("json");
-            const customer = await this.service.update(id, data);
+            const tenantId = c.get("user")?.tenantId || "default";
+            const customer = await this.service.update(tenantId, id, data);
             return apiSuccess(c, customer, "Customer updated successfully");
         } catch (e: any) {
             const status = e.status || 500;
@@ -52,7 +56,8 @@ export class CustomersController {
     async delete(c: Context) {
         try {
             const id = c.req.param("id");
-            await this.service.delete(id);
+            const tenantId = c.get("user")?.tenantId || "default";
+            await this.service.delete(tenantId, id);
             return apiSuccess(c, null, "Customer deleted successfully");
         } catch (e: any) {
             const status = e.status || 500;
@@ -63,7 +68,8 @@ export class CustomersController {
     async getSales(c: Context) {
         try {
             const id = c.req.param("id");
-            const sales = await this.service.getSales(id);
+            const tenantId = c.get("user")?.tenantId || "default";
+            const sales = await this.service.getSales(tenantId, id);
             return apiSuccess(c, sales);
         } catch (e: any) {
             return apiError(c, e.message || String(e));
@@ -73,7 +79,8 @@ export class CustomersController {
     async getUnpaidSales(c: Context) {
         try {
             const id = c.req.param("id");
-            const sales = await this.service.getUnpaidSales(id);
+            const tenantId = c.get("user")?.tenantId || "default";
+            const sales = await this.service.getUnpaidSales(tenantId, id);
             return apiSuccess(c, sales);
         } catch (e: any) {
             return apiError(c, e.message || String(e));
@@ -84,7 +91,8 @@ export class CustomersController {
         try {
             const id = c.req.param("id");
             const body = (c.req as any).valid("json");
-            const customer = await this.service.processPayment({
+            const tenantId = c.get("user")?.tenantId || "default";
+            const customer = await this.service.processPayment(tenantId, {
                 ...body,
                 customerId: id
             });

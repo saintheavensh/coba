@@ -1,11 +1,9 @@
-// @ts-nocheck
-import { db } from "../../../../../shared/infrastructure/database/client";
+import { TransactionContext } from "../../../../../shared/types/db-context";
 import { IPurchasePaymentRepository, IPurchaseRepository, IAccountingGateway } from "../../domain/purchase-repository.port";
-import { ProductsService } from "../../../02-inventory/products/products-container";
-import { InventoryService } from "../../../02-inventory/inventory/services/inventory.service";
+import { InventoryService } from "../../../../02-inventory/inventory/application/services/inventory.service";
 import { notifications, productVariants } from "../../../../../shared/infrastructure/database/schema";
 import { eq, and } from "drizzle-orm";
-import { computeNetAmount, multiplyMoney, sumMoney } from "../../../../../shared/utils/money";
+import { computeNetAmount, multiplyMoney } from "../../../../../shared/utils/money";
 
 export interface VerifyAndCompletePurchaseDto {
     purchaseId: string;
@@ -35,14 +33,13 @@ export class VerifyAndCompletePurchaseUseCase {
     constructor(
         private purchaseRepo: IPurchaseRepository,
         private paymentRepo: IPurchasePaymentRepository,
-        private productsService: ProductsService,
         private inventoryService: InventoryService,
         private accountingGateway: IAccountingGateway
     ) { }
 
-    async execute(dto: VerifyAndCompletePurchaseDto): Promise<{ message: string; id: string }> {
-        return await db.transaction(async (tx) => {
-            const purchase = await this.purchaseRepo.findById(dto.purchaseId);
+    async execute(tenantId: string, dto: VerifyAndCompletePurchaseDto, tx: TransactionContext): Promise<{ message: string; id: string }> {
+        const runInternal = async () => {
+            const purchase = await this.purchaseRepo.findById(tenantId, dto.purchaseId, tx);
             if (!purchase) {
                 throw new Error(`Purchase order ${dto.purchaseId} not found`);
             }
@@ -88,7 +85,7 @@ export class VerifyAndCompletePurchaseUseCase {
                 }
 
                 verificationInputItems.push({
-                    purchaseItemId: (poItem as any).props.id, // Using props.id if it's there, or we need a stable ID
+                    purchaseItemId: poItem.id, // Using props.id if it's there, or we need a stable ID
                     productId: item.productId,
                     variantId: variantId,
                     buyPrice: item.buyPrice,
@@ -102,11 +99,11 @@ export class VerifyAndCompletePurchaseUseCase {
                 purchaseId: purchase.id,
                 supplierId: purchase.supplierId,
                 items: verificationInputItems
-            }, tx);
+            }, tx, tenantId);
 
             // Update batch IDs on items
             for (const a of allocations) {
-                const item = purchase.items.find(i => (i as any).props.id === a.purchaseItemId);
+                const item = purchase.items.find(i => i.id === a.purchaseItemId);
                 if (item) {
                     item.updateBatchId(a.batchId);
                 }
@@ -126,11 +123,11 @@ export class VerifyAndCompletePurchaseUseCase {
             });
 
             // Save state
-            await this.purchaseRepo.save(purchase, tx);
+            await this.purchaseRepo.save(tenantId, purchase, tx);
 
             // Record Payment if provided
             if (dto.options?.payment && dto.options.payment.amount > 0) {
-                await this.paymentRepo.savePayment({
+                await this.paymentRepo.savePayment(tenantId, {
                     purchaseId: purchase.id,
                     supplierId: purchase.supplierId,
                     amount: dto.options.payment.amount,
@@ -166,7 +163,7 @@ export class VerifyAndCompletePurchaseUseCase {
                 });
             }
 
-            await this.accountingGateway.createJournal({
+            await this.accountingGateway.createJournal(tenantId, {
                 description: `Verify Pembelian ${purchase.id}`,
                 referenceType: "purchase",
                 referenceId: purchase.id,
@@ -177,6 +174,7 @@ export class VerifyAndCompletePurchaseUseCase {
             // High Spend Alert
             if (totalGoodsAmount > 5000000) {
                 await tx.insert(notifications).values({
+                    tenantId,
                     userId: "user-owner-001", // Default owner placeholder
                     type: "spend_alert",
                     title: "High Spend Alert",
@@ -187,6 +185,8 @@ export class VerifyAndCompletePurchaseUseCase {
             }
 
             return { message: "Purchase verified and stock updated", id: purchase.id };
-        });
+        };
+
+        return await runInternal();
     }
 }

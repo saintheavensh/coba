@@ -5,7 +5,7 @@ import { IBrandRepository, CreateBrandData } from "../../domain";
 export class CreateBrandUseCase {
     constructor(private repository: IBrandRepository) { }
 
-    async execute(data: CreateBrandData, dbOrTx?: DBContext) {
+    async execute(data: CreateBrandData, dbOrTx: DBContext) {
         // 1. Normalize brand name: capitalize first letter
         const normalizedName = normalizeName(data.name);
 
