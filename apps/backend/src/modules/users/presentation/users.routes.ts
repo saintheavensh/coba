@@ -1,10 +1,12 @@
 import { Hono } from "hono";
+import { AppVariables } from "../../../shared/types/app-context";
 import { UsersController } from "./users.controller";
+import { usersService } from "../users-container";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
 import { requirePermission } from "../../../middlewares/permission.middleware";
 
-const app = new Hono();
-const controller = new UsersController();
+const app = new Hono<{ Variables: AppVariables }>();
+const controller = new UsersController(usersService as any);
 
 app.use("*", authMiddleware);
 

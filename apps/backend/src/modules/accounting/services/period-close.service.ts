@@ -48,7 +48,8 @@ export class PeriodCloseService {
             .from(periodLocks)
             .where(eq(periodLocks.period, period));
 
-        if (existing.length > 0 && existing[0].status === "closed") {
+        const firstExisting = existing[0];
+        if (firstExisting && firstExisting.status === "closed") {
             throw new Error(`Period ${period} is already closed`);
         }
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { db } from "../../../../db";
 import { DeductStockFIFOUseCase } from "./deduct-stock-fifo.use-case";
 import { StockMutationGatewayAdapter } from "../../infrastructure/adapters/stock-mutation-gateway.adapter";

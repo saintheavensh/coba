@@ -4,11 +4,8 @@
  */
 import { db } from "../index";
 import {
-    accountTypes, accounts, journals, journalLines, assets,
-    cashRegisters, revenueTargets, auditLogs
+    accountTypes, accounts
 } from "../schema";
-import { USER_IDS, getPastDate } from "./helpers";
-import { eq } from "drizzle-orm";
 
 export async function seedAccounting() {
     console.log("Creating accounting chart of accounts...");

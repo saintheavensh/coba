@@ -57,7 +57,7 @@ const getProductsFacade = (): ProductsFacade => {
 };
 
 const productsService = new Proxy({} as ProductsFacade, {
-    get: (target, prop) => {
+    get: (_target, prop) => {
         const facade = getProductsFacade();
         const value = (facade as any)[prop];
         if (typeof value === 'function') {

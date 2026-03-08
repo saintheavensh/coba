@@ -1,3 +1,4 @@
+import { DBContext } from "../../../../shared/types/db-context";
 import type { IStockMutationGateway } from "../../domain/stock-mutation-gateway.port";
 import type { IBatchRepository } from "../../domain/batch-repository.port";
 
@@ -7,7 +8,7 @@ export class ReduceBatchStockUseCase {
         private readonly batchRepository: IBatchRepository
     ) { }
 
-    async execute(batchId: string, qty: number, dbOrTx: unknown): Promise<void> {
+    async execute(batchId: string, qty: number, dbOrTx?: DBContext): Promise<void> {
         const batch = await this.batchRepository.findById(batchId, dbOrTx);
         if (!batch) throw new Error("Batch not found");
 

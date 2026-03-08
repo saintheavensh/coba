@@ -1,6 +1,5 @@
 import { text, timestamp, pgTable, json, primaryKey } from "drizzle-orm/pg-core";
-import { randomUUID } from "crypto";
-import { brands } from "./BrandSchema";
+
 import { products } from "../../../products/infrastructure/schema/ProductSchema";
 
 const timestamps = () => ({

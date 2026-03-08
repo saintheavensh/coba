@@ -1,5 +1,5 @@
 import { DBContext } from "../../../../shared/types/db-context";
-import { IAssetRepository, FixedAsset, AssetCategory } from "../../domain";
+import { IAssetRepository, AssetCategory } from "../../domain";
 import { CreateJournalUseCase } from "./create-journal.use-case";
 import { AuditService } from "../../services/audit.service";
 

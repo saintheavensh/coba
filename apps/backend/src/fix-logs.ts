@@ -1,7 +1,7 @@
 
 import { db } from "./db";
 import { services, activityLogs } from "./db/schema";
-import { eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 async function main() {
     console.log("🛠 Handling missing activity logs...");

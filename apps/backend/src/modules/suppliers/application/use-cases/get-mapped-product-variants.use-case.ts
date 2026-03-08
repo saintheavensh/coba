@@ -1,11 +1,17 @@
+import { injectable, inject } from "inversify";
+import { TYPES } from "../../types";
 import { ISupplierRepository } from "../../domain";
+import { HTTPException } from "hono/http-exception";
 
+@injectable()
 export class GetMappedProductVariantsUseCase {
-    constructor(private readonly repository: ISupplierRepository) { }
+    constructor(
+        @inject(TYPES.ISupplierRepository) private readonly repository: ISupplierRepository
+    ) { }
 
-    async execute(supplierId: string) {
+    async execute(supplierId: string): Promise<any[]> {
         if (!supplierId) {
-            throw new Error("Validation Error: Supplier ID is required");
+            throw new HTTPException(400, { message: "Supplier ID is required" });
         }
         return await this.repository.getMappedProductVariants(supplierId);
     }

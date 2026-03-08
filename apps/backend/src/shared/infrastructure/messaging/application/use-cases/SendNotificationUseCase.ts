@@ -10,8 +10,8 @@ export interface SendNotificationInput {
     channel: NotificationChannel;
     title: string;
     content: string;
-    entityType?: string;
-    entityId?: string;
+    entityType?: string | undefined;
+    entityId?: string | undefined;
     subject?: string; // For email
     to?: string; // For email/whatsapp if userId lookup is not enough
 }

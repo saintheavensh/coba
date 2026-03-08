@@ -1,6 +1,6 @@
 import { db } from "../../../../../db";
 import { users, userSessions } from "../../../../../db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { IUserRepository, UserWithRoles } from "../../domain";
 
 export class DrizzleAuthRepository implements IUserRepository {

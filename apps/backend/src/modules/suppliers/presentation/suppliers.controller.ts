@@ -1,123 +1,127 @@
-import { Context } from "hono";
-import { suppliersFacade, SuppliersFacade } from "../suppliers-container";
+import { AppHonoContext } from "../../../shared/types/app-context";
+import { SuppliersFacade } from "../suppliers-container";
 import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
+import { injectable, inject } from "inversify";
+import { TYPES } from "../types";
+import { CreateSupplierData, UpdateSupplierData } from "../domain";
 
+@injectable()
 export class SuppliersController {
     constructor(
-        private readonly facade: SuppliersFacade = suppliersFacade
+        @inject(TYPES.SuppliersFacade) private readonly facade: SuppliersFacade
     ) { }
 
-    async getAll(c: Context) {
+    async getAll(c: AppHonoContext) {
         try {
             const list = await this.facade.getAll();
             return apiSuccess(c, list, "Suppliers retrieved successfully");
-        } catch (e) {
+        } catch (e: unknown) {
             return apiError(c, e, "Failed to retrieve suppliers", 500);
         }
     }
 
-    async getLinkedCategories(c: Context) {
+    async getLinkedCategories(c: AppHonoContext) {
         try {
-            const id = c.req.param("id");
+            const id = c.req.param("id")!;
             const list = await this.facade.getLinkedCategories(id);
             return apiSuccess(c, list, "Supplier categories retrieved successfully");
-        } catch (e) {
+        } catch (e: unknown) {
             return apiError(c, e, "Failed to retrieve supplier categories", 500);
         }
     }
 
-    async create(c: Context) {
+    async create(c: AppHonoContext) {
         try {
-            const data = (c.req as any).valid("json");
+            const data = await c.req.json<CreateSupplierData>();
             const result = await this.facade.create(data);
             return apiSuccess(c, result, "Supplier created successfully", 201);
-        } catch (e: any) {
-            if (e.message && e.message.includes("Validation") || e.name === "ZodError") {
+        } catch (e: unknown) {
+            if (e instanceof Error && e.message.includes("Validation")) {
                 return apiError(c, e, "Validation failed", 400);
             }
             return apiError(c, e, "Failed to create supplier", 500);
         }
     }
 
-    async update(c: Context) {
+    async update(c: AppHonoContext) {
         try {
-            const id = c.req.param("id");
-            const data = (c.req as any).valid("json");
+            const id = c.req.param("id")!;
+            const data = await c.req.json<UpdateSupplierData>();
             await this.facade.update(id, data);
             return apiSuccess(c, null, "Supplier updated successfully");
-        } catch (e: any) {
-            if (e.message && e.message.includes("Validation") || e.name === "ZodError") {
+        } catch (e: unknown) {
+            if (e instanceof Error && e.message.includes("Validation")) {
                 return apiError(c, e, "Validation failed", 400);
             }
             return apiError(c, e, "Failed to update supplier", 500);
         }
     }
 
-    async delete(c: Context) {
+    async delete(c: AppHonoContext) {
         try {
-            const id = c.req.param("id");
+            const id = c.req.param("id")!;
             await this.facade.delete(id);
             return apiSuccess(c, null, "Supplier deleted successfully");
-        } catch (e) {
+        } catch (e: unknown) {
             return apiError(c, e, "Failed to delete supplier", 400);
         }
     }
 
-    async linkCategory(c: Context) {
+    async linkCategory(c: AppHonoContext) {
         try {
-            const id = c.req.param("id");
-            const { categoryId } = (c.req as any).valid("json");
+            const id = c.req.param("id")!;
+            const { categoryId } = await c.req.json<{ categoryId: string }>();
             await this.facade.linkCategory(id, categoryId);
             return apiSuccess(c, null, "Category linked successfully");
-        } catch (e) {
+        } catch (e: unknown) {
             return apiError(c, e, "Failed to link category", 500);
         }
     }
 
-    async unlinkCategory(c: Context) {
+    async unlinkCategory(c: AppHonoContext) {
         try {
-            const id = c.req.param("id");
-            const categoryId = c.req.param("categoryId");
+            const id = c.req.param("id")!;
+            const categoryId = c.req.param("categoryId")!;
             await this.facade.unlinkCategory(id, categoryId);
             return apiSuccess(c, null, "Category unlinked successfully");
-        } catch (e) {
+        } catch (e: unknown) {
             return apiError(c, e, "Failed to unlink category", 500);
         }
     }
 
-    async getMappedProductVariants(c: Context) {
+    async getMappedProductVariants(c: AppHonoContext) {
         try {
-            const supplierId = c.req.param("id");
+            const supplierId = c.req.param("id")!;
             const list = await this.facade.getMappedProductVariants(supplierId);
             return apiSuccess(c, list, "Mapped product variants retrieved successfully");
-        } catch (e) {
+        } catch (e: unknown) {
             return apiError(c, e, "Failed to retrieve mapped product variants", 500);
         }
     }
 
-    async mapProductVariant(c: Context) {
+    async mapProductVariant(c: AppHonoContext) {
         try {
-            const supplierId = c.req.param("id");
-            const body = (c.req as any).valid("json");
-            await this.facade.mapProductVariant(supplierId, body.productId, body.variantId);
+            const supplierId = c.req.param("id")!;
+            const body = await c.req.json<{ productId: string, variantId?: string }>();
+            await this.facade.mapProductVariant(supplierId, body.productId, body.variantId ?? null);
             return apiSuccess(c, null, "Product variant mapped successfully");
-        } catch (e) {
+        } catch (e: unknown) {
             return apiError(c, e, "Failed to map product variant", 500);
         }
     }
 
-    async unmapProductVariant(c: Context) {
+    async unmapProductVariant(c: AppHonoContext) {
         try {
             const supplierId = c.req.param("id");
             const productId = c.req.param("productId");
-            // variantId is optional. If provided via query params or another path param we can extract it.
-            // Let's assume it can be in the body or query params if multiple variants share the same product ID.
-            // Alternatively require body using DELETE, or just read from query e.g. ?variantId=123
-            const variantId = c.req.query("variantId");
+            if (!supplierId || !productId) return apiError(c, null, "Supplier ID and Product ID are required", 400);
 
-            await this.facade.unmapProductVariant(supplierId, productId, variantId);
+            const variantId = c.req.query("variantId");
+            if (!variantId) return apiError(c, null, "variantId is required", 400);
+
+            await this.facade.unmapProductVariant(supplierId!, productId!, variantId!);
             return apiSuccess(c, null, "Product variant unmapped successfully");
-        } catch (e) {
+        } catch (e: unknown) {
             return apiError(c, e, "Failed to unmap product variant", 500);
         }
     }

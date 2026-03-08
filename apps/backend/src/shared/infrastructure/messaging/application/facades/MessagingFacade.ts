@@ -4,7 +4,7 @@ import { SendWhatsAppUseCase } from "../use-cases/SendWhatsAppUseCase";
 import { GetNotificationsUseCase } from "../use-cases/GetNotificationsUseCase";
 import { MarkNotificationAsReadUseCase } from "../use-cases/MarkNotificationAsReadUseCase";
 import { Result } from "../../../../core/Result";
-import { Notification, NotificationType, NotificationChannel } from "../../domain";
+import { NotificationType, NotificationChannel } from "../../domain";
 
 export interface NotificationDTO {
     id: string;
@@ -16,8 +16,8 @@ export interface NotificationDTO {
     isRead: boolean;
     readAt: Date | null;
     createdAt: Date;
-    entityType?: string;
-    entityId?: string;
+    entityType?: string | undefined;
+    entityId?: string | undefined;
 }
 
 @injectable()

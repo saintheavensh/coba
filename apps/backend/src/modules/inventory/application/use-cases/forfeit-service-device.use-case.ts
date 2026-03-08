@@ -10,11 +10,11 @@ export interface ForfeitServiceDeviceInput {
 export class ForfeitServiceDeviceUseCase {
     constructor(private readonly repository: IKanibalRepository) { }
 
-    async execute(input: ForfeitServiceDeviceInput, dbOrTx?: DBContext): Promise<ForfeitedDevice> {
+    async execute(input: ForfeitServiceDeviceInput, _dbOrTx?: DBContext): Promise<ForfeitedDevice> {
         return await this.repository.saveForfeitedDevice({
             serviceId: input.serviceId,
-            deviceName: input.deviceName,
-            notes: input.notes,
+            deviceName: input.deviceName ?? undefined,
+            notes: input.notes ?? undefined,
             forfeitedDate: new Date(),
             status: 'UTUH'
         });

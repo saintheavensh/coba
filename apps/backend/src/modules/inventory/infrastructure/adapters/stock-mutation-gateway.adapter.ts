@@ -4,34 +4,30 @@
  * Absorbs the stock consistency assertion (previously in helpers/).
  */
 import type { IStockMutationGateway } from "../../domain/stock-mutation-gateway.port";
-import type {
-    DeductStockFIFOInput,
-    DeductStockFIFOOutput,
-    AddStockFromPurchaseVerificationInput,
-    AddStockFromPurchaseVerificationOutput,
-    ReverseStockInput
-} from "../../domain/stock.types";
 import { productBatches, products, productVariants } from "../../../../db/schema";
-import { eq, and, gt, asc, inArray, sql, isNull } from "drizzle-orm";
+import { eq, and, gt, asc, sql, isNull } from "drizzle-orm";
 import type { BatchLike, InsertBatchData } from "../../domain/stock-mutation-gateway.port";
+
+import { DBContext } from "../../../../shared/types/db-context";
+import { db } from "../../../../db";
 
 export class StockMutationGatewayAdapter implements IStockMutationGateway {
 
-    async findBatchesForFIFO(productId: string, variantName: string | null, dbOrTx: unknown): Promise<BatchLike[]> {
-        const tx = dbOrTx as any;
+    async findBatchesForFIFO(productId: string, variantName: string | null, dbOrTx?: DBContext): Promise<BatchLike[]> {
+        const client = dbOrTx || db;
         let targetVariantId: string | null = null;
 
         if (variantName) {
-            const vQuery = await tx.select({ id: productVariants.id })
+            const vQuery = await client.select({ id: productVariants.id })
                 .from(productVariants)
                 .where(and(
                     eq(productVariants.productId, productId),
                     eq(productVariants.name, variantName)
                 ));
-            if (vQuery.length > 0) targetVariantId = vQuery[0].id;
+            if (vQuery.length > 0) targetVariantId = vQuery[0]!.id;
         }
 
-        return await tx.select({
+        return await client.select({
             id: productBatches.id,
             currentStock: productBatches.currentStock,
             buyPrice: productBatches.buyPrice,
@@ -49,9 +45,9 @@ export class StockMutationGatewayAdapter implements IStockMutationGateway {
             .for('update');
     }
 
-    async updateBatchStockDelta(batchId: string, delta: number, dbOrTx: unknown): Promise<void> {
-        const tx = dbOrTx as any;
-        await tx.update(productBatches)
+    async updateBatchStockDelta(batchId: string, delta: number, dbOrTx?: DBContext): Promise<void> {
+        const client = dbOrTx || db;
+        await client.update(productBatches)
             .set({
                 currentStock: sql`${productBatches.currentStock} + ${delta}`,
                 updatedAt: new Date()
@@ -59,16 +55,16 @@ export class StockMutationGatewayAdapter implements IStockMutationGateway {
             .where(eq(productBatches.id, batchId));
     }
 
-    async updateProductStockDelta(productId: string, delta: number, dbOrTx: unknown): Promise<void> {
-        const tx = dbOrTx as any;
-        await tx.update(products)
+    async updateProductStockDelta(productId: string, delta: number, dbOrTx?: DBContext): Promise<void> {
+        const client = dbOrTx || db;
+        await client.update(products)
             .set({ stock: sql`${products.stock} + ${delta}` })
             .where(eq(products.id, productId));
     }
 
-    async insertBatch(data: InsertBatchData, dbOrTx: unknown): Promise<void> {
-        const tx = dbOrTx as any;
-        await tx.insert(productBatches).values({
+    async insertBatch(data: InsertBatchData, dbOrTx?: DBContext): Promise<void> {
+        const client = dbOrTx || db;
+        await client.insert(productBatches).values({
             id: data.id,
             productId: data.productId,
             supplierId: data.supplierId,
@@ -81,16 +77,16 @@ export class StockMutationGatewayAdapter implements IStockMutationGateway {
         });
     }
 
-    async assertStockConsistency(productIds: string[], dbOrTx: unknown): Promise<void> {
-        const tx = dbOrTx as any;
+    async assertStockConsistency(productIds: string[], dbOrTx?: DBContext): Promise<void> {
+        const client = dbOrTx || db;
         for (const productId of productIds) {
-            const [row] = await tx
+            const [row] = await client
                 .select({ stock: products.stock })
                 .from(products)
                 .where(eq(products.id, productId));
             const productStock = row?.stock ?? 0;
 
-            const [sumRow] = await tx
+            const [sumRow] = await client
                 .select({ sum: sql<number>`coalesce(sum(${productBatches.currentStock}), 0)` })
                 .from(productBatches)
                 .where(eq(productBatches.productId, productId));

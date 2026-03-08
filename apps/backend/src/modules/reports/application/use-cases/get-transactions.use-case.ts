@@ -2,6 +2,7 @@ import { DBContext } from "../../../../shared/types/db-context";
 import { IReportRepository, ReportFilters, TransactionReport } from "../../domain";
 import { gte, lte } from "drizzle-orm";
 import { sales } from "../../../../db/schema";
+import { SaleReportDTO } from "../../../../shared/dtos/repositories/reports";
 
 export class GetTransactionsUseCase {
     constructor(private readonly repository: IReportRepository) { }
@@ -21,13 +22,13 @@ export class GetTransactionsUseCase {
 
         const salesData = await this.repository.getTransactions(conditions, dbOrTx);
 
-        return salesData.map((sale: any) => {
+        return salesData.map((sale: SaleReportDTO) => {
             let hpp = 0;
             let itemCount = 0;
 
             for (const item of (sale.items || [])) {
                 itemCount += item.qty;
-                const buyPrice = (item as any).batch?.buyPrice || 0;
+                const buyPrice = item.batch?.buyPrice || 0;
                 hpp += buyPrice * item.qty;
             }
 

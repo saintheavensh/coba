@@ -1,12 +1,19 @@
-import { eq, desc, and } from "drizzle-orm";
-import { db } from "../../../../db";
+import { eq, desc, and, isNull } from "drizzle-orm";
+import { injectable, inject } from "inversify";
+import { TYPES } from "../../../../types";
+import { DrizzleClient } from "../../../../shared/infrastructure/database/DrizzleClient";
 import { suppliers, supplierCategories, categories, categoryVariants, supplierProductVariants, products, productVariants } from "../../../../db/schema";
 import { DBContext } from "../../../../shared/types/db-context";
 import { ISupplierRepository, Supplier, CreateSupplierData, UpdateSupplierData } from "../../domain";
 
+@injectable()
 export class SupplierRepositoryAdapter implements ISupplierRepository {
+    constructor(
+        @inject(TYPES.DrizzleClient) private readonly dbClient: DrizzleClient
+    ) { }
+
     async findAll(dbOrTx?: DBContext): Promise<Supplier[]> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || this.dbClient.getClient();
         const result = await client.query.suppliers.findMany({
             orderBy: [desc(suppliers.createdAt)],
         });
@@ -14,7 +21,7 @@ export class SupplierRepositoryAdapter implements ISupplierRepository {
     }
 
     async findById(id: string, dbOrTx?: DBContext): Promise<Supplier | null> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || this.dbClient.getClient();
         const result = await client.query.suppliers.findFirst({
             where: eq(suppliers.id, id)
         });
@@ -22,7 +29,7 @@ export class SupplierRepositoryAdapter implements ISupplierRepository {
     }
 
     async getLinkedCategories(supplierId: string, dbOrTx?: DBContext): Promise<any[]> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || this.dbClient.getClient();
         const result = await client
             .select({
                 id: categories.id,
@@ -36,35 +43,35 @@ export class SupplierRepositoryAdapter implements ISupplierRepository {
     }
 
     async create(data: CreateSupplierData, dbOrTx?: DBContext): Promise<Supplier[]> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || this.dbClient.getClient();
         return await client.insert(suppliers).values(data).returning();
     }
 
     async update(id: string, data: UpdateSupplierData, dbOrTx?: DBContext): Promise<Supplier[]> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || this.dbClient.getClient();
         return await client.update(suppliers)
             .set(data)
             .where(eq(suppliers.id, id))
             .returning();
     }
 
-    async delete(id: string, dbOrTx?: DBContext): Promise<any> {
-        const client = (dbOrTx as any) || db;
+    async delete(id: string, dbOrTx?: DBContext): Promise<void> {
+        const client = dbOrTx || this.dbClient.getClient();
         // Delete linked category variants first (no cascade in schema)
         await client.delete(categoryVariants).where(eq(categoryVariants.supplierId, id));
 
-        return await client.delete(suppliers).where(eq(suppliers.id, id));
+        await client.delete(suppliers).where(eq(suppliers.id, id));
     }
 
     async addCategoryLink(supplierId: string, categoryId: string, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || this.dbClient.getClient();
         await client.insert(supplierCategories)
             .values({ supplierId, categoryId })
             .onConflictDoNothing();
     }
 
     async removeCategoryLink(supplierId: string, categoryId: string, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || this.dbClient.getClient();
         await client.delete(supplierCategories)
             .where(
                 and(
@@ -75,9 +82,8 @@ export class SupplierRepositoryAdapter implements ISupplierRepository {
     }
 
     async getMappedProductVariants(supplierId: string, dbOrTx?: DBContext): Promise<any[]> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || this.dbClient.getClient();
 
-        // Use query builder for full inner joins or left joins depending on if variant is null
         const results = await client
             .select({
                 id: supplierProductVariants.id,
@@ -96,39 +102,32 @@ export class SupplierRepositoryAdapter implements ISupplierRepository {
     }
 
     async mapProductVariant(supplierId: string, productId: string, variantId?: string | null, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || this.dbClient.getClient();
 
-        // Handle null vs string
         const vId = variantId || null;
 
         await client.insert(supplierProductVariants)
             .values({ supplierId, productId, variantId: vId })
             .onConflictDoUpdate({
                 target: [supplierProductVariants.supplierId, supplierProductVariants.productId, supplierProductVariants.variantId],
-                set: { isActive: true, updatedAt: new Date() }
+                set: { isActive: true }
             });
     }
 
     async unmapProductVariant(supplierId: string, productId: string, variantId?: string | null, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || this.dbClient.getClient();
 
         const conditions = [
             eq(supplierProductVariants.supplierId, supplierId),
             eq(supplierProductVariants.productId, productId)
         ];
 
-        // variantId in db could be null conceptually, though unique().on handles it as distinct usually.
-        // We use isNull if variantId is not provided
         if (variantId) {
             conditions.push(eq(supplierProductVariants.variantId, variantId));
         } else {
-            // Need a way to match where variantId is null
-            // Drizzle has isNull function, we need to import it wait, let's just use raw sql or simple approach.
-            // Drizzle eq(col, null) might generate `col IS NULL`.
-            conditions.push(eq(supplierProductVariants.variantId, null as any)); // Assuming Drizzle handles it or we can import isNull
+            conditions.push(isNull(supplierProductVariants.variantId));
         }
 
-        // We can just delete it, or soft delete it mapping. The prompt said unmap, let's delete.
         await client.delete(supplierProductVariants)
             .where(and(...conditions));
     }

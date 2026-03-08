@@ -9,10 +9,11 @@ export class ProcessReturnUseCase {
         private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
     ) { }
 
-    async execute(userId: string, itemIds: string[]): Promise<{ returnId: string }> {
+    async execute(userId: string, itemIds: string[], dbOrTx?: DBContext): Promise<{ returnId: string }> {
         if (itemIds.length === 0) throw new HTTPException(400, { message: "No items selected" });
 
-        return await this.db.transaction(async (tx) => {
+        const client = dbOrTx || this.db;
+        return await client.transaction(async (tx) => {
             // 1. Load Items
             const items = await this.repository.findByIds(itemIds, tx);
 
@@ -21,7 +22,11 @@ export class ProcessReturnUseCase {
             }
 
             // 2. Validate Same Supplier
-            const supplierId = items[0].supplierId;
+            const firstItem = items[0];
+            if (!firstItem) {
+                throw new HTTPException(400, { message: "No items found to return" });
+            }
+            const supplierId = firstItem.supplierId;
             const differentSupplier = items.find(i => i.supplierId !== supplierId);
             if (differentSupplier) {
                 throw new HTTPException(400, { message: "All items must be from the same supplier" });

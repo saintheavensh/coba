@@ -22,8 +22,8 @@ export interface NotificationProps {
     isRead: boolean;
     readAt: Date | null;
     createdAt: Date;
-    entityType?: string;
-    entityId?: string;
+    entityType?: string | undefined;
+    entityId?: string | undefined;
 }
 
 export class Notification extends Entity<NotificationProps> {

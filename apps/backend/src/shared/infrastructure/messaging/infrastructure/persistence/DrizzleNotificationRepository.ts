@@ -1,4 +1,4 @@
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "../../../../../db";
 import { notifications } from "../../../../../db/schema";
 import { DBContext } from "../../../../types/db-context";

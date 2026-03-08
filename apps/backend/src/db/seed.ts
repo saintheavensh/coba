@@ -1,7 +1,7 @@
 
 import { db } from "./index";
 import { roles, users, userRoles } from "./schema";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 async function seed() {
     console.log("🌱 Seeding database...");

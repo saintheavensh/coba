@@ -65,10 +65,8 @@ export class ConfigController {
 
         // Support both { value: ... } format and direct object payload
         let valueToSave = body;
-        let type = 'json';
         if (body && typeof body === 'object' && body.value !== undefined && Object.keys(body).length <= 4) {
             valueToSave = body.value;
-            type = body.type || (typeof body.value === 'object' ? 'json' : typeof body.value);
         }
 
         // Must be string for the DB storage

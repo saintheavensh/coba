@@ -12,7 +12,6 @@ import { DeletePurchaseUseCase } from "./application/use-cases/delete-purchase.u
 import { GetPurchasesUseCase, GetPurchaseByIdUseCase } from "./application/use-cases/query-purchases.use-case";
 import { GetLowStockSummaryUseCase } from "./application/use-cases/get-low-stock-summary.use-case";
 
-import { productsService } from "../products/products-container";
 import { inventoryService } from "../inventory/inventory-container";
 
 // 1. Adapters
@@ -34,7 +33,6 @@ const receiveGoodsUC = new ReceiveGoodsUseCase(purchaseRepo, notificationGateway
 const verifyAndCompletePurchaseUC = new VerifyAndCompletePurchaseUseCase(
     purchaseRepo,
     paymentRepo,
-    productsService,
     inventoryService,
     accountingGateway
 );

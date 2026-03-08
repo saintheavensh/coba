@@ -43,6 +43,7 @@ export class DeviceScraperAdapter implements IDeviceScraper {
 
             // Normalize brand name: capitalize first letter
             const rawBrand = title.split(" ")[0];
+            if (!rawBrand) throw new ApiError("Could not determine brand from title", 422);
             const brand = rawBrand.charAt(0).toUpperCase() + rawBrand.slice(1).toLowerCase();
             const model = title.replace(rawBrand, "").trim();
             const imageUrl = $(".specs-photo-main img").attr("src");
@@ -50,10 +51,8 @@ export class DeviceScraperAdapter implements IDeviceScraper {
             // Extract Spec Tables
             const specs: Record<string, any> = {};
 
-            $("table").each((i, table) => {
-                const category = $(table).find("th").text().trim();
-
-                $(table).find("tr").each((j, tr) => {
+            $("table").each((_i, table) => {
+                $(table).find("tr").each((_j, tr) => {
                     const label = $(tr).find(".ttl").text().trim();
                     const value = $(tr).find(".nfo").text().trim();
                     if (label && value) {
@@ -172,7 +171,7 @@ export class DeviceScraperAdapter implements IDeviceScraper {
             const $ = cheerio.load(html);
             const results: { name: string; url: string; }[] = [];
 
-            $(".makers ul li").each((i, el) => {
+            $(".makers ul li").each((_i, el) => {
                 const link = $(el).find("a");
                 const href = link.attr("href");
                 const name = link.find("span").html()?.replace(/<br>/g, " ").trim() || link.text().trim();

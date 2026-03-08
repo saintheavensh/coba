@@ -5,7 +5,7 @@ import { accounts } from "../../../../db/schema";
 import { IAccountGateway } from "../../domain";
 
 export class AccountGatewayAdapter implements IAccountGateway {
-    async ensureAccount(name: string, type: string, providedAccountId?: string, dbOrTx?: DBContext): Promise<string> {
+    async ensureAccount(name: string, _type: string, providedAccountId?: string, dbOrTx?: DBContext): Promise<string> {
         const client = (dbOrTx as any) || db;
 
         if (providedAccountId) return providedAccountId;

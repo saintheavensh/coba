@@ -3,7 +3,7 @@ import { UseCase } from "../../../../shared/core/UseCase";
 import { Result } from "../../../../shared/core/Result";
 import { TYPES } from "../../types";
 import type { IProductRepository } from "../../domain/ports/IProductRepository";
-import { Logger, LoggerFactory } from "../../../../shared/utils/logger/Logger";
+import { Product } from "../../domain/entities/Product.entity";
 import { ProductDTO } from "../dtos/ProductDTO";
 import { ProductMapper } from "../mappers/ProductMapper";
 import { Sku } from "../../domain/value-objects/Sku.vo";
@@ -19,16 +19,13 @@ interface GetProductRequest {
  */
 @injectable()
 export class GetProductUseCase implements UseCase<GetProductRequest, Result<ProductDTO>> {
-    private logger: Logger;
     constructor(
         @inject(TYPES.IProductRepository) private readonly productRepo: IProductRepository,
-        @inject(TYPES.LoggerFactory) private loggerFactory: LoggerFactory
     ) {
-        this.logger = loggerFactory.createLogger('GetProductUseCase');
     }
 
-    public async execute(request: GetProductRequest, context?: { requestId?: string; userId?: string }): Promise<Result<ProductDTO>> {
-        let productResult: Result<any> = Result.fail("Product identifier missing");
+    public async execute(request: GetProductRequest, _context?: { requestId?: string; userId?: string }): Promise<Result<ProductDTO>> {
+        let productResult: Result<Product> = Result.fail("Product identifier missing");
 
         if (request.id) {
             productResult = await this.productRepo.findById(request.id);

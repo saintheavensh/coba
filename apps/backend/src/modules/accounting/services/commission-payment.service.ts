@@ -1,6 +1,6 @@
 import { db } from "../../../db";
 import { commissionPayments, services, users } from "../../../db/schema";
-import { eq, and, desc, sql, gte, lte, isNull } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte } from "drizzle-orm";
 import { accountingService } from "../accounting-container";
 import { ICommissionPaymentRepository } from "../domain";
 
@@ -104,8 +104,12 @@ export class CommissionPaymentService {
 
             const commission = Math.floor(netServiceRevenue * (rate / 100));
 
-            pendingByTechnician[svc.technicianId].services.push(svc);
-            pendingByTechnician[svc.technicianId].totalAmount += commission;
+            const technicianId = svc.technicianId;
+            const entry = pendingByTechnician[technicianId];
+            if (entry) {
+                entry.services.push(svc);
+                entry.totalAmount += commission;
+            }
         }
 
         return Object.values(pendingByTechnician);

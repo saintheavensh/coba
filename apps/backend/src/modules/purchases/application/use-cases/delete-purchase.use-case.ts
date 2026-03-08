@@ -1,4 +1,5 @@
 import { db } from "../../../../db";
+import { DBContext } from "../../../../shared/types/db-context";
 import { IPurchaseRepository } from "../../domain/purchase-repository.port";
 import { InventoryService } from "../../../inventory/services/inventory.service";
 
@@ -8,9 +9,10 @@ export class DeletePurchaseUseCase {
         private inventoryService: InventoryService
     ) { }
 
-    async execute(purchaseId: string): Promise<void> {
-        await db.transaction(async (tx) => {
-            const purchase = await this.purchaseRepo.findById(purchaseId);
+    async execute(purchaseId: string, dbOrTx?: DBContext): Promise<void> {
+        const client = dbOrTx || db;
+        await client.transaction(async (tx) => {
+            const purchase = await this.purchaseRepo.findById(purchaseId, tx);
             if (!purchase) return; // Idempotent delete
 
             // Reversal Trigger: Any item already received must be reversed in inventory

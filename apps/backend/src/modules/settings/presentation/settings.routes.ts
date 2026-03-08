@@ -1,9 +1,10 @@
 import { Hono } from "hono";
+import { AppVariables } from "../../../shared/types/app-context";
 import { SettingsController } from "./settings.controller";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
 import { requireRole } from "../../../middlewares/permission.middleware";
 
-const app = new Hono();
+const app = new Hono<{ Variables: AppVariables }>();
 const controller = new SettingsController();
 
 app.use("*", authMiddleware);

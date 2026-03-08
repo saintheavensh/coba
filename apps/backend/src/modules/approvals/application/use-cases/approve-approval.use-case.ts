@@ -1,4 +1,4 @@
-import { IApprovalRepository, ApprovalStatus } from "../../domain";
+import { IApprovalRepository } from "../../domain";
 import { HTTPException } from "hono/http-exception";
 
 export interface ApproveApprovalInput {
@@ -25,7 +25,7 @@ export class ApproveApprovalUseCase {
             status: input.status,
             approvedById: input.approvedById,
             approvedAt: new Date(),
-            reason: input.reason
+            reason: input.reason ?? undefined
         });
 
         return updated;

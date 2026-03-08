@@ -1,5 +1,6 @@
 import { IDashboardRepository } from "../../domain/repositories/dashboard.repository.port";
 import { DBContext } from "../../../../shared/types/db-context";
+import { DashboardProductDTO } from "../../../../shared/dtos/repositories/dashboard";
 
 export class GetWarehouseDashboardUseCase {
     constructor(private repository: IDashboardRepository) { }
@@ -15,13 +16,13 @@ export class GetWarehouseDashboardUseCase {
                 lowStockCount: stats.lowStock,
                 pendingPurchasesCount: stats.pendingPurchases
             },
-            lowStockProducts: (lowStockProducts || []).map((p: any) => ({
+            lowStockProducts: lowStockProducts.map((p: DashboardProductDTO) => ({
                 id: p.id,
                 name: p.name,
                 stock: p.stock,
                 minStock: p.minStock
             })),
-            incomingOrders: incomingOrders || []
+            incomingOrders: incomingOrders
         };
     }
 }

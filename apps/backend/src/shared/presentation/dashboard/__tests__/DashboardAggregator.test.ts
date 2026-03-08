@@ -42,7 +42,7 @@ describe("DashboardAggregator", () => {
         info: vi.fn(),
         warn: vi.fn(),
         error: vi.fn(),
-        time: vi.fn((name, cb) => cb())
+        time: vi.fn((_name, cb) => cb())
     };
 
     const mockLoggerFactory = {

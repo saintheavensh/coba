@@ -27,7 +27,7 @@ async function diagnose() {
 
     try {
         console.log("\nTesting DB connection directly...");
-        const result = await db.execute("SELECT 1");
+        await db.execute("SELECT 1");
         console.log("SUCCESS: DB connection OK");
     } catch (e: any) {
         console.error("FAILED DB direct call:", e.message);

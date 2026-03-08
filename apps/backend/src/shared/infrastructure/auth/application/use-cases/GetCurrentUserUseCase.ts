@@ -21,11 +21,12 @@ export class GetCurrentUserUseCase {
             userRoles = [user.role];
         }
         const { password: _p, ...userWithoutPassword } = user;
+        const selectedRole = userRoles.includes("owner") ? "owner" : (userRoles[0] ?? "");
 
         return {
             user: {
                 ...userWithoutPassword,
-                role: userRoles.includes("owner") ? "owner" : userRoles[0],
+                role: selectedRole,
                 roles: userRoles
             }
         };

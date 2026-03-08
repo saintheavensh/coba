@@ -2,7 +2,6 @@
 import { db } from "../db";
 import { brands, devices } from "../db/schema";
 import { v4 as uuidv4 } from "uuid";
-import { sql } from "drizzle-orm";
 
 async function parseCSVLine(text: string): Promise<string[]> {
     const result: string[] = [];
@@ -38,7 +37,7 @@ async function main() {
     const text = await file.text();
     const lines = text.split('\n');
 
-    if (lines.length < 2) {
+    if (lines.length < 2 || !lines[0]) {
         console.error("CSV is empty or invalid");
         process.exit(1);
     }
@@ -78,7 +77,7 @@ async function main() {
     console.log(`Processing ${lines.length} lines...`);
 
     for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
+        const line = lines[i]?.trim();
         if (!line) continue;
 
         try {

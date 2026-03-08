@@ -16,7 +16,7 @@ export class DashboardAggregator {
         @inject(TYPES.CustomersFacade) private customersFacade: any,
         @inject(TYPES.StoreDeviceFacade) private deviceFacade: any,
         @inject(TYPES.CacheService) private cache: CacheService,
-        @inject(TYPES.LoggerFactory) private loggerFactory: LoggerFactory
+        @inject(TYPES.LoggerFactory) loggerFactory: LoggerFactory
     ) {
         this.logger = loggerFactory.createLogger('DashboardAggregator');
     }
@@ -32,7 +32,7 @@ export class DashboardAggregator {
         }
     }
 
-    private async executeGetDashboardStats(timeRange: TimeRangeDTO | undefined, cacheKey: string): Promise<Result<DashboardStatsDTO>> {
+    private async executeGetDashboardStats(_timeRange: TimeRangeDTO | undefined, cacheKey: string): Promise<Result<DashboardStatsDTO>> {
         try {
             // Try cache first
             const cached = this.cache.get<DashboardStatsDTO>(cacheKey);

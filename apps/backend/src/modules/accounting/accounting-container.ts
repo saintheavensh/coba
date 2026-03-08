@@ -1,9 +1,9 @@
-import { db } from "../../db";
+import { ContainerModule } from "inversify";
+import { TYPES } from "./types";
 import {
     AccountRepositoryAdapter,
     JournalRepositoryAdapter,
     CashRegisterRepositoryAdapter,
-    AssetRepositoryAdapter,
     RevenueTargetRepositoryAdapter,
     PurchasePaymentRepositoryAdapter,
     CommissionPaymentRepositoryAdapter
@@ -17,93 +17,78 @@ import {
     OpenRegisterUseCase,
     CloseRegisterUseCase,
     RecordCashExpenseUseCase,
-    RecordCashTransactionUseCase,
-    CreateAssetUseCase
+    RecordCashTransactionUseCase
 } from "./application";
-
-// Adapters
-const accountRepository = new AccountRepositoryAdapter();
-const journalRepository = new JournalRepositoryAdapter();
-const registerRepository = new CashRegisterRepositoryAdapter();
-const assetRepository = new AssetRepositoryAdapter();
-const targetRepository = new RevenueTargetRepositoryAdapter();
-const paymentRepository = new PurchasePaymentRepositoryAdapter();
-const commissionRepository = new CommissionPaymentRepositoryAdapter();
-
-// Use Cases
-const createAccountUC = new CreateAccountUseCase(accountRepository);
-const updateAccountUC = new UpdateAccountUseCase(accountRepository);
-const deleteAccountUC = new DeleteAccountUseCase(accountRepository);
-const getAccountTreeUC = new GetAccountTreeUseCase(accountRepository);
-const createJournalUC = new CreateJournalUseCase(journalRepository, accountRepository);
-
-const openRegisterUC = new OpenRegisterUseCase(registerRepository);
-const closeRegisterUC = new CloseRegisterUseCase(registerRepository, createJournalUC);
-const recordExpenseUC = new RecordCashExpenseUseCase(registerRepository, createJournalUC);
-const recordTransactionUC = new RecordCashTransactionUseCase(registerRepository);
-const createAssetUC = new CreateAssetUseCase(assetRepository, createJournalUC);
+import {
+    AccountingService,
+    AccountingReportService,
+    LiabilitiesService,
+    SupplierPaymentService,
+    RevenueTargetService,
+    AssetsService,
+    AuditService
+} from "./services/index";
+import { AccountingController } from "./presentation/accounting.controller";
 
 /**
- * AccountingService — Facade for external and presentation layers.
+ * Accounting Module Container
+ * Configures all dependencies for the Accounting module using Inversify.
  */
-export class AccountingService {
-    // Accounts
-    async getAccountTypes() { return await accountRepository.findTypes(); }
-    async getAllAccounts(filters: any) { return await accountRepository.findAll(filters); }
-    async getAccountTree(filters: any) { return await getAccountTreeUC.execute(filters); }
-    async getAccountById(id: string) { return await accountRepository.findById(id); }
-    async createAccount(input: any, userId?: string) { return await createAccountUC.execute(input, userId); }
-    async updateAccount(id: string, input: any, userId?: string) { return await updateAccountUC.execute(id, input, userId); }
-    async deleteAccount(id: string, userId?: string) { return await deleteAccountUC.execute(id, userId); }
+export const accountingContainerModule = new ContainerModule(({ bind }) => {
+    // Repositories (Concrete classes)
+    bind(AccountRepositoryAdapter).toSelf().inSingletonScope();
+    bind(JournalRepositoryAdapter).toSelf().inSingletonScope();
+    bind(CashRegisterRepositoryAdapter).toSelf().inSingletonScope();
+    bind(RevenueTargetRepositoryAdapter).toSelf().inSingletonScope();
+    bind(PurchasePaymentRepositoryAdapter).toSelf().inSingletonScope();
+    bind(CommissionPaymentRepositoryAdapter).toSelf().inSingletonScope();
 
-    // Journals
-    async createJournal(input: any, userId?: string, dbOrTx?: any): Promise<string> { return await createJournalUC.execute(input, userId, dbOrTx); }
-    async getAllJournals(filters: any, dbOrTx?: any) { return await journalRepository.findAll(filters, dbOrTx); }
-    async getJournalById(id: string, dbOrTx?: any) { return await journalRepository.findById(id, dbOrTx); }
+    // Repository Interfaces (Mappings)
+    bind(TYPES.IAccountRepository).to(AccountRepositoryAdapter).inSingletonScope();
+    bind(TYPES.IJournalRepository).to(JournalRepositoryAdapter).inSingletonScope();
+    bind(TYPES.ICashRegisterRepository).to(CashRegisterRepositoryAdapter).inSingletonScope();
+    bind(TYPES.IRevenueTargetRepository).to(RevenueTargetRepositoryAdapter).inSingletonScope();
+    bind(TYPES.IPurchasePaymentRepository).to(PurchasePaymentRepositoryAdapter).inSingletonScope();
+    bind(TYPES.ICommissionPaymentRepository).to(CommissionPaymentRepositoryAdapter).inSingletonScope();
 
-    // Cash Register
-    async getCurrentRegister(dbOrTx?: any) { return await registerRepository.getCurrent(dbOrTx); }
-    async isRegisterOpen(dbOrTx?: any) { return (await registerRepository.getCurrent(dbOrTx)) !== null; }
-    async openRegister(openingBalance: number, userId: string, dbOrTx?: any) { return await openRegisterUC.execute(openingBalance, userId, dbOrTx); }
-    async closeRegister(actualClosing: number, notes: string, userId: string, reservation?: any, dbOrTx?: any) {
-        return await closeRegisterUC.execute({ actualClosing, notes, reservation }, userId, dbOrTx);
-    }
-    async recordCashExpense(amount: number, category: string, description: string, userId: string, userRoles: string[], dbOrTx?: any) {
-        return await recordExpenseUC.execute({ amount, category, description, userRoles }, userId, dbOrTx);
-    }
-    async recordCashTransaction(input: any, dbOrTx?: any) { return await recordTransactionUC.execute(input, dbOrTx); }
-    async getRegisterHistory(filters: any, dbOrTx?: any) {
-        const { limit = 50, offset = 0 } = filters;
-        return await registerRepository.listHistory(limit, offset, dbOrTx);
-    }
-    async getRegisterSummary(registerId: string, dbOrTx?: any) { return await registerRepository.getSummary(registerId, dbOrTx); }
-    async getTodayRegisterProgress(dbOrTx?: any) { return await registerRepository.getTodayProgress(dbOrTx); }
+    // Application / Use Cases
+    bind<CreateAccountUseCase>(TYPES.CreateAccountUseCase).to(CreateAccountUseCase).inSingletonScope();
+    bind<UpdateAccountUseCase>(TYPES.UpdateAccountUseCase).to(UpdateAccountUseCase).inSingletonScope();
+    bind<DeleteAccountUseCase>(TYPES.DeleteAccountUseCase).to(DeleteAccountUseCase).inSingletonScope();
+    bind<GetAccountTreeUseCase>(TYPES.GetAccountTreeUseCase).to(GetAccountTreeUseCase).inSingletonScope();
+    bind<CreateJournalUseCase>(TYPES.CreateJournalUseCase).to(CreateJournalUseCase).inSingletonScope();
+    bind<OpenRegisterUseCase>(TYPES.OpenRegisterUseCase).to(OpenRegisterUseCase).inSingletonScope();
+    bind<CloseRegisterUseCase>(TYPES.CloseRegisterUseCase).to(CloseRegisterUseCase).inSingletonScope();
+    bind<RecordCashExpenseUseCase>(TYPES.RecordCashExpenseUseCase).to(RecordCashExpenseUseCase).inSingletonScope();
+    bind<RecordCashTransactionUseCase>(TYPES.RecordCashTransactionUseCase).to(RecordCashTransactionUseCase).inSingletonScope();
 
-    // Assets
-    async createAsset(input: any, userId: string, dbOrTx?: any) { return await createAssetUC.execute(input, userId, dbOrTx); }
-    async getAllAssets(dbOrTx?: any) { return await assetRepository.findAll(dbOrTx); }
-    async getAssetById(id: string, dbOrTx?: any) { return await assetRepository.findById(id, dbOrTx); }
+    // Domain Services
+    bind<AccountingService>(TYPES.AccountingService).to(AccountingService).inSingletonScope();
+    bind<AccountingReportService>(TYPES.AccountingReportService).to(AccountingReportService).inSingletonScope();
+    bind<LiabilitiesService>(TYPES.LiabilitiesService).to(LiabilitiesService).inSingletonScope();
+    bind<SupplierPaymentService>(TYPES.SupplierPaymentService).to(SupplierPaymentService).inSingletonScope();
+    bind<RevenueTargetService>(TYPES.RevenueTargetService).to(RevenueTargetService).inSingletonScope();
+    bind<AssetsService>(TYPES.AssetsService).to(AssetsService).inSingletonScope();
+    bind<AuditService>(TYPES.AuditService).to(AuditService).inSingletonScope();
 
-    // Revenue Targets
-    async getRevenueTarget(month: string) { return await targetRepository.findByMonth(month); }
-    async upsertRevenueTarget(month: string, data: any) { return await targetRepository.upsert(month, data); }
+    // Controllers
+    bind<AccountingController>(AccountingController).toSelf().inSingletonScope();
+});
 
-    // Payments (Internal access for legacy services)
-    get paymentRepository() { return paymentRepository; }
-    get commissionRepository() { return commissionRepository; }
-}
+import { Container } from "inversify";
 
-/** Singleton instance */
-export const accountingService = new AccountingService();
-export {
-    createAccountUC,
-    updateAccountUC,
-    deleteAccountUC,
-    getAccountTreeUC,
-    createJournalUC,
-    openRegisterUC,
-    closeRegisterUC,
-    recordExpenseUC,
-    recordTransactionUC,
-    createAssetUC
+const getAccountingController = (): AccountingController => {
+    const { container } = require("../../container");
+    return (container as Container).get<AccountingController>(AccountingController);
 };
+
+export const accountingController = new Proxy({} as AccountingController, {
+    get: (_target, prop) => {
+        const controller = getAccountingController();
+        const value = (controller as any)[prop];
+        if (typeof value === "function") {
+            return value.bind(controller);
+        }
+        return value;
+    }
+});

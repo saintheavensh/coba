@@ -1,11 +1,10 @@
-// @ts-nocheck
 import { db } from "../../../../db";
+import { DBContext } from "../../../../shared/types/db-context";
 import { IPurchasePaymentRepository, IPurchaseRepository, IAccountingGateway } from "../../domain/purchase-repository.port";
-import { ProductsService } from "../../../products/products-container";
 import { InventoryService } from "../../../inventory/services/inventory.service";
 import { notifications, productVariants } from "../../../../db/schema";
 import { eq, and } from "drizzle-orm";
-import { computeNetAmount, multiplyMoney, sumMoney } from "../../../../shared/utils/money";
+import { computeNetAmount, multiplyMoney } from "../../../../shared/utils/money";
 
 export interface VerifyAndCompletePurchaseDto {
     purchaseId: string;
@@ -35,14 +34,14 @@ export class VerifyAndCompletePurchaseUseCase {
     constructor(
         private purchaseRepo: IPurchaseRepository,
         private paymentRepo: IPurchasePaymentRepository,
-        private productsService: ProductsService,
         private inventoryService: InventoryService,
         private accountingGateway: IAccountingGateway
     ) { }
 
-    async execute(dto: VerifyAndCompletePurchaseDto): Promise<{ message: string; id: string }> {
-        return await db.transaction(async (tx) => {
-            const purchase = await this.purchaseRepo.findById(dto.purchaseId);
+    async execute(dto: VerifyAndCompletePurchaseDto, dbOrTx?: DBContext): Promise<{ message: string; id: string }> {
+        const client = dbOrTx || db;
+        return await client.transaction(async (tx) => {
+            const purchase = await this.purchaseRepo.findById(dto.purchaseId, tx);
             if (!purchase) {
                 throw new Error(`Purchase order ${dto.purchaseId} not found`);
             }
@@ -117,13 +116,13 @@ export class VerifyAndCompletePurchaseUseCase {
             const finalTotal = computeNetAmount(totalGoodsAmount, shipping, discount);
 
             // Domain state transition
-            purchase.verify(dto.userId, dto.items.map(i => ({ productId: i.productId, variantId: i.variant, buyPrice: i.buyPrice, sellPrice: i.sellPrice })), {
+            purchase.verify(dto.userId, dto.items.map(i => ({ productId: i.productId, variantId: i.variant as any, buyPrice: i.buyPrice, sellPrice: i.sellPrice })), {
                 shippingFee: shipping,
                 discountAmount: discount,
                 shippingExpenseAccountId: dto.options?.shippingExpenseAccountId,
                 referenceNumber: dto.options?.referenceNumber,
                 paymentDueDate: dto.options?.paymentDueDate
-            });
+            } as any);
 
             // Save state
             await this.purchaseRepo.save(purchase, tx);

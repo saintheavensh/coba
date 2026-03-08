@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../shared/types/db-context";
+
 import { IServiceToolRepository, ServiceTool, ToolCondition } from "../../domain";
 
 export class CreateServiceToolUseCase {
@@ -11,8 +11,9 @@ export class CreateServiceToolUseCase {
 
         if (last) {
             const parts = last.id.split("-");
-            if (parts.length > 1) {
-                const num = parseInt(parts[1]);
+            const firstPart = parts[1];
+            if (parts.length > 1 && firstPart) {
+                const num = parseInt(firstPart);
                 if (!isNaN(num)) {
                     nextId = `TOOL-${String(num + 1).padStart(3, "0")}`;
                 }

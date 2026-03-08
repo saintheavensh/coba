@@ -1,7 +1,9 @@
+import { injectable, inject } from "inversify";
+import { TYPES } from "../types";
 import { db } from "../../../db";
 import { assets, assetDepreciationLogs } from "../../../db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
-import { accountingService } from "../accounting-container";
+import { eq, desc } from "drizzle-orm";
+import { AccountingService } from "../services";
 
 export interface CreateAssetInput {
     name: string;
@@ -23,7 +25,11 @@ export interface AssetFilters {
     offset?: number;
 }
 
+@injectable()
 export class AssetsService {
+    constructor(
+        @inject(TYPES.AccountingService) private readonly accountingService: AccountingService
+    ) { }
     /**
      * Calculate monthly depreciation (straight-line method)
      */
@@ -35,7 +41,7 @@ export class AssetsService {
     /**
      * Calculate tool cost per hour
      */
-    static calculateToolCostPerHour(monthlyDepreciation: number, workingHoursPerMonth: number = 160): number {
+    public calculateToolCostPerHour(monthlyDepreciation: number, workingHoursPerMonth: number = 160): number {
         if (workingHoursPerMonth <= 0) return 0;
         return Math.ceil(monthlyDepreciation / workingHoursPerMonth);
     }
@@ -43,17 +49,18 @@ export class AssetsService {
     /**
      * Create a new asset
      */
-    static async create(input: CreateAssetInput, userId?: string): Promise<string> {
-        return await accountingService.createAsset(input, userId || "");
+    public async create(input: CreateAssetInput, _userId?: string): Promise<string> {
+        const result = await this.accountingService.createAsset(input, _userId || "");
+        return result.id;
     }
 
     /**
      * Get all assets
      */
-    static async getAll(filters: AssetFilters = {}) {
-        const assetsList = await accountingService.getAllAssets();
+    public async getAll(filters: AssetFilters = {}) {
+        const assetsList = await this.accountingService.getAllAssets();
         // Simple filtering for legacy service
-        return assetsList.filter(a => {
+        return assetsList.filter((a: any) => {
             if (filters.category && a.category !== filters.category) return false;
             if (filters.status && a.status !== filters.status) return false;
             return true;
@@ -63,8 +70,8 @@ export class AssetsService {
     /**
      * Get asset by ID with depreciation history
      */
-    static async getById(id: string) {
-        const asset = await accountingService.getAssetById(id);
+    public async getById(id: string) {
+        const asset = await this.accountingService.getAssetById(id);
         if (!asset) return null;
 
         const depreciationHistory = await db
@@ -83,17 +90,17 @@ export class AssetsService {
     /**
      * Get total monthly depreciation for all active assets
      */
-    static async getTotalMonthlyDepreciation(): Promise<number> {
-        const assetsList = await accountingService.getAllAssets();
+    public async getTotalMonthlyDepreciation(): Promise<number> {
+        const assetsList = await this.accountingService.getAllAssets();
         return assetsList
-            .filter(a => a.status === "active")
-            .reduce((sum, a) => sum + (a.monthlyDepreciation || 0), 0);
+            .filter((a: any) => a.status === "active")
+            .reduce((sum: number, a: any) => sum + (a.monthlyDepreciation || 0), 0);
     }
 
     /**
      * Dispose an asset
      */
-    static async dispose(id: string, reason: string, userId?: string): Promise<void> {
+    public async dispose(id: string, reason: string, _userId?: string): Promise<void> {
         const asset = await this.getById(id);
         if (!asset) throw new Error(`Asset ${id} not found`);
 
@@ -110,10 +117,8 @@ export class AssetsService {
     /**
      * Delete an asset
      */
-    static async delete(id: string, userId?: string): Promise<void> {
-        await accountingService.deleteAccount(id, userId); // Assuming deletion is handled via facade or directly
-        // Wait, facade.deleteAccount is for accounts.
-        // Legacy AssetsService.delete was complex. For now, let's leave it as throw or minimal.
+    public async delete(id: string, _userId?: string): Promise<void> {
+        await this.accountingService.deleteAccount(id, _userId);
         throw new Error("Deletion not implemented in refactored service yet");
     }
 }

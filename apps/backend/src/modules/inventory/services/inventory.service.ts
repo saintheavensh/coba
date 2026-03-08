@@ -1,6 +1,7 @@
 /**
  * Inventory service facade — wraps stock use cases.
  */
+import { DBContext } from "../../../shared/types/db-context";
 import type { DeductStockFIFOInput, DeductStockFIFOOutput, AddStockFromPurchaseVerificationInput, AddStockFromPurchaseVerificationOutput, ReverseStockInput } from "../domain/stock.types";
 import type { ProductBatchEntity } from "../domain/batch-repository.port";
 import type { DeductStockFIFOUseCase } from "../application/use-cases/deduct-stock-fifo.use-case";
@@ -29,30 +30,30 @@ export class InventoryService {
         private readonly getProductsService: () => any
     ) { }
 
-    async deductStockFIFO(input: DeductStockFIFOInput, dbOrTx: unknown): Promise<DeductStockFIFOOutput> {
+    async deductStockFIFO(input: DeductStockFIFOInput, dbOrTx?: DBContext): Promise<DeductStockFIFOOutput> {
         return this.deductStockFIFOUC.execute(input, dbOrTx);
     }
 
     async addStockFromPurchaseVerification(
         input: AddStockFromPurchaseVerificationInput,
-        dbOrTx: unknown
+        dbOrTx?: DBContext
     ): Promise<AddStockFromPurchaseVerificationOutput> {
         return this.addStockFromPurchaseUC.execute(input, dbOrTx);
     }
 
-    async reverseStockFromPurchaseDeletion(input: ReverseStockInput, dbOrTx: unknown): Promise<void> {
+    async reverseStockFromPurchaseDeletion(input: ReverseStockInput, dbOrTx?: DBContext): Promise<void> {
         return this.reverseStockUC.execute(input, dbOrTx);
     }
 
-    async getLastBatchByProduct(productId: string, dbOrTx?: unknown): Promise<ProductBatchEntity | null> {
+    async getLastBatchByProduct(productId: string, dbOrTx?: DBContext): Promise<ProductBatchEntity | null> {
         return this.getLastBatchUC.execute(productId, dbOrTx);
     }
 
-    async getBatchById(batchId: string, dbOrTx?: unknown): Promise<ProductBatchEntity | null> {
+    async getBatchById(batchId: string, dbOrTx?: DBContext): Promise<ProductBatchEntity | null> {
         return this.batchRepository.findById(batchId, dbOrTx);
     }
 
-    async reduceStock(batchId: string, qty: number, dbOrTx: unknown): Promise<void> {
+    async reduceStock(batchId: string, qty: number, dbOrTx?: DBContext): Promise<void> {
         return this.reduceBatchStockUC.execute(batchId, qty, dbOrTx);
     }
 

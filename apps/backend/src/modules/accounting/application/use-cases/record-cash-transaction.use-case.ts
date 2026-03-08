@@ -1,6 +1,5 @@
 import { DBContext } from "../../../../shared/types/db-context";
 import { ICashRegisterRepository } from "../../domain";
-import { AuditService } from "../../services/audit.service";
 
 export interface RecordCashTransactionInput {
     transactionType: "sale" | "service" | "refund" | "adjustment";

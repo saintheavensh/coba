@@ -28,8 +28,8 @@ export class CreateAccountUseCase {
             code: input.code,
             name: input.name,
             typeId: input.typeId,
-            parentId: input.parentId,
-            description: input.description,
+            parentId: input.parentId || undefined,
+            description: input.description || undefined,
             isSystem: input.isSystem || false,
             balance: 0,
         }, dbOrTx);
@@ -40,7 +40,7 @@ export class CreateAccountUseCase {
             entityType: "account",
             entityId: id,
             tableName: "accounts",
-            newValues: { code: input.code, name: input.name, typeId: input.typeId },
+            newValues: { code: input.code, name: input.name, typeId: input.typeId as string },
         });
 
         return id;
@@ -54,6 +54,6 @@ export class CreateAccountUseCase {
             REVENUE: "4",
             EXPENSE: "5",
         };
-        return prefixes[typeId] || "9";
+        return (prefixes[typeId] ?? "9");
     }
 }

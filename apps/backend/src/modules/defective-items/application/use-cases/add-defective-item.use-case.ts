@@ -1,5 +1,5 @@
 import { DBContext } from "../../../../shared/types/db-context";
-import { IDefectiveItemRepository, IInventoryGateway, DefectiveItem } from "../../domain";
+import { IDefectiveItemRepository, IInventoryGateway } from "../../domain";
 import { v4 as uuidv4 } from "uuid";
 import { HTTPException } from "hono/http-exception";
 

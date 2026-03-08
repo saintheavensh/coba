@@ -1,4 +1,4 @@
-import { db } from "../../db";
+
 import { ReportRepositoryAdapter } from "./infrastructure";
 import {
     GetSalesSummaryUseCase,
@@ -32,7 +32,7 @@ const getPartsUsageReportUC = new GetPartsUsageReportUseCase(repository);
 const getActivityLogsUC = new GetActivityLogsUseCase(repository);
 const getProfitAndLossUC = new GetProfitAndLossUseCase(repository);
 const getStockValueReportUC = new GetStockValueReportUseCase(repository);
-const getStockAdjustmentsUC = new GetStockAdjustmentsUseCase(repository);
+const getStockAdjustmentsUC = new GetStockAdjustmentsUseCase();
 const getLowStockReportUC = new GetLowStockReportUseCase(repository);
 const getKasirDailyReportUC = new GetKasirDailyReportUseCase(repository);
 

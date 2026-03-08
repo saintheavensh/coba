@@ -5,23 +5,26 @@ import { desc, eq, and } from "drizzle-orm";
 export type AuditAction = "CREATE" | "UPDATE" | "DELETE" | "VOID" | "POST" | "CLOSE" | "PAY";
 
 export interface AuditLogInput {
-    userId?: string;
+    userId?: string | undefined;
     action: AuditAction;
     entityType: string;
     entityId: string;
     tableName: string;
-    oldValues?: Record<string, unknown>;
-    newValues?: Record<string, unknown>;
-    reason?: string;
-    ipAddress?: string;
-    userAgent?: string;
+    oldValues?: Record<string, unknown> | undefined;
+    newValues?: Record<string, unknown> | undefined;
+    reason?: string | undefined;
+    ipAddress?: string | undefined;
+    userAgent?: string | undefined;
 }
 
+import { injectable } from "inversify";
+
+@injectable()
 export class AuditService {
     /**
      * Create an audit log entry
      */
-    static async log(input: AuditLogInput): Promise<void> {
+    public async log(input: AuditLogInput): Promise<void> {
         await db.insert(auditLogs).values({
             userId: input.userId,
             action: input.action,
@@ -39,7 +42,7 @@ export class AuditService {
     /**
      * Get audit logs for a specific entity
      */
-    static async getByEntity(entityType: string, entityId: string) {
+    public async getByEntity(entityType: string, entityId: string) {
         return db
             .select()
             .from(auditLogs)
@@ -55,7 +58,7 @@ export class AuditService {
     /**
      * Get audit logs with pagination and optional filtering
      */
-    static async getAll(filters: { limit?: number; offset?: number; entityType?: string; entityId?: string } = {}) {
+    public async getAll(filters: { limit?: number; offset?: number; entityType?: string | undefined; entityId?: string | undefined } = {}) {
         const { limit = 100, offset = 0, entityType, entityId } = filters;
 
         const conditions = [];

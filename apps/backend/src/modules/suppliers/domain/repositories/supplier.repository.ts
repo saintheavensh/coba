@@ -7,7 +7,7 @@ export interface ISupplierRepository {
     getLinkedCategories(supplierId: string, dbOrTx?: DBContext): Promise<any[]>;
     create(data: CreateSupplierData, dbOrTx?: DBContext): Promise<Supplier[]>;
     update(id: string, data: UpdateSupplierData, dbOrTx?: DBContext): Promise<Supplier[]>;
-    delete(id: string, dbOrTx?: DBContext): Promise<any>;
+    delete(id: string, dbOrTx?: DBContext): Promise<void>;
     addCategoryLink(supplierId: string, categoryId: string, dbOrTx?: DBContext): Promise<void>;
     removeCategoryLink(supplierId: string, categoryId: string, dbOrTx?: DBContext): Promise<void>;
 

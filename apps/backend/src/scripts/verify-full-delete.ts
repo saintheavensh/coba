@@ -1,6 +1,6 @@
 
 import { db } from "../db";
-import { assets, journals, journalLines } from "../db/schema";
+import { assets, journals } from "../db/schema";
 import { AssetsService } from "../modules/accounting/services/assets.service";
 import { eq, and } from "drizzle-orm";
 

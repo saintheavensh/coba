@@ -1,5 +1,5 @@
 import { text, integer, timestamp, pgTable } from "drizzle-orm/pg-core";
-import { randomUUID } from "crypto";
+
 
 const timestamps = () => ({
     createdAt: timestamp("created_at").defaultNow(),

@@ -1,13 +1,15 @@
+import { injectable } from "inversify";
 import { db } from "../../../db";
 import { accounts, journals, journalLines } from "../../../db/schema";
 import { eq, and, gte, lte, sql, sum } from "drizzle-orm";
 
+@injectable()
 export class AccountingReportService {
 
     // ==========================================
     // 1. GENERAL LEDGER (Buku Besar)
     // ==========================================
-    static async getGeneralLedger(accountId: string, startDate?: Date, endDate?: Date) {
+    public async getGeneralLedger(accountId: string, startDate?: Date, endDate?: Date) {
         // 1. Calculate Opening Balance (Sum of all transactions BEFORE startDate)
         let openingBalance = 0;
 
@@ -81,7 +83,7 @@ export class AccountingReportService {
     // ==========================================
     // 2. INCOME STATEMENT (Laba Rugi)
     // ==========================================
-    static async getIncomeStatement(startDate: Date, endDate: Date) {
+    public async getIncomeStatement(startDate: Date, endDate: Date) {
         // Fetch all REVENUE and EXPENSE accounts with their transaction sums in the period
         // We filter by account types or code prefixes.
         // Assuming Standard: 4=Revenue, 5=Expense.
@@ -154,7 +156,7 @@ export class AccountingReportService {
     // ==========================================
     // 3. BALANCE SHEET (Neraca)
     // ==========================================
-    static async getBalanceSheet(asOfDate: Date) {
+    public async getBalanceSheet(asOfDate: Date) {
         // Balance Sheet includes all Asset (1), Liability (2), Equity (3)
         // AND current period earnings (which is Rev - Exp).
 

@@ -7,12 +7,12 @@ import { Setting, SettingScope, SettingType } from "../../domain/entities/Settin
 export interface UpdateSettingDTO {
     key: string;
     value: any;
-    type?: SettingType;
-    scope?: SettingScope;
-    module?: string;
-    userId?: string;
-    storeId?: string;
-    description?: string;
+    type?: SettingType | undefined;
+    scope?: SettingScope | undefined;
+    module?: string | undefined;
+    userId?: string | undefined;
+    storeId?: string | undefined;
+    description?: string | undefined;
 }
 
 @injectable()

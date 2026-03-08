@@ -2,8 +2,6 @@ import { IServiceItemRepository } from "../../domain/repositories/service-item-r
 import { IServicePartRepository } from "../../domain/repositories/service-part-repository.port";
 import { DBContext } from "../../../../shared/types/db-context";
 import { eq, sql } from "drizzle-orm";
-// Assume we have db instance
-import { db } from "../../../../db";
 import { productBatches } from "../../../inventory/infrastructure/schema/BatchSchema";
 import { HTTPException } from "hono/http-exception";
 import { ICommissionSettingsRepository, ICommissionRepository } from "../../domain/repositories/commission-repository.port";

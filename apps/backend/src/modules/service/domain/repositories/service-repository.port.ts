@@ -1,8 +1,9 @@
 import { DBContext } from "../../../../shared/types/db-context";
 import { ServiceTicket } from "../entities/service.entity";
+import { ServiceTimelineRowDTO } from "../../../../shared/dtos/repositories/service/ServiceTimelineDTO";
 
 export interface IServiceRepository {
-    findAll(params: { status?: string; technicianId?: string }, dbOrTx?: DBContext): Promise<ServiceTicket[]>;
+    findAll(params: { status?: string | undefined; technicianId?: string | undefined }, dbOrTx?: DBContext): Promise<ServiceTicket[]>;
     findById(id: string, dbOrTx?: DBContext): Promise<ServiceTicket | null>;
     findLastServiceNo(prefix: string, dbOrTx?: DBContext): Promise<{ no: string } | null>;
     getCountsByStatus(dbOrTx?: DBContext): Promise<Array<{ status: string; count: number }>>;
@@ -19,5 +20,5 @@ export interface IServiceRepository {
         oldValue?: any;
         newValue?: any;
     }, dbOrTx?: DBContext): Promise<void>;
-    getTimeline(entityId: string, dbOrTx?: DBContext): Promise<any[]>;
+    getTimeline(entityId: string, dbOrTx?: DBContext): Promise<ServiceTimelineRowDTO[]>;
 }

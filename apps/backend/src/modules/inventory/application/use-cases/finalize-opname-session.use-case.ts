@@ -5,6 +5,7 @@
 import type { IStockOpnameRepository, OpnameItemEntity } from "../../domain/stock-opname-repository.port";
 import type { IActivityLogger } from "../../domain/activity-logger.port";
 import { StockCalculator } from "../../domain/services/stock-calculator";
+import { DBContext } from "../../../../shared/types/db-context";
 
 export class FinalizeOpnameSessionUseCase {
     constructor(
@@ -12,16 +13,16 @@ export class FinalizeOpnameSessionUseCase {
         private readonly activityLogger: IActivityLogger
     ) { }
 
-    async execute(id: string, userId: string) {
-        const repo = this.stockOpnameRepository;
+    async execute(id: string, userId: string, dbOrTx?: DBContext) {
+        const client = dbOrTx || this.stockOpnameRepository; // Assuming repository has a transaction method or use db
 
-        const session = await repo.findSessionById(id);
-        if (!session) throw new Error("Session not found");
-        if (session.status !== "draft") throw new Error("Only draft sessions can be finalized");
+        return await client.transaction(async (tx) => {
+            const session = await this.stockOpnameRepository.findSessionById(id, tx);
+            if (!session) throw new Error("Session not found");
+            if (session.status !== "draft") throw new Error("Only draft sessions can be finalized");
 
-        const items = await repo.findItemsBySession(id);
+            const items = await this.stockOpnameRepository.findItemsBySession(id, tx);
 
-        await repo.transaction(async (tx) => {
             for (const item of items) {
                 if (item.physicalStock === null) continue;
 
@@ -29,10 +30,10 @@ export class FinalizeOpnameSessionUseCase {
                 if (difference === 0) continue;
 
                 await this.adjustBatches(item, difference, userId, id, tx);
-                await repo.updateProductStockDelta(item.productId, difference, tx);
+                await this.stockOpnameRepository.updateProductStockDelta(item.productId, difference, tx);
             }
 
-            await repo.updateSessionStatus(id, "completed", new Date(), tx);
+            await this.stockOpnameRepository.updateSessionStatus(id, "completed", new Date(), tx);
         });
 
         await this.activityLogger.log({
@@ -56,7 +57,7 @@ export class FinalizeOpnameSessionUseCase {
         difference: number,
         userId: string,
         sessionId: string,
-        tx: unknown
+        tx: DBContext
     ) {
         const repo = this.stockOpnameRepository;
         const batches = await repo.findBatchesByProductAndVariant(
@@ -86,8 +87,8 @@ export class FinalizeOpnameSessionUseCase {
                 }, tx);
             }
         } else {
-            if (batches.length > 0) {
-                const firstBatch = batches[0];
+            const firstBatch = batches[0];
+            if (firstBatch) {
                 const newStock = firstBatch.currentStock + difference;
 
                 await repo.updateBatchStock(firstBatch.id, newStock, tx);

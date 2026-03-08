@@ -2,6 +2,10 @@ import { DBContext } from "../../../../shared/types/db-context";
 import { IReportRepository, ReportFilters, ProfitAndLoss } from "../../domain";
 import { gte, lte, sql, and } from "drizzle-orm";
 import { sales, operationalCosts, services } from "../../../../db/schema";
+import {
+    ReportServiceWithTechnicianDTO,
+    ReportOperationalCostDTO
+} from "../../../../shared/dtos/repositories/reports";
 
 export class GetProfitAndLossUseCase {
     constructor(private readonly repository: IReportRepository) { }
@@ -35,14 +39,14 @@ export class GetProfitAndLossUseCase {
         for (const s of salesData) {
             salesRevenue += s.totalAmount;
             for (const item of (s.items || [])) {
-                const buyPrice = (item as any).batch?.buyPrice || 0;
+                const buyPrice = item.batch?.buyPrice || 0;
                 salesCOGS += buyPrice * item.qty;
             }
         }
 
         // 2. Service Data
         const servicesData = await this.repository.getServicesWithTechnicians([
-            sql`${services.status} IN ('diambil', 'selesai')`,
+            sql`${services.status} IN('diambil', 'selesai')`,
             serviceDateCondition
         ], dbOrTx);
 
@@ -55,7 +59,7 @@ export class GetProfitAndLossUseCase {
 
         const commissionModel = filters.commissionModel || 'completion';
 
-        for (const svc of servicesData) {
+        for (const svc of (servicesData as ReportServiceWithTechnicianDTO[])) {
             const isRealized = svc.status === 'diambil';
             const cost = svc.actualCost || 0;
 
@@ -65,7 +69,7 @@ export class GetProfitAndLossUseCase {
                 serviceRevenuePending += cost;
             }
 
-            const parts = (svc.parts as any[]) || [];
+            const parts = svc.parts || [];
             let partsCost = 0;
             let partsSellingPrice = 0;
 
@@ -82,7 +86,7 @@ export class GetProfitAndLossUseCase {
             }
 
             if (svc.technicianId && svc.technician) {
-                const config = (svc.technician as any).commissionConfig;
+                const config = svc.technician.commissionConfig;
                 if (config && config.enabled) {
                     let comm = 0;
                     const jasaValue = Math.max(0, cost - partsSellingPrice);
@@ -107,7 +111,7 @@ export class GetProfitAndLossUseCase {
 
         // 3. Operational Expenses
         const expensesData = await this.repository.getOperationalCosts(expenseConditions, dbOrTx);
-        const operationalExpense = expensesData.reduce((sum: number, e: any) => sum + e.amount, 0);
+        const operationalExpense = expensesData.reduce((sum: number, e: ReportOperationalCostDTO) => sum + e.amount, 0);
 
         const totalRevenue = salesRevenue + serviceRevenueRealized;
         const totalCOGS = salesCOGS + serviceCOGSRealized;

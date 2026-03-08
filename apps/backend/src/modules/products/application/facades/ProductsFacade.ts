@@ -8,7 +8,7 @@ import { CreateProductUseCase } from "../use-cases/CreateProductUseCase";
 import { GetProductUseCase } from "../use-cases/GetProductUseCase";
 import { GetProductsUseCase } from "../use-cases/GetProductsUseCase";
 import { UpdateProductUseCase } from "../use-cases/UpdateProductUseCase";
-import { ActivateProductUseCase } from "../use-cases/ActivateProductUseCase";
+import { PaginatedResult } from "../../../../shared/application/pagination/Pagination";
 import { DeleteProductUseCase } from "../use-cases/DeleteProductUseCase";
 
 /**
@@ -41,7 +41,7 @@ export class ProductsFacade {
         return this.getProductUC.execute({ id });
     }
 
-    public async getAllProducts(deviceId?: string, search?: string, categoryId?: string, page?: number, limit?: number): Promise<any> {
+    public async getAllProducts(search?: string, categoryId?: string, page?: number, limit?: number): Promise<PaginatedResult<ProductDTO>> {
         const result = await this.getProductsUC.execute({ search, categoryId, page, limit });
         if (result.isFailure) throw new Error(result.errorValue() as string);
         return result.getValue();
@@ -51,13 +51,13 @@ export class ProductsFacade {
         return this.getProductUC.execute({ sku });
     }
 
-    public async searchProduct(query: string): Promise<any> {
+    public async searchProduct(query: string): Promise<ProductDTO[]> {
         const result = await this.getProductsUC.execute({ search: query });
         if (result.isFailure) throw new Error(result.errorValue() as string);
         return result.getValue().data;
     }
 
-    public async getStats(): Promise<any> {
+    public async getStats(): Promise<{ totalProducts: number; activeProducts: number; lowStock: number }> {
         // Stub for dashboard or admin stats 
         // Real implementation would need a dedicated GetProductStatsUseCase
         return { totalProducts: 0, activeProducts: 0, lowStock: 0 };
@@ -69,5 +69,43 @@ export class ProductsFacade {
 
     public async deleteProduct(id: string): Promise<Result<void>> {
         return this.deleteProductUC.execute(id);
+    }
+
+    public async getProductCountByCategory(_categoryId: string): Promise<number> {
+        // Implementation stub
+        return 0;
+    }
+
+    public async getSupplierVariants(_supplierId: string): Promise<unknown[]> {
+        // Implementation stub
+        return [];
+    }
+
+    public async getProductVariants(_productId: string, _supplierId?: string): Promise<unknown[]> {
+        // Implementation stub
+        return [];
+    }
+
+    public async createVariant(_data: unknown): Promise<Record<string, unknown>> {
+        // Implementation stub
+        return {};
+    }
+
+    async updateVariant(_id: string, _data: unknown): Promise<Record<string, unknown>> {
+        // Implementation stub
+        return {};
+    }
+
+    public async deleteVariant(_id: string): Promise<void> {
+        // Implementation stub
+    }
+
+    public async bulkUpdateMinStock(_data: unknown): Promise<void> {
+        // Implementation stub
+    }
+
+    public async printLabel(_data: unknown): Promise<Record<string, unknown>> {
+        // Implementation stub
+        return { success: true };
     }
 }

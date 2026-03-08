@@ -1,4 +1,4 @@
-import { text, integer, boolean, timestamp, pgTable, json } from "drizzle-orm/pg-core";
+import { text, boolean, timestamp, pgTable, json } from "drizzle-orm/pg-core";
 import { randomUUID } from "crypto";
 
 // Helpers
@@ -21,7 +21,7 @@ export const roles = pgTable("roles", {
 });
 
 export const users = pgTable("users", {
-    id: text("id").primaryKey(),
+    id: uuid(),
     username: text("username").notNull().unique(),
     password: text("password").notNull(),
     role: text("role").notNull().references(() => roles.id).default("teknisi"),

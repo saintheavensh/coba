@@ -1,11 +1,15 @@
+import { injectable, inject } from "inversify";
+import { TYPES } from "../../types";
 import { DBContext } from "../../../../shared/types/db-context";
+import { DrizzleClient } from "../../../../shared/infrastructure/database/DrizzleClient";
 import { IUserRepository, User, CreateUserData, UpdateUserData } from "../../domain";
 import { HTTPException } from "hono/http-exception";
 
+@injectable()
 export class CreateUserUseCase {
     constructor(
-        private readonly repository: IUserRepository,
-        private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
+        @inject(TYPES.IUserRepository) private readonly repository: IUserRepository,
+        @inject(TYPES.DrizzleClient) private readonly dbClient: DrizzleClient
     ) { }
 
     async execute(data: CreateUserData, dbOrTx?: DBContext): Promise<User> {
@@ -18,21 +22,24 @@ export class CreateUserUseCase {
                 await this.repository.syncRoles(user.id, roles, tx);
             }
 
-            return await this.repository.findById(user.id, tx) as User;
+            const finalUser = await this.repository.findById(user.id, tx);
+            if (!finalUser) throw new HTTPException(500, { message: "Failed to retrieve created user" });
+            return finalUser;
         };
 
         if (dbOrTx) {
             return await runInTransaction(dbOrTx);
         } else {
-            return await this.db.transaction(runInTransaction);
+            return await this.dbClient.getClient().transaction(runInTransaction);
         }
     }
 }
 
+@injectable()
 export class UpdateUserUseCase {
     constructor(
-        private readonly repository: IUserRepository,
-        private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
+        @inject(TYPES.IUserRepository) private readonly repository: IUserRepository,
+        @inject(TYPES.DrizzleClient) private readonly dbClient: DrizzleClient
     ) { }
 
     async execute(id: string, data: UpdateUserData, dbOrTx?: DBContext): Promise<User> {
@@ -50,19 +57,24 @@ export class UpdateUserUseCase {
                 await this.repository.syncRoles(id, roles, tx);
             }
 
-            return await this.repository.findById(id, tx) as User;
+            const updated = await this.repository.findById(id, tx);
+            if (!updated) throw new HTTPException(500, { message: "Failed to retrieve updated user" });
+            return updated;
         };
 
         if (dbOrTx) {
             return await runInTransaction(dbOrTx);
         } else {
-            return await this.db.transaction(runInTransaction);
+            return await this.dbClient.getClient().transaction(runInTransaction);
         }
     }
 }
 
+@injectable()
 export class DeleteUserUseCase {
-    constructor(private readonly repository: IUserRepository) { }
+    constructor(
+        @inject(TYPES.IUserRepository) private readonly repository: IUserRepository
+    ) { }
 
     async execute(id: string, dbOrTx?: DBContext): Promise<void> {
         const existing = await this.repository.findById(id, dbOrTx);

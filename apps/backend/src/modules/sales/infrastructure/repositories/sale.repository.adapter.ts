@@ -1,4 +1,4 @@
-import { eq, desc, asc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { DBContext } from "../../../../shared/types/db-context";
 import { db } from "../../../../db";
 import { sales, saleItems, salePayments } from "../../../../db/schema";
@@ -6,7 +6,7 @@ import { ISaleRepository, Sale } from "../../domain";
 
 export class SaleRepositoryAdapter implements ISaleRepository {
     async findAll(params: { startDate?: Date; endDate?: Date; search?: string; limit?: number }, dbOrTx?: DBContext): Promise<Sale[]> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         const { startDate, endDate, search, limit = 50 } = params;
 
         const results = await client.query.sales.findMany({
@@ -46,7 +46,7 @@ export class SaleRepositoryAdapter implements ISaleRepository {
     }
 
     async findById(id: string, dbOrTx?: DBContext): Promise<Sale | null> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         const sale = await client.query.sales.findFirst({
             where: eq(sales.id, id),
             with: {
@@ -75,17 +75,17 @@ export class SaleRepositoryAdapter implements ISaleRepository {
     }
 
     async create(sale: any, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         await client.insert(sales).values(sale);
     }
 
     async createItem(item: any, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         await client.insert(saleItems).values(item);
     }
 
     async createPayment(payment: any, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         await client.insert(salePayments).values(payment);
     }
 }

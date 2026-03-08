@@ -30,7 +30,7 @@ async function forceMigrate() {
             FROM information_schema.tables 
             WHERE table_schema = 'public'
         `;
-        console.log(`📊 Tables after migration: ${result[0].total}`);
+        console.log(`📊 Tables after migration: ${result[0]?.total}`);
 
         await migrationClient.end();
     } catch (error) {

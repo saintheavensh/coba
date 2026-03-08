@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { brands, devices } from "../db/schema";
+import { brands } from "../db/schema";
 import { eq, sql } from "drizzle-orm";
 
 /**
@@ -21,11 +21,11 @@ async function main() {
 
         // 2. Group brands by normalized name (case-insensitive)
         const brandGroups = new Map<string, typeof allBrands>();
-        
+
         for (const brand of allBrands) {
             const normalized = normalizeBrandName(brand.name);
             const key = normalized.toLowerCase();
-            
+
             if (!brandGroups.has(key)) {
                 brandGroups.set(key, []);
             }
@@ -37,19 +37,20 @@ async function main() {
         let mergedBrands = 0;
 
         // 3. Process each group
-        for (const [normalizedKey, group] of brandGroups) {
-            if (group.length === 0) continue;
+        for (const [_normalizedKey, group] of brandGroups) {
+            const firstBrand = group[0];
+            if (!firstBrand) continue;
 
-            const normalizedName = normalizeBrandName(group[0].name);
-            
+            const normalizedName = normalizeBrandName(firstBrand.name);
+
             // If all brands in group already have normalized name, skip
             if (group.every(b => b.name === normalizedName)) {
                 continue;
             }
 
             // Find the brand with normalized name, or use the first one
-            let targetBrand = group.find(b => b.name === normalizedName) || group[0];
-            
+            let targetBrand = group.find(b => b.name === normalizedName) || firstBrand;
+
             // Update target brand name if needed
             if (targetBrand.name !== normalizedName) {
                 await db.update(brands)
@@ -62,13 +63,13 @@ async function main() {
             // Update all devices using brands from this group to use target brand
             for (const brand of group) {
                 if (brand.id === targetBrand.id) continue; // Skip target brand itself
-                
+
                 // Update devices to use normalized brand name
                 // Note: devices.brand is a text field, so we use SQL for case-insensitive matching
                 const result = await db.execute(
                     sql`UPDATE devices SET brand = ${normalizedName} WHERE LOWER(brand) = LOWER(${brand.name})`
                 );
-                
+
                 // Get count of affected rows (PostgreSQL returns rowCount)
                 updatedDevices += (result as any).rowCount || 0;
 

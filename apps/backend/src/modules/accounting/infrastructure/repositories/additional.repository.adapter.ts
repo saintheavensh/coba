@@ -1,28 +1,74 @@
-import { eq, sql, desc, and } from "drizzle-orm";
+import { eq, desc, and, sum } from "drizzle-orm";
 import { db } from "../../../../db";
 import {
     cashRegisters,
     cashRegisterTransactions,
-    assets,
-    assetDepreciationLogs,
     revenueTargets,
     purchasePayments,
-    commissionPayments,
     purchases,
-    suppliers
+    commissionPayments
 } from "../../../../db/schema";
 import { DBContext } from "../../../../shared/types/db-context";
+import { CashRegister, CashTransaction } from "../../domain/entities/cash-register.entity";
 import {
     ICashRegisterRepository,
-    IAssetRepository,
     IRevenueTargetRepository,
     IPurchasePaymentRepository,
-    ICommissionPaymentRepository,
-    CashRegister,
-    CashTransaction,
-    FixedAsset,
-    DepreciationEntry
+    ICommissionPaymentRepository
 } from "../../domain";
+import {
+    RevenueTargetDTO,
+    AccountingPurchasePaymentDTO,
+    AccountingCommissionPaymentDTO
+} from "../../../../shared/dtos/repositories/accounting";
+
+function mapToRevenueTargetDTO(row: any): RevenueTargetDTO {
+    return {
+        id: row.id,
+        month: row.month,
+        workingDays: row.workingDays || 0,
+        monthlyOperational: Number(row.monthlyOperational || 0),
+        monthlyDepreciation: Number(row.monthlyDepreciation || 0),
+        monthlyTotal: Number(row.monthlyTotal || 0),
+        dailyBreakeven: Number(row.dailyBreakeven || 0),
+        profitMarginPercent: Number(row.profitMarginPercent || 0),
+        dailyTarget: Number(row.dailyTarget || 0),
+        createdBy: row.createdBy,
+        createdAt: row.createdAt
+    };
+}
+
+function mapToAccountingPurchasePaymentDTO(row: any): AccountingPurchasePaymentDTO {
+    return {
+        id: row.id,
+        purchaseId: row.purchaseId,
+        amount: Number(row.amount),
+        method: row.method,
+        date: row.date,
+        reference: row.reference,
+        notes: row.notes,
+        supplierId: row.supplierId,
+        accountId: row.accountId,
+        journalId: row.journalId,
+        createdBy: row.createdBy
+    };
+}
+
+function mapToAccountingCommissionPaymentDTO(row: any): AccountingCommissionPaymentDTO {
+    return {
+        id: row.id,
+        technicianId: row.technicianId,
+        period: row.period,
+        amount: Number(row.amount),
+        status: row.status,
+        serviceIds: row.serviceIds,
+        paidAt: row.paidAt,
+        createdAt: row.createdAt,
+        paidBy: row.paidBy,
+        journalId: row.journalId,
+        accountId: row.accountId
+    };
+}
 
 export class CashRegisterRepositoryAdapter implements ICashRegisterRepository {
     async getCurrent(dbOrTx?: DBContext): Promise<CashRegister | null> {
@@ -119,76 +165,48 @@ export class CashRegisterRepositoryAdapter implements ICashRegisterRepository {
             totalServices: summary.byType.service.total,
             totalExpenses: Math.abs(summary.byType.expense.total),
             transactionCount: summary.transactionCount,
-            recentTransactions
+            recentTransactions: recentTransactions
         };
     }
 }
 
-export class AssetRepositoryAdapter implements IAssetRepository {
-    async findAll(dbOrTx?: DBContext): Promise<FixedAsset[]> {
-        const client = (dbOrTx as any) || db;
-        return await client.select().from(assets) as FixedAsset[];
-    }
-
-    async findById(id: string, dbOrTx?: DBContext): Promise<FixedAsset | null> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.select().from(assets).where(eq(assets.id, id));
-        return (result as FixedAsset) || null;
-    }
-
-    async create(data: Partial<FixedAsset>, dbOrTx?: DBContext): Promise<{ id: string }> {
-        const client = (dbOrTx as any) || db;
-        const [result] = await client.insert(assets).values(data).returning({ id: assets.id });
-        return result;
-    }
-
-    async update(id: string, data: Partial<FixedAsset>, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.update(assets).set(data).where(eq(assets.id, id));
-    }
-
-    async delete(id: string, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.delete(assets).where(eq(assets.id, id));
-    }
-
-    async createDepreciation(data: Partial<DepreciationEntry>, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
-        await client.insert(assetDepreciationLogs).values(data);
-    }
-
-    async getDepreciationHistory(assetId: string, dbOrTx?: DBContext): Promise<DepreciationEntry[]> {
-        const client = (dbOrTx as any) || db;
-        return await client.select().from(assetDepreciationLogs).where(eq(assetDepreciationLogs.assetId, assetId)) as DepreciationEntry[];
-    }
-}
-
 export class RevenueTargetRepositoryAdapter implements IRevenueTargetRepository {
-    async findByMonth(month: string, dbOrTx?: DBContext): Promise<any | null> {
+    async findByMonth(month: string, dbOrTx?: DBContext): Promise<RevenueTargetDTO | null> {
         const client = (dbOrTx as any) || db;
-        const [result] = await client.select().from(revenueTargets).where(eq(revenueTargets.month, month));
-        return result || null;
+        const result = await client.query.revenueTargets.findFirst({
+            where: eq(revenueTargets.month, month)
+        });
+        return result ? mapToRevenueTargetDTO(result) : null;
     }
 
-    async upsert(month: string, data: any, dbOrTx?: DBContext): Promise<void> {
+    async upsert(month: string, data: Partial<RevenueTargetDTO>, dbOrTx?: DBContext): Promise<void> {
         const client = (dbOrTx as any) || db;
         const existing = await this.findByMonth(month, dbOrTx);
+
         if (existing) {
-            await client.update(revenueTargets).set(data).where(eq(revenueTargets.month, month));
+            await client.update(revenueTargets)
+                .set({ ...data, updatedAt: new Date() })
+                .where(eq(revenueTargets.month, month));
         } else {
-            await client.insert(revenueTargets).values({ ...data, month });
+            await client.insert(revenueTargets)
+                .values({
+                    ...data,
+                    month,
+                    createdAt: new Date()
+                });
         }
     }
 }
 
 export class PurchasePaymentRepositoryAdapter implements IPurchasePaymentRepository {
-    async findById(id: string, dbOrTx?: DBContext): Promise<any | null> {
+    async findById(id: string, dbOrTx?: DBContext): Promise<AccountingPurchasePaymentDTO | null> {
         const client = (dbOrTx as any) || db;
-        const [result] = await client.select().from(purchasePayments).where(eq(purchasePayments.id, id));
-        return result || null;
+        const result = await client.query.purchasePayments.findFirst({
+            where: eq(purchasePayments.id, id)
+        });
+        return result ? mapToAccountingPurchasePaymentDTO(result) : null;
     }
-
-    async create(data: any, dbOrTx?: DBContext): Promise<{ id: string }> {
+    async create(data: Partial<AccountingPurchasePaymentDTO>, dbOrTx?: DBContext): Promise<{ id: string }> {
         const client = (dbOrTx as any) || db;
         const [result] = await client.insert(purchasePayments).values(data).returning({ id: purchasePayments.id });
         return result;
@@ -196,57 +214,60 @@ export class PurchasePaymentRepositoryAdapter implements IPurchasePaymentReposit
 
     async getTotalPaid(purchaseId: string, dbOrTx?: DBContext): Promise<number> {
         const client = (dbOrTx as any) || db;
-        const [result] = await client.select({
-            total: sql<number>`sum(${purchasePayments.amount})`
-        }).from(purchasePayments).where(eq(purchasePayments.purchaseId, purchaseId));
-        return Number(result?.total) || 0;
+        const [result] = await client.select({ value: sum(purchasePayments.amount) })
+            .from(purchasePayments)
+            .where(eq(purchasePayments.purchaseId, purchaseId));
+        return Number(result?.value || 0);
     }
 
-    async findHistoryByPurchaseId(purchaseId: string, dbOrTx?: DBContext): Promise<any[]> {
+    async findHistoryByPurchaseId(purchaseId: string, dbOrTx?: DBContext): Promise<AccountingPurchasePaymentDTO[]> {
         const client = (dbOrTx as any) || db;
-        return await client.select().from(purchasePayments).where(eq(purchasePayments.purchaseId, purchaseId)).orderBy(desc(purchasePayments.createdAt));
+        const results = await client.query.purchasePayments.findMany({
+            where: eq(purchasePayments.purchaseId, purchaseId),
+            orderBy: [desc(purchasePayments.date)]
+        });
+        return results.map(mapToAccountingPurchasePaymentDTO);
     }
 
     async findPurchaseById(id: string, dbOrTx?: DBContext): Promise<any | null> {
         const client = (dbOrTx as any) || db;
-        const [result] = await client.select().from(purchases).where(eq(purchases.id, id));
-        return result || null;
+        return await client.query.purchases.findFirst({
+            where: eq(purchases.id, id)
+        });
     }
 }
 
 export class CommissionPaymentRepositoryAdapter implements ICommissionPaymentRepository {
-    async create(data: any, dbOrTx?: DBContext): Promise<{ id: string }> {
+    async create(data: Partial<AccountingCommissionPaymentDTO>, dbOrTx?: DBContext): Promise<{ id: string }> {
         const client = (dbOrTx as any) || db;
         const [result] = await client.insert(commissionPayments).values(data).returning({ id: commissionPayments.id });
         return result;
     }
 
-    async findHistory(technicianId?: string, period?: string, dbOrTx?: DBContext): Promise<any[]> {
+    async findHistory(technicianId?: string, period?: string, dbOrTx?: DBContext): Promise<AccountingCommissionPaymentDTO[]> {
         const client = (dbOrTx as any) || db;
-        const conditions = [];
+        let conditions = [];
         if (technicianId) conditions.push(eq(commissionPayments.technicianId, technicianId));
         if (period) conditions.push(eq(commissionPayments.period, period));
 
-        const query = client.select().from(commissionPayments).orderBy(desc(commissionPayments.paidAt));
-        if (conditions.length > 0) {
-            return await query.where(and(...conditions));
-        }
-        return await query;
+        const results = await client.query.commissionPayments.findMany({
+            where: conditions.length > 0 ? and(...conditions) : undefined,
+            orderBy: [desc(commissionPayments.createdAt)]
+        });
+        return results.map(mapToAccountingCommissionPaymentDTO);
     }
 
     async getPaidServiceIds(period: string, dbOrTx?: DBContext): Promise<Set<string>> {
         const client = (dbOrTx as any) || db;
-        const results = await client.select({ serviceIds: commissionPayments.serviceIds })
-            .from(commissionPayments)
-            .where(eq(commissionPayments.period, period));
+        const results = await client.query.commissionPayments.findMany({
+            where: eq(commissionPayments.period, period)
+        });
 
-        const paidServiceIds = new Set<string>();
-        for (const row of results) {
-            const ids = row.serviceIds as string[];
-            if (ids) {
-                ids.forEach(id => paidServiceIds.add(id));
-            }
+        const ids = new Set<string>();
+        for (const r of results) {
+            const serviceIds = (r.serviceIds as string[]) || [];
+            serviceIds.forEach(id => ids.add(id));
         }
-        return paidServiceIds;
+        return ids;
     }
 }

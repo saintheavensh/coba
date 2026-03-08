@@ -14,14 +14,14 @@ export interface IPurchaseEvent {
 }
 
 export interface PurchaseItemProps {
-    id?: string;
+    id?: string | undefined;
     productId: string;
-    variantId?: string;
+    variantId?: string | undefined;
     qtyOrdered: number;
     qtyReceived: number;
     buyPrice: number;
     sellPrice: number;
-    batchId?: string;
+    batchId?: string | undefined;
 }
 
 export class PurchaseItem {
@@ -76,23 +76,23 @@ export class PurchaseItem {
 export interface PurchaseOrderProps {
     id: string;
     supplierId: string;
-    userId?: string;
+    userId?: string | undefined;
     totalAmount: number;
     status: PurchaseStatus;
     items: PurchaseItem[];
-    date?: Date;
-    referenceNumber?: string;
-    notes?: string;
-    receivedAt?: Date;
-    receivedBy?: string;
-    verifiedAt?: Date;
-    verifiedBy?: string;
-    cancelledAt?: Date;
-    cancelledBy?: string;
-    shippingFee?: number;
-    discountAmount?: number;
-    shippingExpenseAccountId?: string;
-    paymentDueDate?: Date;
+    date?: Date | undefined;
+    referenceNumber?: string | undefined;
+    notes?: string | undefined;
+    receivedAt?: Date | undefined;
+    receivedBy?: string | undefined;
+    verifiedAt?: Date | undefined;
+    verifiedBy?: string | undefined;
+    cancelledAt?: Date | undefined;
+    cancelledBy?: string | undefined;
+    shippingFee?: number | undefined;
+    discountAmount?: number | undefined;
+    shippingExpenseAccountId?: string | undefined;
+    paymentDueDate?: Date | undefined;
 }
 
 export class PurchaseOrder {

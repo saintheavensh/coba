@@ -57,7 +57,7 @@ export class HarvestPartUseCase {
             technicianId: input.technicianId,
             harvestDate: new Date(),
             newBatchId: batchId,
-            notes: input.notes
+            notes: input.notes ?? undefined
         });
 
         // 4. Update Source Status (Optional logic: if dead phone is fully consumed)

@@ -1,6 +1,8 @@
+import { inject, injectable } from "inversify";
 import { DBContext } from "../../../../shared/types/db-context";
 import { ICategoryRepository } from "../../domain";
 import { generateId, ID_PREFIX } from "../../../../shared/utils/validation/IdGenerator";
+import { TYPES } from "../../types";
 
 export interface CreateCategoryInput {
     name: string;
@@ -9,8 +11,11 @@ export interface CreateCategoryInput {
     variants?: string[];
 }
 
+@injectable()
 export class CreateCategoryUseCase {
-    constructor(private repository: ICategoryRepository) { }
+    constructor(
+        @inject(TYPES.ICategoryRepository) private readonly repository: ICategoryRepository
+    ) { }
 
     async execute(data: CreateCategoryInput, dbOrTx?: DBContext) {
         const id = generateId(ID_PREFIX.CATEGORY);

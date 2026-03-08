@@ -50,13 +50,13 @@ export class SettingsService {
         });
     }
 
-    async getServiceSettings(dbOrTx?: any) {
+    async getServiceSettings(_dbOrTx?: any) {
         return await this.get<{ warrantyPresets: { label: string, days: number }[] }>("service", {
             warrantyPresets: []
         });
     }
 
-    async getPaymentMethods(dbOrTx?: any) {
+    async getPaymentMethods(_dbOrTx?: any) {
         return await this.get("payment_methods", []);
     }
 }

@@ -17,7 +17,8 @@ import {
     AssignTechnicianUseCase,
     UpdateServiceDetailsUseCase,
     PatchServiceUseCase,
-    DeleteServiceUseCase
+    DeleteServiceUseCase,
+    BuildServiceTimelineUseCase
 } from "./application";
 
 // Adapters
@@ -31,7 +32,8 @@ const userGateway = new UserGatewayAdapter();
 // Use Cases
 const getServicesUC = new GetServicesUseCase(repository);
 const getServiceCountsUC = new GetServiceCountsUseCase(repository);
-const getServiceByIdUC = new GetServiceByIdUseCase(repository);
+const buildTimelineUC = new BuildServiceTimelineUseCase();
+const getServiceByIdUC = new GetServiceByIdUseCase(repository, buildTimelineUC);
 const getTechnicianDashboardStatsUC = new GetTechnicianDashboardStatsUseCase(repository);
 const createServiceUC = new CreateServiceUseCase(repository, accountingGateway, notificationGateway, db as any);
 const updateServiceStatusUC = new UpdateServiceStatusUseCase(repository, accountingGateway, inventoryGateway, notificationGateway, db as any);
@@ -44,7 +46,7 @@ const deleteServiceUC = new DeleteServiceUseCase(repository);
  * ServiceApplicationService — Facade for external and presentation layers.
  */
 export class ServiceApplicationService {
-    async getAll(params: { status?: string; technicianId?: string }) {
+    async getAll(params: { status?: string | undefined; technicianId?: string | undefined }) {
         return await getServicesUC.execute(params);
     }
 

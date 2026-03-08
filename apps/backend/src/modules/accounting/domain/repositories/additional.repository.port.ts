@@ -1,6 +1,13 @@
 import { DBContext } from "../../../../shared/types/db-context";
 import { CashRegister, CashTransaction } from "../entities/cash-register.entity";
 import { FixedAsset, DepreciationEntry } from "../entities/asset.entity";
+import {
+    RegisterSummaryDTO,
+    TodayProgressDTO,
+    RevenueTargetDTO,
+    AccountingPurchasePaymentDTO,
+    AccountingCommissionPaymentDTO
+} from "../../../../shared/dtos/repositories/accounting";
 
 export interface ICashRegisterRepository {
     getCurrent(dbOrTx?: DBContext): Promise<CashRegister | null>;
@@ -11,8 +18,8 @@ export interface ICashRegisterRepository {
 
     createTransaction(data: Partial<CashTransaction>, dbOrTx?: DBContext): Promise<void>;
     getTransactions(registerId: string, dbOrTx?: DBContext): Promise<CashTransaction[]>;
-    getSummary(registerId: string, dbOrTx?: DBContext): Promise<any>;
-    getTodayProgress(dbOrTx?: DBContext): Promise<any>;
+    getSummary(registerId: string, dbOrTx?: DBContext): Promise<RegisterSummaryDTO>;
+    getTodayProgress(dbOrTx?: DBContext): Promise<TodayProgressDTO>;
 }
 
 export interface IAssetRepository {
@@ -27,20 +34,20 @@ export interface IAssetRepository {
 }
 
 export interface IRevenueTargetRepository {
-    findByMonth(month: string, dbOrTx?: DBContext): Promise<any | null>;
-    upsert(month: string, data: any, dbOrTx?: DBContext): Promise<void>;
+    findByMonth(month: string, dbOrTx?: DBContext): Promise<RevenueTargetDTO | null>;
+    upsert(month: string, data: Partial<RevenueTargetDTO>, dbOrTx?: DBContext): Promise<void>;
 }
 
 export interface IPurchasePaymentRepository {
-    findById(id: string, dbOrTx?: DBContext): Promise<any | null>;
-    create(data: any, dbOrTx?: DBContext): Promise<{ id: string }>;
+    findById(id: string, dbOrTx?: DBContext): Promise<AccountingPurchasePaymentDTO | null>;
+    create(data: Partial<AccountingPurchasePaymentDTO>, dbOrTx?: DBContext): Promise<{ id: string }>;
     getTotalPaid(purchaseId: string, dbOrTx?: DBContext): Promise<number>;
-    findHistoryByPurchaseId(purchaseId: string, dbOrTx?: DBContext): Promise<any[]>;
+    findHistoryByPurchaseId(purchaseId: string, dbOrTx?: DBContext): Promise<AccountingPurchasePaymentDTO[]>;
     findPurchaseById(id: string, dbOrTx?: DBContext): Promise<any | null>;
 }
 
 export interface ICommissionPaymentRepository {
-    create(data: any, dbOrTx?: DBContext): Promise<{ id: string }>;
-    findHistory(technicianId?: string, period?: string, dbOrTx?: DBContext): Promise<any[]>;
+    create(data: Partial<AccountingCommissionPaymentDTO>, dbOrTx?: DBContext): Promise<{ id: string }>;
+    findHistory(technicianId?: string, period?: string, dbOrTx?: DBContext): Promise<AccountingCommissionPaymentDTO[]>;
     getPaidServiceIds(period: string, dbOrTx?: DBContext): Promise<Set<string>>;
 }

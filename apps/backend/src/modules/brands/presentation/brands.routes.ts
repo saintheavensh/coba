@@ -1,11 +1,12 @@
 import { Hono } from "hono";
+import { AppVariables } from "../../../shared/types/app-context";
 import { z } from "@hono/zod-openapi";
 import { zValidator } from "@hono/zod-validator";
 import { BrandsController } from "./brands.controller";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
 import { permissionGuard } from "../../../middlewares/permission.middleware";
 
-export const brands = new Hono();
+export const brands = new Hono<{ Variables: AppVariables }>();
 const controller = new BrandsController();
 
 const createBrandSchema = z.object({

@@ -10,7 +10,7 @@ const getStoreDeviceFacade = (): StoreDeviceFacade => {
 };
 
 export const storeDeviceFacade = new Proxy({} as StoreDeviceFacade, {
-    get: (target, prop) => {
+    get: (_target, prop) => {
         const facade = getStoreDeviceFacade();
         const value = (facade as any)[prop];
         if (typeof value === 'function') {

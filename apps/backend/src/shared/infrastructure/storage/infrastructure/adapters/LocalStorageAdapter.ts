@@ -2,7 +2,6 @@ import { v4 as uuidv4 } from "uuid";
 import { join } from "path";
 import * as fs from "node:fs";
 import { IStorageService, FileEntity } from "../../domain";
-import { appConfig } from "../../../../infrastructure/config/AppConfig";
 
 export class LocalStorageAdapter implements IStorageService {
     async upload(file: File, folder?: string): Promise<FileEntity> {

@@ -1,5 +1,6 @@
 import { IPurchaseRepository, INotificationGateway } from "../../domain/purchase-repository.port";
 import { db } from "../../../../db";
+import { DBContext } from "../../../../shared/types/db-context";
 
 export interface ReceiveGoodsDto {
     purchaseId: string;
@@ -17,11 +18,11 @@ export class ReceiveGoodsUseCase {
         private notificationGateway: INotificationGateway
     ) { }
 
-    async execute(dto: ReceiveGoodsDto, dbOrTx?: any): Promise<{ message: string; id: string; hasDiscrepancy: boolean }> {
-        const effectiveDb = dbOrTx || db;
+    async execute(dto: ReceiveGoodsDto, dbOrTx?: DBContext): Promise<{ message: string; id: string; hasDiscrepancy: boolean }> {
+        const client = dbOrTx || db;
 
-        return await effectiveDb.transaction(async (tx: any) => {
-            const purchase = await this.purchaseRepo.findById(dto.purchaseId);
+        return await client.transaction(async (tx) => {
+            const purchase = await this.purchaseRepo.findById(dto.purchaseId, tx);
             if (!purchase) {
                 throw new Error(`Purchase order ${dto.purchaseId} not found`);
             }

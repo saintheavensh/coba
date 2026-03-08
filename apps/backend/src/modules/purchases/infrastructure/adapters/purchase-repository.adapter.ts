@@ -1,12 +1,14 @@
 import { db } from "../../../../db";
+import { DBContext } from "../../../../shared/types/db-context";
 import { purchases, purchaseItems } from "../../../../db/schema";
 import { eq } from "drizzle-orm";
 import { IPurchaseRepository } from "../../domain/purchase-repository.port";
 import { PurchaseOrder, PurchaseItem, PurchaseStatus } from "../../domain/entities/purchase.entity";
 
 export class PurchaseRepositoryAdapter implements IPurchaseRepository {
-    async findById(id: string): Promise<PurchaseOrder | null> {
-        const result = await db.query.purchases.findFirst({
+    async findById(id: string, dbOrTx?: DBContext): Promise<PurchaseOrder | null> {
+        const client = dbOrTx || db;
+        const result = await client.query.purchases.findFirst({
             where: eq(purchases.id, id),
             with: {
                 items: true
@@ -50,18 +52,18 @@ export class PurchaseRepositoryAdapter implements IPurchaseRepository {
         });
     }
 
-    async save(purchase: PurchaseOrder, dbOrTx?: any): Promise<void> {
+    async save(purchase: PurchaseOrder, dbOrTx?: DBContext): Promise<void> {
         const client = dbOrTx || db;
         const snapshot = purchase.toSnapshot();
 
-        await client.transaction(async (tx: any) => {
+        await client.transaction(async (tx) => {
             // Upsert Purchase Header
             await tx.insert(purchases).values({
                 id: snapshot.id,
                 supplierId: snapshot.supplierId,
                 userId: snapshot.userId,
                 totalAmount: snapshot.totalAmount,
-                status: snapshot.status,
+                status: snapshot.status as any,
                 date: snapshot.date,
                 referenceNumber: snapshot.referenceNumber,
                 notes: snapshot.notes,
@@ -78,7 +80,7 @@ export class PurchaseRepositoryAdapter implements IPurchaseRepository {
             }).onConflictDoUpdate({
                 target: purchases.id,
                 set: {
-                    status: snapshot.status,
+                    status: snapshot.status as any,
                     totalAmount: snapshot.totalAmount,
                     receivedAt: snapshot.receivedAt,
                     receivedBy: snapshot.receivedBy,
@@ -118,9 +120,10 @@ export class PurchaseRepositoryAdapter implements IPurchaseRepository {
         });
     }
 
-    async findAll(filters?: any): Promise<PurchaseOrder[]> {
+    async findAll(_filters?: any, dbOrTx?: DBContext): Promise<PurchaseOrder[]> {
+        const client = dbOrTx || db;
         // Implementation for listing (simplified for now)
-        const results = await db.query.purchases.findMany({
+        const results = await client.query.purchases.findMany({
             with: {
                 items: true
             },
@@ -155,7 +158,7 @@ export class PurchaseRepositoryAdapter implements IPurchaseRepository {
         });
     }
 
-    async delete(id: string, dbOrTx?: any): Promise<void> {
+    async delete(id: string, dbOrTx?: DBContext): Promise<void> {
         const client = dbOrTx || db;
         await client.delete(purchaseItems).where(eq(purchaseItems.purchaseId, id));
         await client.delete(purchases).where(eq(purchases.id, id));

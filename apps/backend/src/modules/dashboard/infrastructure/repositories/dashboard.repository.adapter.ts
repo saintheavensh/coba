@@ -1,8 +1,69 @@
 import { db } from "../../../../db";
 import { activityLogs, saleItems, products, services, users, purchases } from "../../../../db/schema";
 import { desc, eq, sql, and, gte, inArray } from "drizzle-orm";
-import { DBContext } from "../../../../shared/types/db-context";
 import { IDashboardRepository } from "../../domain/repositories/dashboard.repository.port";
+import {
+    RecentActivityDTO,
+    DashboardServiceTicketDTO,
+    CashierDashboardStatsDTO,
+    WarehouseDashboardStatsDTO,
+    DashboardTopProductDTO,
+    DashboardPurchaseDTO,
+    DashboardProductDTO
+} from "../../../../shared/dtos/repositories/dashboard";
+
+type ServiceRow = typeof services.$inferSelect;
+type ProductRow = typeof products.$inferSelect;
+
+function mapToRecentActivityDTO(row: any): RecentActivityDTO {
+    return {
+        id: row.id,
+        user: row.user,
+        action: row.action,
+        description: row.description,
+        time: row.time,
+        entityType: row.entityType
+    };
+}
+
+function mapToDashboardServiceTicketDTO(row: ServiceRow): DashboardServiceTicketDTO {
+    return {
+        id: row.id,
+        no: row.no,
+        customerName: row.customer.name,
+        deviceName: `${row.device.brand} ${row.device.model}`,
+        status: row.status || "antrian",
+        dateIn: row.dateIn || new Date(),
+        estimatedCompletionDate: row.estimatedCompletionDate
+    };
+}
+
+function mapToDashboardPurchaseDTO(row: any): DashboardPurchaseDTO {
+    return {
+        id: row.id,
+        supplierId: row.supplierId,
+        totalAmount: Number(row.totalAmount),
+        status: row.status,
+        date: row.date,
+        supplier: {
+            id: row.supplier?.id || row.supplierId,
+            name: row.supplier?.name || "Unknown"
+        },
+        user: row.user ? {
+            id: row.user.id,
+            name: row.user.name
+        } : null
+    };
+}
+
+function mapToDashboardProductDTO(row: ProductRow): DashboardProductDTO {
+    return {
+        id: row.id,
+        name: row.name,
+        stock: row.stock,
+        minStock: row.minStock || 0
+    };
+}
 
 export class DashboardRepositoryAdapter implements IDashboardRepository {
     async getActiveServicesCount(dbOrTx: any = db): Promise<number> {
@@ -33,8 +94,8 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
         return Number(result[0].count);
     }
 
-    async getTopProducts(limit = 10, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.select({
+    async getTopProducts(limit = 10, dbOrTx: any = db): Promise<DashboardTopProductDTO[]> {
+        const results = await dbOrTx.select({
             id: products.id,
             name: products.name,
             sold: sql<number>`sum(${saleItems.qty})`
@@ -44,10 +105,16 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
             .groupBy(products.id)
             .orderBy(desc(sql`sum(${saleItems.qty})`))
             .limit(limit);
+
+        return results.map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            sold: Number(r.sold || 0)
+        }));
     }
 
-    async getRecentActivities(limit: number, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.select({
+    async getRecentActivities(limit: number, dbOrTx: any = db): Promise<RecentActivityDTO[]> {
+        const results = await dbOrTx.select({
             id: activityLogs.id,
             user: users.name,
             action: activityLogs.action,
@@ -59,17 +126,20 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
             .leftJoin(users, eq(activityLogs.userId, users.id))
             .orderBy(desc(activityLogs.createdAt))
             .limit(limit);
+
+        return results.map(mapToRecentActivityDTO);
     }
 
-    async getRecentServices(limit: number, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.query.services.findMany({
+    async getRecentServices(limit: number, dbOrTx: any = db): Promise<DashboardServiceTicketDTO[]> {
+        const results = await dbOrTx.query.services.findMany({
             orderBy: [desc(services.dateIn)],
             limit: limit
         });
+        return results.map(mapToDashboardServiceTicketDTO);
     }
 
-    async getUrgentServices(limit: number, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.query.services.findMany({
+    async getUrgentServices(limit: number, dbOrTx: any = db): Promise<DashboardServiceTicketDTO[]> {
+        const results = await dbOrTx.query.services.findMany({
             where: and(
                 sql`${services.status} NOT IN ('selesai', 'diambil', 'batal')`,
                 sql`${services.estimatedCompletionDate} IS NOT NULL`
@@ -77,20 +147,22 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
             orderBy: [sql`${services.estimatedCompletionDate} ASC`],
             limit: limit
         });
+        return results.map(mapToDashboardServiceTicketDTO);
     }
 
-    async getTechnicianJobs(technicianId: string, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.query.services.findMany({
+    async getTechnicianJobs(technicianId: string, dbOrTx: any = db): Promise<DashboardServiceTicketDTO[]> {
+        const results = await dbOrTx.query.services.findMany({
             where: and(
                 eq(services.technicianId, technicianId),
                 sql`${services.status} NOT IN ('selesai', 'diambil', 'batal')`
             ),
             orderBy: [desc(services.dateIn)]
         });
+        return results.map(mapToDashboardServiceTicketDTO);
     }
 
-    async getTechnicianQueue(limit: number = 10, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.query.services.findMany({
+    async getTechnicianQueue(limit: number = 10, dbOrTx: any = db): Promise<DashboardServiceTicketDTO[]> {
+        const results = await dbOrTx.query.services.findMany({
             where: and(
                 eq(services.status, 'antrian'),
                 sql`${services.technicianId} IS NULL`
@@ -98,6 +170,7 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
             orderBy: [desc(services.dateIn)],
             limit: limit
         });
+        return results.map(mapToDashboardServiceTicketDTO);
     }
 
     async getTechnicianStats(technicianId: string, startOfDay: Date, dbOrTx: any = db): Promise<{ completedToday: number; inProgress: number }> {
@@ -122,7 +195,7 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
         };
     }
 
-    async getCashierStats(startOfDay: Date, dbOrTx: any = db): Promise<any> {
+    async getCashierStats(startOfDay: Date, dbOrTx: any = db): Promise<CashierDashboardStatsDTO> {
         const readyPickup = await dbOrTx.query.services.findMany({
             where: eq(services.status, 'selesai'),
             orderBy: [desc(services.dateIn)],
@@ -150,16 +223,16 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
             .where(sql`${services.status} IN ('konfirmasi', 're-konfirmasi')`);
 
         return {
-            readyPickup,
+            readyPickup: readyPickup.map(mapToDashboardServiceTicketDTO),
             pickedUpToday: Number(pickedUpToday[0]?.count || 0),
             revenueToday: Number(revenueToday[0]?.total || 0),
             pendingConfirm: Number(pendingConfirm[0]?.count || 0)
         };
     }
 
-    async getWarehouseStats(dbOrTx: any = db): Promise<any> {
+    async getWarehouseStats(dbOrTx: any = db): Promise<WarehouseDashboardStatsDTO> {
         const totalProducts = await dbOrTx.select({ count: sql<number>`count(*)` }).from(products);
-        const lowStock = await this.getLowStockCount(dbOrTx);
+        const lowStockCount = await this.getLowStockCount(dbOrTx);
 
         const pendingPurchases = await dbOrTx.select({ count: sql<number>`count(*)` })
             .from(purchases)
@@ -167,13 +240,13 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
 
         return {
             totalProducts: Number(totalProducts[0]?.count || 0),
-            lowStock: Number(lowStock || 0),
+            lowStock: Number(lowStockCount || 0),
             pendingPurchases: Number(pendingPurchases[0]?.count || 0)
         };
     }
 
-    async getIncomingOrders(limit = 5, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.query.purchases.findMany({
+    async getIncomingOrders(limit = 5, dbOrTx: any = db): Promise<DashboardPurchaseDTO[]> {
+        const results = await dbOrTx.query.purchases.findMany({
             where: eq(purchases.status, "ORDERED"),
             with: {
                 supplier: true,
@@ -182,18 +255,20 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
             orderBy: [desc(purchases.date)],
             limit
         });
+        return results.map(mapToDashboardPurchaseDTO);
     }
 
-    async getLowStockProducts(limit = 10, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.select()
+    async getLowStockProducts(limit = 10, dbOrTx: any = db): Promise<DashboardProductDTO[]> {
+        const results = await dbOrTx.select()
             .from(products)
             .where(sql`${products.stock} <= ${products.minStock}`)
             .orderBy(products.stock)
             .limit(limit);
+        return results.map(mapToDashboardProductDTO);
     }
 
-    async getProcurementTasks(limit = 5, dbOrTx: any = db): Promise<any[]> {
-        return await dbOrTx.query.purchases.findMany({
+    async getProcurementTasks(limit = 5, dbOrTx: any = db): Promise<DashboardPurchaseDTO[]> {
+        const results = await dbOrTx.query.purchases.findMany({
             where: inArray(purchases.status, ["ORDERED", "RECEIVED"]),
             with: {
                 supplier: true,
@@ -202,5 +277,6 @@ export class DashboardRepositoryAdapter implements IDashboardRepository {
             orderBy: [desc(purchases.date)],
             limit
         });
+        return results.map(mapToDashboardPurchaseDTO);
     }
 }

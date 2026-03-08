@@ -9,10 +9,10 @@ export interface Approval {
     requestedById: string;
     requestedAt: Date;
     status: ApprovalStatus;
-    approvedById?: string;
-    approvedAt?: Date;
-    reason?: string;
-    data?: any;
+    approvedById?: string | undefined;
+    approvedAt?: Date | undefined;
+    reason?: string | undefined;
+    data?: any | undefined;
 }
 
 export interface IApprovalRepository {

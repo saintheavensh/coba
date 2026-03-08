@@ -6,9 +6,8 @@ import type { IProductRepository } from "../../domain/ports/IProductRepository";
 import { UpdateProductDTO } from "../dtos/UpdateProductDTO";
 import { ProductDTO } from "../dtos/ProductDTO";
 import { Price } from "../../domain/value-objects/Price.vo";
-import { ProductStatus, Status } from "../../domain/value-objects/ProductStatus.vo";
+import { Status } from "../../domain/value-objects/ProductStatus.vo";
 import { ProductMapper } from "../mappers/ProductMapper";
-import { Logger, LoggerFactory } from "../../../../shared/utils/logger/Logger";
 
 interface UpdateProductRequest {
     id: string;
@@ -21,15 +20,12 @@ interface UpdateProductRequest {
  */
 @injectable()
 export class UpdateProductUseCase implements UseCase<UpdateProductRequest, Result<ProductDTO>> {
-    private logger: Logger;
     constructor(
         @inject(TYPES.IProductRepository) private readonly productRepo: IProductRepository,
-        @inject(TYPES.LoggerFactory) private loggerFactory: LoggerFactory
     ) {
-        this.logger = loggerFactory.createLogger('UpdateProductUseCase');
     }
 
-    public async execute(request: UpdateProductRequest, context?: { requestId?: string; userId?: string }): Promise<Result<ProductDTO>> {
+    public async execute(request: UpdateProductRequest, _context?: { requestId?: string; userId?: string }): Promise<Result<ProductDTO>> {
         // 1. Find product
         const productResult = await this.productRepo.findById(request.id);
         if (productResult.isFailure) {

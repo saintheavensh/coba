@@ -1,14 +1,11 @@
-/**
- * Use case: Reverse stock changes from a deleted/cancelled purchase.
- * Called by the purchases module during purchase deletion.
- */
+import { DBContext } from "../../../../shared/types/db-context";
 import type { IStockMutationGateway } from "../../domain/stock-mutation-gateway.port";
 import type { ReverseStockInput } from "../../domain/stock.types";
 
 export class ReverseStockUseCase {
     constructor(private readonly stockGateway: IStockMutationGateway) { }
 
-    async execute(input: ReverseStockInput, dbOrTx: unknown): Promise<void> {
+    async execute(input: ReverseStockInput, dbOrTx?: DBContext): Promise<void> {
         const affectedProductIds = new Set<string>();
 
         for (const item of input.items) {

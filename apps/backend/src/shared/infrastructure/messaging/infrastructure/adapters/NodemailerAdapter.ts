@@ -1,13 +1,11 @@
 import type { INotificationService } from "../../domain";
 import { Result } from "../../../../core/Result";
-import { injectable, inject } from "inversify";
-import { TYPES } from "../../types";
-import { appConfig } from "../../../../infrastructure/config/AppConfig";
+import { injectable } from "inversify";
 import { Logger } from "../../../../utils/logger/Logger";
 
 @injectable()
 export class NodemailerAdapter implements INotificationService {
-    async sendEmail(to: string, subject: string, body: string): Promise<Result<void>> {
+    async sendEmail(to: string, subject: string, _body: string): Promise<Result<void>> {
         try {
             new Logger("Legacy").info(`[Email] Sending to ${to}: ${subject}`);
             // Implementation would go here using nodemailer
@@ -18,7 +16,7 @@ export class NodemailerAdapter implements INotificationService {
         }
     }
 
-    async sendPush(userId: string, title: string, body: string): Promise<Result<void>> {
+    async sendPush(userId: string, title: string, _body: string): Promise<Result<void>> {
         try {
             new Logger("Legacy").info(`[Push] Sending to ${userId}: ${title}`);
             // Implementation would go here using OneSignal/Firebase

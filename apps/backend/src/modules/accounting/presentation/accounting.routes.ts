@@ -1,12 +1,13 @@
 import { Hono } from "hono";
+import { AppVariables } from "../../../shared/types/app-context";
 import { z } from "@hono/zod-openapi";
 import { zValidator } from "@hono/zod-validator";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
 import { requireRole } from "../../../middlewares/permission.middleware";
-import { AccountingController } from "./accounting.controller";
+import { accountingController } from "../accounting-container";
 
-const app = new Hono();
-const controller = new AccountingController();
+const app = new Hono<{ Variables: AppVariables }>();
+const controller = accountingController;
 
 app.use("*", authMiddleware);
 app.use("*", requireRole("super_admin", "owner", "manager"));

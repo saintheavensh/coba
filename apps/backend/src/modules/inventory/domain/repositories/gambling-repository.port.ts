@@ -3,15 +3,15 @@ export type DeadPhoneStatus = 'STORED' | 'TESTED' | 'HARVESTED';
 export interface DeadPhonePurchase {
     id: string;
     deviceName: string;
-    imei?: string;
+    imei?: string | undefined;
     purchasePrice: number;
     purchaseDate: Date;
-    supplierId?: string;
-    suspectedIssue?: string;
-    visualCondition?: string;
+    supplierId?: string | undefined;
+    suspectedIssue?: string | undefined;
+    visualCondition?: string | undefined;
     status: DeadPhoneStatus;
-    storageLocation?: string;
-    createdAt?: Date;
+    storageLocation?: string | undefined;
+    createdAt?: Date | undefined;
 }
 
 export interface IGamblingRepository {

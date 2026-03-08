@@ -7,18 +7,10 @@ describe("CreateProductUseCase", () => {
     let useCase: CreateProductUseCase;
     let mockRepo: IProductRepository;
 
-    let mockLoggerFactory: any;
+
 
     beforeEach(() => {
-        mockLoggerFactory = {
-            createLogger: vi.fn().mockReturnValue({
-                info: vi.fn(),
-                error: vi.fn(),
-                debug: vi.fn(),
-                warn: vi.fn(),
-                child: vi.fn().mockReturnThis()
-            })
-        };
+
         mockRepo = {
             save: vi.fn(),
             findById: vi.fn(),
@@ -26,7 +18,7 @@ describe("CreateProductUseCase", () => {
             delete: vi.fn(),
             findActive: vi.fn(),
         } as any;
-        useCase = new CreateProductUseCase(mockRepo, mockLoggerFactory);
+        useCase = new CreateProductUseCase(mockRepo);
     });
 
     it("should create a product successfully", async () => {

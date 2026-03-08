@@ -20,7 +20,8 @@ export class CreateDeviceUseCase {
                 id: brandId,
                 name: normalizedBrand
             });
-            brand = createdBrands[0];
+            const brandEntry = createdBrands[0];
+            brand = brandEntry || null;
         }
 
         // 3. Generate ID if not provided

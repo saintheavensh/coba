@@ -11,7 +11,7 @@ import {
     PaymentStatus
 } from "../../domain";
 import { HTTPException } from "hono/http-exception";
-import { multiplyMoney, sumMoney, computeNetAmount } from "../../../../shared/utils/money";
+import { multiplyMoney, computeNetAmount } from "../../../../shared/utils/money";
 
 export class CreateSaleUseCase {
     constructor(
@@ -24,7 +24,8 @@ export class CreateSaleUseCase {
         private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
     ) { }
 
-    async execute(data: CreateSaleInput): Promise<{ message: string; id: string; change: number }> {
+    async execute(data: CreateSaleInput, dbOrTx?: DBContext): Promise<{ message: string; id: string; change: number }> {
+        const client = dbOrTx || this.db;
         const saleId = "SAL-" + Date.now().toString();
         const subtotal = data.items.reduce((sum, item) => sum + multiplyMoney(item.price, item.qty), 0);
         const discountAmount = data.discountAmount || 0;
@@ -58,7 +59,7 @@ export class CreateSaleUseCase {
 
         // Determine Payment Status & Method String
         let paymentMethodStr: PaymentMethodType = "mixed";
-        if (data.payments.length === 1) {
+        if (data.payments.length === 1 && data.payments[0]) {
             const m = data.payments[0].method.toLowerCase();
             if (m.includes("cash") || m.includes("tunai")) paymentMethodStr = "cash";
             else if (m.includes("transfer")) paymentMethodStr = "transfer";
@@ -164,20 +165,22 @@ export class CreateSaleUseCase {
 
             // 5. Accounting logic
             let debitAccountId = "1-1000";
-            if (paymentStatus === "paid") {
+            if (paymentStatus === "paid" && data.payments.length > 0) {
                 const methodConfig = await this.settingsGateway.getPaymentMethods(tx);
                 const payment = data.payments[0];
-                const methodDef = methodConfig?.methods.find((m: any) => m.id === payment.methodId || m.name === payment.method);
+                if (payment) {
+                    const methodDef = methodConfig?.methods.find((m: any) => m.id === payment.methodId || m.name === payment.method);
 
-                if (methodDef) {
-                    const variantDef = methodDef.variants?.find((v: any) => v.id === payment.variantId || v.name === payment.variantName);
-                    if (variantDef?.accountId) {
-                        debitAccountId = variantDef.accountId;
-                    } else if (methodDef.accountId) {
-                        debitAccountId = methodDef.accountId;
-                    } else {
-                        if (methodDef.type === "cash") debitAccountId = "1-1001";
-                        else if (["transfer", "qris", "ewallet"].includes(methodDef.type)) debitAccountId = "1-1000";
+                    if (methodDef) {
+                        const variantDef = methodDef.variants?.find((v: any) => v.id === payment.variantId || v.name === payment.variantName);
+                        if (variantDef?.accountId) {
+                            debitAccountId = variantDef.accountId;
+                        } else if (methodDef.accountId) {
+                            debitAccountId = methodDef.accountId;
+                        } else {
+                            if (methodDef.type === "cash") debitAccountId = "1-1001";
+                            else if (["transfer", "qris", "ewallet"].includes(methodDef.type)) debitAccountId = "1-1000";
+                        }
                     }
                 }
             } else {
@@ -236,7 +239,7 @@ export class CreateSaleUseCase {
             return { id: saleId };
         };
 
-        const result = await this.db.transaction(runInTransaction);
+        const result = await client.transaction(runInTransaction);
 
         let change = 0;
         if (!data.payments.some(p => p.methodId === "PM-TEMPO" || p.method.toLowerCase().includes("tempo"))) {

@@ -1,7 +1,7 @@
 import { DBContext } from "../../../../shared/types/db-context";
-import { IJournalRepository, IAccountRepository, JournalLine, JournalReferenceType } from "../../domain";
+import { IJournalRepository, IAccountRepository } from "../../domain";
 import { AuditService } from "../../services/audit.service";
-import { sql } from "drizzle-orm"; // We'll need this for atomic updates in the adapter, but here we just pass data
+
 
 export interface JournalLineInput {
     accountId: string;
@@ -50,8 +50,8 @@ export class CreateJournalUseCase {
             id: journalId,
             date: input.date || new Date(),
             description: input.description,
-            referenceType: input.referenceType,
-            referenceId: input.referenceId,
+            referenceType: input.referenceType || undefined,
+            referenceId: input.referenceId || undefined,
             status: "posted",
             totalDebit,
             totalCredit,
@@ -67,7 +67,7 @@ export class CreateJournalUseCase {
                 accountId: line.accountId,
                 debit: line.debit,
                 credit: line.credit,
-                description: line.description,
+                description: line.description || undefined,
             }, dbOrTx);
 
             await this.updateAccountBalance(line.accountId, line.debit, line.credit, dbOrTx);
@@ -79,7 +79,7 @@ export class CreateJournalUseCase {
             entityType: "journal",
             entityId: journalId,
             tableName: "journals",
-            newValues: { description: input.description, total: totalDebit, referenceType: input.referenceType },
+            newValues: { description: input.description, total: totalDebit, referenceType: input.referenceType || undefined },
         });
 
         return journalId;

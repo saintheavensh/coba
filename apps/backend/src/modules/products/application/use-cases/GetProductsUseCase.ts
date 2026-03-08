@@ -3,28 +3,25 @@ import { UseCase } from "../../../../shared/core/UseCase";
 import { Result } from "../../../../shared/core/Result";
 import { TYPES } from "../../types";
 import type { IProductRepository } from "../../domain/ports/IProductRepository";
-import { Logger, LoggerFactory } from "../../../../shared/utils/logger/Logger";
-import { ProductDTO } from "../dtos/ProductDTO";
 import { ProductMapper } from "../mappers/ProductMapper";
 
-interface GetProductsRequest {
-    search?: string;
-    categoryId?: string;
-    page?: number;
-    limit?: number;
+import { ProductDTO } from "../dtos/ProductDTO";
+import { PaginatedResult } from "../../../../shared/application/pagination/Pagination";
+
+export interface GetProductsRequest {
+    search?: string | undefined;
+    categoryId?: string | undefined;
+    page?: number | undefined;
+    limit?: number | undefined;
 }
 
 @injectable()
-export class GetProductsUseCase implements UseCase<GetProductsRequest, Result<any>> {
-    private logger: Logger;
+export class GetProductsUseCase implements UseCase<GetProductsRequest, Result<PaginatedResult<ProductDTO>>> {
     constructor(
-        @inject(TYPES.IProductRepository) private readonly productRepo: IProductRepository,
-        @inject(TYPES.LoggerFactory) private loggerFactory: LoggerFactory
-    ) {
-        this.logger = loggerFactory.createLogger('GetProductsUseCase');
-    }
+        @inject(TYPES.IProductRepository) private readonly productRepo: IProductRepository
+    ) { }
 
-    public async execute(request: GetProductsRequest): Promise<Result<any>> {
+    public async execute(request: GetProductsRequest): Promise<Result<PaginatedResult<ProductDTO>>> {
         const page = request.page || 1;
         const limit = request.limit || 50;
 
@@ -43,8 +40,8 @@ export class GetProductsUseCase implements UseCase<GetProductsRequest, Result<an
 
         const paginatedData = result.getValue();
         return Result.ok({
-            data: paginatedData.data.map(p => ProductMapper.toDTO(p)),
-            meta: paginatedData.meta
+            ...paginatedData,
+            data: paginatedData.data.map(p => ProductMapper.toDTO(p))
         });
     }
 }

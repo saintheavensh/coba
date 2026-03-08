@@ -3,10 +3,11 @@ import { DBContext } from "../../../../shared/types/db-context";
 import { db } from "../../../../db";
 import { services, activityLogs, users } from "../../../../db/schema";
 import { IServiceRepository, ServiceTicket } from "../../domain";
+import { ServiceTimelineRowDTO } from "../../../../shared/dtos/repositories/service/ServiceTimelineDTO";
 
 export class ServiceRepositoryAdapter implements IServiceRepository {
-    async findAll(params: { status?: string; technicianId?: string } = {}, dbOrTx?: DBContext): Promise<ServiceTicket[]> {
-        const client = (dbOrTx as any) || db;
+    async findAll(params: { status?: string | undefined; technicianId?: string | undefined } = {}, dbOrTx?: DBContext): Promise<ServiceTicket[]> {
+        const client = dbOrTx || db;
         const conditions = [];
 
         if (params.status) {
@@ -38,7 +39,7 @@ export class ServiceRepositoryAdapter implements IServiceRepository {
     }
 
     async findById(id: string, dbOrTx?: DBContext): Promise<ServiceTicket | null> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         const result = await client.query.services.findFirst({
             where: eq(services.id, id),
             with: {
@@ -60,7 +61,7 @@ export class ServiceRepositoryAdapter implements IServiceRepository {
     }
 
     async findLastServiceNo(prefix: string, dbOrTx?: DBContext): Promise<{ no: string } | null> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         const result = await client.query.services.findFirst({
             where: like(services.no, `${prefix}%`),
             orderBy: [desc(services.id)]
@@ -69,18 +70,21 @@ export class ServiceRepositoryAdapter implements IServiceRepository {
     }
 
     async getCountsByStatus(dbOrTx?: DBContext): Promise<Array<{ status: string; count: number }>> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         const results = await client.select({
             status: services.status,
             count: count()
         })
             .from(services)
             .groupBy(services.status);
-        return results;
+        return results.map(r => ({
+            status: r.status || "antrian",
+            count: Number(r.count)
+        }));
     }
 
     async getTechnicianStats(technicianId: string, start: Date, end: Date, dbOrTx?: DBContext): Promise<ServiceTicket[]> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         const results = await client.query.services.findMany({
             where: (services: any, { and, eq, gte, lte }: any) => and(
                 eq(services.technicianId, technicianId),
@@ -92,18 +96,19 @@ export class ServiceRepositoryAdapter implements IServiceRepository {
     }
 
     async create(data: any, dbOrTx?: DBContext): Promise<{ id: string }> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         const result = await client.insert(services).values(data).returning({ id: services.id });
+        if (!result[0]) throw new Error("Failed to create service");
         return { id: result[0].id };
     }
 
     async update(id: string, data: any, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         await client.update(services).set(data).where(eq(services.id, id));
     }
 
     async delete(id: string, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         const srv = await this.findById(id, dbOrTx);
         if (!srv) return;
 
@@ -112,7 +117,7 @@ export class ServiceRepositoryAdapter implements IServiceRepository {
     }
 
     async logActivity(params: any, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         await client.insert(activityLogs).values({
             ...params,
             oldValue: params.oldValue ? JSON.stringify(params.oldValue) : null,
@@ -120,10 +125,17 @@ export class ServiceRepositoryAdapter implements IServiceRepository {
         });
     }
 
-    async getTimeline(entityId: string, dbOrTx?: DBContext): Promise<any[]> {
-        const client = (dbOrTx as any) || db;
-        const logs = await client.select({
-            log: activityLogs,
+    async getTimeline(entityId: string, dbOrTx?: DBContext): Promise<ServiceTimelineRowDTO[]> {
+        const client = dbOrTx || db;
+        const results = await client.select({
+            id: activityLogs.id,
+            action: activityLogs.action,
+            description: activityLogs.description,
+            entityId: activityLogs.entityId,
+            entityType: activityLogs.entityType,
+            oldValue: activityLogs.oldValue,
+            newValue: activityLogs.newValue,
+            createdAt: activityLogs.createdAt,
             userName: users.name
         })
             .from(activityLogs)
@@ -131,50 +143,16 @@ export class ServiceRepositoryAdapter implements IServiceRepository {
             .where(eq(activityLogs.entityId, entityId))
             .orderBy(desc(activityLogs.createdAt));
 
-        return logs.map(({ log, userName }: any) => {
-            let event = log.description || log.action;
-            let details: any = {};
-
-            if (log.action === 'CREATE') {
-                event = 'Service Dibuat';
-                try {
-                    const data = JSON.parse(log.newValue as string || '{}');
-                    details = {
-                        customer: data.customer?.name,
-                        phone: data.unit ? `${data.unit.brand} ${data.unit.model}` : null,
-                        complaint: data.complaint,
-                        technician: data.technicianId ? 'Assigned' : 'Belum ditugaskan',
-                        isWalkin: data.isWalkin ? 'Walk-in' : 'Regular'
-                    };
-                } catch { }
-            } else if (log.action === 'STATUS_CHANGE') {
-                try {
-                    const oldVal = JSON.parse(log.oldValue as string || '{}');
-                    const newVal = JSON.parse(log.newValue as string || '{}');
-                    event = `Status: ${oldVal.status || '-'} → ${newVal.status}`;
-                    details = { from: oldVal.status, to: newVal.status };
-                } catch {
-                    event = log.description || 'Status changed';
-                }
-            } else if (log.action === 'ASSIGN') {
-                event = 'Teknisi Ditugaskan';
-            } else if (log.action === 'UPDATE') {
-                event = 'Data Diperbarui';
-            }
-
-            return {
-                event,
-                by: userName || 'System',
-                time: log.createdAt?.toLocaleString('id-ID', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                }) || "-",
-                action: log.action,
-                details
-            };
-        });
+        return results.map((r: any) => ({
+            id: r.id,
+            action: r.action,
+            description: r.description,
+            entityId: r.entityId,
+            entityType: r.entityType,
+            oldValue: r.oldValue,
+            newValue: r.newValue,
+            createdAt: r.createdAt,
+            userName: r.userName
+        }));
     }
 }

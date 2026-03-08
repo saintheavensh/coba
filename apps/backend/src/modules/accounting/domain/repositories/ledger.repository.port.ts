@@ -1,12 +1,13 @@
 import { DBContext } from "../../../../shared/types/db-context";
 import { Account, JournalEntry, JournalLine } from "../entities/ledger.entity";
+import { AccountTypeDTO } from "../../../../shared/dtos/repositories/accounting";
 
 export interface IAccountRepository {
     findAll(filters: { typeId?: string }, dbOrTx?: DBContext): Promise<Account[]>;
     findById(id: string, dbOrTx?: DBContext): Promise<Account | null>;
     findByCode(code: string, dbOrTx?: DBContext): Promise<Account | null>;
-    findTypes(dbOrTx?: DBContext): Promise<any[]>;
-    findTypeById(id: string, dbOrTx?: DBContext): Promise<any | null>;
+    findTypes(dbOrTx?: DBContext): Promise<AccountTypeDTO[]>;
+    findTypeById(id: string, dbOrTx?: DBContext): Promise<AccountTypeDTO | null>;
     create(data: Partial<Account>, dbOrTx?: DBContext): Promise<{ id: string }>;
     update(id: string, data: Partial<Account>, dbOrTx?: DBContext): Promise<void>;
     delete(id: string, dbOrTx?: DBContext): Promise<void>;

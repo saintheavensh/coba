@@ -1,7 +1,4 @@
-/**
- * Use case: Add stock from a verified purchase.
- * Called by the purchases module during purchase verification.
- */
+import { DBContext } from "../../../../shared/types/db-context";
 import type { IStockMutationGateway } from "../../domain/stock-mutation-gateway.port";
 import type {
     AddStockFromPurchaseVerificationInput,
@@ -13,12 +10,12 @@ export class AddStockFromPurchaseUseCase {
 
     async execute(
         input: AddStockFromPurchaseVerificationInput,
-        dbOrTx: unknown
+        dbOrTx?: DBContext
     ): Promise<AddStockFromPurchaseVerificationOutput> {
         const allocations: AddStockFromPurchaseVerificationOutput["allocations"] = [];
 
-        for (let i = 0; i < input.items.length; i++) {
-            const item = input.items[i];
+        let i = 0;
+        for (const item of input.items) {
             if (item.qtyReceived <= 0) {
                 throw new Error(`qtyReceived must be > 0 for purchase item ${item.purchaseItemId}`);
             }
@@ -39,6 +36,7 @@ export class AddStockFromPurchaseUseCase {
             await this.stockGateway.updateProductStockDelta(item.productId, item.qtyReceived, dbOrTx);
 
             allocations.push({ purchaseItemId: item.purchaseItemId, batchId });
+            i++;
         }
 
         const productIds = [...new Set(input.items.map(i => i.productId))];

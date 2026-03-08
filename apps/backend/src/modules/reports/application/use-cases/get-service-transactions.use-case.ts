@@ -1,6 +1,6 @@
 import { DBContext } from "../../../../shared/types/db-context";
 import { IReportRepository, ReportFilters, ServiceReport } from "../../domain";
-import { gte, lte, and, desc } from "drizzle-orm";
+import { gte, lte } from "drizzle-orm";
 import { services } from "../../../../db/schema";
 
 export class GetServiceTransactionsUseCase {

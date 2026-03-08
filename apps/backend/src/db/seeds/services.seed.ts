@@ -27,8 +27,7 @@ export async function seedServices() {
     const distribution = [30, 40, 50];
 
     for (let month = 1; month <= 3; month++) {
-        const count = distribution[month - 1];
-
+        const count = distribution[month - 1] ?? 0;
         for (let i = 0; i < count; i++) {
             const date = getMonthDate(month as 1 | 2 | 3, Math.floor(Math.random() * 28));
             const status = randomPick(statuses);

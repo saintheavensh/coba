@@ -2,10 +2,10 @@ import { DBContext } from "../../../../shared/types/db-context";
 import { Device, CreateDeviceData, UpdateDeviceData } from "../entities/device.entity";
 
 export interface IDeviceFilters {
-    search?: string;
-    limit?: number;
-    offset?: number;
-    brand?: string;
+    search?: string | undefined;
+    limit?: number | undefined;
+    offset?: number | undefined;
+    brand?: string | undefined;
 }
 
 export interface IDeviceRepository {

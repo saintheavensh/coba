@@ -1,7 +1,3 @@
-import { db } from "../../../db";
-import { cashRegisters, cashRegisterTransactions } from "../../../db/schema";
-import { eq, and, desc, sql, gte, lte } from "drizzle-orm";
-import { AuditService } from "./audit.service";
 import { accountingService } from "../accounting-container";
 
 export type TransactionType = "sale" | "service" | "expense" | "refund" | "adjustment";

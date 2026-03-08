@@ -1,7 +1,6 @@
 import { db } from "../../../../db";
 import { brands } from "../../../../db/schema";
 import { eq, desc, ilike } from "drizzle-orm";
-import { DBContext } from "../../../../shared/types/db-context";
 import { IBrandRepository, Brand, CreateBrandData, UpdateBrandData } from "../../domain";
 
 export class BrandRepositoryAdapter implements IBrandRepository {

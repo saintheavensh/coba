@@ -1,10 +1,10 @@
 import { db } from "../../../../db";
 import { stockOpnameItems, stockOpnameSessions, products, users } from "../../../../db/schema";
-import { eq, and, desc, not, sql } from "drizzle-orm";
-import { IReportRepository } from "../../domain/repositories/report-repository.port";
+import { eq, and, desc, sql } from "drizzle-orm";
+
 
 export class GetStockAdjustmentsUseCase {
-    constructor(private readonly repository: IReportRepository) { }
+    constructor() { }
 
     async execute() {
         // We join opname items with sessions and products to get full info

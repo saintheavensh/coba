@@ -21,7 +21,7 @@ export class GamblingRepositoryAdapter implements IGamblingRepository {
         return (result as any) || null;
     }
 
-    async findAll(filters?: any): Promise<DeadPhonePurchase[]> {
+    async findAll(_filters?: any): Promise<DeadPhonePurchase[]> {
         return await db.query.deadPhonePurchases.findMany({
             orderBy: [desc(deadPhonePurchases.createdAt)]
         }) as any[];

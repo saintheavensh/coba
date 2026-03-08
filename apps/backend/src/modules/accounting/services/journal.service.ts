@@ -36,7 +36,7 @@ export class JournalService {
         return await accountingService.getJournalById(journalId, dbOrTx);
     }
 
-    static async deleteByReference(type: string, id: string, userId?: string, dbOrTx?: any): Promise<void> {
+    static async deleteByReference(type: string, id: string, dbOrTx?: any): Promise<void> {
         await journalRepo.deleteByReference(type, id, dbOrTx);
     }
 }

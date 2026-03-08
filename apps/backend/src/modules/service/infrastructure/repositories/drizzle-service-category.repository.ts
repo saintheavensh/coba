@@ -2,7 +2,7 @@ import { db } from "../../../../db";
 import { serviceCategories } from "../schema/ServiceSchema";
 import { IServiceCategoryRepository } from "../../domain/repositories/service-category-repository.port";
 import { eq } from "drizzle-orm";
-import { DBContext } from "../../../../shared/types/db-context";
+
 
 export class DrizzleServiceCategoryRepository implements IServiceCategoryRepository {
     async findAll(dbOrTx: any = db): Promise<any[]> {

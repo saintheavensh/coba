@@ -73,14 +73,19 @@ export function getPastDate(daysAgo: number): Date {
  */
 export function getMonthDate(month: 1 | 2 | 3, dayWithin: number): Date {
     const offsets: Record<number, number> = { 1: 60, 2: 30, 3: 0 };
-    return getPastDate(offsets[month] + dayWithin);
+    const baseOffset = offsets[month] ?? 0;
+    return getPastDate(baseOffset + dayWithin);
 }
 
 /**
  * Pick random item from array
  */
 export function randomPick<T>(arr: T[]): T {
-    return arr[Math.floor(Math.random() * arr.length)];
+    const item = arr[Math.floor(Math.random() * arr.length)];
+    if (item === undefined) {
+        throw new Error("Cannot pick from empty array");
+    }
+    return item;
 }
 
 /**

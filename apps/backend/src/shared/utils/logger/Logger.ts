@@ -12,16 +12,16 @@ export interface LogEntry {
         code?: string;
         stack?: string;
     };
-    requestId?: string;
-    userId?: string;
-    duration?: number;
+    requestId?: string | undefined;
+    userId?: string | undefined;
+    duration?: number | undefined;
 }
 
 @injectable()
 export class Logger {
     private context: string;
-    private requestId?: string;
-    private userId?: string;
+    private requestId?: string | undefined;
+    private userId?: string | undefined;
 
     constructor(context: string) {
         this.context = context;
@@ -30,7 +30,7 @@ export class Logger {
     /**
      * Create a child logger with additional context
      */
-    child(additionalContext: Partial<{ requestId: string; userId: string }>): Logger {
+    child(additionalContext: Partial<{ requestId: string | undefined; userId: string | undefined }>): Logger {
         const logger = new Logger(this.context);
         logger.requestId = additionalContext.requestId || this.requestId;
         logger.userId = additionalContext.userId || this.userId;

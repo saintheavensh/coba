@@ -1,4 +1,4 @@
-import { text, integer, timestamp, pgTable, json } from "drizzle-orm/pg-core";
+import { text, timestamp, pgTable, json } from "drizzle-orm/pg-core";
 import { users } from "../../../users/infrastructure/schema/UserSchema";
 import { randomUUID } from "crypto";
 

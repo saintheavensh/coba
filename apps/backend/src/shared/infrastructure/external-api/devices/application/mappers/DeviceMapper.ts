@@ -25,8 +25,8 @@ export interface DeviceStatusDTO {
     deviceId: string;
     status: string;
     lastPingAt: string;
-    batteryLevel?: number;
-    errors?: string[];
+    batteryLevel?: number | undefined;
+    errors?: string[] | undefined;
 }
 
 export class DeviceMapper {

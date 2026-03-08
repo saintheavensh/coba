@@ -16,17 +16,19 @@ export class UpdateServiceStatusUseCase {
         private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
     ) { }
 
-    async execute(id: string, data: { status: string; notes?: string; actualCost?: number; userId: string }): Promise<void> {
-        const srv = await this.repository.findById(id);
-        if (!srv) throw new HTTPException(404, { message: "Service not found" });
+    async execute(id: string, data: { status: string; notes?: string; actualCost?: number; userId: string }, dbOrTx?: DBContext): Promise<void> {
+        const client = dbOrTx || this.db;
 
-        // Check Register for pickup
-        if (data.status === "diambil") {
-            const isOpen = await this.accountingGateway.isRegisterOpen();
-            if (!isOpen) throw new HTTPException(400, { message: "Register Closed. Cannot process pickup/payment." });
-        }
+        await client.transaction(async (tx) => {
+            const srv = await this.repository.findById(id, tx);
+            if (!srv) throw new HTTPException(404, { message: "Service not found" });
 
-        await this.db.transaction(async (tx) => {
+            // Check Register for pickup
+            if (data.status === "diambil") {
+                const isOpen = await this.accountingGateway.isRegisterOpen(tx);
+                if (!isOpen) throw new HTTPException(400, { message: "Register Closed. Cannot process pickup/payment." });
+            }
+
             const updateValues: any = {
                 status: data.status,
                 notes: data.notes,
@@ -102,15 +104,15 @@ export class UpdateServiceStatusUseCase {
             }
         });
 
-        // Notifications
-        if (srv.createdBy) {
-            await this.notificationGateway.serviceStatusChanged(srv.createdBy, srv.no, data.status, String(srv.id));
-        }
-
-        if (data.status === "selesai") {
-            await this.notificationGateway.sendWhatsApp("complete", { ...srv, status: data.status, actualCost: data.actualCost }, { total: data.actualCost });
-        } else {
-            await this.notificationGateway.sendWhatsApp("status", { ...srv, status: data.status }, { status: data.status });
+        // Notifications (after transaction)
+        const finalSrv = await this.repository.findById(id, dbOrTx);
+        if (finalSrv && finalSrv.createdBy) {
+            await this.notificationGateway.serviceStatusChanged(finalSrv.createdBy, finalSrv.no, data.status, String(finalSrv.id));
+            if (data.status === "selesai") {
+                await this.notificationGateway.sendWhatsApp("complete", { ...finalSrv, status: data.status, actualCost: data.actualCost }, { total: data.actualCost });
+            } else {
+                await this.notificationGateway.sendWhatsApp("status", { ...finalSrv, status: data.status }, { status: data.status });
+            }
         }
     }
 }

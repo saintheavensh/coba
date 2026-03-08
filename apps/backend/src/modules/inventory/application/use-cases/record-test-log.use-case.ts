@@ -12,7 +12,7 @@ export interface RecordTestLogInput {
 export class RecordTestLogUseCase {
     constructor(private readonly repository: IGamblingRepository) { }
 
-    async execute(input: RecordTestLogInput, dbOrTx?: DBContext) {
+    async execute(input: RecordTestLogInput, _dbOrTx?: DBContext) {
         // 1. Save Test Log (Repository needs a saveTestLog method)
         // I will add this method to the repository adapter
 

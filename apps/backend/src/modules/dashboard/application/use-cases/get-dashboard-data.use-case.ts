@@ -1,5 +1,6 @@
 import { IDashboardRepository } from "../../domain/repositories/dashboard.repository.port";
 import { DBContext } from "../../../../shared/types/db-context";
+import { DashboardTopProductDTO } from "../../../../shared/dtos/repositories/dashboard";
 
 // We'll define a simple interface for the reports service to avoid direct dependency on the facade if possible,
 // but for now, we'll assume the facade is passed in.
@@ -52,7 +53,7 @@ export class GetDashboardDataUseCase {
             },
             charts: {
                 revenueTrend,
-                topProducts: (topProducts || []).map((p: any) => ({ name: p.name, value: p.sold }))
+                topProducts: topProducts.map((p: DashboardTopProductDTO) => ({ name: p.name, value: p.sold }))
             },
             procurementTasks
         };

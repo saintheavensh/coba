@@ -11,6 +11,9 @@ import { inventoryService } from "./modules/inventory/inventory-container";
 import { customersService } from "./modules/customers/customers-container";
 // For products, we don't have a singleton yet, we'll need to load its container module if it exists
 import { productsContainerModule } from "./modules/products/products-container";
+import { usersContainerModule } from "./modules/users/users-container";
+import { suppliersContainerModule } from "./modules/suppliers/suppliers-container";
+import { categoriesContainerModule } from "./modules/categories/categories.container";
 
 const container = new Container();
 
@@ -18,6 +21,9 @@ const container = new Container();
 container.load(dashboardContainer);
 container.load(deviceContainer);
 container.load(productsContainerModule);
+container.load(usersContainerModule);
+container.load(suppliersContainerModule);
+container.load(categoriesContainerModule);
 container.load(configContainer);
 
 import { CacheService } from "./shared/infrastructure/cache/CacheService";

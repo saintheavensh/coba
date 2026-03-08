@@ -10,16 +10,18 @@ export class CreateOpnameSessionUseCase {
 
     async execute(userId: string, notes?: string, categoryId?: string): Promise<string> {
         const repo = this.stockOpnameRepository;
-        const sessionId = `SO-${new Date().toISOString().split("T")[0].replace(/-/g, "")}-${Math.floor(Math.random() * 1000)}`;
+        const today = new Date().toISOString().split("T")[0] || "19700101";
+        const sessionId = `SO-${today.replace(/-/g, "")}-${Math.floor(Math.random() * 1000)}`;
 
         await repo.transaction(async (tx) => {
             await repo.insertSession({ id: sessionId, userId, notes, status: "draft" }, tx);
 
-            let batches;
+            let batches: any[] = [];
             if (categoryId) {
                 const productIds = await repo.findProductIdsByCategory(categoryId, tx);
-                if (productIds.length === 0) return;
-                batches = await repo.findAllBatches(productIds, tx);
+                if (productIds.length > 0) {
+                    batches = await repo.findAllBatches(productIds, tx);
+                }
             } else {
                 batches = await repo.findAllBatches(undefined, tx);
             }

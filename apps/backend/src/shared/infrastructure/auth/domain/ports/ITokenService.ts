@@ -4,6 +4,7 @@
 
 export interface TokenPayload {
     id: string;
+    sid: string;
     username: string;
     name: string;
     role: string;

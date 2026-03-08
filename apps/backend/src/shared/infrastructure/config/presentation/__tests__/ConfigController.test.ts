@@ -19,8 +19,8 @@ describe("ConfigController", () => {
     const createMockContext = (paramKey: string, queryDefault?: string, body?: any) => {
         return {
             req: {
-                param: (k: string) => paramKey,
-                query: (k: string) => queryDefault,
+                param: (_k: string) => paramKey,
+                query: (_k: string) => queryDefault,
                 json: vi.fn().mockResolvedValue(body)
             },
             json: vi.fn().mockImplementation((val, status = 200) => ({ body: val, status }))

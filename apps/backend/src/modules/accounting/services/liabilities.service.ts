@@ -1,15 +1,21 @@
+import { injectable, inject } from "inversify";
+import { TYPES } from "../types";
 import { db } from "../../../db";
-import { purchases, purchasePayments, operationalCosts, commissionPayments, suppliers, users } from "../../../db/schema";
-import { eq, and, sql, sum, gte, lte, desc, isNull, not } from "drizzle-orm";
-import { SupplierPaymentService } from "./supplier-payment.service";
+import { purchases, purchasePayments, operationalCosts, suppliers } from "../../../db/schema";
+import { eq, and, sql, not } from "drizzle-orm";
 import { CommissionPaymentService } from "./commission-payment.service";
-import { accountingService } from "../accounting-container";
+import { AccountingService } from "../accounting-container";
 
+@injectable()
 export class LiabilitiesService {
+    constructor(
+        @inject(TYPES.AccountingService) private readonly accountingService: AccountingService
+    ) { }
+
     /**
      * Get overall summary of all liabilities
      */
-    static async getSummary() {
+    public async getSummary() {
         const supplierSummary = await this.getSupplierSummary();
         const expenseSummary = await this.getExpenseSummary();
         const commissionSummary = await this.getCommissionSummary();
@@ -27,7 +33,7 @@ export class LiabilitiesService {
     /**
      * Get outstanding debts to suppliers (Accounts Payable)
      */
-    static async getSupplierDebts() {
+    public async getSupplierDebts() {
         // Find purchases that are NOT fully paid
         // Total Amount vs Sum of Payments
 
@@ -55,7 +61,7 @@ export class LiabilitiesService {
         }));
     }
 
-    private static async getSupplierSummary() {
+    private async getSupplierSummary() {
         const debts = await this.getSupplierDebts();
         return {
             total: debts.reduce((s, d) => s + d.outstanding, 0),
@@ -66,7 +72,7 @@ export class LiabilitiesService {
     /**
      * Get pending operational expenses
      */
-    static async getExpenseDebts() {
+    public async getExpenseDebts() {
         return await db
             .select()
             .from(operationalCosts)
@@ -74,7 +80,7 @@ export class LiabilitiesService {
             .orderBy(operationalCosts.dueDate);
     }
 
-    private static async getExpenseSummary() {
+    private async getExpenseSummary() {
         const expenses = await this.getExpenseDebts();
         return {
             total: expenses.reduce((s, e) => s + e.amount, 0),
@@ -85,7 +91,7 @@ export class LiabilitiesService {
     /**
      * Get pending technician commissions
      */
-    static async getCommissionDebts(period?: string) {
+    public async getCommissionDebts(period?: string) {
         // Use CommissionPaymentService to get pending commissions
         const currentPeriod = period || new Date().toISOString().substring(0, 7);
         const pending = await CommissionPaymentService.getPendingCommissions(currentPeriod);
@@ -99,7 +105,7 @@ export class LiabilitiesService {
         }));
     }
 
-    private static async getCommissionSummary() {
+    private async getCommissionSummary() {
         const currentPeriod = new Date().toISOString().substring(0, 7);
         const pending = await this.getCommissionDebts(currentPeriod);
         return {
@@ -111,7 +117,7 @@ export class LiabilitiesService {
     /**
      * Pay an operational expense
      */
-    static async payExpense(id: string, payload: { sourceAccountId: string; expenseAccountId: string; date?: Date; notes?: string }, userId?: string) {
+    public async payExpense(id: string, payload: { sourceAccountId: string; expenseAccountId: string; date?: Date; notes?: string }, userId?: string) {
         const [expense] = await db
             .select()
             .from(operationalCosts)
@@ -122,7 +128,7 @@ export class LiabilitiesService {
         if (expense.status === "paid") throw new Error("Expense already paid");
 
         // 1. Create Journal Entry
-        await accountingService.createJournal({
+        await this.accountingService.createJournal({
             description: `Pembayaran biaya: ${expense.category} - ${expense.description || ""}`,
             referenceType: "operational_expense",
             referenceId: expense.id,

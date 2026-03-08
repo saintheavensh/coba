@@ -6,7 +6,7 @@ import type { DeductStockFIFOInput } from "../domain/stock.types";
 describe("FIFO across 2 batches (Use Case)", () => {
     let useCase: DeductStockFIFOUseCase;
     let mockGateway: Mocked<IStockMutationGateway>;
-    let mockTx: unknown = {};
+    let mockTx: any = {};
 
     beforeEach(() => {
         mockGateway = {

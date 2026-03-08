@@ -1,11 +1,12 @@
 import { Hono } from "hono";
+import { AppVariables } from "../../../shared/types/app-context";
 import { CustomersController } from "./customers.controller";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "@hono/zod-openapi";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
 import { permissionGuard } from "../../../middlewares/permission.middleware";
 
-const app = new Hono();
+const app = new Hono<{ Variables: AppVariables }>();
 const controller = new CustomersController();
 
 const createCustomerSchema = z.object({

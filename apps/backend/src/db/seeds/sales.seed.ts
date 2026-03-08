@@ -3,7 +3,7 @@
  */
 import { db } from "../index";
 import { sales, saleItems, salePayments, members, paymentMethods, paymentVariants } from "../schema";
-import { USER_IDS, PRODUCT_IDS, CATEGORY_IDS, BATCH_IDS, getPastDate, randomPhone } from "./helpers";
+import { USER_IDS, PRODUCT_IDS, BATCH_IDS, getPastDate, randomPhone } from "./helpers";
 
 export async function seedSales() {
     console.log("Creating payment methods...");

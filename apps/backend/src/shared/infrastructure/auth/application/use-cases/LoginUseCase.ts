@@ -1,4 +1,4 @@
-import type { IUserRepository, UserWithRoles, IPasswordService, ITokenService } from "../../domain";
+import type { IUserRepository, UserWithRoles, IPasswordService, ITokenService, TokenPayload } from "../../domain";
 
 const TOKEN_EXPIRY_DAYS = 7;
 
@@ -53,10 +53,10 @@ export class LoginUseCase {
                 };
             }
 
-            const selectedRole = input.roleId && userRoles.includes(input.roleId) ? input.roleId : userRoles[0];
+            const selectedRole = (input.roleId && userRoles.includes(input.roleId)) ? input.roleId : (userRoles[0] ?? "");
             const sessionId = await this.userRepository.createSession(user.id, selectedRole, input.dbOrTx);
 
-            const payload = {
+            const payload: TokenPayload = {
                 id: user.id,
                 sid: sessionId,
                 username: user.username,
@@ -76,12 +76,12 @@ export class LoginUseCase {
             };
         } else {
             // Flexible Mode: Automatically accept and grant all roles, optionally setting primary
-            const selectedRole = input.roleId && userRoles.includes(input.roleId) ? input.roleId :
-                (userRoles.includes("owner") ? "owner" : userRoles[0]);
+            const selectedRole = (input.roleId && userRoles.includes(input.roleId)) ? input.roleId :
+                (userRoles.includes("owner") ? "owner" : (userRoles[0] ?? ""));
             const sessionId = await this.userRepository.createSession(user.id, selectedRole, input.dbOrTx);
 
 
-            const payload = {
+            const payload: TokenPayload = {
                 id: user.id,
                 sid: sessionId,
                 username: user.username,

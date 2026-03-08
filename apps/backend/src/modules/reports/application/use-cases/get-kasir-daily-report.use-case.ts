@@ -1,6 +1,6 @@
 import { DBContext } from "../../../../shared/types/db-context";
 import { IReportRepository, ReportFilters } from "../../domain";
-import { gte, lte, and } from "drizzle-orm";
+import { gte, lte } from "drizzle-orm";
 import { sales } from "../../../../db/schema";
 
 export class GetKasirDailyReportUseCase {

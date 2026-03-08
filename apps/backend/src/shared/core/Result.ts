@@ -41,9 +41,9 @@ export class Result<T> {
         return new Result<U>(false, error);
     }
 
-    public static combine(results: Result<any>[]): Result<any> {
+    public static combine(results: Result<unknown>[]): Result<unknown> {
         for (const result of results) {
-            if (result.isFailure) return result;
+            if (result.isFailure) return result as Result<unknown>;
         }
         return Result.ok();
     }

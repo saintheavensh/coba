@@ -2,7 +2,7 @@ import { DBContext } from "../../../../shared/types/db-context";
 import { ICustomerRepository, Customer } from "../../domain";
 import { HTTPException } from "hono/http-exception";
 import { eq } from "drizzle-orm";
-import { sales, salePayments, members } from "../../../../db/schema";
+import { sales, salePayments } from "../../../../db/schema";
 
 export interface ProcessPaymentDto {
     customerId: string;
@@ -19,18 +19,19 @@ export class ProcessCustomerPaymentUseCase {
         private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any>, query: any, update: any, insert: any }
     ) { }
 
-    async execute(dto: ProcessPaymentDto): Promise<Customer> {
-        const customer = await this.repository.findById(dto.customerId);
-        if (!customer) {
-            throw new HTTPException(404, { message: "Customer not found" });
-        }
+    async execute(dto: ProcessPaymentDto, dbOrTx?: DBContext): Promise<Customer> {
+        const client = dbOrTx || this.db;
 
-        const currentDebt = customer.debt || 0;
-        if (dto.amount > currentDebt) {
-            throw new HTTPException(400, { message: `Payment (${dto.amount}) exceeds total debt (${currentDebt})` });
-        }
+        return await client.transaction(async (tx: DBContext) => {
+            const customer = await this.repository.findById(dto.customerId, tx);
+            if (!customer) {
+                throw new HTTPException(404, { message: "Customer not found" });
+            }
 
-        return await this.db.transaction(async (tx: any) => {
+            const currentDebt = customer.debt || 0;
+            if (dto.amount > currentDebt) {
+                throw new HTTPException(400, { message: `Payment (${dto.amount}) exceeds total debt (${currentDebt})` });
+            }
             // 1. If saleId provided, validate and update Sale
             if (dto.saleId) {
                 const sale = await tx.query.sales.findFirst({

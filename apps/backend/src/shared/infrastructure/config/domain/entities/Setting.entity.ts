@@ -9,10 +9,10 @@ export interface SettingProps {
     value: any;
     type: SettingType;
     scope: SettingScope;
-    module?: string | null;
-    userId?: string | null;
-    storeId?: string | null;
-    description?: string | null;
+    module?: string | null | undefined;
+    userId?: string | null | undefined;
+    storeId?: string | null | undefined;
+    description?: string | null | undefined;
     isEditable: boolean;
     createdAt: Date;
     updatedAt: Date;

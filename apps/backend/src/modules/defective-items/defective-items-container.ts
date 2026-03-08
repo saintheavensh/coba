@@ -9,7 +9,7 @@ import {
     AddDefectiveItemUseCase,
     ProcessReturnUseCase
 } from "./application";
-import { DefectiveItemStatus } from "./domain";
+
 
 // Adapters
 const repository = new DefectiveItemRepositoryAdapter();

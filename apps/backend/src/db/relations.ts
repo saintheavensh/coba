@@ -16,7 +16,7 @@ import * as AccountingSchema from "../modules/accounting/infrastructure/schema/A
 import * as ActivitySchema from "../modules/dashboard/infrastructure/schema/ActivitySchema";
 import * as DeviceSchema from "../modules/devices/infrastructure/schema/DeviceSchema";
 import * as BrandSchema from "../modules/devices/infrastructure/schema/BrandSchema";
-import * as AppSettingSchema from "../modules/settings/infrastructure/schema/AppSettingSchema";
+// import * as AppSettingSchema from "../modules/settings/infrastructure/schema/AppSettingSchema";
 import * as ApprovalSchema from "../modules/approvals/infrastructure/schema/ApprovalSchema";
 
 // ============================================

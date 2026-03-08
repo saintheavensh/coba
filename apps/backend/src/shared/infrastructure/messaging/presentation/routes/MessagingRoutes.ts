@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../../../../../middlewares/auth.middleware";
 import { MessagingController } from "../controllers/MessagingController";
-import { messagingContainer, TYPES } from "../../index";
+import { messagingContainer } from "../../index";
 
 const app = new Hono();
 

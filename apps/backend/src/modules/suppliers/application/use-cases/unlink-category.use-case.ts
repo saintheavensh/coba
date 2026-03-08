@@ -1,10 +1,15 @@
+import { injectable, inject } from "inversify";
+import { TYPES } from "../../types";
 import { DBContext } from "../../../../shared/types/db-context";
 import { ISupplierRepository } from "../../domain";
 
+@injectable()
 export class UnlinkCategoryUseCase {
-    constructor(private repository: ISupplierRepository) { }
+    constructor(
+        @inject(TYPES.ISupplierRepository) private readonly repository: ISupplierRepository
+    ) { }
 
-    async execute(supplierId: string, categoryId: string, dbOrTx?: DBContext) {
+    async execute(supplierId: string, categoryId: string, dbOrTx?: DBContext): Promise<void> {
         return await this.repository.removeCategoryLink(supplierId, categoryId, dbOrTx);
     }
 }

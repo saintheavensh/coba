@@ -3,16 +3,15 @@
  * Schemas imported from local presentation/schemas/.
  */
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { zValidator } from "@hono/zod-validator";
 import { ProductsController } from "./products.controller";
 import { productsService } from "../products-container";
-import { authMiddleware } from "../../../middlewares/auth.middleware";
-import { requirePermission } from "../../../middlewares/permission.middleware";
+import { AppVariables } from "../../../shared/types/app-context";
+
 import { variantSchema, createVariantSchema } from "./schemas/variant.schema";
 import { bulkMinStockSchema } from "./schemas/bulk-min-stock.schema";
 import { labelSchema } from "./schemas/label.schema";
 
-const app = new OpenAPIHono();
+const app = new OpenAPIHono<{ Variables: AppVariables }>();
 const controller = new ProductsController(productsService);
 
 // ============================================

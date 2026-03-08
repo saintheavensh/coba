@@ -1,28 +1,32 @@
-import { Context } from "hono";
-import { accountingService, AccountingService } from "../accounting-container";
+import { injectable, inject } from "inversify";
+import { TYPES } from "../types";
+import { AppHonoContext } from "../../../shared/types/app-context";
+import { AccountingService } from "../services/index";
 import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
 import { AccountingReportService } from "../services/accounting-reports.service";
 import { LiabilitiesService } from "../services/liabilities.service";
 import { SupplierPaymentService } from "../services/supplier-payment.service";
 import { RevenueTargetService } from "../services/revenue-target.service";
+import { AuditService } from "../services/audit.service";
 
+@injectable()
 export class AccountingController {
     constructor(
-        private readonly service: AccountingService = accountingService
+        @inject(TYPES.AccountingService) private readonly service: AccountingService,
+        @inject(TYPES.AccountingReportService) private readonly reportService: AccountingReportService,
+        @inject(TYPES.LiabilitiesService) private readonly liabilitiesService: LiabilitiesService,
+        @inject(TYPES.SupplierPaymentService) private readonly paymentService: SupplierPaymentService,
+        @inject(TYPES.RevenueTargetService) private readonly targetService: RevenueTargetService,
+        @inject(TYPES.AuditService) private readonly auditService: AuditService
     ) { }
 
     // Dashboard Summary
-    async getDashboard(c: Context) {
+    async getDashboard(c: AppHonoContext) {
         try {
-            // 1. Get today's register progress
             const todayProgress = await this.service.getTodayRegisterProgress();
-
-            // 2. Get Income Statement for current year to show Revenue vs Expenses
             const yearStart = new Date(new Date().getFullYear(), 0, 1);
             const now = new Date();
-            const incomeStatement = await AccountingReportService.getIncomeStatement(yearStart, now);
-
-            // 3. Aggregate for frontend
+            const incomeStatement = await this.reportService.getIncomeStatement(yearStart, now);
             const dashboardData = {
                 todayProgress,
                 balanceSummary: {
@@ -33,215 +37,240 @@ export class AccountingController {
                     }
                 }
             };
-
             return apiSuccess(c, dashboardData, "Dashboard data retrieved successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve dashboard data");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve dashboard data");
         }
     }
 
-    // Liabilities
-    async getLiabilitiesSummary(c: Context) {
+    async getLiabilitiesSummary(c: AppHonoContext) {
         try {
-            const summary = await LiabilitiesService.getSummary();
+            const summary = await this.liabilitiesService.getSummary();
             return apiSuccess(c, summary);
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve liabilities summary");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve liabilities summary");
         }
     }
 
-    async getSupplierDebts(c: Context) {
+    async getSupplierDebts(c: AppHonoContext) {
         try {
-            const debts = await LiabilitiesService.getSupplierDebts();
+            const debts = await this.liabilitiesService.getSupplierDebts();
             return apiSuccess(c, debts);
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve supplier debts");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve supplier debts");
         }
     }
 
-    async getExpenseDebts(c: Context) {
+    async getExpenseDebts(c: AppHonoContext) {
         try {
-            const expenses = await LiabilitiesService.getExpenseDebts();
+            const expenses = await this.liabilitiesService.getExpenseDebts();
             return apiSuccess(c, expenses);
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve expense debts");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve expense debts");
         }
     }
 
-    async getCommissionDebts(c: Context) {
+    async getCommissionDebts(c: AppHonoContext) {
         try {
             const { period } = c.req.query();
-            const commissions = await LiabilitiesService.getCommissionDebts(period);
+            const commissions = await this.liabilitiesService.getCommissionDebts(period);
             return apiSuccess(c, commissions);
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve commission debts");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve commission debts");
         }
     }
 
-    async payExpenseDebt(c: Context) {
+    async payExpenseDebt(c: AppHonoContext) {
         try {
             const id = c.req.param("id");
+            if (!id) return apiError(c, null, "Expense ID is required", 400);
             const payload = await c.req.json();
-            const userId = c.get("user")?.id;
-            const result = await LiabilitiesService.payExpense(id, payload, userId);
+            const user = c.get("user");
+            if (!user?.id) return apiError(c, null, "Unauthorized", 401);
+            const result = await this.liabilitiesService.payExpense(id!, payload, user.id!);
             return apiSuccess(c, result, "Expense paid successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to pay expense");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to pay expense");
         }
     }
 
-    // Accounts
-    async getAllAccounts(c: Context) {
+    async getAllAccounts(c: AppHonoContext) {
         try {
             const { typeId } = c.req.query();
             const accounts = await this.service.getAllAccounts({ typeId });
             return apiSuccess(c, accounts, "Accounts retrieved successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve accounts");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve accounts");
         }
     }
 
-    async getAccountTree(c: Context) {
+    async getAccountTree(c: AppHonoContext) {
         try {
             const { typeId } = c.req.query();
             const tree = await this.service.getAccountTree({ typeId });
             return apiSuccess(c, tree, "Account tree retrieved successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve account tree");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve account tree");
         }
     }
 
-    async getAccountTypes(c: Context) {
+    async getAccountTypes(c: AppHonoContext) {
         try {
             const types = await this.service.getAccountTypes();
             return apiSuccess(c, types, "Account types retrieved successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve account types");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve account types");
         }
     }
 
-    async createAccount(c: Context) {
+    async createAccount(c: AppHonoContext) {
         try {
             const body = await c.req.json();
-            const userId = c.get("user")?.id;
-            const id = await this.service.createAccount(body, userId);
+            const user = c.get("user");
+            if (!user) return apiError(c, null, "Unauthorized", 401);
+            const id = await this.service.createAccount(body, user.id);
             return apiSuccess(c, { id }, "Account created successfully", 201);
-        } catch (e: any) {
-            return apiError(c, e, "Failed to create account");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to create account");
         }
     }
 
-    async updateAccount(c: Context) {
+    async updateAccount(c: AppHonoContext) {
         try {
             const id = c.req.param("id");
+            if (!id) return apiError(c, null, "Account ID is required", 400);
             const body = await c.req.json();
-            const userId = c.get("user")?.id;
-            await this.service.updateAccount(id, body, userId);
+            const user = c.get("user");
+            if (!user) return apiError(c, null, "Unauthorized", 401);
+            await this.service.updateAccount(id!, body, user.id!);
             return apiSuccess(c, null, "Account updated successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to update account");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to update account");
         }
     }
 
-    async deleteAccount(c: Context) {
+    async deleteAccount(c: AppHonoContext) {
         try {
             const id = c.req.param("id");
-            const userId = c.get("user")?.id;
-            await this.service.deleteAccount(id, userId);
+            if (!id) return apiError(c, null, "Account ID is required", 400);
+            const user = c.get("user");
+            if (!user) return apiError(c, null, "Unauthorized", 401);
+            await this.service.deleteAccount(id!, user.id!);
             return apiSuccess(c, null, "Account deleted successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to delete account");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to delete account");
         }
     }
 
-    // Journals
-    async getAllJournals(c: Context) {
+    async getAllJournals(c: AppHonoContext) {
         try {
-            const filters = c.req.query();
+            const filters = c.req.query() as any;
             const journals = await this.service.getAllJournals(filters);
             return apiSuccess(c, journals, "Journals retrieved successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve journals");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve journals");
         }
     }
 
-    async getJournalById(c: Context) {
+    async getJournalById(c: AppHonoContext) {
         try {
             const id = c.req.param("id");
-            const journal = await this.service.getJournalById(id);
+            if (!id) return apiError(c, null, "Journal ID is required", 400);
+            const journal = await this.service.getJournalById(id!);
             if (!journal) return apiError(c, null, "Journal not found", 404);
             return apiSuccess(c, journal, "Journal retrieved successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve journal");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve journal");
         }
     }
 
-    // Cash Register
-    async getCurrentRegister(c: Context) {
+    async getCurrentRegister(c: AppHonoContext) {
         try {
             const register = await this.service.getTodayRegisterProgress();
             return apiSuccess(c, register, "Current register status retrieved");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve register status");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve register status");
         }
     }
 
-    async openRegister(c: Context) {
+    async openRegister(c: AppHonoContext) {
         try {
             const { openingBalance } = await c.req.json();
-            const userId = c.get("user")?.id;
-            const id = await this.service.openRegister(openingBalance, userId);
+            const user = c.get("user");
+            if (!user) return apiError(c, null, "Unauthorized", 401);
+            const id = await this.service.openRegister(openingBalance, user.id);
             return apiSuccess(c, { id }, "Register opened successfully", 201);
-        } catch (e: any) {
-            return apiError(c, e, "Failed to open register");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to open register");
         }
     }
 
-    async closeRegister(c: Context) {
+    async closeRegister(c: AppHonoContext) {
         try {
             const { actualClosing, notes, reservation } = await c.req.json();
-            const userId = c.get("user")?.id;
-            await this.service.closeRegister(actualClosing, notes, userId, reservation);
+            const user = c.get("user");
+            if (!user) return apiError(c, null, "Unauthorized", 401);
+            await this.service.closeRegister(actualClosing, notes, user.id, reservation);
             return apiSuccess(c, null, "Register closed successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to close register");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to close register");
         }
     }
 
-    async recordExpense(c: Context) {
+    async recordExpense(c: AppHonoContext) {
         try {
             const { amount, category, description, userRoles } = await c.req.json();
-            const userId = c.get("user")?.id;
-            await this.service.recordCashExpense(amount, category, description, userId, userRoles);
+            const user = c.get("user");
+            if (!user) return apiError(c, null, "Unauthorized", 401);
+            await this.service.recordCashExpense(amount, category, description, user.id, userRoles);
             return apiSuccess(c, null, "Expense recorded successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to record expense");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to record expense");
         }
     }
 
-    // Assets
-    async getAllAssets(c: Context) {
+    async getAllAssets(c: AppHonoContext) {
         try {
             const assets = await this.service.getAllAssets();
             return apiSuccess(c, assets, "Assets retrieved successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve assets");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve assets");
         }
     }
 
-    async createAsset(c: Context) {
+    async createAsset(c: AppHonoContext) {
         try {
             const body = await c.req.json();
-            const userId = c.get("user")?.id;
-            const id = await this.service.createAsset(body, userId);
+            const user = c.get("user");
+            if (!user) return apiError(c, null, "Unauthorized", 401);
+            const id = await this.service.createAsset(body, user.id);
             return apiSuccess(c, { id }, "Asset created successfully", 201);
-        } catch (e: any) {
-            return apiError(c, e, "Failed to create asset");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to create asset");
         }
     }
 
-    // Reports
-    async getGeneralLedger(c: Context) {
+    async getGeneralLedger(c: AppHonoContext) {
         try {
             const { accountId, startDate, endDate } = c.req.query();
             if (!accountId) return apiError(c, null, "accountId is required", 400);
@@ -249,85 +278,89 @@ export class AccountingController {
             const start = startDate ? new Date(startDate) : undefined;
             const end = endDate ? new Date(endDate) : undefined;
 
-            const report = await AccountingReportService.getGeneralLedger(accountId, start, end);
+            const report = await this.reportService.getGeneralLedger(accountId!, start, end);
             return apiSuccess(c, report, "General Ledger retrieved");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve General Ledger");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve General Ledger");
         }
     }
 
-    async getIncomeStatement(c: Context) {
+    async getIncomeStatement(c: AppHonoContext) {
         try {
             const { startDate, endDate } = c.req.query();
-            // Default to current year if not provided
             const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), 0, 1);
             const end = endDate ? new Date(endDate) : new Date();
 
-            const report = await AccountingReportService.getIncomeStatement(start, end);
+            const report = await this.reportService.getIncomeStatement(start, end);
             return apiSuccess(c, report, "Income Statement retrieved");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve Income Statement");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve Income Statement");
         }
     }
 
-    async getBalanceSheet(c: Context) {
+    async getBalanceSheet(c: AppHonoContext) {
         try {
             const { date } = c.req.query();
             const asOfDate = date ? new Date(date) : new Date();
 
-            const report = await AccountingReportService.getBalanceSheet(asOfDate);
+            const report = await this.reportService.getBalanceSheet(asOfDate);
             return apiSuccess(c, report, "Balance Sheet retrieved");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve Balance Sheet");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve Balance Sheet");
         }
     }
 
-    // Payables (Supplier Debts)
-    async getPayablesSummary(c: Context) {
+    async getPayablesSummary(c: AppHonoContext) {
         try {
-            const debts = await LiabilitiesService.getSupplierDebts();
+            const debts = await this.liabilitiesService.getSupplierDebts();
             const bySupplier: Record<string, { name: string; total: number; count: number }> = {};
 
             for (const d of debts) {
-                if (!bySupplier[d.supplierId]) {
-                    bySupplier[d.supplierId] = { name: d.supplierName, total: 0, count: 0 };
+                const supplier = bySupplier[d.supplierId];
+                if (!supplier) {
+                    bySupplier[d.supplierId] = { name: d.supplierName, total: d.outstanding, count: 1 };
+                } else {
+                    supplier.total += d.outstanding;
+                    supplier.count++;
                 }
-                bySupplier[d.supplierId].total += d.outstanding;
-                bySupplier[d.supplierId].count++;
             }
 
             const summary = {
-                totalOutstanding: debts.reduce((s, d) => s + d.outstanding, 0),
+                totalOutstanding: debts.reduce((s: number, d: any) => s + d.outstanding, 0),
                 purchaseCount: debts.length,
                 bySupplier: Object.values(bySupplier)
             };
 
             return apiSuccess(c, summary);
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve payables summary");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve payables summary");
         }
     }
 
-    async getAllPayables(c: Context) {
+    async getAllPayables(c: AppHonoContext) {
         try {
-            const debts = await LiabilitiesService.getSupplierDebts();
-            // Map consistent with frontend expectations
-            const mapped = debts.map(d => ({
+            const debts = await this.liabilitiesService.getSupplierDebts();
+            const mapped = debts.map((d: any) => ({
                 ...d,
                 totalPaid: d.paidAmount,
                 paymentStatus: d.paidAmount > 0 ? "partial" : "unpaid"
             }));
             return apiSuccess(c, mapped);
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve payables");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve payables");
         }
     }
 
-    async getPayableById(c: Context) {
+    async getPayableById(c: AppHonoContext) {
         try {
             const id = c.req.param("id");
-            const debts = await LiabilitiesService.getSupplierDebts();
-            const payable = debts.find(d => d.purchaseId === id);
+            const debts = await this.liabilitiesService.getSupplierDebts();
+            const payable = debts.find((d: any) => d.purchaseId === id);
             if (!payable) return apiError(c, null, "Payable not found", 404);
 
             const mapped = {
@@ -336,80 +369,90 @@ export class AccountingController {
                 paymentStatus: payable.paidAmount > 0 ? "partial" : "unpaid"
             };
             return apiSuccess(c, mapped);
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve payable details");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve payable details");
         }
     }
 
-    async recordPayablePayment(c: Context) {
+    async recordPayablePayment(c: AppHonoContext) {
         try {
             const id = c.req.param("id");
             const { amount, accountId, notes, method } = await c.req.json();
-            const userId = c.get("user")?.id;
+            const user = c.get("user");
+            if (!user) return apiError(c, null, "Unauthorized", 401);
 
-            const result = await SupplierPaymentService.create({
+            if (!id) return apiError(c, null, "Payable ID is required", 400);
+            const result = await this.paymentService.create({
                 purchaseId: id,
                 amount,
                 method: method || "cash",
                 accountId,
                 reference: notes
-            }, userId);
+            }, user.id);
 
             return apiSuccess(c, { id: result }, "Payment recorded successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to record payment");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to record payment");
         }
     }
 
-    // Revenue Targets
-    async getTodayTargets(c: Context) {
+    async getTodayTargets(c: AppHonoContext) {
         try {
-            const progress = await RevenueTargetService.getTodayProgress();
+            const progress = await this.targetService.getTodayProgress();
             return apiSuccess(c, progress);
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve today targets");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve today targets");
         }
     }
 
-    async getMonthTargets(c: Context) {
+    async getMonthTargets(c: AppHonoContext) {
         try {
             const month = c.req.param("month");
-            const progress = await RevenueTargetService.getMonthProgress(month);
+            if (!month) return apiError(c, null, "Month is required", 400);
+            const progress = await this.targetService.getMonthProgress(month);
             return apiSuccess(c, progress);
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve month targets");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve month targets");
         }
     }
 
-    async setTarget(c: Context) {
+    async setTarget(c: AppHonoContext) {
         try {
             const month = c.req.param("month");
             const body = await c.req.json();
-            const userId = c.get("user")?.id;
-            await RevenueTargetService.calculateAndSet({
-                month,
+            const user = c.get("user");
+            if (!user?.id) return apiError(c, null, "Unauthorized", 401);
+            if (!month) return apiError(c, null, "Month is required", 400);
+            await this.targetService.calculateAndSet({
+                month: month!,
                 workingDays: body.workingDays,
                 profitMarginPercent: body.profitMarginPercent
-            }, userId);
+            }, user.id!);
             return apiSuccess(c, null, "Target updated successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to update target");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to update target");
         }
     }
 
-    async getAuditLogs(c: Context) {
+    async getAuditLogs(c: AppHonoContext) {
         try {
             const { limit, offset, entityType, entityId } = c.req.query();
             const filters = {
                 limit: limit ? parseInt(limit) : 50,
                 offset: offset ? parseInt(offset) : 0,
-                entityType,
-                entityId
+                entityType: entityType || undefined,
+                entityId: entityId || undefined
             };
-            const logs = await import("../services/audit.service").then(m => m.AuditService.getAll(filters));
+            const logs = await this.auditService.getAll(filters);
             return apiSuccess(c, logs, "Audit logs retrieved successfully");
-        } catch (e: any) {
-            return apiError(c, e, "Failed to retrieve audit logs");
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            return apiError(c, message, "Failed to retrieve audit logs");
         }
     }
 }

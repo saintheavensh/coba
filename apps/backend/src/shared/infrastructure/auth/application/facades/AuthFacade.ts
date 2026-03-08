@@ -1,9 +1,7 @@
-import { Result } from "../../../../core/Result";
 import { LoginUseCase, LoginInput, LoginResult } from "../use-cases/LoginUseCase";
 import { GetCurrentUserUseCase } from "../use-cases/GetCurrentUserUseCase";
 import { GetRolesUseCase } from "../use-cases/GetRolesUseCase";
-import { injectable, inject } from "inversify";
-// Note: We'll use TYPES from a shared location if possible, or define them here for now
+import { injectable } from "inversify";
 // For now, let's assume we use constructor injection if possible, or manual wire up in container.
 
 @injectable()

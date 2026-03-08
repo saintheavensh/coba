@@ -1,8 +1,9 @@
 import { Hono } from "hono";
+import { AppVariables } from "../../../shared/types/app-context";
 import { DashboardController } from "./dashboard.controller";
 import { authMiddleware } from "../../../middlewares/auth.middleware";
 
-const dashboard = new Hono();
+const dashboard = new Hono<{ Variables: AppVariables }>();
 const controller = new DashboardController();
 
 dashboard.use("*", authMiddleware);

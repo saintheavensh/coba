@@ -218,7 +218,7 @@ describe("requireRole middleware", () => {
         const middleware = requireRole("kasir");
         const next = vi.fn();
 
-        const response = await middleware(c, next);
+        await middleware(c, next);
 
         expect(next).not.toHaveBeenCalled();
     });

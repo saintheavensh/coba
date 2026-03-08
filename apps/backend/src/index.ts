@@ -140,7 +140,7 @@ app.get("/health", async (c) => {
         return c.json({
             status: "ok",
             database: "postgresql",
-            db_users: result[0].count,
+            db_users: result[0]?.count ?? 0,
             realtime: "supabase"
         });
     } catch (e) {

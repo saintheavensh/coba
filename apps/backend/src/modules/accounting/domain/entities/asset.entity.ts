@@ -13,9 +13,9 @@ export interface FixedAsset {
     currentValue: number;
     accumulatedDepreciation: number;
     status: AssetStatus;
-    accountId?: string;
-    depreciationAccountId?: string;
-    notes?: string;
+    accountId?: string | undefined;
+    depreciationAccountId?: string | undefined;
+    notes?: string | undefined;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -25,6 +25,6 @@ export interface DepreciationEntry {
     assetId: string;
     period: string; // YYYY-MM
     amount: number;
-    journalId?: string;
+    journalId?: string | undefined;
     createdAt: Date;
 }

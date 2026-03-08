@@ -32,7 +32,7 @@ describe('Sales Validation Schema (Strict Data Integrity)', () => {
         const result = createSaleSchema.safeParse(invalidPayload);
         expect(result.success).toBe(false);
         if (!result.success) {
-            expect(result.error.issues[0].path).toContain('userId');
+            expect(result.error.issues[0]?.path).toContain('userId');
         }
     });
 

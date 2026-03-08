@@ -1,11 +1,12 @@
 import { DBContext } from "../../../../shared/types/db-context";
 import { IServiceRepository, ServiceTicket } from "../../domain";
 import { HTTPException } from "hono/http-exception";
+import { BuildServiceTimelineUseCase } from "./build-service-timeline.use-case";
 
 export class GetServicesUseCase {
     constructor(private readonly repository: IServiceRepository) { }
 
-    async execute(params: { status?: string; technicianId?: string }, dbOrTx?: DBContext): Promise<ServiceTicket[]> {
+    async execute(params: { status?: string | undefined; technicianId?: string | undefined }, dbOrTx?: DBContext): Promise<ServiceTicket[]> {
         return await this.repository.findAll(params, dbOrTx);
     }
 }
@@ -19,7 +20,10 @@ export class GetServiceCountsUseCase {
 }
 
 export class GetServiceByIdUseCase {
-    constructor(private readonly repository: IServiceRepository) { }
+    constructor(
+        private readonly repository: IServiceRepository,
+        private readonly buildTimelineUseCase: BuildServiceTimelineUseCase = new BuildServiceTimelineUseCase()
+    ) { }
 
     async execute(id: string, dbOrTx?: DBContext): Promise<ServiceTicket> {
         const srv = await this.repository.findById(id, dbOrTx);
@@ -27,7 +31,8 @@ export class GetServiceByIdUseCase {
             throw new HTTPException(404, { message: "Service not found" });
         }
 
-        const timeline = await this.repository.getTimeline(srv.no, dbOrTx);
+        const rawTimeline = await this.repository.getTimeline(srv.no, dbOrTx);
+        const timeline = this.buildTimelineUseCase.execute(rawTimeline);
 
         return {
             ...srv,

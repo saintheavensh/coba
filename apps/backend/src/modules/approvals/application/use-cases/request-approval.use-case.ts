@@ -1,6 +1,5 @@
 import { IApprovalRepository, ApprovalType } from "../../domain";
 import { ApprovalCheckService } from "../../domain/services/ApprovalCheckService";
-import { HTTPException } from "hono/http-exception";
 
 export interface RequestApprovalInput {
     type: ApprovalType;
@@ -31,8 +30,8 @@ export class RequestApprovalUseCase {
             entityId: input.entityId,
             requestedById: input.requestedById,
             status: 'PENDING',
-            reason: input.reason,
-            data: input.data
+            reason: input.reason ?? undefined,
+            data: input.data ?? undefined
         });
 
         return {

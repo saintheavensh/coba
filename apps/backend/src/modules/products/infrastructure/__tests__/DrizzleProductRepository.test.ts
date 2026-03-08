@@ -1,11 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DrizzleProductRepository } from "../persistence/DrizzleProductRepository";
-import { products } from "../schema/ProductSchema";
-import { Product } from "../../domain/entities/Product.entity";
-import { Sku } from "../../domain/value-objects/Sku.vo";
-import { Price } from "../../domain/value-objects/Price.vo";
-import { Status } from "../../domain/value-objects/ProductStatus.vo";
-import { Result } from "../../../../shared/core/Result";
+
 
 describe("DrizzleProductRepository", () => {
     let repository: DrizzleProductRepository;

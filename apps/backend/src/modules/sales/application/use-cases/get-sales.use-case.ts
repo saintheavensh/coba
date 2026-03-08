@@ -11,10 +11,10 @@ export class GetSalesUseCase {
         const limit = params.limit ? parseInt(params.limit) : 50;
 
         return await this.repository.findAll({
-            startDate,
-            endDate,
-            search: params.search,
-            limit
+            startDate: startDate ?? undefined,
+            endDate: endDate ?? undefined,
+            search: params.search ?? undefined,
+            limit: limit ?? undefined
         }, dbOrTx);
     }
 }

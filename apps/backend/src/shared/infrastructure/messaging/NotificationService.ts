@@ -114,12 +114,12 @@ export const NotificationService = {
     },
 
     // Legacy sync helpers (Deprecated/No-op as we rely on DB changes now)
-    async syncStockUpdate(productId: string, newStock: number) {
+    async syncStockUpdate(_productId: string, _newStock: number) {
         // No-op: Frontend should listen to inventory table
         return null;
     },
 
-    async syncServiceUpdate(serviceId: string, status: string) {
+    async syncServiceUpdate(_serviceId: string, _status: string) {
         // No-op: Frontend should listen to service table
         return null;
     }

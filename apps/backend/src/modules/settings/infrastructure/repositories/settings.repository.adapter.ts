@@ -12,7 +12,7 @@ import { ISettingsRepository, Setting } from "../../domain";
 
 export class SettingsRepositoryAdapter implements ISettingsRepository {
     async findByKey(key: string, dbOrTx?: DBContext): Promise<Setting | null> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         const result = await client.query.settings.findFirst({
             where: eq(settings.key, key)
         });
@@ -20,23 +20,23 @@ export class SettingsRepositoryAdapter implements ISettingsRepository {
     }
 
     async upsert(key: string, value: any, dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         const existing = await this.findByKey(key, client);
 
         if (existing) {
             await client.update(settings)
-                .set({ value: value as any })
+                .set({ value })
                 .where(eq(settings.key, key));
         } else {
             await client.insert(settings).values({
                 key,
-                value: value as any
+                value
             });
         }
     }
 
     async factoryReset(mode: "data" | "full", dbOrTx?: DBContext): Promise<void> {
-        const client = (dbOrTx as any) || db;
+        const client = dbOrTx || db;
         if (mode === "data" || mode === "full") {
             // Delete in reverse order of dependencies
             await client.delete(salePayments);

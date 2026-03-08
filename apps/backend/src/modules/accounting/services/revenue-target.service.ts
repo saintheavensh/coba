@@ -1,8 +1,10 @@
+import { injectable, inject } from "inversify";
+import { TYPES } from "../types";
 import { db } from "../../../db";
-import { revenueTargets, operationalCosts, sales, services } from "../../../db/schema";
+import { operationalCosts, sales, services } from "../../../db/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { AssetsService } from "./assets.service";
-import { accountingService } from "../accounting-container";
+import { AccountingService } from "../accounting-container";
 
 export interface SetTargetInput {
     month: string; // "2026-01"
@@ -10,17 +12,23 @@ export interface SetTargetInput {
     profitMarginPercent?: number;
 }
 
+@injectable()
 export class RevenueTargetService {
+    constructor(
+        @inject(TYPES.AccountingService) private readonly accountingService: AccountingService,
+        @inject(TYPES.AssetsService) private readonly assetsService: AssetsService
+    ) { }
+
     /**
      * Get or create target for a month
      */
-    static async getOrCreate(month: string, userId?: string) {
-        let target = await accountingService.getRevenueTarget(month);
+    public async getOrCreate(month: string, userId?: string) {
+        let target = await this.accountingService.getRevenueTarget(month);
 
         if (!target) {
             // Auto-create with default values
             await this.calculateAndSet({ month, workingDays: 26 }, userId);
-            target = await accountingService.getRevenueTarget(month);
+            target = await this.accountingService.getRevenueTarget(month);
         }
 
         return target;
@@ -29,21 +37,21 @@ export class RevenueTargetService {
     /**
      * Get revenue target for a specific month (YYYY-MM)
      */
-    static async getByMonth(month: string) {
-        return await accountingService.getRevenueTarget(month);
+    public async getByMonth(month: string) {
+        return await this.accountingService.getRevenueTarget(month);
     }
 
     /**
      * Create or update revenue target
      */
-    static async upsert(month: string, data: any, userId?: string) {
-        return await accountingService.upsertRevenueTarget(month, data);
+    public async upsert(month: string, data: any, _userId?: string) {
+        return await this.accountingService.upsertRevenueTarget(month, data);
     }
 
     /**
      * Calculate monthly costs and set target
      */
-    static async calculateAndSet(input: SetTargetInput, userId?: string): Promise<void> {
+    public async calculateAndSet(input: SetTargetInput, userId?: string): Promise<void> {
         const { month, workingDays, profitMarginPercent = 20 } = input;
 
         // Get operational costs for this month
@@ -62,7 +70,7 @@ export class RevenueTargetService {
         const monthlyOperational = Number(opCosts[0]?.total) || 0;
 
         // Get total depreciation from active assets
-        const monthlyDepreciation = await AssetsService.getTotalMonthlyDepreciation();
+        const monthlyDepreciation = await this.assetsService.getTotalMonthlyDepreciation();
 
         // Calculate totals
         const monthlyTotal = monthlyOperational + monthlyDepreciation;
@@ -85,7 +93,7 @@ export class RevenueTargetService {
     /**
      * Get today's progress vs target
      */
-    static async getTodayProgress() {
+    public async getTodayProgress() {
         const today = new Date();
         const month = today.toISOString().slice(0, 7); // "2026-01"
 
@@ -142,7 +150,7 @@ export class RevenueTargetService {
     /**
      * Get monthly progress
      */
-    static async getMonthProgress(month: string) {
+    public async getMonthProgress(month: string) {
         const target = await this.getOrCreate(month);
         if (!target) {
             return { hasTarget: false };
@@ -200,8 +208,9 @@ export class RevenueTargetService {
     /**
      * Update target manually
      */
-    static async update(month: string, input: Partial<SetTargetInput>, userId?: string): Promise<void> {
+    public async update(month: string, input: Partial<SetTargetInput>, userId?: string): Promise<void> {
         const existing = await this.getOrCreate(month, userId);
+        if (!existing) throw new Error("Target not found");
 
         await this.calculateAndSet({
             month,

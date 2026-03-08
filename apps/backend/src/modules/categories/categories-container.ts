@@ -1,4 +1,7 @@
-import { CategoryRepositoryAdapter } from "./infrastructure";
+import { inject, injectable } from "inversify";
+import { TYPES } from "./types";
+import { ICategoryRepository } from "./domain";
+import { CategoryVariantPropagationService } from "./domain/services/CategoryVariantPropagationService";
 import {
     GetCategoriesUseCase,
     CreateCategoryUseCase,
@@ -8,50 +11,47 @@ import {
     RemoveVariantTemplateUseCase
 } from "./application";
 
-// Adapters
-const categoryRepository = new CategoryRepositoryAdapter();
-
-// Use Cases
-const getCategoriesUseCase = new GetCategoriesUseCase(categoryRepository);
-const createCategoryUseCase = new CreateCategoryUseCase(categoryRepository);
-const updateCategoryUseCase = new UpdateCategoryUseCase(categoryRepository);
-const deleteCategoryUseCase = new DeleteCategoryUseCase(categoryRepository);
-const addVariantTemplateUseCase = new AddVariantTemplateUseCase(categoryRepository);
-const removeVariantTemplateUseCase = new RemoveVariantTemplateUseCase(categoryRepository);
-
 /**
  * CategoriesFacade — Single entry point for the Categories module.
  * Wires internal use cases and provides a clean interface for external layers.
  */
+@injectable()
 export class CategoriesFacade {
+    constructor(
+        @inject(TYPES.ICategoryRepository) private readonly categoryRepository: ICategoryRepository,
+        @inject(TYPES.GetCategoriesUseCase) private readonly getCategoriesUseCase: GetCategoriesUseCase,
+        @inject(TYPES.CreateCategoryUseCase) private readonly createCategoryUseCase: CreateCategoryUseCase,
+        @inject(TYPES.UpdateCategoryUseCase) private readonly updateCategoryUseCase: UpdateCategoryUseCase,
+        @inject(TYPES.DeleteCategoryUseCase) private readonly deleteCategoryUseCase: DeleteCategoryUseCase,
+        @inject(TYPES.AddVariantTemplateUseCase) private readonly addVariantTemplateUseCase: AddVariantTemplateUseCase,
+        @inject(TYPES.RemoveVariantTemplateUseCase) private readonly removeVariantTemplateUseCase: RemoveVariantTemplateUseCase
+    ) { }
+
     async getAll() {
-        return await getCategoriesUseCase.execute();
+        return await this.getCategoriesUseCase.execute();
     }
 
     async create(data: any) {
-        return await createCategoryUseCase.execute(data);
+        return await this.createCategoryUseCase.execute(data);
     }
 
     async update(id: string, data: any) {
-        return await updateCategoryUseCase.execute(id, data);
+        return await this.updateCategoryUseCase.execute(id, data);
     }
 
     async delete(id: string) {
-        return await deleteCategoryUseCase.execute(id);
+        return await this.deleteCategoryUseCase.execute(id);
     }
 
     async addVariantTemplate(categoryId: string, name: string, supplierId?: string) {
-        return await addVariantTemplateUseCase.execute(categoryId, name, supplierId);
+        return await this.addVariantTemplateUseCase.execute(categoryId, name, supplierId);
     }
 
     async removeVariantTemplate(id: string) {
-        return await removeVariantTemplateUseCase.execute(id);
+        return await this.removeVariantTemplateUseCase.execute(id);
     }
 
     async findById(id: string) {
-        return await categoryRepository.findById(id);
+        return await this.categoryRepository.findById(id);
     }
 }
-
-/** Singleton instance */
-export const categoriesFacade = new CategoriesFacade();

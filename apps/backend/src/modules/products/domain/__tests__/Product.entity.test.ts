@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { Product } from "../entities/Product.entity";
 import { Price } from "../value-objects/Price.vo";
 import { Sku } from "../value-objects/Sku.vo";
-import { ProductStatus, Status } from "../value-objects/ProductStatus.vo";
+import { Status } from "../value-objects/ProductStatus.vo";
 
 describe("Product Entity", () => {
     const createValidProduct = () => {

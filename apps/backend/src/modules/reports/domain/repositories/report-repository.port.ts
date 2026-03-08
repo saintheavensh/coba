@@ -1,16 +1,28 @@
 import { DBContext } from "../../../../shared/types/db-context";
+import {
+    SaleReportDTO,
+    PurchaseReportDTO,
+    InventoryReportDTO,
+    ReportServiceDTO,
+    ReportServiceWithTechnicianDTO,
+    ReportTechnicianDTO,
+    ReportActivityLogDTO,
+    ReportOperationalCostDTO,
+    ReportLowStockDTO,
+    ReportSalePaymentDTO
+} from "../../../../shared/dtos/repositories/reports";
 
 export interface IReportRepository {
-    getSalesData(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
-    getTransactions(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
-    getServices(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
-    getServiceTransactions(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
-    getPurchases(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
-    getTechnicians(dbOrTx?: DBContext): Promise<any[]>;
-    getServicesWithTechnicians(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
-    getActivityLogs(conditions: any[], limit?: number, dbOrTx?: DBContext): Promise<any[]>;
-    getOperationalCosts(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
-    getCategoriesWithStock(dbOrTx?: DBContext): Promise<any[]>;
-    getLowStockItems(threshold: number, dbOrTx?: DBContext): Promise<any[]>;
-    getSalesPayments(conditions: any[], dbOrTx?: DBContext): Promise<any[]>;
+    getSalesData(conditions: any[], dbOrTx?: DBContext): Promise<SaleReportDTO[]>;
+    getTransactions(conditions: any[], dbOrTx?: DBContext): Promise<SaleReportDTO[]>;
+    getServices(conditions: any[], dbOrTx?: DBContext): Promise<ReportServiceDTO[]>;
+    getServiceTransactions(conditions: any[], dbOrTx?: DBContext): Promise<ReportServiceDTO[]>;
+    getPurchases(conditions: any[], dbOrTx?: DBContext): Promise<PurchaseReportDTO[]>;
+    getTechnicians(dbOrTx?: DBContext): Promise<ReportTechnicianDTO[]>;
+    getServicesWithTechnicians(conditions: any[], dbOrTx?: DBContext): Promise<ReportServiceWithTechnicianDTO[]>;
+    getActivityLogs(conditions: any[], limit?: number, dbOrTx?: DBContext): Promise<ReportActivityLogDTO[]>;
+    getOperationalCosts(conditions: any[], dbOrTx?: DBContext): Promise<ReportOperationalCostDTO[]>;
+    getCategoriesWithStock(dbOrTx?: DBContext): Promise<InventoryReportDTO[]>;
+    getLowStockItems(threshold: number, dbOrTx?: DBContext): Promise<ReportLowStockDTO[]>;
+    getSalesPayments(conditions: any[], dbOrTx?: DBContext): Promise<ReportSalePaymentDTO[]>;
 }

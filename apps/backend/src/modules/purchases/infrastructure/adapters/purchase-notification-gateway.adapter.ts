@@ -1,13 +1,14 @@
 import { db } from "../../../../db";
+import { DBContext } from "../../../../shared/types/db-context";
 import { notifications } from "../../../../db/schema";
 import { INotificationGateway } from "../../domain/purchase-repository.port";
 
 export class PurchaseNotificationGatewayAdapter implements INotificationGateway {
     async notifyPurchaseOrderCreated(
         payload: { purchaseId: string; userId: string; supplierId: string },
-        dbOrTx?: unknown
+        dbOrTx?: DBContext
     ): Promise<void> {
-        const client: any = dbOrTx || db;
+        const client = dbOrTx || db;
 
         await client.insert(notifications).values({
             userId: "user-warehouse-001",
@@ -21,9 +22,9 @@ export class PurchaseNotificationGatewayAdapter implements INotificationGateway 
 
     async notifyGoodsReceived(
         payload: { purchaseId: string; userId: string; hasDiscrepancy: boolean },
-        dbOrTx?: unknown
+        dbOrTx?: DBContext
     ): Promise<void> {
-        const client: any = dbOrTx || db;
+        const client = dbOrTx || db;
 
         await client.insert(notifications).values({
             userId: payload.userId,

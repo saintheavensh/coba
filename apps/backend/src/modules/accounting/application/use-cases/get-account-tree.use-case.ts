@@ -1,5 +1,5 @@
 import { DBContext } from "../../../../shared/types/db-context";
-import { IAccountRepository, Account } from "../../domain";
+import { IAccountRepository } from "../../domain";
 
 export class GetAccountTreeUseCase {
     constructor(private readonly accountRepository: IAccountRepository) { }

@@ -2,9 +2,8 @@
  * Products, Categories, Brands, and Devices Seed
  */
 import { db } from "../index";
-import { categories, brands, devices, products, productBatches, productDeviceCompatibility, productVariants } from "../schema";
-import { CATEGORY_IDS, PRODUCT_IDS, BATCH_IDS, SUPPLIER_IDS, USER_IDS } from "./helpers";
-import { eq } from "drizzle-orm";
+import { categories, brands, devices, products, productBatches, productDeviceCompatibility } from "../schema";
+import { CATEGORY_IDS, PRODUCT_IDS, BATCH_IDS, SUPPLIER_IDS } from "./helpers";
 
 export async function seedProducts() {
     console.log("Creating categories...");
@@ -48,7 +47,8 @@ export async function seedProducts() {
 
     // Simple progress bar implementation
     for (let i = 0; i < totalDevices; i++) {
-        await db.insert(devices).values(devicesList[i]);
+        const device = devicesList[i]!;
+        await db.insert(devices).values(device);
 
         // Calculate progress
         const percent = Math.round(((i + 1) / totalDevices) * 100);
@@ -68,9 +68,7 @@ export async function seedProducts() {
     // We are hardcoding the IDs we need for compatibility later
     const devIpXId = "DEV-IPX";
     const devIp11Id = "DEV-IP11";
-    const devIp13Id = "DEV-IP13";
     const devIp13ProId = "DEV-IP13PRO";
-    const devS21Id = "DEV-S21";
 
     console.log("Creating products...");
 

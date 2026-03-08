@@ -1,7 +1,7 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SalesController } from "../presentation/sales.controller";
 import { SalesService } from "../sales-container";
-import { createMockContext, createMockUser } from "../../../../test/factories";
+import { createMockContext } from "../../../../test/factories";
 
 describe("SalesController", () => {
     let service: SalesService;
@@ -17,9 +17,7 @@ describe("SalesController", () => {
         vi.restoreAllMocks();
     });
 
-    const mockAuth = (ctx: any) => {
-        vi.spyOn(ctx, "get").mockReturnValue(createMockUser());
-    };
+
 
     describe("General", () => {
         it("getAll should return 200", async () => {

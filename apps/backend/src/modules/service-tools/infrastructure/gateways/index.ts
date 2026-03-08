@@ -1,4 +1,4 @@
-import { DBContext } from "../../../../shared/types/db-context";
+
 import { messagingFacade } from "../../../../shared/infrastructure/messaging";
 import { usersService } from "../../../users/users-container";
 import { INotificationGateway, IUserGateway } from "../../domain";
@@ -24,7 +24,7 @@ export class NotificationGatewayAdapter implements INotificationGateway {
 }
 
 export class UserGatewayAdapter implements IUserGateway {
-    async getOwners(dbOrTx?: DBContext): Promise<Array<{ id: string; name: string }>> {
+    async getOwners(_dbOrTx?: any): Promise<Array<{ id: string; name: string }>> {
         const owners = await usersService.findAll("owner");
         return owners.map((o: any) => ({ id: o.id, name: o.name }));
     }

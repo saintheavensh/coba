@@ -1,3 +1,4 @@
+import { DBContext } from "../../../../shared/types/db-context";
 import type { IStockMutationGateway } from "../../domain/stock-mutation-gateway.port";
 import type { DeductStockFIFOInput, DeductStockFIFOOutput } from "../../domain/stock.types";
 import { StockCalculator } from "../../domain/services/stock-calculator";
@@ -5,7 +6,7 @@ import { StockCalculator } from "../../domain/services/stock-calculator";
 export class DeductStockFIFOUseCase {
     constructor(private readonly stockGateway: IStockMutationGateway) { }
 
-    async execute(input: DeductStockFIFOInput, dbOrTx: unknown): Promise<DeductStockFIFOOutput> {
+    async execute(input: DeductStockFIFOInput, dbOrTx?: DBContext): Promise<DeductStockFIFOOutput> {
         const allocations: DeductStockFIFOOutput["allocations"] = [];
         let totalCogs = 0;
 

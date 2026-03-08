@@ -2,7 +2,6 @@ import { Context } from "hono";
 import { serviceApplicationService, ServiceApplicationService } from "../services-container";
 import { PrintService } from "../../../services/print.service";
 import { apiSuccess, apiError } from "../../../shared/application/middlewares/ResponseHelpers";
-import { Logger } from "../../../shared/utils/logger/Logger";
 
 export class ServiceController {
     constructor(
@@ -14,7 +13,10 @@ export class ServiceController {
         try {
             const status = c.req.query("status");
             const technicianId = c.req.query("technicianId");
-            const list = await this.service.getAll({ status, technicianId });
+            const list = await this.service.getAll({
+                status: status ?? undefined,
+                technicianId: technicianId ?? undefined
+            });
             return apiSuccess(c, list, "Services retrieved successfully");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve services");

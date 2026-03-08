@@ -355,11 +355,11 @@ export interface ActivityLog {
 
 export interface ApiResponse<T = any> {
     success: boolean;
-    message?: string;
-    data?: T;
-    meta?: any;
-    errors?: any[];
-    error_code?: string;
+    message?: string | undefined;
+    data?: T | undefined;
+    meta?: any | undefined;
+    errors?: any[] | undefined;
+    error_code?: string | undefined;
 }
 
 export interface PaginatedResponse<T> extends ApiResponse<T[]> {

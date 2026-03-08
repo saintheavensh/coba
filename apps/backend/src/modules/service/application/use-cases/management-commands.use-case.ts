@@ -15,14 +15,15 @@ export class AssignTechnicianUseCase {
         private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
     ) { }
 
-    async execute(id: string, technicianId: string, userId: string): Promise<any> {
-        const srv = await this.repository.findById(id);
+    async execute(id: string, technicianId: string, userId: string, dbOrTx?: DBContext): Promise<any> {
+        const client = dbOrTx || this.db;
+        const srv = await this.repository.findById(id, dbOrTx);
         if (!srv) throw new HTTPException(404, { message: "Service not found" });
 
         const technician = await this.userGateway.getTechnician(technicianId);
         if (!technician) throw new HTTPException(404, { message: "Technician not found" });
 
-        await this.db.transaction(async (tx) => {
+        await client.transaction(async (tx) => {
             await this.repository.update(id, { technicianId }, tx);
             await this.repository.logActivity({
                 userId,
@@ -42,11 +43,12 @@ export class AssignTechnicianUseCase {
 export class UpdateServiceDetailsUseCase {
     constructor(private readonly repository: IServiceRepository, private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }) { }
 
-    async execute(id: string, data: any, userId: string): Promise<void> {
-        const srv = await this.repository.findById(id);
+    async execute(id: string, data: any, userId: string, dbOrTx?: DBContext): Promise<void> {
+        const client = dbOrTx || this.db;
+        const srv = await this.repository.findById(id, dbOrTx);
         if (!srv) throw new HTTPException(404, { message: "Service not found" });
 
-        await this.db.transaction(async (tx) => {
+        await client.transaction(async (tx) => {
             await this.repository.update(id, {
                 diagnosis: data.diagnosis ? JSON.stringify(data.diagnosis) : undefined,
                 costEstimate: data.costEstimate,

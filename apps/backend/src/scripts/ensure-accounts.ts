@@ -1,7 +1,7 @@
 
 import { db } from "../db";
 import { accounts, accountTypes } from "../db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 async function main() {
     console.log("Checking for missing default accounts...");

@@ -9,7 +9,7 @@ async function verify() {
 
     try {
         const client = postgres(process.env.DATABASE_URL!);
-        const db = drizzle(client, { schema });
+        drizzle(client, { schema });
 
         // Test 1: Koneksi
         const result = await client`SELECT current_database() as db, current_user as user`;

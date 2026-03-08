@@ -1,6 +1,6 @@
 import { UploadFileUseCase } from "../use-cases/UploadFileUseCase";
 import { FileEntity } from "../../domain";
-import { injectable, inject } from "inversify";
+import { injectable } from "inversify";
 
 @injectable()
 export class StorageFacade {

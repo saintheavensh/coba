@@ -1,3 +1,4 @@
+import { DBContext } from "../../../../shared/types/db-context";
 import { ActivityLogService } from "../../../../shared/utils/logging";
 import { IActivityLogger } from "../../domain/purchase-repository.port";
 
@@ -8,7 +9,7 @@ export class PurchaseActivityLoggerAdapter implements IActivityLogger {
         entityType: string;
         entityId: string;
         description: string;
-    }, dbOrTx?: unknown): Promise<void> {
+    }, dbOrTx?: DBContext): Promise<void> {
         await ActivityLogService.log(entry as any, dbOrTx);
     }
 }

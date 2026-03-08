@@ -50,7 +50,12 @@ export class DevicesController {
             const brand = c.req.query("brand");
             const limit = parseInt(c.req.query("limit") || "20");
             const offset = parseInt(c.req.query("offset") || "0");
-            const data = await this.facade.getAll({ search, limit, offset, brand });
+            const data = await this.facade.getAll({
+                search: search ?? undefined,
+                limit: limit ?? undefined,
+                offset: offset ?? undefined,
+                brand: brand ?? undefined
+            });
             return apiSuccess(c, data, "Devices retrieved");
         } catch (e: any) {
             return apiError(c, e, "Failed to retrieve devices");

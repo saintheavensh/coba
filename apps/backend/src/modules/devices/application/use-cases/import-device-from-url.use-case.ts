@@ -1,4 +1,4 @@
-import { IDeviceScraper, IDeviceRepository } from "../../domain";
+import { IDeviceScraper } from "../../domain";
 import { CreateDeviceUseCase } from "./create-device.use-case";
 
 export class ImportDeviceFromUrlUseCase {

@@ -1,6 +1,6 @@
 import { DBContext } from "../../../../shared/types/db-context";
 import { IOperationalCostRepository, IAccountingGateway, CreateOperationalCostInput } from "../../domain";
-import { HTTPException } from "hono/http-exception";
+
 
 export class CreateOperationalCostUseCase {
     constructor(

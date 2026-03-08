@@ -4,7 +4,7 @@
 import { db } from "../index";
 import { purchases, purchaseItems, purchaseReturns, purchaseReturnItems, defectiveItems } from "../schema";
 import { SUPPLIER_IDS, PRODUCT_IDS, USER_IDS, BATCH_IDS, getPastDate, getMonthDate } from "./helpers";
-import { eq } from "drizzle-orm";
+
 
 export async function seedPurchases() {
     console.log("Creating purchase transactions...");

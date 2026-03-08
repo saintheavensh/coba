@@ -1,3 +1,5 @@
+import { DBContext } from "../../../shared/types/db-context";
+
 /**
  * Port for activity logging. Keeps use cases independent of logging infrastructure.
  */
@@ -11,5 +13,5 @@ export interface ActivityLogEntry {
 }
 
 export interface IActivityLogger {
-    log(entry: ActivityLogEntry, dbOrTx?: unknown): Promise<void>;
+    log(entry: ActivityLogEntry, dbOrTx?: DBContext): Promise<void>;
 }

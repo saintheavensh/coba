@@ -14,9 +14,10 @@ export class CreateServiceUseCase {
         private readonly db: { transaction: (fn: (tx: DBContext) => Promise<any>) => Promise<any> }
     ) { }
 
-    async execute(data: any, userId: string): Promise<{ message: string; no: string; id: string }> {
+    async execute(data: any, userId: string, dbOrTx?: DBContext): Promise<{ message: string; no: string; id: string }> {
+        const client = dbOrTx || this.db;
         // 1. Check Register
-        const isOpen = await this.accountingGateway.isRegisterOpen();
+        const isOpen = await this.accountingGateway.isRegisterOpen(dbOrTx);
         if (!isOpen) {
             throw new HTTPException(400, { message: "Register Closed. Cannot create new service ticket within an active session." });
         }
@@ -25,18 +26,21 @@ export class CreateServiceUseCase {
         const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
         const prefix = `SRV-${today}`;
 
-        const lastService = await this.repository.findLastServiceNo(prefix);
+        const lastService = await this.repository.findLastServiceNo(prefix, dbOrTx);
 
         let counter = 1;
         if (lastService) {
             const parts = lastService.no.split("-");
-            const lastCount = parseInt(parts[2]);
-            if (!isNaN(lastCount)) counter = lastCount + 1;
+            const countPart = parts[2];
+            if (countPart) {
+                const lastCount = parseInt(countPart);
+                if (!isNaN(lastCount)) counter = lastCount + 1;
+            }
         }
         const no = `${prefix}-${String(counter).padStart(3, "0")}`;
 
         // 3. Create Ticket in Transaction
-        const result = await this.db.transaction(async (tx) => {
+        const result = await client.transaction(async (tx) => {
             const res = await this.repository.create({
                 no,
                 customer: data.customer,

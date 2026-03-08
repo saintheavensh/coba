@@ -1,7 +1,7 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ServiceController } from "../presentation/service.controller";
 import { ServiceApplicationService } from "../services-container";
-import { createMockContext, createMockUser } from "../../../../test/factories";
+import { createMockContext } from "../../../../test/factories";
 
 describe("ServiceController", () => {
     let service: ServiceApplicationService;

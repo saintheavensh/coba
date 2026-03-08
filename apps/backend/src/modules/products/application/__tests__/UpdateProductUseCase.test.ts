@@ -21,23 +21,15 @@ describe("UpdateProductUseCase", () => {
         }, "prod-1").getValue();
     };
 
-    let mockLoggerFactory: any;
+
 
     beforeEach(() => {
-        mockLoggerFactory = {
-            createLogger: vi.fn().mockReturnValue({
-                info: vi.fn(),
-                error: vi.fn(),
-                debug: vi.fn(),
-                warn: vi.fn(),
-                child: vi.fn().mockReturnThis()
-            })
-        };
+
         mockRepo = {
             findById: vi.fn(),
             save: vi.fn(),
         } as any;
-        useCase = new UpdateProductUseCase(mockRepo, mockLoggerFactory);
+        useCase = new UpdateProductUseCase(mockRepo);
     });
 
     it("should update name and price successfully", async () => {

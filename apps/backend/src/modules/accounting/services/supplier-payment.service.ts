@@ -1,10 +1,7 @@
-import { accountingService } from "../accounting-container";
+import { injectable, inject } from "inversify";
+import { TYPES } from "../types";
+import { AccountingService } from "../accounting-container";
 import { IPurchasePaymentRepository } from "../domain";
-
-// This is a temporary refactor to fix the build. 
-// Ideally these methods should move to Use Cases.
-const paymentRepository = (accountingService as any).paymentRepository as IPurchasePaymentRepository;
-const auditService = (accountingService as any).auditService; // Assume it's wired in container if used
 
 export interface CreatePaymentInput {
     purchaseId: string;
@@ -14,13 +11,19 @@ export interface CreatePaymentInput {
     reference?: string;
 }
 
+@injectable()
 export class SupplierPaymentService {
+    constructor(
+        @inject(TYPES.AccountingService) private readonly accountingService: AccountingService,
+        @inject(TYPES.IPurchasePaymentRepository) private readonly paymentRepository: IPurchasePaymentRepository
+    ) { }
+
     /**
      * Create a payment to a supplier
      */
-    static async create(input: CreatePaymentInput, userId?: string): Promise<string> {
+    public async create(input: CreatePaymentInput, userId?: string): Promise<string> {
         // Get purchase details
-        const purchase = await paymentRepository.findPurchaseById(input.purchaseId);
+        const purchase = await this.paymentRepository.findPurchaseById(input.purchaseId);
 
         if (!purchase) {
             throw new Error(`Purchase ${input.purchaseId} not found`);
@@ -29,7 +32,7 @@ export class SupplierPaymentService {
         const accountId = input.accountId || (input.method === "transfer" ? "1-1002" : "1-1001");
 
         // Create journal entry via facade
-        await accountingService.createJournal({
+        await this.accountingService.createJournal({
             description: `Pembayaran ${input.purchaseId} ke supplier`,
             referenceType: "supplier_payment",
             referenceId: input.purchaseId,
@@ -46,7 +49,7 @@ export class SupplierPaymentService {
         const journalId = `JRN-PAY-${Date.now()}`;
 
         // Insert payment record
-        const { id } = await paymentRepository.create({
+        const { id } = await this.paymentRepository.create({
             purchaseId: input.purchaseId,
             supplierId: purchase.supplierId,
             amount: input.amount,
@@ -63,11 +66,11 @@ export class SupplierPaymentService {
         return id;
     }
 
-    static async getTotalPaid(purchaseId: string): Promise<number> {
-        return await paymentRepository.getTotalPaid(purchaseId);
+    public async getTotalPaid(purchaseId: string): Promise<number> {
+        return await this.paymentRepository.getTotalPaid(purchaseId);
     }
 
-    static async getOutstandingPayables(): Promise<any[]> {
+    public async getOutstandingPayables(): Promise<any[]> {
         // This method is complex and depends on many things. 
         // For a quick fix, we'll return empty or throw if not critical.
         // Actually, let's just make it return empty for now to fix build.
@@ -77,7 +80,7 @@ export class SupplierPaymentService {
     /**
      * Get supplier payables summary
      */
-    static async getPayablesSummary() {
+    public async getPayablesSummary() {
         const payables = await this.getOutstandingPayables();
 
         // Group by supplier
@@ -99,12 +102,12 @@ export class SupplierPaymentService {
         };
     }
 
-    static async getPaymentHistory(purchaseId: string) {
-        return await paymentRepository.findHistoryByPurchaseId(purchaseId);
+    public async getPaymentHistory(purchaseId: string) {
+        return await this.paymentRepository.findHistoryByPurchaseId(purchaseId);
     }
 
-    static async isFullyPaid(purchaseId: string): Promise<boolean> {
-        const purchase = await paymentRepository.findPurchaseById(purchaseId);
+    public async isFullyPaid(purchaseId: string): Promise<boolean> {
+        const purchase = await this.paymentRepository.findPurchaseById(purchaseId);
         if (!purchase) return false;
         const totalPaid = await this.getTotalPaid(purchaseId);
         return totalPaid >= purchase.totalAmount;
